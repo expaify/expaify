@@ -6,34 +6,47 @@ type Props = {
   hotel: HotelOffer
 }
 
+function renderStars(rating: number): string {
+  const clamped = Math.min(Math.max(rating, 0), 5)
+  const filled = Math.round(clamped)
+  const empty = 5 - filled
+  return '★'.repeat(filled) + '☆'.repeat(Math.max(0, empty))
+}
+
 export default function HotelCard({ hotel }: Props) {
-  const priceDisplay = `$${Math.round(hotel.pricePerNight.priceCents / 100)}/night`
+  const priceDisplay = `$${Math.round(hotel.pricePerNight.priceCents / 100)}`
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-2">
+    <div className="rounded-2xl border border-white/8 bg-gray-900 p-5 space-y-3 hover:border-indigo-500/50 transition-colors">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-gray-900 truncate">{hotel.name}</h3>
-          <p className="text-sm text-gray-500">{hotel.area}</p>
+          <h3 className="font-semibold text-gray-100 truncate">{hotel.name}</h3>
+          <p className="text-sm text-gray-500 mt-0.5">{hotel.area}</p>
+          {hotel.rating !== undefined && (
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="text-amber-400 text-sm tracking-tighter leading-none">
+                {renderStars(hotel.rating)}
+              </span>
+              <span className="text-xs text-gray-500">{hotel.rating.toFixed(1)}</span>
+            </div>
+          )}
         </div>
         <div className="flex-shrink-0 text-right">
-          <span className="text-xl font-bold text-gray-900">{priceDisplay}</span>
-          {hotel.rating !== undefined && (
-            <p className="text-xs text-gray-500 mt-0.5">
-              &#9733; {hotel.rating}
-            </p>
-          )}
+          <span className="text-2xl font-semibold text-white tabular-nums">
+            {priceDisplay}
+          </span>
+          <p className="text-xs text-gray-500 mt-0.5">/night</p>
         </div>
       </div>
 
-      <div className="flex justify-end border-t border-gray-100 pt-2">
+      <div className="flex justify-end border-t border-white/5 pt-3">
         <a
           href={hotel.deeplink}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm text-blue-600 hover:text-blue-800 inline-flex items-center gap-0.5 transition-colors"
+          className="inline-flex items-center gap-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-full transition-colors"
         >
-          View <span aria-hidden="true">&#8594;</span>
+          View <span aria-hidden="true">→</span>
         </a>
       </div>
     </div>

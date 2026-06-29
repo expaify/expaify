@@ -6,22 +6,32 @@ type Props = {
 }
 
 export default function DealBadge({ verdict, confidence }: Props) {
-  const colorClass =
-    verdict === 'Great'
-      ? 'bg-green-100 text-green-800'
-      : verdict === 'Good'
-      ? 'bg-blue-100 text-blue-800'
-      : 'bg-gray-100 text-gray-700'
+  const isLowConfidence = confidence === 'low'
+
+  let classes: string
+  let prefix: string
+
+  if (verdict === 'Great') {
+    classes =
+      'bg-green-500/15 text-green-400 border border-green-500/25'
+    prefix = '🔥 '
+  } else if (verdict === 'Good') {
+    classes =
+      'bg-blue-500/15 text-blue-400 border border-blue-500/25'
+    prefix = '✓ '
+  } else {
+    classes = 'bg-white/5 text-gray-400 border border-white/10'
+    prefix = ''
+  }
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${colorClass} ${
-        confidence === 'low' ? 'opacity-70' : ''
-      }`}
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${classes}`}
     >
+      {prefix}
       {verdict}
-      {confidence === 'low' && (
-        <span className="font-normal">(limited data)</span>
+      {isLowConfidence && (
+        <span className="font-normal italic">(est.)</span>
       )}
     </span>
   )

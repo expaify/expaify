@@ -108,92 +108,109 @@ export default function Home() {
     setError(null)
   }
 
-  // ─── Search form ────────────────────────────────────────────────────────────
+  // ─── Search form (hero) ──────────────────────────────────────────────────────
   if (view === 'form') {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 py-16">
+      <div className="min-h-screen bg-[#0a0f1e] flex flex-col items-center justify-center px-4 py-16">
         <div className="w-full max-w-md">
-          <h1 className="text-4xl font-bold text-gray-900 mb-1">expaify</h1>
-          <p className="text-gray-500 mb-8 text-base">
-            Find flight deals that are actually good.
-          </p>
+          {/* Hero text */}
+          <div className="mb-10 text-center">
+            <p className="text-xs font-medium text-indigo-400 uppercase tracking-widest mb-5">
+              Deal intelligence
+            </p>
+            <h1 className="text-7xl font-bold text-white tracking-tight leading-none mb-4">
+              expaify
+            </h1>
+            <p className="text-gray-300 text-lg font-medium mb-2">
+              Find deals worth booking.
+            </p>
+            <p className="text-gray-500 text-sm">
+              Flight prices scored against 90 days of history.
+            </p>
+          </div>
 
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div>
-              <label
-                htmlFor="origin"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Origin <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="origin"
-                type="text"
-                value={origin}
-                onChange={(e) => setOrigin(e.target.value)}
-                placeholder="NYC, JFK, 10001"
-                required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="dest"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Destination
-              </label>
-              <input
-                id="dest"
-                type="text"
-                value={dest}
-                onChange={(e) => setDest(e.target.value)}
-                placeholder="LAX, London, leave blank to browse deals"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+          {/* Search card */}
+          <div className="bg-gray-900 border border-white/8 rounded-2xl p-6 shadow-2xl shadow-black/50">
+            <form onSubmit={handleSearch} className="space-y-4">
               <div>
                 <label
-                  htmlFor="depart"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  htmlFor="origin"
+                  className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5"
                 >
-                  Depart
+                  Origin{' '}
+                  <span className="text-red-400 normal-case tracking-normal">
+                    *
+                  </span>
                 </label>
                 <input
-                  id="depart"
-                  type="date"
-                  value={depart}
-                  onChange={(e) => setDepart(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                  id="origin"
+                  type="text"
+                  value={origin}
+                  onChange={(e) => setOrigin(e.target.value)}
+                  placeholder="NYC, JFK, 10001"
+                  required
+                  className="w-full rounded-xl bg-[#0a0f1e] border border-white/10 px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
                 />
               </div>
+
               <div>
                 <label
-                  htmlFor="return"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  htmlFor="dest"
+                  className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5"
                 >
-                  Return
+                  Destination
                 </label>
                 <input
-                  id="return"
-                  type="date"
-                  value={returnDate}
-                  onChange={(e) => setReturnDate(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                  id="dest"
+                  type="text"
+                  value={dest}
+                  onChange={(e) => setDest(e.target.value)}
+                  placeholder="LAX, London, or leave blank to browse"
+                  className="w-full rounded-xl bg-[#0a0f1e] border border-white/10 px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
                 />
               </div>
-            </div>
 
-            <button
-              type="submit"
-              className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 transition-colors"
-            >
-              Search
-            </button>
-          </form>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="depart"
+                    className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5"
+                  >
+                    Depart
+                  </label>
+                  <input
+                    id="depart"
+                    type="date"
+                    value={depart}
+                    onChange={(e) => setDepart(e.target.value)}
+                    className="w-full rounded-xl bg-[#0a0f1e] border border-white/10 px-4 py-3 text-sm text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="return"
+                    className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5"
+                  >
+                    Return
+                  </label>
+                  <input
+                    id="return"
+                    type="date"
+                    value={returnDate}
+                    onChange={(e) => setReturnDate(e.target.value)}
+                    className="w-full rounded-xl bg-[#0a0f1e] border border-white/10 px-4 py-3 text-sm text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:from-indigo-400 hover:to-indigo-500 hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all"
+              >
+                Search flights
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     )
@@ -201,26 +218,30 @@ export default function Home() {
 
   // ─── Results view ────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto px-4 py-6">
-        {/* Top bar */}
-        <div className="flex items-center gap-4 mb-6">
+    <div className="min-h-screen bg-[#0a0f1e]">
+      {/* Navbar */}
+      <nav className="sticky top-0 z-10 border-b border-white/8 bg-[#0a0f1e]/80 backdrop-blur-sm">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+          <span className="font-bold text-white text-lg tracking-tight">
+            expaify
+          </span>
           <button
             onClick={handleBack}
-            className="text-sm text-gray-500 hover:text-gray-900 inline-flex items-center gap-1 transition-colors"
+            className="text-sm text-gray-400 border border-white/10 rounded-lg px-3 py-1.5 hover:border-white/20 hover:text-gray-200 transition-colors"
           >
-            <span aria-hidden="true">&#8592;</span> Back
+            ← New search
           </button>
-          <span className="font-bold text-gray-900">expaify</span>
         </div>
+      </nav>
 
+      <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Error banner */}
         {error && (
-          <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 mb-6 flex items-center justify-between gap-4">
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 mb-6 flex items-center justify-between gap-4">
+            <p className="text-sm text-red-400">{error}</p>
             <button
               onClick={handleBack}
-              className="text-sm font-medium text-red-700 hover:text-red-900 underline flex-shrink-0"
+              className="text-sm font-medium text-red-400 hover:text-red-300 underline flex-shrink-0"
             >
               Retry
             </button>
@@ -229,16 +250,16 @@ export default function Home() {
 
         {/* Notice banner */}
         {notice && !error && (
-          <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 mb-6">
-            <p className="text-sm text-blue-700">{notice}</p>
+          <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 mb-6">
+            <p className="text-sm text-indigo-300">{notice}</p>
           </div>
         )}
 
         {!error && (
-          <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Flights section */}
-            <section className="mb-8">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            <section>
+              <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">
                 Flights
               </h2>
 
@@ -249,11 +270,11 @@ export default function Home() {
                   ))}
                 </div>
               ) : flights.length === 0 ? (
-                <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center">
-                  <p className="text-gray-600 text-sm font-medium">
+                <div className="rounded-2xl border border-white/8 bg-gray-900 px-4 py-10 text-center">
+                  <p className="text-gray-400 text-sm font-medium">
                     No flights found for this route.
                   </p>
-                  <p className="text-gray-400 text-xs mt-1">
+                  <p className="text-gray-600 text-xs mt-1">
                     Try different dates or a different destination.
                   </p>
                 </div>
@@ -273,16 +294,37 @@ export default function Home() {
 
             {/* Hotels section */}
             <section>
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">
                 Hotels
               </h2>
 
               {isSearching ? (
-                <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center">
-                  <div className="h-3 w-32 bg-gray-200 rounded animate-pulse mx-auto" />
+                <div className="space-y-3">
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="rounded-2xl border border-white/8 bg-gray-900 p-5 space-y-3 animate-pulse"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-2 flex-1">
+                          <div className="h-4 w-40 bg-white/10 rounded" />
+                          <div className="h-3 w-24 bg-white/5 rounded" />
+                          <div className="h-3 w-20 bg-white/5 rounded" />
+                        </div>
+                        <div className="space-y-1.5 flex-shrink-0">
+                          <div className="h-7 w-20 bg-white/10 rounded" />
+                          <div className="h-3 w-12 bg-white/5 rounded" />
+                        </div>
+                      </div>
+                      <div className="h-px w-full bg-white/5" />
+                      <div className="flex justify-end">
+                        <div className="h-6 w-14 bg-white/10 rounded-full" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : hotels.length === 0 ? (
-                <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center">
+                <div className="rounded-2xl border border-white/8 bg-gray-900 px-4 py-10 text-center">
                   <p className="text-gray-500 text-sm">
                     No hotels found — hotels search requires a destination.
                   </p>
@@ -295,7 +337,7 @@ export default function Home() {
                 </div>
               )}
             </section>
-          </>
+          </div>
         )}
       </div>
     </div>
