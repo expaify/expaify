@@ -1,0 +1,27 @@
+name: Nightly Snapshot
+
+on:
+  schedule:
+    - cron: '0 4 * * *'  # 4am UTC daily
+  workflow_dispatch:       # allow manual trigger
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run snapshot job
+        env:
+          TP_TOKEN: ${{ secrets.TP_TOKEN }}
+          TP_AFFILIATE_MARKER: ${{ secrets.TP_AFFILIATE_MARKER }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run snapshot
