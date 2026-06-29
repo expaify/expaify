@@ -54,6 +54,7 @@ jobs:
                 "TP_AFFILIATE_MARKER=${{ secrets.TP_AFFILIATE_MARKER }}" \
                 "REDIS_URL=${{ secrets.REDIS_URL }}" \
                 "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+                "DUFFEL_KEY=${{ secrets.DUFFEL_KEY }}" \
               --output none
           else
             az containerapp registry set \
@@ -72,5 +73,6 @@ jobs:
                 "TP_AFFILIATE_MARKER=${{ secrets.TP_AFFILIATE_MARKER }}" \
                 "REDIS_URL=${{ secrets.REDIS_URL }}" \
                 "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+                "DUFFEL_KEY=${{ secrets.DUFFEL_KEY }}" \
               --output none
           fi
