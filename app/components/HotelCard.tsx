@@ -20,7 +20,7 @@ export default function HotelCard({ hotel }: Props) {
     <div className="rounded-2xl border border-white/8 bg-gray-900 p-5 space-y-3 hover:border-indigo-500/50 transition-colors">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-gray-100 truncate">{hotel.name}</h3>
+          <h3 className="text-base font-semibold text-gray-100 truncate">{hotel.name}</h3>
           <p className="text-sm text-gray-500 mt-0.5">{hotel.area}</p>
           {hotel.rating !== undefined && (
             <div className="flex items-center gap-1.5 mt-2">

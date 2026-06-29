@@ -76,6 +76,20 @@ export default function FlightCard({ fare, score, loading }: Props) {
               <p className="text-xs text-gray-500 leading-relaxed mt-1">
                 {score.explanation}
               </p>
+              <div className="mt-2">
+                <div className="h-1 w-full rounded-full bg-white/5 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      score.verdict === 'Great' ? 'bg-green-500' :
+                      score.verdict === 'Good'  ? 'bg-blue-500'  : 'bg-gray-600'
+                    }`}
+                    style={{ width: `${score.percentile}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-600 mt-0.5">
+                  {score.percentile}th percentile · {score.pctVsMedian > 0 ? '+' : ''}{score.pctVsMedian}% vs median
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -91,6 +105,7 @@ export default function FlightCard({ fare, score, loading }: Props) {
         <span className="font-medium text-gray-300">{fare.carrier}</span>
         <span className="text-gray-500">{formatStops(fare.stops)}</span>
         <span className="text-gray-500">{formatDate(fare.depart)}</span>
+        {fare.return && <span className="text-gray-500">↩ {formatDate(fare.return)}</span>}
       </div>
 
       {/* Book button */}
