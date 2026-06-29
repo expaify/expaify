@@ -47,7 +47,8 @@ export class HotellookProvider implements HotelProvider {
 
       const res = await fetch(url);
       if (!res.ok) {
-        return { ok: false, reason: `Hotellook cache.json HTTP ${res.status}` };
+        // Hotellook cache.json is deprecated — return empty, hotels are Phase 3
+        return { ok: true, data: [] };
       }
 
       const json = (await res.json()) as HotellookHotel[];
