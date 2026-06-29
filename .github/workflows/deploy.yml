@@ -36,41 +36,44 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Create Container App if not exists
+      - name: Deploy to Azure Container Apps
         run: |
-          az containerapp show \
-            --name expaify \
-            --resource-group expaify-rg \
-            --output none 2>/dev/null || \
-          az containerapp create \
-            --name expaify \
-            --resource-group expaify-rg \
-            --environment expaify-env \
-            --image mcr.microsoft.com/azuredocs/containerapps-helloworld:latest \
-            --target-port 3000 \
-            --ingress external \
-            --min-replicas 1 \
-            --output none
+          EXISTS=$(az containerapp show --name expaify --resource-group expaify-rg --query "name" -o tsv 2>/dev/null || echo "")
 
-      - name: Configure registry credentials
-        run: |
-          az containerapp registry set \
-            --name expaify \
-            --resource-group expaify-rg \
-            --server ghcr.io \
-            --username ${{ github.actor }} \
-            --password ${{ secrets.GHCR_TOKEN }} \
-            --output none
-
-      - name: Deploy new image
-        run: |
-          az containerapp update \
-            --name expaify \
-            --resource-group expaify-rg \
-            --image ${{ env.IMAGE }} \
-            --set-env-vars \
-              "TP_TOKEN=${{ secrets.TP_TOKEN }}" \
-              "TP_AFFILIATE_MARKER=${{ secrets.TP_AFFILIATE_MARKER }}" \
-              "REDIS_URL=${{ secrets.REDIS_URL }}" \
-              "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
-            --output none
+          if [ -z "$EXISTS" ]; then
+            az containerapp create \
+              --name expaify \
+              --resource-group expaify-rg \
+              --environment expaify-env \
+              --image ${{ env.IMAGE }} \
+              --target-port 3000 \
+              --ingress external \
+              --min-replicas 1 \
+              --registry-server ghcr.io \
+              --registry-username ${{ github.actor }} \
+              --registry-password ${{ secrets.GHCR_TOKEN }} \
+              --env-vars \
+                "TP_TOKEN=${{ secrets.TP_TOKEN }}" \
+                "TP_AFFILIATE_MARKER=${{ secrets.TP_AFFILIATE_MARKER }}" \
+                "REDIS_URL=${{ secrets.REDIS_URL }}" \
+                "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+              --output none
+          else
+            az containerapp registry set \
+              --name expaify \
+              --resource-group expaify-rg \
+              --server ghcr.io \
+              --username ${{ github.actor }} \
+              --password ${{ secrets.GHCR_TOKEN }} \
+              --output none
+            az containerapp update \
+              --name expaify \
+              --resource-group expaify-rg \
+              --image ${{ env.IMAGE }} \
+              --set-env-vars \
+                "TP_TOKEN=${{ secrets.TP_TOKEN }}" \
+                "TP_AFFILIATE_MARKER=${{ secrets.TP_AFFILIATE_MARKER }}" \
+                "REDIS_URL=${{ secrets.REDIS_URL }}" \
+                "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+              --output none
+          fi
