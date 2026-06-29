@@ -1,0 +1,311 @@
+[
+  {
+    "description": "Case 1 — Great deal: current fare well below all 20 history prices (JFK→LAX)",
+    "fare": {
+      "id": "fare-001",
+      "fareType": "cash",
+      "origin": "JFK",
+      "destination": "LAX",
+      "depart": "2026-08-01",
+      "stops": 0,
+      "carrier": "AA",
+      "price": { "priceCents": 14000, "currency": "USD" },
+      "deeplink": "https://example.com/f/001",
+      "source": "kayak",
+      "fetchedAt": "2026-06-29T10:00:00Z"
+    },
+    "history": [
+      { "date": "2026-04-01", "priceCents": 25000, "currency": "USD" },
+      { "date": "2026-04-05", "priceCents": 27000, "currency": "USD" },
+      { "date": "2026-04-10", "priceCents": 29000, "currency": "USD" },
+      { "date": "2026-04-15", "priceCents": 31000, "currency": "USD" },
+      { "date": "2026-04-20", "priceCents": 33000, "currency": "USD" },
+      { "date": "2026-04-25", "priceCents": 35000, "currency": "USD" },
+      { "date": "2026-05-01", "priceCents": 37000, "currency": "USD" },
+      { "date": "2026-05-06", "priceCents": 39000, "currency": "USD" },
+      { "date": "2026-05-11", "priceCents": 41000, "currency": "USD" },
+      { "date": "2026-05-16", "priceCents": 43000, "currency": "USD" },
+      { "date": "2026-05-21", "priceCents": 45000, "currency": "USD" },
+      { "date": "2026-05-26", "priceCents": 47000, "currency": "USD" },
+      { "date": "2026-05-31", "priceCents": 49000, "currency": "USD" },
+      { "date": "2026-06-05", "priceCents": 51000, "currency": "USD" },
+      { "date": "2026-06-09", "priceCents": 53000, "currency": "USD" },
+      { "date": "2026-06-13", "priceCents": 55000, "currency": "USD" },
+      { "date": "2026-06-17", "priceCents": 57000, "currency": "USD" },
+      { "date": "2026-06-21", "priceCents": 59000, "currency": "USD" },
+      { "date": "2026-06-25", "priceCents": 61000, "currency": "USD" },
+      { "date": "2026-06-28", "priceCents": 63000, "currency": "USD" }
+    ],
+    "expected": {
+      "verdict": "Great",
+      "confidence": "high",
+      "percentileLte": 15,
+      "percentileGte": 0
+    }
+  },
+  {
+    "description": "Case 2 — Good deal: current fare in 16–40th percentile (NYC→ORD)",
+    "fare": {
+      "id": "fare-002",
+      "fareType": "cash",
+      "origin": "EWR",
+      "destination": "ORD",
+      "depart": "2026-08-10",
+      "stops": 0,
+      "carrier": "UA",
+      "price": { "priceCents": 26000, "currency": "USD" },
+      "deeplink": "https://example.com/f/002",
+      "source": "google_flights",
+      "fetchedAt": "2026-06-29T10:00:00Z"
+    },
+    "history": [
+      { "date": "2026-04-01", "priceCents": 20000, "currency": "USD" },
+      { "date": "2026-04-06", "priceCents": 22000, "currency": "USD" },
+      { "date": "2026-04-11", "priceCents": 24000, "currency": "USD" },
+      { "date": "2026-04-16", "priceCents": 26000, "currency": "USD" },
+      { "date": "2026-04-21", "priceCents": 28000, "currency": "USD" },
+      { "date": "2026-04-26", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-05-01", "priceCents": 32000, "currency": "USD" },
+      { "date": "2026-05-06", "priceCents": 34000, "currency": "USD" },
+      { "date": "2026-05-11", "priceCents": 36000, "currency": "USD" },
+      { "date": "2026-05-16", "priceCents": 38000, "currency": "USD" },
+      { "date": "2026-05-21", "priceCents": 40000, "currency": "USD" },
+      { "date": "2026-05-26", "priceCents": 42000, "currency": "USD" },
+      { "date": "2026-05-31", "priceCents": 44000, "currency": "USD" },
+      { "date": "2026-06-05", "priceCents": 46000, "currency": "USD" },
+      { "date": "2026-06-10", "priceCents": 48000, "currency": "USD" },
+      { "date": "2026-06-15", "priceCents": 50000, "currency": "USD" },
+      { "date": "2026-06-19", "priceCents": 52000, "currency": "USD" },
+      { "date": "2026-06-22", "priceCents": 54000, "currency": "USD" },
+      { "date": "2026-06-25", "priceCents": 56000, "currency": "USD" },
+      { "date": "2026-06-28", "priceCents": 58000, "currency": "USD" }
+    ],
+    "expected": {
+      "verdict": "Good",
+      "confidence": "high",
+      "percentileLte": 40,
+      "percentileGte": 16
+    }
+  },
+  {
+    "description": "Case 3 — Typical deal: current fare right at the median (NYC→ORD)",
+    "fare": {
+      "id": "fare-003",
+      "fareType": "cash",
+      "origin": "EWR",
+      "destination": "ORD",
+      "depart": "2026-08-15",
+      "stops": 0,
+      "carrier": "UA",
+      "price": { "priceCents": 39000, "currency": "USD" },
+      "deeplink": "https://example.com/f/003",
+      "source": "google_flights",
+      "fetchedAt": "2026-06-29T10:00:00Z"
+    },
+    "history": [
+      { "date": "2026-04-01", "priceCents": 20000, "currency": "USD" },
+      { "date": "2026-04-06", "priceCents": 22000, "currency": "USD" },
+      { "date": "2026-04-11", "priceCents": 24000, "currency": "USD" },
+      { "date": "2026-04-16", "priceCents": 26000, "currency": "USD" },
+      { "date": "2026-04-21", "priceCents": 28000, "currency": "USD" },
+      { "date": "2026-04-26", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-05-01", "priceCents": 32000, "currency": "USD" },
+      { "date": "2026-05-06", "priceCents": 34000, "currency": "USD" },
+      { "date": "2026-05-11", "priceCents": 36000, "currency": "USD" },
+      { "date": "2026-05-16", "priceCents": 38000, "currency": "USD" },
+      { "date": "2026-05-21", "priceCents": 40000, "currency": "USD" },
+      { "date": "2026-05-26", "priceCents": 42000, "currency": "USD" },
+      { "date": "2026-05-31", "priceCents": 44000, "currency": "USD" },
+      { "date": "2026-06-05", "priceCents": 46000, "currency": "USD" },
+      { "date": "2026-06-10", "priceCents": 48000, "currency": "USD" },
+      { "date": "2026-06-15", "priceCents": 50000, "currency": "USD" },
+      { "date": "2026-06-19", "priceCents": 52000, "currency": "USD" },
+      { "date": "2026-06-22", "priceCents": 54000, "currency": "USD" },
+      { "date": "2026-06-25", "priceCents": 56000, "currency": "USD" },
+      { "date": "2026-06-28", "priceCents": 58000, "currency": "USD" }
+    ],
+    "expected": {
+      "verdict": "Typical",
+      "confidence": "high",
+      "percentileLte": 100,
+      "percentileGte": 41
+    }
+  },
+  {
+    "description": "Case 4 — Thin data: fewer than 10 history points forces low confidence and Typical verdict",
+    "fare": {
+      "id": "fare-004",
+      "fareType": "cash",
+      "origin": "BOS",
+      "destination": "MIA",
+      "depart": "2026-09-01",
+      "stops": 0,
+      "carrier": "B6",
+      "price": { "priceCents": 20000, "currency": "USD" },
+      "deeplink": "https://example.com/f/004",
+      "source": "kayak",
+      "fetchedAt": "2026-06-29T10:00:00Z"
+    },
+    "history": [
+      { "date": "2026-05-01", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-05-15", "priceCents": 35000, "currency": "USD" },
+      { "date": "2026-06-01", "priceCents": 40000, "currency": "USD" },
+      { "date": "2026-06-15", "priceCents": 45000, "currency": "USD" },
+      { "date": "2026-06-28", "priceCents": 50000, "currency": "USD" }
+    ],
+    "expected": {
+      "verdict": "Typical",
+      "confidence": "low",
+      "percentileLte": 100,
+      "percentileGte": 0
+    }
+  },
+  {
+    "description": "Case 5 — Single data point: low confidence, verdict must be Typical regardless of price",
+    "fare": {
+      "id": "fare-005",
+      "fareType": "cash",
+      "origin": "SFO",
+      "destination": "SEA",
+      "depart": "2026-07-20",
+      "stops": 0,
+      "carrier": "AS",
+      "price": { "priceCents": 25000, "currency": "USD" },
+      "deeplink": "https://example.com/f/005",
+      "source": "google_flights",
+      "fetchedAt": "2026-06-29T10:00:00Z"
+    },
+    "history": [
+      { "date": "2026-06-01", "priceCents": 40000, "currency": "USD" }
+    ],
+    "expected": {
+      "verdict": "Typical",
+      "confidence": "low",
+      "percentileLte": 100,
+      "percentileGte": 0
+    }
+  },
+  {
+    "description": "Case 6 — Fare above all history: most expensive ever seen on this route (ATL→DFW)",
+    "fare": {
+      "id": "fare-006",
+      "fareType": "cash",
+      "origin": "ATL",
+      "destination": "DFW",
+      "depart": "2026-07-04",
+      "stops": 0,
+      "carrier": "DL",
+      "price": { "priceCents": 45000, "currency": "USD" },
+      "deeplink": "https://example.com/f/006",
+      "source": "kayak",
+      "fetchedAt": "2026-06-29T10:00:00Z"
+    },
+    "history": [
+      { "date": "2026-04-01", "priceCents": 15000, "currency": "USD" },
+      { "date": "2026-04-04", "priceCents": 16000, "currency": "USD" },
+      { "date": "2026-04-08", "priceCents": 17000, "currency": "USD" },
+      { "date": "2026-04-12", "priceCents": 18000, "currency": "USD" },
+      { "date": "2026-04-16", "priceCents": 19000, "currency": "USD" },
+      { "date": "2026-04-20", "priceCents": 20000, "currency": "USD" },
+      { "date": "2026-04-24", "priceCents": 21000, "currency": "USD" },
+      { "date": "2026-04-28", "priceCents": 22000, "currency": "USD" },
+      { "date": "2026-05-02", "priceCents": 23000, "currency": "USD" },
+      { "date": "2026-05-06", "priceCents": 24000, "currency": "USD" },
+      { "date": "2026-05-10", "priceCents": 25000, "currency": "USD" },
+      { "date": "2026-05-14", "priceCents": 26000, "currency": "USD" },
+      { "date": "2026-05-18", "priceCents": 27000, "currency": "USD" },
+      { "date": "2026-05-22", "priceCents": 28000, "currency": "USD" },
+      { "date": "2026-05-26", "priceCents": 29000, "currency": "USD" },
+      { "date": "2026-05-30", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-06-03", "priceCents": 31000, "currency": "USD" },
+      { "date": "2026-06-10", "priceCents": 32000, "currency": "USD" },
+      { "date": "2026-06-18", "priceCents": 33000, "currency": "USD" },
+      { "date": "2026-06-25", "priceCents": 34000, "currency": "USD" }
+    ],
+    "expected": {
+      "verdict": "Typical",
+      "confidence": "high",
+      "percentileLte": 100,
+      "percentileGte": 100
+    }
+  },
+  {
+    "description": "Case 7 — All history prices equal and fare matches: percentile = 50, pctVsMedian = 0",
+    "fare": {
+      "id": "fare-007",
+      "fareType": "cash",
+      "origin": "LAX",
+      "destination": "LAS",
+      "depart": "2026-08-20",
+      "stops": 0,
+      "carrier": "WN",
+      "price": { "priceCents": 30000, "currency": "USD" },
+      "deeplink": "https://example.com/f/007",
+      "source": "google_flights",
+      "fetchedAt": "2026-06-29T10:00:00Z"
+    },
+    "history": [
+      { "date": "2026-04-01", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-04-08", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-04-15", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-04-22", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-04-29", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-05-06", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-05-13", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-05-20", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-05-27", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-06-03", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-06-10", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-06-17", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-06-21", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-06-25", "priceCents": 30000, "currency": "USD" },
+      { "date": "2026-06-28", "priceCents": 30000, "currency": "USD" }
+    ],
+    "expected": {
+      "verdict": "Typical",
+      "confidence": "high",
+      "percentileLte": 50,
+      "percentileGte": 50
+    }
+  },
+  {
+    "description": "Case 8 — High-confidence Great deal on JFK→LAX: realistic prices $200–$620, fare at $155",
+    "fare": {
+      "id": "fare-008",
+      "fareType": "cash",
+      "origin": "JFK",
+      "destination": "LAX",
+      "depart": "2026-09-15",
+      "return": "2026-09-22",
+      "stops": 0,
+      "carrier": "B6",
+      "price": { "priceCents": 15500, "currency": "USD" },
+      "deeplink": "https://example.com/f/008",
+      "source": "kayak",
+      "fetchedAt": "2026-06-29T10:00:00Z"
+    },
+    "history": [
+      { "date": "2026-04-01", "priceCents": 20000, "currency": "USD" },
+      { "date": "2026-04-07", "priceCents": 23000, "currency": "USD" },
+      { "date": "2026-04-13", "priceCents": 26000, "currency": "USD" },
+      { "date": "2026-04-19", "priceCents": 29000, "currency": "USD" },
+      { "date": "2026-04-25", "priceCents": 32000, "currency": "USD" },
+      { "date": "2026-05-01", "priceCents": 35000, "currency": "USD" },
+      { "date": "2026-05-07", "priceCents": 38000, "currency": "USD" },
+      { "date": "2026-05-13", "priceCents": 41000, "currency": "USD" },
+      { "date": "2026-05-19", "priceCents": 44000, "currency": "USD" },
+      { "date": "2026-05-25", "priceCents": 47000, "currency": "USD" },
+      { "date": "2026-05-31", "priceCents": 50000, "currency": "USD" },
+      { "date": "2026-06-06", "priceCents": 53000, "currency": "USD" },
+      { "date": "2026-06-12", "priceCents": 56000, "currency": "USD" },
+      { "date": "2026-06-20", "priceCents": 59000, "currency": "USD" },
+      { "date": "2026-06-28", "priceCents": 62000, "currency": "USD" }
+    ],
+    "expected": {
+      "verdict": "Great",
+      "confidence": "high",
+      "percentileLte": 15,
+      "percentileGte": 0
+    }
+  }
+]
