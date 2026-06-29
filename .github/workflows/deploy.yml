@@ -31,6 +31,15 @@ jobs:
           push: true
           tags: ${{ env.IMAGE }}
 
+      - name: Make package public
+        run: |
+          curl -s -X PATCH \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${{ github.event.repository.name }}" \
+            -d '{"visibility":"public"}' || true
+
       - name: Log in to Azure
         uses: azure/login@v1
         with:
@@ -49,9 +58,6 @@ jobs:
               --target-port 3000 \
               --ingress external \
               --min-replicas 1 \
-              --registry-server ghcr.io \
-              --registry-username ${{ github.actor }} \
-              --registry-password ${{ secrets.GHCR_TOKEN }} \
               --env-vars \
                 "TP_TOKEN=${{ secrets.TP_TOKEN }}" \
                 "TP_AFFILIATE_MARKER=${{ secrets.TP_AFFILIATE_MARKER }}" \
@@ -59,13 +65,6 @@ jobs:
                 "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
               --output none
           else
-            az containerapp registry set \
-              --name expaify \
-              --resource-group expaify-rg \
-              --server ghcr.io \
-              --username ${{ github.actor }} \
-              --password ${{ secrets.GHCR_TOKEN }} \
-              --output none
             az containerapp update \
               --name expaify \
               --resource-group expaify-rg \
