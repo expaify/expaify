@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { resolveToIATA } from '../../../lib/airports/resolve';
 import { travelpayouts } from '../../../lib/providers/travelpayouts';
+import { duffel } from '../../../lib/providers/duffel';
 import { hotellook } from '../../../lib/providers/hotellook';
 import type { NormalizedFare, HotelOffer } from '../../../lib/types';
 
@@ -47,20 +48,24 @@ export async function GET(request: NextRequest) {
 
   const notices: string[] = [];
 
-  // ── Flights ─────────────────────────────────────────────────────────────────
+  // ── Flights — fan out to Travelpayouts + Duffel in parallel ────────────────
   let flights: NormalizedFare[] = [];
-  const faresResult = await travelpayouts.searchFares(
-    originIATA,
-    destIATA ?? '',
-    { depart, return: ret || undefined },
-  );
-  if (faresResult.ok) {
-    flights = faresResult.data.slice().sort(
-      (a, b) => a.price.priceCents - b.price.priceCents,
-    );
-  } else {
-    notices.push(`Flights unavailable: ${faresResult.reason}`);
-  }
+  const [tpResult, duffelResult] = await Promise.all([
+    travelpayouts.searchFares(originIATA, destIATA ?? '', { depart, return: ret || undefined }),
+    duffel.searchFares(originIATA, destIATA ?? '', { depart, return: ret || undefined }),
+  ]);
+
+  if (tpResult.ok) flights.push(...tpResult.data);
+  else notices.push(`Travelpayouts: ${tpResult.reason}`);
+
+  if (duffelResult.ok) flights.push(...duffelResult.data);
+  else if (duffelResult.reason !== 'Duffel not configured') notices.push(`Duffel: ${duffelResult.reason}`);
+
+  // Deduplicate by deeplink, sort cheapest first
+  const seen = new Set<string>();
+  flights = flights
+    .filter(f => { const key = f.deeplink; return seen.has(key) ? false : (seen.add(key), true); })
+    .sort((a, b) => a.price.priceCents - b.price.priceCents);
 
   // ── Hotels ──────────────────────────────────────────────────────────────────
   // Hotels require a destination city and both dates to be useful
