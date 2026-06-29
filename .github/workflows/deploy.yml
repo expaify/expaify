@@ -56,6 +56,13 @@ jobs:
                 "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
               --output none
           else
+            az containerapp registry set \
+              --name expaify \
+              --resource-group expaify-rg \
+              --server expaifyacr.azurecr.io \
+              --username ${{ secrets.ACR_USERNAME }} \
+              --password ${{ secrets.ACR_PASSWORD }} \
+              --output none
             az containerapp update \
               --name expaify \
               --resource-group expaify-rg \
