@@ -211,4 +211,36 @@ describe('BaggageFeeEstimator', () => {
     expect(text).toContain('Baggage fee estimate unavailable right now.')
     expect(text).toContain('do not assume checked or carry-on bag fees are included')
   })
+
+  it('does not render malformed baggage money amounts as prices', async () => {
+    global.fetch = jest.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        carrierCode: 'ZZ',
+        includedCarryOnBags: 1,
+        includedCheckedBags: 0,
+        estimatedTotalUsd: Number.NaN,
+        confidence: 'low',
+        lines: [
+          {
+            kind: 'checked_bag',
+            label: 'Checked bag estimate',
+            quantity: 1,
+            unitPriceUsd: 40,
+            totalUsd: Number.NaN,
+            included: false,
+          },
+        ],
+        disclaimer: 'Baggage fees are estimates in USD.',
+      }),
+    } as Response))
+
+    let tree = renderEstimator()
+    await flushPromises()
+    tree = renderEstimator()
+
+    const text = collectText(tree)
+    expect(text).toContain('Baggage fee estimate unavailable right now.')
+    expect(text).not.toContain('$NaN')
+  })
 })

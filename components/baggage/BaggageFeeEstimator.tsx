@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import type { BaggageCabinClass, BaggageFeeEstimate } from '@/lib/baggage/types'
+import { formatMoney } from '@/lib/money'
+import type { Money } from '@/lib/types'
 
 export type BaggageFeeEstimatorProps = {
   carrierCode: string
@@ -11,16 +13,49 @@ export type BaggageFeeEstimatorProps = {
   cabinClass: BaggageCabinClass
 }
 
-const usd = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 0,
-})
-
 function confidenceCopy(confidence: BaggageFeeEstimate['confidence']): string {
   if (confidence === 'high') return 'High-confidence estimate based on this carrier and route.'
   if (confidence === 'medium') return 'Medium-confidence estimate for this route type; airline rules can still vary by fare.'
   return 'Low-confidence estimate using a fallback rule; verify with the airline before booking.'
+}
+
+function usdAmountToMoney(value: number): Money | null {
+  if (!Number.isFinite(value) || value < 0) return null
+
+  const priceCents = Math.round(value * 100)
+  if (!Number.isSafeInteger(priceCents) || priceCents < 0) return null
+
+  return { priceCents, currency: 'USD' }
+}
+
+function formatUsdAmount(value: number): string {
+  const money = usdAmountToMoney(value)
+  return money ? formatMoney(money) : 'Unavailable'
+}
+
+function isBaggageEstimatePayload(value: unknown): value is BaggageFeeEstimate {
+  if (!value || typeof value !== 'object') return false
+
+  const estimate = value as Partial<BaggageFeeEstimate>
+  if (
+    typeof estimate.estimatedTotalUsd !== 'number' ||
+    !Number.isFinite(estimate.estimatedTotalUsd) ||
+    estimate.estimatedTotalUsd < 0
+  ) {
+    return false
+  }
+  if (!Array.isArray(estimate.lines)) return false
+
+  return estimate.lines.every(line => {
+    if (!line || typeof line !== 'object') return false
+    const candidate = line as Partial<BaggageFeeEstimate['lines'][number]>
+    if (candidate.included === true) return true
+    return (
+      typeof candidate.totalUsd === 'number' &&
+      Number.isFinite(candidate.totalUsd) &&
+      candidate.totalUsd >= 0
+    )
+  })
 }
 
 function CountControl({
@@ -102,8 +137,11 @@ export function BaggageFeeEstimator(props: BaggageFeeEstimatorProps): JSX.Elemen
     setUnavailable(false)
 
     fetch(`/api/baggage?${query}`, { signal: controller.signal })
-      .then(response => response.ok ? response.json() as Promise<BaggageFeeEstimate> : Promise.reject())
-      .then(data => setEstimate(data))
+      .then(response => response.ok ? response.json() as Promise<unknown> : Promise.reject())
+      .then(data => {
+        if (!isBaggageEstimatePayload(data)) throw new Error('Invalid baggage estimate payload')
+        setEstimate(data)
+      })
       .catch(error => {
         if (error instanceof DOMException && error.name === 'AbortError') return
         setEstimate(null)
@@ -170,7 +208,7 @@ export function BaggageFeeEstimator(props: BaggageFeeEstimatorProps): JSX.Elemen
               <div className="text-left sm:text-right">
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-2)]">Estimated add-on</p>
                 <p className="font-display text-2xl font-extrabold text-[var(--text-1)] tabular-nums" data-testid="baggage-total">
-                  {usd.format(estimate.estimatedTotalUsd)}
+                  {formatUsdAmount(estimate.estimatedTotalUsd)}
                 </p>
               </div>
             </div>
@@ -186,7 +224,7 @@ export function BaggageFeeEstimator(props: BaggageFeeEstimatorProps): JSX.Elemen
                       {line.label}
                     </span>
                     <span className="shrink-0 text-right text-[11px] font-bold leading-4 text-[var(--text-1)]">
-                      {line.included ? 'Included' : usd.format(line.totalUsd)}
+                      {line.included ? 'Included' : formatUsdAmount(line.totalUsd)}
                     </span>
                   </div>
                 ))}
