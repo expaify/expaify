@@ -85,14 +85,17 @@ function dedup(fares: NormalizedFare[]): NormalizedFare[] {
   const best = new Map<string, NormalizedFare>()
 
   for (const fare of fares) {
-    const key = `${fare.carrier}:${fare.origin}:${fare.destination}:${fare.depart.slice(0, 16)}`
+    const key = `${fare.price.currency}:${fare.carrier}:${fare.origin}:${fare.destination}:${fare.depart.slice(0, 16)}`
     const existing = best.get(key)
     if (!existing || fare.price.priceCents < existing.price.priceCents) {
       best.set(key, fare)
     }
   }
 
-  return Array.from(best.values()).sort((a, b) => a.price.priceCents - b.price.priceCents)
+  return Array.from(best.values()).sort((a, b) =>
+    a.price.currency.localeCompare(b.price.currency) ||
+    a.price.priceCents - b.price.priceCents
+  )
 }
 
 function isValidDateParam(value: string) {

@@ -186,6 +186,15 @@ describe('scoreDeal — edge cases', () => {
     expect(result.currency).toBe('EUR');
   });
 
+  it('formats non-USD explanation amounts with their currency code', () => {
+    const fare: NormalizedFare = { ...makeFare(28000), price: { priceCents: 28000, currency: 'EUR' } };
+    const history = makeHistoryInCurrency(Array(10).fill(40000), 'EUR');
+    const result = scoreDeal(fare, history);
+
+    expect(result.explanation).toContain('EUR 280.00');
+    expect(result.explanation).toContain('usual EUR 400.00');
+  });
+
   it('currency mismatch returns neutral low confidence instead of claiming a deal', () => {
     const fare: NormalizedFare = { ...makeFare(10000), price: { priceCents: 10000, currency: 'EUR' } };
     const usdHistory = makeHistory(Array(12).fill(40000));
