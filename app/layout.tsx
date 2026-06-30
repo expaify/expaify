@@ -24,7 +24,7 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
-const themeScript = `(function(){var t=localStorage.getItem('theme');if(t==='light')document.documentElement.classList.add('light')})()`;
+const themeScript = `(function(){var t=localStorage.getItem('theme');if(t!=='dark')document.documentElement.classList.add('light')})()`;
 
 export const metadata: Metadata = {
   title: "expaify — flight + hotel deal intelligence",
