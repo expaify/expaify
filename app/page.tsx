@@ -15,6 +15,7 @@ type SortBy = 'price' | 'deal'
 type ActiveTab = 'flights' | 'hotels'
 type HotelAvailability = 'idle' | 'loading' | 'available' | 'empty' | 'unavailable' | 'skipped'
 type RecentSearch = { origin: string; dest: string; originDisplay: string; destDisplay: string }
+type DateFieldErrors = { depart?: string; returnDate?: string }
 type SearchCriteria = {
   origin: string
   dest: string
@@ -105,6 +106,40 @@ function isValidDateParam(value: string) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
 }
 
+function todayIso() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function validateTravelDates(criteria: Pick<SearchCriteria, 'depart' | 'returnDate' | 'tripType'>, minimumDate = todayIso()): DateFieldErrors {
+  const errors: DateFieldErrors = {}
+  const depart = criteria.depart.trim()
+  const returnDate = criteria.tripType === 'roundtrip' ? criteria.returnDate.trim() : ''
+
+  if (!depart) {
+    errors.depart = 'Choose a departure date before searching.'
+  } else if (!isValidDateParam(depart)) {
+    errors.depart = 'Use a valid departure date before searching.'
+  } else if (depart < minimumDate) {
+    errors.depart = 'Departure date cannot be in the past. Choose today or a future date.'
+  }
+
+  if (criteria.tripType === 'roundtrip') {
+    if (!returnDate) {
+      errors.returnDate = 'Choose a return date, or switch to one way.'
+    } else if (!isValidDateParam(returnDate)) {
+      errors.returnDate = 'Use a valid return date before searching.'
+    } else if (!errors.depart && returnDate < depart) {
+      errors.returnDate = 'Return date must be on or after the departure date.'
+    }
+  }
+
+  return errors
+}
+
 function parsePositivePassengerCount(value: string | null): number | null {
   const parsed = Number(value ?? '1')
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= 9 ? parsed : null
@@ -192,6 +227,14 @@ function parseCriteriaFromUrl(params: URLSearchParams): { criteria: SearchCriter
   }
 
   const tripType: TripType = tripParam === 'oneway' ? 'oneway' : 'roundtrip'
+  const dateErrors = validateTravelDates({ depart, returnDate, tripType })
+  if (dateErrors.depart) {
+    return { criteria: null, error: `The departure date in this link needs attention. ${dateErrors.depart}`, activeTab, sortBy, filterStops }
+  }
+  if (dateErrors.returnDate) {
+    return { criteria: null, error: `The return date in this link needs attention. ${dateErrors.returnDate}`, activeTab, sortBy, filterStops }
+  }
+
   const criteria: SearchCriteria = {
     origin: originIATA,
     dest: destIATA,
@@ -456,6 +499,7 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const [dateErrors, setDateErrors] = useState<DateFieldErrors>({})
   const [suggestion, setSuggestion] = useState<string | null>(null)
   const [providerNotices, setProviderNotices] = useState<ProviderNotice[]>([])
   const [hotelAvailability, setHotelAvailability] = useState<HotelAvailability>('idle')
@@ -494,6 +538,11 @@ export default function Home() {
       if (rawPassengers !== null) setPassengers(rawPassengers)
       if (rawTrip === 'oneway' || rawTrip === 'roundtrip') setTripType(rawTrip)
       setFlexDates(params.get('flex') === '1')
+      setDateErrors(validateTravelDates({
+        depart: rawDepart,
+        returnDate: rawReturn,
+        tripType: rawTrip === 'oneway' ? 'oneway' : 'roundtrip',
+      }))
       setFormError(parsed.error)
       setView('form')
       return
@@ -514,7 +563,10 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (tripType === 'oneway') setReturnDate('')
+    if (tripType === 'oneway') {
+      setReturnDate('')
+      setDateErrors(prev => ({ ...prev, returnDate: undefined }))
+    }
   }, [tripType])
 
   useEffect(() => {
@@ -614,32 +666,27 @@ export default function Home() {
     }
     if (!normalized.origin) {
       setFormError(normalized.originDisplay.trim() ? 'Choose a valid origin airport from the list before searching.' : 'Add an origin to search.')
+      setDateErrors({})
       setView('form')
       return
     }
     if (!normalized.dest && normalized.destDisplay.trim()) {
       setFormError('Choose a valid destination airport from the list, or clear the destination field to search everywhere.')
+      setDateErrors({})
       setView('form')
       return
     }
-    if (normalized.depart && !isValidDateParam(normalized.depart)) {
-      setFormError('Use a valid departure date before searching.')
-      setView('form')
-      return
-    }
-    if (normalized.returnDate && !isValidDateParam(normalized.returnDate)) {
-      setFormError('Use a valid return date before searching.')
-      setView('form')
-      return
-    }
-    if (normalized.depart && normalized.returnDate && normalized.returnDate < normalized.depart) {
-      setFormError('Return date must be after departure date.')
+    const nextDateErrors = validateTravelDates(normalized)
+    if (nextDateErrors.depart || nextDateErrors.returnDate) {
+      setDateErrors(nextDateErrors)
+      setFormError('Correct the highlighted date fields before searching.')
       setView('form')
       return
     }
 
     setIsSearching(true)
     setFormError(null)
+    setDateErrors({})
     const entry = {
       origin: normalized.origin,
       dest: normalized.dest,
@@ -971,7 +1018,7 @@ export default function Home() {
                     id="origin"
                     value={origin}
                     displayValue={originDisplay}
-                    onChange={(iata, display) => { setOrigin(iata); setOriginDisplay(display); setFormError(null) }}
+                    onChange={(iata, display) => { setOrigin(iata); setOriginDisplay(display); setFormError(null); setDateErrors({}) }}
                     placeholder="City or airport code"
                     required
                   />
@@ -994,7 +1041,7 @@ export default function Home() {
                     id="dest"
                     value={dest}
                     displayValue={destDisplay}
-                    onChange={(iata, display) => { setDest(iata); setDestDisplay(display); setFormError(null) }}
+                    onChange={(iata, display) => { setDest(iata); setDestDisplay(display); setFormError(null); setDateErrors({}) }}
                     placeholder="Anywhere"
                   />
                 </div>
@@ -1010,10 +1057,22 @@ export default function Home() {
                     <input
                       type="date"
                       value={depart}
-                      onChange={event => { setDepart(event.target.value); setFormError(null) }}
-                      className="min-h-[3.25rem] w-full rounded-[0.875rem] border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-slate-950 transition-[border-color,box-shadow,background] [color-scheme:light] focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
+                      min={todayIso()}
+                      aria-invalid={dateErrors.depart ? 'true' : 'false'}
+                      aria-describedby={dateErrors.depart ? 'depart-error' : undefined}
+                      onChange={event => { setDepart(event.target.value); setFormError(null); setDateErrors(prev => ({ ...prev, depart: undefined })) }}
+                      className={`min-h-[3.25rem] w-full rounded-[0.875rem] border bg-slate-50 py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-slate-950 transition-[border-color,box-shadow,background] [color-scheme:light] focus:bg-white focus:outline-none focus:ring-4 ${
+                        dateErrors.depart
+                          ? 'border-amber-400 focus:border-amber-500 focus:ring-amber-500/10'
+                          : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'
+                      }`}
                     />
                   </div>
+                  {dateErrors.depart && (
+                    <p id="depart-error" className="mt-1.5 px-1 text-xs font-semibold leading-5 text-amber-700" role="alert">
+                      {dateErrors.depart}
+                    </p>
+                  )}
                 </div>
 
                 {tripType === 'roundtrip' && (
@@ -1026,10 +1085,22 @@ export default function Home() {
                       <input
                         type="date"
                         value={returnDate}
-                        onChange={event => { setReturnDate(event.target.value); setFormError(null) }}
-                        className="min-h-[3.25rem] w-full rounded-[0.875rem] border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-slate-950 transition-[border-color,box-shadow,background] [color-scheme:light] focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
+                        min={depart || todayIso()}
+                        aria-invalid={dateErrors.returnDate ? 'true' : 'false'}
+                        aria-describedby={dateErrors.returnDate ? 'return-date-error' : undefined}
+                        onChange={event => { setReturnDate(event.target.value); setFormError(null); setDateErrors(prev => ({ ...prev, returnDate: undefined })) }}
+                        className={`min-h-[3.25rem] w-full rounded-[0.875rem] border bg-slate-50 py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-slate-950 transition-[border-color,box-shadow,background] [color-scheme:light] focus:bg-white focus:outline-none focus:ring-4 ${
+                          dateErrors.returnDate
+                            ? 'border-amber-400 focus:border-amber-500 focus:ring-amber-500/10'
+                            : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'
+                        }`}
                       />
                     </div>
+                    {dateErrors.returnDate && (
+                      <p id="return-date-error" className="mt-1.5 px-1 text-xs font-semibold leading-5 text-amber-700" role="alert">
+                        {dateErrors.returnDate}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
