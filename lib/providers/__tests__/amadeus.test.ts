@@ -104,8 +104,8 @@ function mockFetchTokenAndOffers(offers: unknown): void {
 }
 
 beforeEach(() => {
-  process.env.AMADEUS_CLIENT_ID = 'amadeus_client_id';
-  process.env.AMADEUS_CLIENT_SECRET = 'amadeus_client_secret';
+  process.env.AMADEUS_ID = 'amadeus_id';
+  process.env.AMADEUS_SECRET = 'amadeus_secret';
   jest.clearAllMocks();
 
   const { cache } = jest.requireMock('../../cache/redis') as {
@@ -116,6 +116,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  delete process.env.AMADEUS_ID;
+  delete process.env.AMADEUS_SECRET;
   delete process.env.AMADEUS_CLIENT_ID;
   delete process.env.AMADEUS_CLIENT_SECRET;
 });
@@ -144,6 +146,8 @@ describe('AmadeusProvider.searchFares guard clauses', () => {
   });
 
   it('returns { ok: false, reason } when credentials are unset', async () => {
+    delete process.env.AMADEUS_ID;
+    delete process.env.AMADEUS_SECRET;
     delete process.env.AMADEUS_CLIENT_ID;
     delete process.env.AMADEUS_CLIENT_SECRET;
     global.fetch = jest.fn();
@@ -181,6 +185,14 @@ describe('AmadeusProvider.searchFares success', () => {
     });
     expect(fares[1].stops).toBe(1);
     fares.forEach((fare) => expect(Number.isInteger(fare.price.priceCents)).toBe(true));
+
+    const deeplink = new URL(fares[0].deeplink);
+    expect(deeplink.origin + deeplink.pathname).toBe('https://www.amadeus.com/en/search');
+    expect(deeplink.searchParams.get('from')).toBe('JFK');
+    expect(deeplink.searchParams.get('to')).toBe('LAX');
+    expect(deeplink.searchParams.get('departure')).toBe('2026-09-22T08:00:00');
+    expect(deeplink.searchParams.has('marker')).toBe(false);
+    expect(deeplink.searchParams.has('affiliate')).toBe(false);
   });
 
   it('sets return from the final return itinerary segment for round trips', async () => {
@@ -198,7 +210,7 @@ describe('AmadeusProvider.searchFares success', () => {
     expect(result.data[0].price.priceCents).toBe(82005);
   });
 
-  it('uses the sandbox token endpoint and form-encoded credentials', async () => {
+  it('uses AMADEUS_ID and AMADEUS_SECRET for form-encoded token credentials', async () => {
     mockFetchTokenAndOffers(ONE_WAY_FIXTURE);
     const provider = new AmadeusProvider();
     await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
@@ -209,7 +221,26 @@ describe('AmadeusProvider.searchFares success', () => {
       expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'grant_type=client_credentials&client_id=amadeus_client_id&client_secret=amadeus_client_secret',
+        body: 'grant_type=client_credentials&client_id=amadeus_id&client_secret=amadeus_secret',
+      })
+    );
+  });
+
+  it('falls back to legacy AMADEUS_CLIENT_ID and AMADEUS_CLIENT_SECRET when primary names are unset', async () => {
+    delete process.env.AMADEUS_ID;
+    delete process.env.AMADEUS_SECRET;
+    process.env.AMADEUS_CLIENT_ID = 'legacy_client_id';
+    process.env.AMADEUS_CLIENT_SECRET = 'legacy_client_secret';
+
+    mockFetchTokenAndOffers(ONE_WAY_FIXTURE);
+    const provider = new AmadeusProvider();
+    await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      1,
+      'https://test.api.amadeus.com/v1/security/oauth2/token',
+      expect.objectContaining({
+        body: 'grant_type=client_credentials&client_id=legacy_client_id&client_secret=legacy_client_secret',
       })
     );
   });
@@ -283,7 +314,7 @@ describe('AmadeusProvider.searchFares success', () => {
         stops: 0,
         carrier: 'AA',
         price: { priceCents: 38950, currency: 'USD' },
-        deeplink: 'https://www.amadeus.com/en/search?from=JFK&to=LAX&departure=2026-09-22T08:00:00',
+        deeplink: 'https://www.amadeus.com/en/search?from=JFK&to=LAX&departure=2026-09-22T08%3A00%3A00',
         source: 'amadeus',
         fetchedAt: '2026-06-29T00:00:00.000Z',
       },
