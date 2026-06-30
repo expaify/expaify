@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { DealScore, HotelOffer, NormalizedFare } from '@/lib/types'
 import AlertSignup from './components/AlertSignup'
+import AirportInput from './components/AirportInput'
 import FlightCard from './components/FlightCard'
 import HotelCard from './components/HotelCard'
 
@@ -92,6 +93,8 @@ export default function Home() {
   const [tripType, setTripType] = useState<TripType>('roundtrip')
   const [origin, setOrigin] = useState('')
   const [dest, setDest] = useState('')
+  const [originDisplay, setOriginDisplay] = useState('')
+  const [destDisplay, setDestDisplay] = useState('')
   const [depart, setDepart] = useState('')
   const [returnDate, setReturnDate] = useState('')
   const [flights, setFlights] = useState<NormalizedFare[]>([])
@@ -195,8 +198,12 @@ export default function Home() {
   }
 
   function handleSwap() {
+    const tmpIata = origin
+    const tmpDisplay = originDisplay
     setOrigin(dest)
-    setDest(origin)
+    setOriginDisplay(destDisplay)
+    setDest(tmpIata)
+    setDestDisplay(tmpDisplay)
   }
 
   const displayedFlights = flights
@@ -208,7 +215,7 @@ export default function Home() {
       return (scores[a.id]?.percentile ?? 101) - (scores[b.id]?.percentile ?? 101)
     })
 
-  const routeLabel = [origin.trim(), dest.trim()].filter(Boolean).join(' → ')
+  const routeLabel = [originDisplay || origin, destDisplay || dest].filter(Boolean).join(' → ')
   const greatCount = Object.values(scores).filter(score => score?.verdict === 'Great').length
 
   if (view === 'form') {
@@ -268,16 +275,14 @@ export default function Home() {
                   <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
                     From
                   </label>
-                  <div className="relative">
-                    <IconLocation className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600" />
-                    <input
-                      value={origin}
-                      onChange={event => setOrigin(event.target.value)}
-                      className="field-input"
-                      placeholder="City or airport"
-                      required
-                    />
-                  </div>
+                  <AirportInput
+                    id="origin"
+                    value={origin}
+                    displayValue={originDisplay}
+                    onChange={(iata, display) => { setOrigin(iata); setOriginDisplay(display) }}
+                    placeholder="City or airport code"
+                    required
+                  />
                 </div>
 
                 <button
@@ -293,15 +298,13 @@ export default function Home() {
                   <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
                     To
                   </label>
-                  <div className="relative">
-                    <IconLocation className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600" />
-                    <input
-                      value={dest}
-                      onChange={event => setDest(event.target.value)}
-                      className="field-input"
-                      placeholder="Anywhere"
-                    />
-                  </div>
+                  <AirportInput
+                    id="dest"
+                    value={dest}
+                    displayValue={destDisplay}
+                    onChange={(iata, display) => { setDest(iata); setDestDisplay(display) }}
+                    placeholder="Anywhere"
+                  />
                 </div>
               </div>
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import type { Airport } from '@/lib/airports/data'
 
 interface AirportInputProps {
@@ -81,7 +82,7 @@ export default function AirportInput({
     }
   }
 
-  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Escape') {
       setOpen(false)
       return
