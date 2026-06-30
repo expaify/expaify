@@ -1,5 +1,16 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { query } from '../../../lib/db/client';
+import type { Result } from '../../../lib/types';
+
+type AlertCreated = {
+  id: string;
+  message: string;
+  active: true;
+};
+
+function resultJson<T>(result: Result<T>, status = result.ok ? 200 : 400) {
+  return NextResponse.json(result, { status });
+}
 
 // ─── Validation helpers ───────────────────────────────────────────────────────
 
@@ -26,7 +37,7 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return resultJson({ ok: false, reason: 'Invalid JSON body' }, 400);
   }
 
   const { email, origin, hotelId } = body;
@@ -39,32 +50,33 @@ export async function POST(request: Request) {
         : null;
 
   if (typeof email !== 'string' || !isValidEmail(email)) {
-    return NextResponse.json({ error: 'Invalid email address' }, { status: 400 });
+    return resultJson({ ok: false, reason: 'Invalid email address' }, 400);
   }
 
   if (typeof origin !== 'string' || !isValidIATA(origin.toUpperCase())) {
-    return NextResponse.json(
-      { error: 'origin must be a 3-letter IATA code (e.g. JFK)' },
-      { status: 400 },
-    );
+    return resultJson({ ok: false, reason: 'origin must be a 3-letter IATA code (e.g. JFK)' }, 400);
   }
 
   if (typeof destination !== 'string' || !isValidIATA(destination.toUpperCase())) {
-    return NextResponse.json(
-      { error: 'destination must be a 3-letter IATA code (e.g. LAX)' },
-      { status: 400 },
-    );
+    return resultJson({ ok: false, reason: 'destination must be a 3-letter IATA code (e.g. LAX)' }, 400);
   }
 
   if (typeof targetCents !== 'number' || !Number.isInteger(targetCents) || targetCents < 5000 || targetCents > 500000) {
-    return NextResponse.json(
-      { error: 'thresholdCents must be an integer between 5000 and 500000' },
-      { status: 400 },
+    return resultJson(
+      { ok: false, reason: 'thresholdCents must be an integer between 5000 and 500000' },
+      400,
     );
   }
 
   if (hotelId !== undefined && (typeof hotelId !== 'string' || hotelId.trim().length === 0)) {
-    return NextResponse.json({ error: 'hotelId must be a non-empty string' }, { status: 400 });
+    return resultJson({ ok: false, reason: 'hotelId must be a non-empty string' }, 400);
+  }
+
+  if (!process.env.RESEND_API_KEY) {
+    return resultJson(
+      { ok: false, reason: 'Price alert emails are not configured, so no active alert was created.' },
+      503,
+    );
   }
 
   const originUpper = origin.toUpperCase();
@@ -80,20 +92,34 @@ export async function POST(request: Request) {
     );
 
     const id = result.rows[0]?.id ?? '';
+    if (!id) {
+      return resultJson(
+        { ok: false, reason: 'Alert storage did not confirm creation, so no active alert was created.' },
+        503,
+      );
+    }
+
     const targetDollars = Math.round(targetCents / 100);
     const message =
       hotelIdValue === null
         ? `Alert set! We'll email you when ${originUpper}→${destUpper} drops below $${targetDollars}.`
         : `Alert set! We'll email you when hotel ${hotelIdValue} drops below $${targetDollars}.`;
 
-    return NextResponse.json({
-      id,
-      message,
+    return resultJson<AlertCreated>({
+      ok: true,
+      data: {
+        id,
+        message,
+        active: true,
+      },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[alerts] INSERT error:', message);
-    return NextResponse.json({ error: 'Failed to create alert' }, { status: 500 });
+    return resultJson(
+      { ok: false, reason: 'Alert storage is unavailable, so no active alert was created.' },
+      503,
+    );
   }
 }
 
@@ -105,7 +131,7 @@ export async function DELETE(request: NextRequest) {
   const id = params.get('id');
 
   if (!email || !id) {
-    return NextResponse.json({ error: 'email and id are required' }, { status: 400 });
+    return resultJson({ ok: false, reason: 'email and id are required' }, 400);
   }
 
   try {
@@ -113,10 +139,10 @@ export async function DELETE(request: NextRequest) {
       `UPDATE price_alerts SET active = false WHERE id = $1 AND email = $2`,
       [id, email],
     );
-    return NextResponse.json({ message: 'Alert cancelled.' });
+    return resultJson({ ok: true, data: { message: 'Alert cancelled.' } });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[alerts] DELETE error:', message);
-    return NextResponse.json({ error: 'Failed to cancel alert' }, { status: 500 });
+    return resultJson({ ok: false, reason: 'Alert storage is unavailable. Please try again later.' }, 503);
   }
 }

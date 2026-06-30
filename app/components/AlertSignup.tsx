@@ -7,6 +7,10 @@ interface Props {
   destination: string
 }
 
+type AlertResponse =
+  | { ok: true; data: { message: string } }
+  | { ok: false; reason: string }
+
 export default function AlertSignup({ origin, destination }: Props) {
   const [email, setEmail] = useState('')
   const [targetPrice, setTargetPrice] = useState('')
@@ -28,12 +32,12 @@ export default function AlertSignup({ origin, destination }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, origin, destination, targetPrice: price }),
       })
-      const data = await res.json() as { message?: string; error?: string }
-      if (res.ok) {
-        setMessage(data.message ?? 'Alert set!')
+      const data = await res.json() as AlertResponse
+      if (res.ok && data.ok) {
+        setMessage(data.data.message)
         setState('done')
       } else {
-        setMessage(data.error ?? 'Failed to set alert.')
+        setMessage(data.ok ? 'Failed to set alert.' : data.reason)
         setState('error')
       }
     } catch {

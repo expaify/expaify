@@ -13,6 +13,9 @@ type SortBy = 'price' | 'deal'
 type ActiveTab = 'flights' | 'hotels'
 type HotelAvailability = 'idle' | 'loading' | 'available' | 'empty' | 'unavailable' | 'skipped'
 type RecentSearch = { origin: string; dest: string; originDisplay: string; destDisplay: string }
+type AlertSignupResponse =
+  | { ok: true; data: { message: string } }
+  | { ok: false; reason: string }
 
 const destinations = [
   { label: 'London', emoji: '🎡', origin: 'JFK', dest: 'LHR', originDisplay: 'New York (JFK)', destDisplay: 'London (LHR)', tag: 'Classic' },
@@ -225,6 +228,8 @@ export default function Home() {
   const [copied, setCopied] = useState(false)
   const [alertEmail, setAlertEmail] = useState('')
   const [alertSent, setAlertSent] = useState(false)
+  const [alertLoading, setAlertLoading] = useState(false)
+  const [alertError, setAlertError] = useState<string | null>(null)
   const [calendarPrices, setCalendarPrices] = useState<Record<string, number>>({})
   const progressKey = useRef<number>(0)
 
@@ -419,18 +424,33 @@ export default function Home() {
     event.preventDefault()
     if (!alertEmail || !origin.trim() || !dest.trim() || flights.length === 0) return
 
-    const response = await fetch('/api/alerts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: alertEmail,
-        origin: origin.trim(),
-        dest: dest.trim(),
-        thresholdCents: Math.min(...flights.map(fare => fare.price.priceCents)),
-      }),
-    })
+    setAlertLoading(true)
+    setAlertError(null)
+    setAlertSent(false)
 
-    if (response.ok) setAlertSent(true)
+    try {
+      const response = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: alertEmail,
+          origin: origin.trim(),
+          dest: dest.trim(),
+          thresholdCents: Math.min(...flights.map(fare => fare.price.priceCents)),
+        }),
+      })
+      const data = await response.json() as AlertSignupResponse
+
+      if (response.ok && data.ok) {
+        setAlertSent(true)
+      } else {
+        setAlertError(data.ok ? 'Price alert signup is unavailable right now.' : data.reason)
+      }
+    } catch {
+      setAlertError('Network error. Please try again.')
+    } finally {
+      setAlertLoading(false)
+    }
   }
 
   function handleShare() {
@@ -886,6 +906,8 @@ export default function Home() {
                 alertEmail={alertEmail}
                 setAlertEmail={setAlertEmail}
                 alertSent={alertSent}
+                alertLoading={alertLoading}
+                alertError={alertError}
                 handleAlertSubmit={handleAlertSubmit}
               />
             )}

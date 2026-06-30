@@ -35,6 +35,8 @@ const defaultProps = {
   alertEmail: '',
   setAlertEmail: jest.fn(),
   alertSent: false,
+  alertLoading: false,
+  alertError: null,
   handleAlertSubmit: jest.fn(),
 };
 
