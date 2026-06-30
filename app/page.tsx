@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { DealScore, HotelOffer, NormalizedFare } from '@/lib/types'
 import AirportInput from './components/AirportInput'
 import HotelCard from './components/HotelCard'
@@ -85,7 +86,7 @@ function dedup(fares: NormalizedFare[]): NormalizedFare[] {
 
 function HotelSkeleton() {
   return (
-    <div className="card rounded-2xl overflow-hidden">
+    <div className="card overflow-hidden" aria-hidden="true">
       <div className="h-40 shimmer" />
       <div className="space-y-3 p-5">
         <div className="h-4 w-3/4 rounded-lg shimmer" />
@@ -99,6 +100,55 @@ function HotelSkeleton() {
         </div>
       </div>
     </div>
+  )
+}
+
+function ResultsStateCard({
+  eyebrow,
+  title,
+  children,
+  action,
+  tone = 'default',
+  role = 'status',
+}: {
+  eyebrow: string
+  title: string
+  children: ReactNode
+  action?: ReactNode
+  tone?: 'default' | 'warning' | 'error'
+  role?: 'status' | 'alert'
+}) {
+  const toneClasses = {
+    default: 'border-[var(--border)] bg-[var(--bg-surface)]',
+    warning: 'border-[var(--warning)]/25 bg-[var(--warning-soft)]',
+    error: 'border-[var(--error)]/25 bg-[var(--error-soft)]',
+  }
+  const eyebrowClasses = {
+    default: 'text-[var(--text-2)]',
+    warning: 'text-[var(--warning)]',
+    error: 'text-[var(--error)]',
+  }
+
+  return (
+    <section
+      className={`rounded-[var(--radius-card)] border px-4 py-4 shadow-[var(--shadow-card)] sm:px-5 ${toneClasses[tone]}`}
+      role={role}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className={`text-[11px] font-bold uppercase tracking-wide ${eyebrowClasses[tone]}`}>
+            {eyebrow}
+          </p>
+          <h2 className="mt-1 font-display text-base font-bold leading-6 text-[var(--text-1)] sm:text-lg">
+            {title}
+          </h2>
+          <div className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-2)]">
+            {children}
+          </div>
+        </div>
+        {action && <div className="w-full shrink-0 sm:w-auto">{action}</div>}
+      </div>
+    </section>
   )
 }
 
@@ -506,6 +556,14 @@ export default function Home() {
   const routeLabel = [originDisplay || origin, destDisplay || dest].filter(Boolean).join(' → ')
   const greatCount = Object.values(scores).filter(score => score?.verdict === 'Great').length
   const hotelsTabDisabled = hotels.length === 0 && ['idle', 'skipped', 'unavailable'].includes(hotelAvailability)
+  const searchStatusTitle =
+    flights.length > 0
+      ? `Still checking providers for ${routeLabel || 'this search'}`
+      : `Searching live fares${routeLabel ? ` for ${routeLabel}` : ''}`
+  const searchStatusCopy =
+    flights.length > 0
+      ? `${flights.length} flight${flights.length === 1 ? '' : 's'} returned so far. Deal Scores may continue updating as provider responses finish.`
+      : 'Live provider responses can arrive in stages. Results will appear here as soon as usable inventory is returned.'
   const hotelUnavailableCopy =
     hotelAvailability === 'unavailable'
       ? hotelAvailabilityMessage ?? 'The hotel provider is unavailable right now.'
@@ -843,15 +901,11 @@ export default function Home() {
               <p className="text-sm text-gray-400">Scanning deals across providers…</p>
             </div>
           ) : error ? (
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-              <p className="text-sm text-red-400">{error}</p>
-              <button
-                type="button"
-                onClick={runSearch}
-                className="rounded-lg border border-indigo-500/30 px-3 py-1.5 text-xs font-bold text-indigo-400 transition-colors hover:bg-indigo-500/10"
-              >
-                Retry
-              </button>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[var(--error)]">Search interrupted</p>
+              <p className="mt-0.5 text-xs font-medium text-[var(--text-3)]">
+                Review the message below or retry with the same route.
+              </p>
             </div>
           ) : (
             <div className="min-w-0">
@@ -861,7 +915,7 @@ export default function Home() {
               </p>
               {greatCount > 0 && (
                 <p className="mt-0.5 text-xs font-semibold text-emerald-400">
-                  🔥 {greatCount} great deal{greatCount === 1 ? '' : 's'}
+                  {greatCount} great deal{greatCount === 1 ? '' : 's'} found
                 </p>
               )}
             </div>
@@ -888,8 +942,47 @@ export default function Home() {
           </button>
         </div>
 
-        {!error && (
+        {error ? (
+          <ResultsStateCard
+            eyebrow="Search error"
+            title="We could not complete this search"
+            tone="error"
+            role="alert"
+            action={
+              <button
+                type="button"
+                onClick={runSearch}
+                className="btn-primary min-h-11 w-full px-4 py-2.5 text-sm sm:w-auto"
+              >
+                Retry search
+              </button>
+            }
+          >
+            <p>{error}</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--text-3)]">
+              Your route and dates are still selected. Retry when the provider connection is available.
+            </p>
+          </ResultsStateCard>
+        ) : (
           <>
+            {isSearching && (
+              <div className="mb-5">
+                <ResultsStateCard
+                  eyebrow="Searching"
+                  title={searchStatusTitle}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="mt-2 flex shrink-0 gap-1" aria-hidden="true">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] dot-pulse" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] dot-pulse-2" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] dot-pulse-3" />
+                    </span>
+                    <p>{searchStatusCopy}</p>
+                  </div>
+                </ResultsStateCard>
+              </div>
+            )}
+
             <div className="mb-6 flex overflow-x-auto border-b border-white/8 scrollbar-hide">
               {(['flights', 'hotels'] as ActiveTab[]).map(tab => {
                 const count = tab === 'flights' ? flights.length : hotels.length
@@ -927,9 +1020,14 @@ export default function Home() {
             </div>
 
             {hotelsTabDisabled && !isSearching && (
-              <div className="mb-6 rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-gray-500">
-                <p className="font-semibold text-gray-300">Hotels were not included.</p>
-                <p className="mt-0.5">{hotelUnavailableCopy}</p>
+              <div className="mb-6">
+                <ResultsStateCard
+                  eyebrow="Hotel supply"
+                  title="Hotels were not included"
+                  tone={hotelAvailability === 'unavailable' ? 'warning' : 'default'}
+                >
+                  <p>{hotelUnavailableCopy}</p>
+                </ResultsStateCard>
               </div>
             )}
 
@@ -963,29 +1061,38 @@ export default function Home() {
             {activeTab === 'hotels' && (
               <>
                 {isSearching ? (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {hotels.map((hotel, index) => (
-                      <div key={hotel.id} className={`animate-fade-up ${delays[Math.min(index, delays.length - 1)]}`}>
-                        <HotelCard
-                          hotel={hotel}
-                          score={hotelScores[hotel.id] ?? null}
-                          loading={hotelScoreLoading.has(hotel.id)}
-                        />
-                      </div>
-                    ))}
-                    {Array.from({ length: hotels.length > 0 ? 2 : 6 }).map((_, index) => (
-                      <HotelSkeleton key={`hotel-skeleton-${index}`} />
-                    ))}
+                  <div className="space-y-4">
+                    {hotels.length === 0 && (
+                      <ResultsStateCard
+                        eyebrow="Hotels"
+                        title="Checking hotel availability"
+                      >
+                        <p>Hotel results will appear only if the provider returns confirmed inventory for these dates.</p>
+                      </ResultsStateCard>
+                    )}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {hotels.map((hotel, index) => (
+                        <div key={hotel.id} className={`animate-fade-up ${delays[Math.min(index, delays.length - 1)]}`}>
+                          <HotelCard
+                            hotel={hotel}
+                            score={hotelScores[hotel.id] ?? null}
+                            loading={hotelScoreLoading.has(hotel.id)}
+                          />
+                        </div>
+                      ))}
+                      {Array.from({ length: hotels.length > 0 ? 2 : 6 }).map((_, index) => (
+                        <HotelSkeleton key={`hotel-skeleton-${index}`} />
+                      ))}
+                    </div>
                   </div>
                 ) : hotels.length === 0 ? (
-                  <div className="rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-8 text-center animate-fade-in sm:px-6 sm:py-10">
-                    <p className="font-display text-base font-bold text-gray-200 sm:text-lg">
-                      {hotelEmptyTitle}
-                    </p>
-                    <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
-                      {hotelUnavailableCopy}
-                    </p>
-                  </div>
+                  <ResultsStateCard
+                    eyebrow="Hotel supply"
+                    title={hotelEmptyTitle}
+                    tone={hotelAvailability === 'unavailable' ? 'warning' : 'default'}
+                  >
+                    <p>{hotelUnavailableCopy}</p>
+                  </ResultsStateCard>
                 ) : (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {hotels.map((hotel, index) => (
