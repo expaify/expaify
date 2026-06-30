@@ -133,9 +133,38 @@ describe('Deal score presentation', () => {
     expect(text).toContain('$231')
     expect(text).toContain('18% below usual')
     expect(text).toContain(score.explanation)
-    expect(text).toContain('$189')
+    expect(text).toContain('$189 USD')
     expect(text).toContain('per night before taxes and fees')
     expect(text).toContain('Book hotel')
+  })
+
+  it('shows flight price currency and trip scope from structured money', () => {
+    const totalFare: NormalizedFare = {
+      ...fare,
+      price: { priceCents: 45001, currency: 'USD' },
+      passengerCount: 2,
+      priceScope: 'party_total',
+    }
+
+    const text = collectText(FlightCard({ fare: totalFare, score: null, loading: false }))
+
+    expect(text).toContain('$450.01 USD')
+    expect(text).toContain('Passenger total')
+    expect(text).toContain('total trip price for 2 adults')
+  })
+
+  it('renders missing flight price as unavailable without a provider CTA', () => {
+    const missingPriceFare = {
+      ...fare,
+      price: { priceCents: 0, currency: 'USD' },
+    } as NormalizedFare
+
+    const text = collectText(FlightCard({ fare: missingPriceFare, score: null, loading: false }))
+
+    expect(text).toContain('Price unavailable')
+    expect(text).toContain('No confirmed fare price was returned.')
+    expect(text).not.toContain('Check with travelpayouts')
+    expect(text).not.toContain('$0')
   })
 
   it('renders missing hotel price or deeplink as an honest unavailable state', () => {
@@ -151,6 +180,19 @@ describe('Deal score presentation', () => {
     expect(text).toContain('Booking unavailable')
     expect(text).toContain('No confirmed nightly price or valid booking link was returned.')
     expect(text).not.toContain('Book hotel')
+  })
+
+  it('does not format invalid hotel currency as money', () => {
+    const unavailableHotel = {
+      ...hotel,
+      pricePerNight: { priceCents: 18900, currency: '' },
+    } as HotelOffer
+
+    const text = collectText(HotelCard({ hotel: unavailableHotel, score: null, loading: false }))
+
+    expect(text).toContain('Price unavailable')
+    expect(text).toContain('No confirmed nightly price was returned.')
+    expect(text).not.toContain('$189')
   })
 
   it('uses an honest no-photo state without fake hotel imagery', () => {

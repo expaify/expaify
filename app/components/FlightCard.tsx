@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { DealScore, NormalizedFare } from '@/lib/types'
+import { formatMoney, isValidMoney } from '@/lib/money'
 import DealBadge from './DealBadge'
 
 type Props = {
@@ -108,24 +109,34 @@ function AirlineLogo({ carrier }: { carrier: string }) {
   )
 }
 
-function Price({ cents, currency, label }: { cents: number; currency: string; label: string }) {
-  const whole = Math.floor(cents / 100).toLocaleString('en-US')
-  const fractional = String(Math.abs(cents % 100)).padStart(2, '0')
-  const currencyLabel = currency === 'USD' ? '$' : currency
-
+function Price({ price, heading, label }: { price: NormalizedFare['price']; heading: string; label: string }) {
   return (
     <div className="min-w-0 text-left sm:min-w-[6.75rem] sm:shrink-0 sm:text-right">
       <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-2)]">
+        {heading}
+      </p>
+      <p className="mt-1 font-display text-3xl font-extrabold leading-none text-[var(--text-1)] tabular-nums">
+        {formatMoney(price)}
+      </p>
+      <p className="mt-1 text-[11px] font-semibold leading-4 text-[var(--text-3)]">
+        {label}
+      </p>
+    </div>
+  )
+}
+
+function PriceUnavailable({ reason }: { reason: string }) {
+  return (
+    <div className="min-w-0 text-left sm:min-w-[6.75rem] sm:shrink-0 sm:text-right" role="status" aria-label={`Flight price unavailable. ${reason}`}>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-2)]">
         Current fare
       </p>
-      <div className="mt-1 flex items-baseline justify-start gap-px sm:justify-end">
-        <span className="text-sm font-semibold text-[var(--text-2)]">{currencyLabel}</span>
-        <span className="font-display text-[2rem] font-extrabold leading-none text-[var(--text-1)] tabular-nums">
-          {whole}
-        </span>
-        <span className="text-sm font-semibold text-[var(--text-3)]">.{fractional}</span>
-      </div>
-      <p className="mt-1 text-[11px] font-semibold leading-4 text-[var(--text-3)]">{label}</p>
+      <p className="mt-1 font-display text-lg font-extrabold leading-tight text-[var(--text-1)]">
+        Price unavailable
+      </p>
+      <p className="mt-1 text-[11px] font-semibold leading-4 text-[var(--text-3)]">
+        {reason}
+      </p>
     </div>
   )
 }
@@ -186,21 +197,32 @@ export default function FlightCard({ fare, score, loading }: Props) {
 
   const departTime = formatTime(fare.depart)
   const returnTime = fare.return ? formatTime(fare.return) : ''
+  const hasValidPrice = isValidMoney(fare.price)
   const isInternalBooking = fare.source === 'duffel' || fare.deeplink.startsWith('/book')
   const hasDeeplink = fare.deeplink.trim().length > 0 && fare.deeplink !== '#'
-  const ctaLabel = !hasDeeplink
+  const canOpenProvider = hasDeeplink && hasValidPrice
+  const ctaLabel = !hasValidPrice
+    ? 'Price unavailable'
+    : !hasDeeplink
     ? 'Provider link unavailable'
     : isInternalBooking
       ? 'Review paused booking'
       : `Check with ${fare.source}`
-  const ctaNote = !hasDeeplink
+  const ctaNote = !hasValidPrice
+    ? 'No confirmed fare price was returned for this result.'
+    : !hasDeeplink
     ? 'Availability cannot be verified from this result.'
     : isInternalBooking
       ? 'In-app booking is paused. Review only.'
       : 'Opens provider search. Price and availability can change.'
+  const passengerCount = Number.isInteger(fare.passengerCount) && (fare.passengerCount ?? 0) > 0
+    ? fare.passengerCount as number
+    : 1
+  const priceHeading = fare.priceScope === 'party_total' ? 'Passenger total' : 'Traveler fare'
   const priceLabel = fare.priceScope === 'party_total'
-    ? `total for ${fare.passengerCount ?? 1} adult${(fare.passengerCount ?? 1) === 1 ? '' : 's'}`
-    : 'per person'
+    ? `total trip price for ${passengerCount} adult${passengerCount === 1 ? '' : 's'}`
+    : 'per person fare for this trip'
+  const unavailableReason = 'No confirmed fare price was returned.'
   const tripLabel = fare.return ? 'Round trip' : 'One way'
   const carrierLabel = fare.carrier.trim() || 'Unknown carrier'
   const sourceLabel = fare.source.trim() || 'provider'
@@ -227,7 +249,11 @@ export default function FlightCard({ fare, score, loading }: Props) {
               </div>
             </div>
           </div>
-          <Price cents={fare.price.priceCents} currency={fare.price.currency} label={priceLabel} />
+          {hasValidPrice ? (
+            <Price price={fare.price} heading={priceHeading} label={priceLabel} />
+          ) : (
+            <PriceUnavailable reason={unavailableReason} />
+          )}
         </div>
 
         <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-raised)] px-3.5 py-3.5">
@@ -282,7 +308,7 @@ export default function FlightCard({ fare, score, loading }: Props) {
         ) : null}
 
         <div className="space-y-2">
-          {hasDeeplink ? (
+          {canOpenProvider ? (
             <a
               href={fare.deeplink}
               target={isInternalBooking ? undefined : '_blank'}

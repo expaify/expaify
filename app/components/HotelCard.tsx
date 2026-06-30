@@ -1,6 +1,7 @@
 'use client'
 
 import { DealScore, HotelOffer } from '@/lib/types'
+import { formatMoney, isValidMoney } from '@/lib/money'
 import DealBadge from './DealBadge'
 
 type Props = {
@@ -47,21 +48,13 @@ function RatingBadge({ rating }: { rating: number }) {
 }
 
 function Price({ price }: { price: HotelOffer['pricePerNight'] }) {
-  const roundedCents = Math.round(price.priceCents)
-  const amount = roundedCents / 100
-  const formatted = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: price.currency,
-    maximumFractionDigits: roundedCents % 100 === 0 ? 0 : 2,
-  }).format(amount)
-
   return (
     <div className="min-w-0">
       <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
         Nightly rate
       </p>
       <p className="mt-1 font-display text-3xl font-extrabold leading-none text-[color:var(--text-1)] tabular-nums">
-        {formatted}
+        {formatMoney(price)}
       </p>
       <p className="mt-1 text-xs font-medium text-[color:var(--text-3)]">per night before taxes and fees</p>
     </div>
@@ -82,17 +75,6 @@ function PriceUnavailable({ reason }: { reason: string }) {
       </p>
     </div>
   )
-}
-
-function formatMoney(cents: number, currency: string) {
-  const roundedCents = Math.round(cents)
-  const amount = roundedCents / 100
-
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: roundedCents % 100 === 0 ? 0 : 2,
-  }).format(amount)
 }
 
 function formatPctVsMedian(pctVsMedian: number) {
@@ -144,8 +126,9 @@ function HotelDealPanel({ score }: { score: DealScore }) {
   const percentileLabel = isLowConfidence
     ? 'Not enough hotel history for a confirmed deal rating'
     : `${formatOrdinal(score.percentile)} percentile`
-  const usualPrice = score.medianCents > 0
-    ? formatMoney(score.medianCents, score.currency)
+  const usualMoney = { priceCents: score.medianCents, currency: score.currency }
+  const usualPrice = isValidMoney(usualMoney)
+    ? formatMoney(usualMoney)
     : 'Unavailable'
 
   return (
@@ -196,7 +179,7 @@ function isValidBookingUrl(value: string): boolean {
 
 export default function HotelCard({ hotel, score = null, loading = false }: Props) {
   const hasBookingUrl = isValidBookingUrl(hotel.deeplink)
-  const hasValidPrice = Number.isInteger(hotel.pricePerNight.priceCents) && hotel.pricePerNight.priceCents > 0
+  const hasValidPrice = isValidMoney(hotel.pricePerNight)
   const canBook = hasBookingUrl && hasValidPrice
   const unavailableReason = getUnavailableReason(hasBookingUrl, hasValidPrice)
   const hasRating = hotel.rating !== undefined && hotel.rating > 0
