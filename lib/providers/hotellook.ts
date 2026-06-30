@@ -13,7 +13,7 @@ interface HotelLookCacheEntry {
   location?: {
     name?: string;
   };
-  priceFrom?: number;
+  priceFrom?: number | string;
   photoUrl?: string;
   propertyType?: string;
 }
@@ -24,6 +24,19 @@ type HotelLookOffer = HotelOffer & {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+function priceFromToCents(priceFrom: HotelLookCacheEntry['priceFrom']): number | null {
+  if (priceFrom === undefined || priceFrom === null) return null;
+  if (typeof priceFrom === 'string' && priceFrom.trim() === '') return null;
+
+  const majorUnits = Number(priceFrom);
+  if (!Number.isFinite(majorUnits) || majorUnits <= 0) return null;
+
+  // HotelLook cache.json returns priceFrom in the requested currency's major
+  // units (currency=USD above), so store integer cents for the app contract.
+  const cents = Math.round(majorUnits * 100);
+  return Number.isSafeInteger(cents) && cents > 0 ? cents : null;
+}
 
 export class HotellookProvider implements HotelProvider {
   private get token(): string {
@@ -68,10 +81,11 @@ export class HotellookProvider implements HotelProvider {
       const json = (await res.json()) as HotelLookCacheEntry[];
       if (!Array.isArray(json) || json.length === 0) return { ok: true, data: [] };
 
-      const hotels: HotelLookOffer[] = json.map((entry) => {
+      const hotels: HotelLookOffer[] = json.flatMap((entry) => {
         const hotelId = Number(entry.hotelId);
         const stars = Number(entry.stars ?? 0);
-        const priceCents = Number(entry.priceFrom ?? 0);
+        const priceCents = priceFromToCents(entry.priceFrom);
+        if (priceCents === null) return [];
 
         return {
           id: String(entry.hotelId),
@@ -80,7 +94,7 @@ export class HotellookProvider implements HotelProvider {
           stars: Number.isFinite(stars) ? stars : 0,
           rating: Number.isFinite(stars) ? stars : undefined,
           pricePerNight: {
-            priceCents: Number.isFinite(priceCents) ? Math.trunc(priceCents) : 0,
+            priceCents,
             currency: 'USD',
           },
           deeplink: this.buildDeeplink(hotelId),

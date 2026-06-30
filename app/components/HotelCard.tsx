@@ -64,6 +64,90 @@ function Price({ cents }: { cents: number }) {
   )
 }
 
+function PriceUnavailable() {
+  return (
+    <div>
+      <p className="font-display text-lg font-extrabold leading-none text-gray-400">
+        Price unavailable
+      </p>
+      <p className="mt-1 text-[10px] font-medium text-gray-600">
+        per-night rate not confirmed
+      </p>
+    </div>
+  )
+}
+
+function formatMoney(cents: number, currency: string) {
+  const roundedCents = Math.round(cents)
+  const amount = roundedCents / 100
+
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: roundedCents % 100 === 0 ? 0 : 2,
+  }).format(amount)
+}
+
+function formatPctVsMedian(pctVsMedian: number) {
+  const rounded = Math.round(pctVsMedian)
+  if (rounded === 0) return 'At usual price'
+
+  return `${Math.abs(rounded)}% ${rounded < 0 ? 'below' : 'above'} usual`
+}
+
+function HotelDealPanel({ score }: { score: DealScore }) {
+  const isLowConfidence = score.confidence === 'low'
+  const panelClasses = isLowConfidence
+    ? 'border-amber-500/20 bg-amber-500/10'
+    : score.verdict === 'Great'
+      ? 'border-emerald-500/20 bg-emerald-500/10'
+      : score.verdict === 'Good'
+        ? 'border-blue-500/20 bg-blue-500/10'
+        : 'border-white/10 bg-white/[0.035]'
+  const percentileLabel = isLowConfidence
+    ? 'Not enough hotel history for a confirmed deal rating'
+    : `${Math.round(score.percentile)}th percentile`
+  const usualPrice = score.medianCents > 0
+    ? formatMoney(score.medianCents, score.currency)
+    : 'Unavailable'
+
+  return (
+    <div className={`mt-3 flex flex-col gap-2 rounded-xl border px-3 py-3 ${panelClasses}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
+            Deal Score
+          </p>
+          <p className="mt-0.5 text-xs font-medium leading-5 text-gray-300">
+            {percentileLabel}
+          </p>
+        </div>
+        <DealBadge verdict={score.verdict} confidence={score.confidence} />
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-600">
+            Usual
+          </p>
+          <p className="font-semibold text-gray-300">{usualPrice}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-600">
+            Vs median
+          </p>
+          <p className="font-semibold text-gray-300">{formatPctVsMedian(score.pctVsMedian)}</p>
+        </div>
+      </div>
+      {isLowConfidence && (
+        <p className="text-xs leading-5 text-amber-200/80">
+          Limited hotel history. Treat this as a rough comparison, not a confirmed deal.
+        </p>
+      )}
+      <p className="text-xs leading-5 text-gray-300">{score.explanation}</p>
+    </div>
+  )
+}
+
 function isValidBookingUrl(value: string): boolean {
   try {
     const url = new URL(value)
@@ -75,6 +159,8 @@ function isValidBookingUrl(value: string): boolean {
 
 export default function HotelCard({ hotel, score = null, loading = false }: Props) {
   const hasBookingUrl = isValidBookingUrl(hotel.deeplink)
+  const hasValidPrice = Number.isInteger(hotel.pricePerNight.priceCents) && hotel.pricePerNight.priceCents > 0
+  const canBook = hasBookingUrl && hasValidPrice
 
   return (
     <div className="card rounded-2xl overflow-hidden flex flex-col">
@@ -111,9 +197,7 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
         {loading ? (
           <div className="mt-3 h-6 w-24 rounded-full shimmer" />
         ) : score ? (
-          <div className="mt-3">
-            <DealBadge verdict={score.verdict} confidence={score.confidence} />
-          </div>
+          <HotelDealPanel score={score} />
         ) : null}
 
         {hotel.area && (
@@ -132,9 +216,13 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
         <div className="flex-1" />
 
         <div className="mt-4 flex items-end justify-between gap-3 border-t border-white/5 pt-4">
-          <Price cents={hotel.pricePerNight.priceCents} />
+          {hasValidPrice ? (
+            <Price cents={hotel.pricePerNight.priceCents} />
+          ) : (
+            <PriceUnavailable />
+          )}
           <div className="flex shrink-0 flex-col items-end gap-1">
-            {hasBookingUrl ? (
+            {canBook ? (
               <>
                 <a
                   href={hotel.deeplink}
@@ -152,7 +240,7 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
                   Booking unavailable
                 </span>
                 <p className="max-w-28 text-right text-[10px] font-medium text-gray-600">
-                  No valid booking link
+                  {hasBookingUrl ? 'No confirmed price' : 'No valid booking link'}
                 </p>
               </>
             )}

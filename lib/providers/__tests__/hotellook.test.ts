@@ -53,7 +53,7 @@ describe('HotellookProvider.searchHotels', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('calls the engine cache endpoint and maps HotelLook hotels', async () => {
+  it('calls the engine cache endpoint and maps HotelLook major-unit priceFrom to cents', async () => {
     const provider = new HotellookProvider();
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
@@ -63,7 +63,7 @@ describe('HotellookProvider.searchHotels', () => {
           hotelName: 'Hotel Example',
           stars: 4,
           location: { name: 'New York' },
-          priceFrom: 12999,
+          priceFrom: 129.99,
           photoUrl: 'https://example.com/hotel.jpg',
           propertyType: 'Hotel',
         },
@@ -94,6 +94,54 @@ describe('HotellookProvider.searchHotels', () => {
         source: 'hotellook',
       },
     ]);
+  });
+
+  it('excludes zero, missing, non-finite, and invalid HotelLook prices', async () => {
+    const provider = new HotellookProvider();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue([
+        {
+          hotelId: 1,
+          hotelName: 'Zero Hotel',
+          priceFrom: 0,
+        },
+        {
+          hotelId: 2,
+          hotelName: 'Missing Hotel',
+        },
+        {
+          hotelId: 3,
+          hotelName: 'Infinity Hotel',
+          priceFrom: Infinity,
+        },
+        {
+          hotelId: 4,
+          hotelName: 'Invalid Hotel',
+          priceFrom: 'not-a-price',
+        },
+        {
+          hotelId: 5,
+          hotelName: 'Valid Hotel',
+          priceFrom: '199.50',
+        },
+      ]),
+    });
+
+    const result = await provider.searchHotels('SFO', {
+      checkin: '2026-09-22',
+      checkout: '2026-09-29',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0]).toMatchObject({
+      id: '5',
+      name: 'Valid Hotel',
+      pricePerNight: { priceCents: 19950, currency: 'USD' },
+    });
   });
 
   it('returns an empty array when HotelLook returns an empty array', async () => {
@@ -174,7 +222,7 @@ describe('HotellookProvider.searchHotels', () => {
           hotelName: 'Cache Me',
           stars: '5',
           location: { name: 'Miami' },
-          priceFrom: 23001.9,
+          priceFrom: 230.019,
         },
       ]),
     });
@@ -190,7 +238,7 @@ describe('HotellookProvider.searchHotels', () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: '987',
-          pricePerNight: { priceCents: 23001, currency: 'USD' },
+          pricePerNight: { priceCents: 23002, currency: 'USD' },
         }),
       ]),
       21600

@@ -38,7 +38,7 @@ function isValidHotelSnapshot(hotel: HotelOffer): boolean {
 
   return (
     hotelId.length > 0 &&
-    Number.isInteger(priceCents) &&
+    Number.isSafeInteger(priceCents) &&
     priceCents > 0 &&
     /^[A-Z]{3}$/.test(currency)
   );
