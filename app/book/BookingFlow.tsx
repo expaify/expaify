@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext } from '@/lib/booking/config'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
@@ -8,6 +8,8 @@ type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
 
 const labelCls = 'block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5'
 const inputCls = 'w-full rounded-xl bg-[#0a0f1e] border border-white/10 px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors'
+const factLabelCls = 'text-[11px] font-semibold uppercase tracking-wider text-gray-500'
+const factValueCls = 'mt-1 text-sm font-medium text-gray-100'
 
 type BookingFlowProps = {
   bookingEnabled: boolean
@@ -40,55 +42,141 @@ function formatDateTime(value: string) {
   return date.toLocaleString('en-US', options)
 }
 
-function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareContext; duffelSandbox: boolean }) {
-  const priceLabel = fareContext.priceScope === 'party_total'
-    ? `total for ${fareContext.passengerCount} adult${fareContext.passengerCount === 1 ? '' : 's'}`
-    : 'per person'
+function getProviderLabel(provider: string, duffelSandbox: boolean) {
+  if (provider === 'duffel') return `Duffel${duffelSandbox ? ' sandbox' : ''}`
+  return provider
+}
 
+function getStopsLabel(stops: number) {
+  return stops === 0 ? 'Nonstop' : `${stops} stop${stops === 1 ? '' : 's'}`
+}
+
+function getPassengerLabel(count: number) {
+  return `${count} adult${count === 1 ? '' : 's'}`
+}
+
+function getPriceBasisLabel(fareContext: BookingFareContext) {
+  return fareContext.priceScope === 'party_total'
+    ? `Party total for ${getPassengerLabel(fareContext.passengerCount)}`
+    : 'Per person'
+}
+
+function FareFact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-      <div className="flex items-start justify-between gap-4">
+    <div className="min-w-0 rounded-xl border border-white/8 bg-black/10 px-4 py-3">
+      <p className={factLabelCls}>{label}</p>
+      <p className={`${factValueCls} break-words`}>{value}</p>
+    </div>
+  )
+}
+
+function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareContext; duffelSandbox: boolean }) {
+  return (
+    <section aria-labelledby="fare-review-title" className="rounded-2xl border border-white/10 bg-gray-900 p-5 shadow-2xl shadow-black/20 sm:p-6">
+      <div className="flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Selected fare</p>
-          <h2 className="mt-1 text-lg font-bold text-white">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-300">Fare review</p>
+          <h2 id="fare-review-title" className="mt-2 text-2xl font-bold leading-tight text-white sm:text-3xl">
             {fareContext.origin} to {fareContext.destination}
           </h2>
-          <p className="mt-1 text-sm text-gray-400">
-            {fareContext.carrier} · {fareContext.stops === 0 ? 'Nonstop' : `${fareContext.stops} stop${fareContext.stops === 1 ? '' : 's'}`}
+          <p className="mt-2 text-sm leading-6 text-gray-400">
+            {fareContext.carrier} flight, {getStopsLabel(fareContext.stops).toLowerCase()}, departing {formatDateTime(fareContext.depart)}
           </p>
         </div>
-        <div className="shrink-0 text-right">
-          <p className="text-lg font-bold text-white">{formatMoney(fareContext.priceCents, fareContext.currency)}</p>
-          <p className="text-[11px] text-gray-500">{priceLabel}</p>
+        <div className="shrink-0 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 sm:text-right">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-200">Current fare</p>
+          <p className="mt-1 text-2xl font-bold text-white">{formatMoney(fareContext.priceCents, fareContext.currency)}</p>
+          <p className="mt-1 text-xs text-emerald-100/80">{getPriceBasisLabel(fareContext)}</p>
         </div>
       </div>
-      <div className="mt-4 grid gap-3 border-t border-white/10 pt-4 text-sm sm:grid-cols-2">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Depart</p>
-          <p className="mt-1 text-gray-200">{formatDateTime(fareContext.depart)}</p>
-        </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <FareFact label="Route" value={`${fareContext.origin} → ${fareContext.destination}`} />
+        <FareFact label="Carrier" value={fareContext.carrier} />
+        <FareFact label="Depart" value={formatDateTime(fareContext.depart)} />
         {fareContext.return && (
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Return</p>
-            <p className="mt-1 text-gray-200">{formatDateTime(fareContext.return)}</p>
-          </div>
+          <FareFact label="Return" value={formatDateTime(fareContext.return)} />
         )}
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Passengers</p>
-          <p className="mt-1 text-gray-200">{fareContext.passengerCount} adult{fareContext.passengerCount === 1 ? '' : 's'}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Provider</p>
-          <p className="mt-1 text-gray-200">
-            {fareContext.provider === 'duffel' ? `Duffel${duffelSandbox ? ' sandbox' : ''}` : fareContext.provider}
-          </p>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Offer</p>
-          <p className="mt-1 truncate font-mono text-xs text-gray-400">{fareContext.offerId}</p>
+        <FareFact label="Stops" value={getStopsLabel(fareContext.stops)} />
+        <FareFact label="Passengers" value={getPassengerLabel(fareContext.passengerCount)} />
+        <FareFact label="Price basis" value={getPriceBasisLabel(fareContext)} />
+        <FareFact label="Provider" value={getProviderLabel(fareContext.provider, duffelSandbox)} />
+      </div>
+      <details className="mt-4 rounded-xl border border-white/8 bg-black/10 px-4 py-3 text-xs text-gray-500">
+        <summary className="cursor-pointer font-semibold uppercase tracking-wider text-gray-400">Technical reference</summary>
+        <p className="mt-3 break-all font-mono leading-5">{fareContext.offerId}</p>
+      </details>
+    </section>
+  )
+}
+
+function StatusPanel({
+  title,
+  message,
+  tone = 'amber',
+}: {
+  title: string
+  message: string
+  tone?: 'amber' | 'red' | 'green'
+}) {
+  const toneClasses = {
+    amber: 'border-amber-400/25 bg-amber-400/10 text-amber-100',
+    red: 'border-red-400/25 bg-red-400/10 text-red-100',
+    green: 'border-green-400/25 bg-green-400/10 text-green-100',
+  }
+
+  return (
+    <div role="status" aria-live="polite" className={`rounded-2xl border p-4 sm:p-5 ${toneClasses[tone]}`}>
+      <div className="flex gap-3">
+        <span aria-hidden="true" className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-current text-sm font-bold">!</span>
+        <div className="min-w-0">
+          <h2 className="text-base font-bold text-white">{title}</h2>
+          <p className="mt-1 text-sm leading-6 text-current/80">{message}</p>
         </div>
       </div>
     </div>
+  )
+}
+
+function ReviewShell({
+  eyebrow = 'Checkout review',
+  title,
+  message,
+  fareContext,
+  duffelSandbox,
+  children,
+}: {
+  eyebrow?: string
+  title: string
+  message: string
+  fareContext: BookingFareContext | null
+  duffelSandbox: boolean
+  children: ReactNode
+}) {
+  return (
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+      <a href="/" className="inline-flex min-h-10 items-center text-sm font-medium text-gray-400 transition-colors hover:text-white">
+        ← Back to search
+      </a>
+      <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        <div className="min-w-0 space-y-5">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-indigo-300">{eyebrow}</p>
+            <h1 className="mt-2 text-3xl font-bold leading-tight text-white sm:text-4xl">{title}</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-400">{message}</p>
+          </div>
+          {fareContext ? (
+            <FareSummary fareContext={fareContext} duffelSandbox={duffelSandbox} />
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-gray-900 p-6">
+              <p className="text-sm leading-6 text-gray-400">No fare details were supplied with this booking review.</p>
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 lg:sticky lg:top-6">
+          {children}
+        </div>
+      </div>
+    </main>
   )
 }
 
@@ -104,27 +192,20 @@ function RecoveryState({
   duffelSandbox: boolean
 }) {
   return (
-    <div className="mx-auto flex min-h-screen max-w-2xl items-center px-4 py-12">
-      <div className="w-full rounded-2xl border border-amber-500/20 bg-gray-900 p-6 sm:p-8">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10">
-          <span className="text-xl text-amber-300">!</span>
+    <ReviewShell title={title} message={message} fareContext={fareContext} duffelSandbox={duffelSandbox}>
+      <div className="rounded-2xl border border-white/10 bg-gray-900 p-5 shadow-2xl shadow-black/20 sm:p-6">
+        <StatusPanel title="Order creation is paused" message={message} />
+        <div className="mt-5 rounded-xl border border-white/8 bg-black/10 p-4">
+          <p className={factLabelCls}>What happens now</p>
+          <p className="mt-2 text-sm leading-6 text-gray-300">
+            This page is review-only. expaify is not collecting payment details, submitting traveler information, or creating an airline order from this fare.
+          </p>
         </div>
-        <div className="text-center">
-          <h1 className="text-xl font-bold text-white">{title}</h1>
-          <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-gray-400">{message}</p>
-        </div>
-        {fareContext && (
-          <div className="mt-6">
-            <FareSummary fareContext={fareContext} duffelSandbox={duffelSandbox} />
-          </div>
-        )}
-        <div className="mt-6 text-center">
-          <a href="/" className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 px-4 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/5">
-            Back to search
-          </a>
-        </div>
+        <a href="/" className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-white/10 px-4 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/5">
+          Back to search
+        </a>
       </div>
-    </div>
+    </ReviewShell>
   )
 }
 
@@ -175,20 +256,24 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
 
   if (state === 'success') {
     return (
-      <div className="max-w-lg mx-auto px-4 py-16 text-center">
-        <div className="bg-gray-900 border border-green-500/20 rounded-2xl p-8">
-          <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center mx-auto mb-4">
-            <span className="text-green-400 text-2xl">✓</span>
+      <ReviewShell
+        eyebrow="Confirmation"
+        title="Booking confirmed"
+        message="Check your email for ticket details."
+        fareContext={fareContext}
+        duffelSandbox={duffelSandbox}
+      >
+        <div className="rounded-2xl border border-green-500/20 bg-gray-900 p-6 shadow-2xl shadow-black/20">
+          <StatusPanel title="Order confirmed" message="The provider returned a booking reference for this fare." tone="green" />
+          <div className="mt-5 rounded-xl border border-white/8 bg-black/10 p-4">
+            <p className={factLabelCls}>Booking reference</p>
+            <p className="mt-2 break-all font-mono text-2xl font-bold text-indigo-300">{bookingRef}</p>
           </div>
-          <h1 className="text-xl font-bold text-white mb-2">Booking confirmed!</h1>
-          <p className="text-gray-400 text-sm mb-6">Check your email for ticket details.</p>
-          <p className="text-xs text-gray-500 uppercase tracking-widest mb-2">Booking reference</p>
-          <p className="text-3xl font-mono font-bold text-indigo-400 mb-8">{bookingRef}</p>
-          <a href="/" className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
-            ← Search more flights
+          <a href="/" className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-white/10 px-4 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/5">
+            Search more flights
           </a>
         </div>
-      </div>
+      </ReviewShell>
     )
   }
 
@@ -227,86 +312,92 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
 
   if (state === 'error') {
     return (
-      <div className="max-w-lg mx-auto px-4 py-16 text-center">
-        <div className="bg-gray-900 border border-red-500/20 rounded-2xl p-8">
-          <p className="text-red-400 mb-6">{errorMsg}</p>
-          <button onClick={() => setState('idle')} className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
-            ← Try again
+      <ReviewShell
+        title="Review selected fare"
+        message="The fare details are still available, but the provider could not continue the booking request."
+        fareContext={fareContext}
+        duffelSandbox={duffelSandbox}
+      >
+        <div className="rounded-2xl border border-red-500/20 bg-gray-900 p-6 shadow-2xl shadow-black/20">
+          <StatusPanel title="Booking request stopped" message={errorMsg} tone="red" />
+          <button onClick={() => setState('idle')} className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-white/10 px-4 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/5">
+            Try again
           </button>
         </div>
-      </div>
+      </ReviewShell>
     )
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-12">
-      <div className="mb-8">
-        <a href="/" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">← Back to search</a>
-        <h1 className="text-2xl font-bold text-white mt-4">Review selected fare</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          {duffelSandbox ? 'Duffel sandbox mode is active. This does not create a live airline ticket.' : 'Review fare context before creating the order.'}
-        </p>
-      </div>
-
-      <div className="mb-4">
-        <FareSummary fareContext={fareContext} duffelSandbox={duffelSandbox} />
-      </div>
-
-      <form onSubmit={handleSubmit} className="bg-gray-900 border border-white/8 rounded-2xl p-6 space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>Title</label>
-            <select value={title} onChange={e => setTitle(e.target.value as Title)} className={inputCls} required>
-              <option value="mr">Mr</option>
-              <option value="ms">Ms</option>
-              <option value="mrs">Mrs</option>
-              <option value="miss">Miss</option>
-              <option value="dr">Dr</option>
-            </select>
+    <ReviewShell
+      title="Review selected fare"
+      message="Confirm the fare details before expaify sends traveler information to the provider."
+      fareContext={fareContext}
+      duffelSandbox={duffelSandbox}
+    >
+      <form onSubmit={handleSubmit} className="rounded-2xl border border-white/10 bg-gray-900 p-5 shadow-2xl shadow-black/20 sm:p-6">
+        <div className="mb-5 rounded-xl border border-white/8 bg-black/10 p-4">
+          <p className={factLabelCls}>Booking status</p>
+          <p className="mt-2 text-sm leading-6 text-gray-300">
+            {duffelSandbox ? 'Duffel sandbox mode is active. This does not create a live airline ticket.' : 'Review fare context before creating the order.'}
+          </p>
+        </div>
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelCls}>Title</label>
+              <select value={title} onChange={e => setTitle(e.target.value as Title)} className={inputCls} required>
+                <option value="mr">Mr</option>
+                <option value="ms">Ms</option>
+                <option value="mrs">Mrs</option>
+                <option value="miss">Miss</option>
+                <option value="dr">Dr</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Gender</label>
+              <select value={gender} onChange={e => setGender(e.target.value as 'm' | 'f')} className={inputCls} required>
+                <option value="m">Male</option>
+                <option value="f">Female</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label className={labelCls}>Gender</label>
-            <select value={gender} onChange={e => setGender(e.target.value as 'm' | 'f')} className={inputCls} required>
-              <option value="m">Male</option>
-              <option value="f">Female</option>
-            </select>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelCls}>First name</label>
+              <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className={inputCls} placeholder="Jane" required />
+            </div>
+            <div>
+              <label className={labelCls}>Last name</label>
+              <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className={inputCls} placeholder="Smith" required />
+            </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className={labelCls}>First name</label>
-            <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className={inputCls} placeholder="Jane" required />
+            <label className={labelCls}>Date of birth</label>
+            <input type="date" value={dob} onChange={e => setDob(e.target.value)} max={maxDobStr} className={inputCls} required />
           </div>
+
           <div>
-            <label className={labelCls}>Last name</label>
-            <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className={inputCls} placeholder="Smith" required />
+            <label className={labelCls}>Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="jane@example.com" required />
           </div>
-        </div>
 
-        <div>
-          <label className={labelCls}>Date of birth</label>
-          <input type="date" value={dob} onChange={e => setDob(e.target.value)} max={maxDobStr} className={inputCls} required />
-        </div>
+          <div>
+            <label className={labelCls}>Phone (with country code)</label>
+            <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inputCls} placeholder="+1 212 555 1234" required />
+          </div>
 
-        <div>
-          <label className={labelCls}>Email</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="jane@example.com" required />
+          <button
+            type="submit"
+            disabled={state === 'loading'}
+            className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:from-indigo-400 hover:to-indigo-500 transition-all disabled:opacity-60"
+          >
+            {state === 'loading' ? 'Confirming…' : duffelSandbox ? 'Confirm sandbox booking →' : 'Confirm booking →'}
+          </button>
         </div>
-
-        <div>
-          <label className={labelCls}>Phone (with country code)</label>
-          <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inputCls} placeholder="+1 212 555 1234" required />
-        </div>
-
-        <button
-          type="submit"
-          disabled={state === 'loading'}
-          className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:from-indigo-400 hover:to-indigo-500 transition-all disabled:opacity-60"
-        >
-          {state === 'loading' ? 'Confirming…' : duffelSandbox ? 'Confirm sandbox booking →' : 'Confirm booking →'}
-        </button>
       </form>
-    </div>
+    </ReviewShell>
   )
 }
