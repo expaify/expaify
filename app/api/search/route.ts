@@ -31,7 +31,23 @@ function dedupFares(fares: NormalizedFare[]): NormalizedFare[] {
 
 function parsePassengers(value: string | null): number {
   const parsed = Number(value ?? '1');
-  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 9 ? parsed : 1;
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 9) {
+    throw new Error('Passenger count must be between 1 and 9');
+  }
+  return parsed;
+}
+
+function validateDateParam(name: string, value: string): void {
+  if (!value) return;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error(`${name} must use YYYY-MM-DD format`);
+  }
+
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+    throw new Error(`${name} is not a valid date`);
+  }
 }
 
 /**
@@ -70,7 +86,18 @@ export async function GET(request: NextRequest) {
 
   const depart = params.get('depart') ?? '';
   const ret = params.get('return') ?? '';
-  const passengers = parsePassengers(params.get('passengers'));
+  let passengers: number;
+  try {
+    validateDateParam('depart', depart);
+    validateDateParam('return', ret);
+    if (depart && ret && ret < depart) {
+      throw new Error('Return date must be after departure date');
+    }
+    passengers = parsePassengers(params.get('passengers'));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return new Response(JSON.stringify({ error: msg }), { status: 400 });
+  }
   const flexDates = params.get('flex') === '1';
   const range = { depart, return: ret || undefined, passengers };
 
