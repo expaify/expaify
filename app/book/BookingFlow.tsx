@@ -7,9 +7,9 @@ type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
 
 const labelCls = 'mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[color:var(--text-2)]'
-const inputCls = 'field-input px-4'
+const inputCls = 'field-input !px-4'
 const factLabelCls = 'text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]'
-const factValueCls = 'mt-1 text-sm font-semibold text-[color:var(--text-1)]'
+const factValueCls = 'mt-1 text-sm font-semibold leading-5 text-[color:var(--text-1)]'
 const panelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] shadow-[var(--shadow-card)]'
 const insetPanelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)]'
 const secondaryButtonCls = 'inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-semibold text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:shadow-[var(--focus-ring)]'
@@ -70,7 +70,7 @@ function getPriceBasisLabel(fareContext: BookingFareContext) {
 
 function FareFact({ label, value }: { label: string; value: string }) {
   return (
-    <div className={`min-w-0 px-4 py-3 ${insetPanelCls}`}>
+    <div className={`min-w-0 px-3.5 py-3 sm:px-4 ${insetPanelCls}`}>
       <p className={factLabelCls}>{label}</p>
       <p className={`${factValueCls} break-words`}>{value}</p>
     </div>
@@ -79,8 +79,8 @@ function FareFact({ label, value }: { label: string; value: string }) {
 
 function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareContext; duffelSandbox: boolean }) {
   return (
-    <section aria-labelledby="fare-review-title" className={`${panelCls} p-5 sm:p-6`}>
-      <div className="flex flex-col gap-4 border-b border-[color:var(--border)] pb-5 sm:flex-row sm:items-start sm:justify-between">
+    <section aria-labelledby="fare-review-title" className={`${panelCls} p-4 sm:p-6`}>
+      <div className="flex flex-col gap-4 border-b border-[color:var(--border)] pb-5 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand)]">Fare review</p>
           <h2 id="fare-review-title" className="mt-2 text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">
@@ -90,9 +90,9 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
             {fareContext.carrier} flight, {getStopsLabel(fareContext.stops).toLowerCase()}, departing {formatDateTime(fareContext.depart)}
           </p>
         </div>
-        <div className="shrink-0 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--success-soft)] px-4 py-3 sm:text-right">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--success)]">Current fare</p>
-          <p className="mt-1 text-2xl font-bold text-[color:var(--text-1)]">{formatMoney(fareContext.priceCents, fareContext.currency)}</p>
+        <div className="min-w-0 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--bg-raised)] px-4 py-3 md:shrink-0 md:text-right">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]">Current fare</p>
+          <p className="mt-1 text-2xl font-bold leading-none text-[color:var(--text-1)]">{formatMoney(fareContext.priceCents, fareContext.currency)}</p>
           <p className="mt-1 text-xs font-medium text-[color:var(--text-2)]">{getPriceBasisLabel(fareContext)}</p>
         </div>
       </div>
@@ -109,7 +109,7 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
         <FareFact label="Provider" value={getProviderLabel(fareContext.provider, duffelSandbox)} />
       </div>
       <details className={`mt-4 px-4 py-3 text-xs text-[color:var(--text-3)] ${insetPanelCls}`}>
-        <summary className="cursor-pointer font-semibold uppercase tracking-wide text-[color:var(--text-2)]">Technical reference</summary>
+        <summary className="cursor-pointer rounded-sm font-semibold uppercase tracking-wide text-[color:var(--text-2)] focus-visible:shadow-[var(--focus-ring)]">Technical reference</summary>
         <p className="mt-3 break-all font-mono leading-5">{fareContext.offerId}</p>
       </details>
     </section>
@@ -134,7 +134,7 @@ function StatusPanel({
   return (
     <div role="status" aria-live="polite" className={`rounded-lg border p-4 sm:p-5 ${toneClasses[tone]}`}>
       <div className="flex gap-3">
-        <span aria-hidden="true" className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-current text-sm font-bold">!</span>
+        <span aria-hidden="true" className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-current" />
         <div className="min-w-0">
           <h2 className="text-base font-bold text-[color:var(--text-1)]">{title}</h2>
           <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">{message}</p>
@@ -160,15 +160,15 @@ function ReviewShell({
   children: ReactNode
 }) {
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
-      <a href="/" className="inline-flex min-h-10 items-center rounded-lg text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
+    <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-10 lg:px-8">
+      <a href="/" className="inline-flex min-h-10 items-center rounded-lg px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
         ← Back to search
       </a>
-      <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <div className="mt-4 grid gap-5 lg:mt-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
         <div className="min-w-0 space-y-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand)]">{eyebrow}</p>
-            <h1 className="mt-2 text-3xl font-bold leading-tight text-[color:var(--text-1)] sm:text-4xl">{title}</h1>
+            <h1 className="mt-2 text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-4xl">{title}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--text-2)]">{message}</p>
           </div>
           {fareContext ? (
@@ -200,7 +200,7 @@ function RecoveryState({
 }) {
   return (
     <ReviewShell title={title} message={message} fareContext={fareContext} duffelSandbox={duffelSandbox}>
-      <div className={`${panelCls} p-5 sm:p-6`}>
+      <div className={`${panelCls} p-4 sm:p-6`}>
         <StatusPanel title="Booking remains review-only" message={message} />
         <div className={`mt-5 p-4 ${insetPanelCls}`}>
           <p className={factLabelCls}>What happens now</p>
@@ -270,11 +270,11 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
         fareContext={fareContext}
         duffelSandbox={duffelSandbox}
       >
-        <div className={`${panelCls} p-5 sm:p-6`}>
+        <div className={`${panelCls} p-4 sm:p-6`}>
           <StatusPanel title="Order confirmed" message="The provider returned a booking reference for this fare." tone="green" />
           <div className={`mt-5 p-4 ${insetPanelCls}`}>
             <p className={factLabelCls}>Booking reference</p>
-            <p className="mt-2 break-all font-mono text-2xl font-bold text-[color:var(--brand)]">{bookingRef}</p>
+            <p className="mt-2 break-all font-mono text-xl font-bold text-[color:var(--brand)] sm:text-2xl">{bookingRef}</p>
           </div>
           <a href="/" className={`mt-5 ${secondaryButtonCls}`}>
             Search more flights
@@ -325,7 +325,7 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
         fareContext={fareContext}
         duffelSandbox={duffelSandbox}
       >
-        <div className={`${panelCls} p-5 sm:p-6`}>
+        <div className={`${panelCls} p-4 sm:p-6`}>
           <StatusPanel title="Booking request stopped" message={errorMsg} tone="red" />
           <button onClick={() => setState('idle')} className={`mt-5 ${secondaryButtonCls}`}>
             Try again
@@ -342,7 +342,12 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
       fareContext={fareContext}
       duffelSandbox={duffelSandbox}
     >
-      <form onSubmit={handleSubmit} className={`${panelCls} p-5 sm:p-6`}>
+      <form onSubmit={handleSubmit} className={`${panelCls} p-4 sm:p-6`}>
+        <div className="mb-5">
+          <p className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand)]">Traveler details</p>
+          <h2 className="mt-2 text-xl font-bold leading-tight text-[color:var(--text-1)]">Continue with this fare</h2>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">Enter the passenger details required by the provider for this review path.</p>
+        </div>
         <div className={`mb-5 p-4 ${insetPanelCls}`}>
           <p className={factLabelCls}>Booking status</p>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
@@ -396,13 +401,18 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
             <input id="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inputCls} placeholder="+1 212 555 1234" required />
           </div>
 
-          <button
-            type="submit"
-            disabled={state === 'loading'}
-            className="btn-primary"
-          >
-            {state === 'loading' ? 'Confirming...' : duffelSandbox ? 'Confirm sandbox booking' : 'Confirm booking'}
-          </button>
+          <div className="sticky bottom-0 -mx-4 mt-2 border-t border-[color:var(--border)] bg-[color:var(--bg-overlay)] p-4 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+            <button
+              type="submit"
+              disabled={state === 'loading'}
+              className="btn-primary"
+            >
+              {state === 'loading' ? 'Confirming...' : duffelSandbox ? 'Confirm sandbox booking' : 'Confirm booking'}
+            </button>
+            <p className="mt-3 text-center text-xs leading-5 text-[color:var(--text-3)]">
+              {duffelSandbox ? 'Sandbox submission only. No live ticket is issued.' : 'expaify sends these details only after you confirm.'}
+            </p>
+          </div>
         </div>
       </form>
     </ReviewShell>
