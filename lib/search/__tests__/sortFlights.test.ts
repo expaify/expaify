@@ -60,6 +60,39 @@ describe('sortFlights', () => {
     expect(sorted.map(fare => fare.id)).toEqual(['cheap-early', 'cheap-late', 'expensive']);
   });
 
+  it('keeps fallback ordering when only some deal scores have settled', () => {
+    const fares = [
+      makeFare('cheap-pending', 12000),
+      makeFare('expensive-great', 24000),
+      makeFare('mid-pending', 18000),
+    ];
+
+    const sorted = sortFlights(fares, 'deal', {
+      'expensive-great': makeScore('Great', 8),
+    });
+
+    expect(sorted.map(fare => fare.id)).toEqual(['cheap-pending', 'mid-pending', 'expensive-great']);
+  });
+
+  it('keeps fallback ordering when deal ranking is deferred after scores settle', () => {
+    const fares = [
+      makeFare('cheap-typical', 12000),
+      makeFare('expensive-great', 24000),
+    ];
+
+    const sorted = sortFlights(
+      fares,
+      'deal',
+      {
+        'cheap-typical': makeScore('Typical', 60),
+        'expensive-great': makeScore('Great', 8),
+      },
+      { deferDealSort: true }
+    );
+
+    expect(sorted.map(fare => fare.id)).toEqual(['cheap-typical', 'expensive-great']);
+  });
+
   it('does not promote low-confidence scores above high-confidence deals', () => {
     const fares = [
       makeFare('low-great', 12000),

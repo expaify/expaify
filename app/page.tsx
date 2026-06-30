@@ -474,11 +474,25 @@ export default function Home() {
     setDestDisplay(tmpDisplay)
   }
 
-  const displayFlights = useMemo(() => {
+  const filteredFlights = useMemo(() => {
     let list = [...flights]
     if (filterStops !== null) list = list.filter(fare => fare.stops === filterStops)
-    return sortFlights(list, sortBy, scores)
-  }, [flights, sortBy, filterStops, scores])
+    return list
+  }, [flights, filterStops])
+
+  const visibleScoresSettled = useMemo(
+    () => filteredFlights.every(fare => Object.prototype.hasOwnProperty.call(scores, fare.id)),
+    [filteredFlights, scores]
+  )
+
+  const rankingUpdating =
+    sortBy === 'deal' &&
+    filteredFlights.length > 0 &&
+    (isSearching || scoreLoading.size > 0 || !visibleScoresSettled)
+
+  const displayFlights = useMemo(() => {
+    return sortFlights(filteredFlights, sortBy, scores, { deferDealSort: rankingUpdating })
+  }, [filteredFlights, sortBy, scores, rankingUpdating])
 
   const routeLabel = [originDisplay || origin, destDisplay || dest].filter(Boolean).join(' → ')
   const greatCount = Object.values(scores).filter(score => score?.verdict === 'Great').length
@@ -897,6 +911,7 @@ export default function Home() {
                 setFilterStops={setFilterStops}
                 scores={scores}
                 scoreLoading={scoreLoading}
+                rankingUpdating={rankingUpdating}
                 suggestion={suggestion}
                 providerNotices={providerNotices}
                 dest={dest}
