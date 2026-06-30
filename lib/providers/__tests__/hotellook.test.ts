@@ -40,6 +40,19 @@ describe('HotellookProvider.searchHotels', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  it('returns a configuration error when TP_AFFILIATE_MARKER is missing', async () => {
+    delete process.env.TP_AFFILIATE_MARKER;
+
+    const provider = new HotellookProvider();
+    const result = await provider.searchHotels('JFK', {
+      checkin: '2026-09-22',
+      checkout: '2026-09-29',
+    });
+
+    expect(result).toEqual({ ok: false, reason: 'TP_AFFILIATE_MARKER not configured' });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
   it('calls the engine cache endpoint and maps HotelLook hotels', async () => {
     const provider = new HotellookProvider();
     (global.fetch as jest.Mock).mockResolvedValue({

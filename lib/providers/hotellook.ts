@@ -44,6 +44,7 @@ export class HotellookProvider implements HotelProvider {
   ): Promise<Result<HotelOffer[]>> {
     const token = this.token;
     if (!token) return { ok: false, reason: 'TP_TOKEN not configured' };
+    if (!this.marker) return { ok: false, reason: 'TP_AFFILIATE_MARKER not configured' };
 
     const location = area.trim().toUpperCase();
     const cacheKey = `hotellook:search:${location}:${range.checkin}:${range.checkout}`;

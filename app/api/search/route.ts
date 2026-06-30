@@ -33,7 +33,7 @@ function dedupFares(fares: NormalizedFare[]): NormalizedFare[] {
  * GET /api/search
  *
  * Streams results as newline-delimited JSON (NDJSON).
- * Each line: { type: 'flights'|'hotels'|'notice'|'suggestion'|'done', ... }
+ * Each line: { type: 'flights'|'hotels'|'hotel-status'|'notice'|'suggestion'|'done', ... }
  * Providers are raced — first to return streams immediately.
  */
 export async function GET(request: NextRequest) {
@@ -144,10 +144,20 @@ export async function GET(request: NextRequest) {
       // Hotels after all flight providers resolve
       if (destIATA && depart && ret) {
         const hotelsResult = await hotellook.searchHotels(destIATA, { checkin: depart, checkout: ret });
-        if (hotelsResult.ok && hotelsResult.data.length > 0)
+        if (hotelsResult.ok && hotelsResult.data.length > 0) {
+          send({ type: 'hotel-status', status: 'available' });
           send({ type: 'hotels', source: 'hotellook', data: hotelsResult.data });
-        else if (!hotelsResult.ok)
-          send({ type: 'notice', message: `Hotels unavailable: ${hotelsResult.reason}` });
+        } else if (hotelsResult.ok) {
+          send({ type: 'hotel-status', status: 'empty', message: 'No hotels were returned for these dates.' });
+        } else {
+          send({ type: 'hotel-status', status: 'unavailable', message: `Hotels unavailable: ${hotelsResult.reason}` });
+        }
+      } else {
+        send({
+          type: 'hotel-status',
+          status: 'skipped',
+          message: 'Enter a destination plus depart and return dates to check hotel availability.',
+        });
       }
 
       send({ type: 'done' });

@@ -12,6 +12,7 @@ type View = 'form' | 'results'
 type TripType = 'roundtrip' | 'oneway'
 type SortBy = 'price' | 'deal'
 type ActiveTab = 'flights' | 'hotels'
+type HotelAvailability = 'idle' | 'loading' | 'available' | 'empty' | 'unavailable' | 'skipped'
 type RecentSearch = { origin: string; dest: string; originDisplay: string; destDisplay: string }
 
 const destinations = [
@@ -217,6 +218,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
   const [suggestion, setSuggestion] = useState<string | null>(null)
   const [providerNotices, setProviderNotices] = useState<string[]>([])
+  const [hotelAvailability, setHotelAvailability] = useState<HotelAvailability>('idle')
+  const [hotelAvailabilityMessage, setHotelAvailabilityMessage] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<SortBy>('deal')
   const [filterStops, setFilterStops] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState<ActiveTab>('flights')
@@ -326,6 +329,8 @@ export default function Home() {
     setError(null)
     setSuggestion(null)
     setProviderNotices([])
+    setHotelAvailability(dest.trim() && depart && returnDate && tripType === 'roundtrip' ? 'loading' : 'skipped')
+    setHotelAvailabilityMessage(null)
     setFlights([])
     setHotels([])
     setScores({})
@@ -366,7 +371,7 @@ export default function Home() {
           if (!line.trim()) continue
 
           try {
-            const message = JSON.parse(line) as { type: string; data?: unknown; message?: string }
+            const message = JSON.parse(line) as { type: string; data?: unknown; message?: string; status?: string }
             if (message.type === 'flights' && Array.isArray(message.data)) {
               const newFares = message.data as NormalizedFare[]
               accumulated.push(...newFares)
@@ -375,7 +380,14 @@ export default function Home() {
             } else if (message.type === 'hotels' && Array.isArray(message.data)) {
               const newHotels = message.data as HotelOffer[]
               setHotels(newHotels)
+              setHotelAvailability(newHotels.length > 0 ? 'available' : 'empty')
               newHotels.forEach(fireHotelScore)
+            } else if (message.type === 'hotel-status' && typeof message.status === 'string') {
+              const status = message.status as HotelAvailability
+              if (['available', 'empty', 'unavailable', 'skipped'].includes(status)) {
+                setHotelAvailability(status)
+                setHotelAvailabilityMessage(typeof message.message === 'string' ? message.message : null)
+              }
             } else if (message.type === 'suggestion' && typeof message.message === 'string') {
               setSuggestion(message.message)
             } else if (message.type === 'notice' && typeof message.message === 'string') {
@@ -451,6 +463,15 @@ export default function Home() {
 
   const routeLabel = [originDisplay || origin, destDisplay || dest].filter(Boolean).join(' → ')
   const greatCount = Object.values(scores).filter(score => score?.verdict === 'Great').length
+  const hotelsTabDisabled = hotels.length === 0 && ['idle', 'skipped', 'unavailable'].includes(hotelAvailability)
+  const hotelUnavailableCopy =
+    hotelAvailability === 'unavailable'
+      ? hotelAvailabilityMessage ?? 'Hotel availability is unavailable right now.'
+      : hotelAvailability === 'skipped'
+        ? hotelAvailabilityMessage ?? 'Enter a destination plus depart and return dates to check hotel availability.'
+        : hotelAvailability === 'empty'
+          ? 'No hotels were returned for these dates.'
+          : 'Hotel availability is not ready yet.'
 
   if (view === 'form') {
     return (
@@ -483,7 +504,7 @@ export default function Home() {
               expaify
             </h1>
             <p className="mt-5 text-base font-semibold text-gray-300 sm:text-lg">
-              Flights + Hotels ranked by real deal quality.
+              Flights ranked by real deal quality.
             </p>
           </div>
 
@@ -626,7 +647,7 @@ export default function Home() {
                 ) : (
                   <>
                     <IconPlane className="text-indigo-200" />
-                    Search flights + hotels
+                    Search flights
                   </>
                 )}
               </button>
@@ -808,20 +829,29 @@ export default function Home() {
               {(['flights', 'hotels'] as ActiveTab[]).map(tab => {
                 const count = tab === 'flights' ? flights.length : hotels.length
                 const active = activeTab === tab
+                const disabled = tab === 'hotels' && hotelsTabDisabled
                 return (
                   <button
                     key={tab}
                     type="button"
-                    onClick={() => setActiveTab(tab)}
+                    onClick={() => {
+                      if (!disabled) setActiveTab(tab)
+                    }}
+                    disabled={disabled}
+                    aria-disabled={disabled}
                     className={`relative px-5 py-3 text-sm font-bold capitalize transition-colors ${
-                      active ? 'text-gray-100' : 'text-gray-600 hover:text-gray-300'
+                      disabled
+                        ? 'cursor-not-allowed text-gray-700'
+                        : active ? 'text-gray-100' : 'text-gray-600 hover:text-gray-300'
                     }`}
                   >
                     {tab}
                     <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
-                      active ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/5 text-gray-600'
+                      disabled
+                        ? 'bg-white/[0.03] text-gray-700'
+                        : active ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/5 text-gray-600'
                     }`}>
-                      {count}
+                      {disabled ? 'Unavailable' : count}
                     </span>
                     {active && (
                       <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-t-full bg-[linear-gradient(90deg,#6366f1,#a78bfa)]" />
@@ -830,6 +860,12 @@ export default function Home() {
                 )
               })}
             </div>
+
+            {hotelsTabDisabled && !isSearching && (
+              <div className="mb-6 rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-gray-500">
+                Hotels are not available for this search. {hotelUnavailableCopy}
+              </div>
+            )}
 
             {activeTab === 'flights' && (
               <FlightResults
@@ -875,13 +911,11 @@ export default function Home() {
                 ) : hotels.length === 0 ? (
                   <div className="py-24 text-center animate-fade-in">
                     <div className="mb-4 text-5xl">🏨</div>
-                    <p className="font-display text-lg font-bold text-gray-300">No hotels found</p>
+                    <p className="font-display text-lg font-bold text-gray-300">
+                      {hotelAvailability === 'empty' ? 'No hotels found' : 'Hotels unavailable'}
+                    </p>
                     <p className="mx-auto mt-2 max-w-xs text-sm text-gray-600">
-                      {!dest.trim()
-                        ? 'Enter a destination to compare hotel availability.'
-                        : tripType === 'oneway' || !returnDate
-                          ? 'Add a return date to search hotels for the trip.'
-                          : 'No hotels are available for these dates yet.'}
+                      {hotelUnavailableCopy}
                     </p>
                   </div>
                 ) : (
