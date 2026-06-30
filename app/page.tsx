@@ -97,6 +97,8 @@ export default function Home() {
   const [destDisplay, setDestDisplay] = useState('')
   const [depart, setDepart] = useState('')
   const [returnDate, setReturnDate] = useState('')
+  const [passengers, setPassengers] = useState(1)
+  const [flexDates, setFlexDates] = useState(false)
   const [flights, setFlights] = useState<NormalizedFare[]>([])
   const [hotels, setHotels] = useState<HotelOffer[]>([])
   const [scores, setScores] = useState<Record<string, DealScore | null>>({})
@@ -178,6 +180,8 @@ export default function Home() {
       if (dest.trim()) params.set('dest', dest.trim())
       if (depart) params.set('depart', depart)
       if (returnDate && tripType === 'roundtrip') params.set('return', returnDate)
+      params.set('passengers', String(passengers))
+      if (flexDates && depart) params.set('flex', '1')
 
       const response = await fetch(`/api/search?${params.toString()}`)
       if (!response.ok || !response.body) throw new Error('Search failed')
@@ -375,6 +379,41 @@ export default function Home() {
                 )}
               </div>
 
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={flexDates}
+                  onChange={e => setFlexDates(e.target.checked)}
+                  className="w-4 h-4 rounded border-white/20 bg-white/5 accent-indigo-500"
+                />
+                <span className="text-xs text-gray-400 font-medium">
+                  I'm flexible <span className="text-gray-600">(±3 days)</span>
+                </span>
+              </label>
+
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">Passengers</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPassengers(p => Math.max(1, p - 1))}
+                    className="w-7 h-7 rounded-full bg-white/5 border border-white/10 text-gray-300 text-sm font-bold hover:bg-white/10 transition-colors flex items-center justify-center disabled:opacity-30"
+                    disabled={passengers <= 1}
+                  >
+                    −
+                  </button>
+                  <span className="text-sm font-bold text-gray-100 w-4 text-center tabular-nums">{passengers}</span>
+                  <button
+                    type="button"
+                    onClick={() => setPassengers(p => Math.min(9, p + 1))}
+                    className="w-7 h-7 rounded-full bg-white/5 border border-white/10 text-gray-300 text-sm font-bold hover:bg-white/10 transition-colors flex items-center justify-center disabled:opacity-30"
+                    disabled={passengers >= 9}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
               <button type="submit" className="btn-primary" disabled={isSearching}>
                 {isSearching ? (
                   <>
@@ -482,6 +521,7 @@ export default function Home() {
             <div>
               <p className="text-sm font-semibold text-gray-200">
                 {flights.length} flight{flights.length === 1 ? '' : 's'} found{routeLabel ? ` · ${routeLabel}` : ''}
+                {passengers > 1 && <span className="text-gray-600"> × {passengers} passengers</span>}
               </p>
               {greatCount > 0 && (
                 <p className="mt-0.5 text-xs font-semibold text-emerald-400">

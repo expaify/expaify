@@ -43,7 +43,8 @@ export async function GET(request: NextRequest) {
 
   const depart = params.get('depart') ?? '';
   const ret = params.get('return') ?? '';
-  const range = { depart, return: ret || undefined };
+  const passengers = parseInt(params.get('passengers') ?? '1', 10);
+  const range = { depart, return: ret || undefined, passengers };
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({

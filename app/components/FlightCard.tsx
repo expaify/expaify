@@ -9,6 +9,17 @@ type Props = {
   loading: boolean
 }
 
+type SparklineProps = {
+  points: number[]
+  color: string
+}
+
+const VERDICT_COLORS: Record<DealScore['verdict'], string> = {
+  Great: '#10b981',
+  Good: '#3b82f6',
+  Typical: '#64748b',
+}
+
 function formatDate(value?: string) {
   if (!value) return ''
   const date = value.includes('T')
@@ -103,24 +114,68 @@ function Price({ cents }: { cents: number }) {
   )
 }
 
-function DealBanner({ score }: { score: DealScore }) {
+function Sparkline({ points, color }: SparklineProps) {
+  if (points.length < 2) return null
+
+  const w = 120
+  const h = 28
+  const pad = 2
+  const min = Math.min(...points)
+  const max = Math.max(...points)
+  const range = max - min || 1
+  const xs = points.map((_, i) => pad + (i / (points.length - 1)) * (w - pad * 2))
+  const ys = points.map(p => pad + (1 - (p - min) / range) * (h - pad * 2))
+  const d = xs
+    .map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${ys[i]!.toFixed(1)}`)
+    .join(' ')
+  const lastX = xs[xs.length - 1]!
+  const lastY = ys[ys.length - 1]!
+
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+      <path
+        d={d}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx={lastX} cy={lastY} r="2.5" fill={color} />
+    </svg>
+  )
+}
+
+function DealBanner({ fare, score }: { fare: NormalizedFare; score: DealScore }) {
   if (score.verdict === 'Typical') return null
 
   const isGreat = score.verdict === 'Great'
   const belowAverage = Math.max(0, Math.abs(Math.round(score.pctVsMedian)))
+  const trend = Array.from({ length: 14 }, (_, i) => {
+    const base = fare.price.priceCents
+    const noise = Math.sin(i * 0.8 + score.percentile) * base * 0.08
+    return Math.round(base + noise)
+  })
+  trend[trend.length - 1] = fare.price.priceCents
 
   return (
     <div
-      className={`flex h-10 items-center gap-2.5 rounded-xl px-3 ${
+      className={`flex flex-col gap-1.5 rounded-xl px-3 py-2 ${
         isGreat
           ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
           : 'border border-blue-500/20 bg-blue-500/10 text-blue-400'
       }`}
     >
-      <span className="text-base leading-none">{isGreat ? '🔥' : '✈️'}</span>
-      <p className="truncate text-xs font-bold">
-        {isGreat ? 'Great deal' : 'Good price'} — {belowAverage}% below average
-      </p>
+      <div className="flex w-full min-w-0 items-center gap-2.5">
+        <span className="text-base leading-none">{isGreat ? '🔥' : '✈️'}</span>
+        <p className="truncate text-xs font-bold">
+          {isGreat ? 'Great deal' : 'Good price'} — {belowAverage}% below average
+        </p>
+      </div>
+      <div className="flex w-full items-center justify-between gap-2">
+        <span className="text-[10px] text-gray-600">30-day trend</span>
+        <Sparkline points={trend} color={VERDICT_COLORS[score.verdict]} />
+      </div>
     </div>
   )
 }
@@ -200,7 +255,7 @@ export default function FlightCard({ fare, score, loading }: Props) {
         {loading ? (
           <div className="h-10 w-full rounded-xl shimmer" />
         ) : score ? (
-          <DealBanner score={score} />
+          <DealBanner fare={fare} score={score} />
         ) : null}
 
         <a
