@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import type { Airport } from '@/lib/airports/data'
+import type { AirportLookupAirport, AirportLookupData, Result } from '@/lib/types'
 
-const cache = new Map<string, Airport[]>()
+const cache = new Map<string, AirportLookupAirport[]>()
 type LookupState = 'idle' | 'loading' | 'settled' | 'error'
 
 interface AirportInputProps {
@@ -26,7 +26,7 @@ export default function AirportInput({
 }: AirportInputProps) {
   const [inputText, setInputText] = useState(displayValue || '')
   const [open, setOpen] = useState(false)
-  const [results, setResults] = useState<Airport[]>([])
+  const [results, setResults] = useState<AirportLookupAirport[]>([])
   const [highlighted, setHighlighted] = useState(0)
   const [lookupState, setLookupState] = useState<LookupState>('idle')
   const rootRef = useRef<HTMLDivElement>(null)
@@ -69,9 +69,7 @@ export default function AirportInput({
 
       try {
         setLookupState('loading')
-        const res = await fetch(`/api/airports?q=${encodeURIComponent(q)}`)
-        if (!res.ok) throw new Error('Airport lookup failed')
-        const airports = (await res.json()) as Airport[]
+        const airports = await fetchAirportSuggestions(q)
         cache.set(q, airports)
         setResults(airports)
         setHighlighted(0)
@@ -87,7 +85,7 @@ export default function AirportInput({
     return () => window.clearTimeout(handle)
   }, [inputText])
 
-  function select(airport: Airport) {
+  function select(airport: AirportLookupAirport) {
     const display = `${airport.city} (${airport.iata})`
     onChange(airport.iata, display)
     setInputText(display)
@@ -111,9 +109,7 @@ export default function AirportInput({
     if (!q) return
 
     try {
-      const res = await fetch(`/api/airports?q=${encodeURIComponent(q)}`)
-      if (!res.ok) throw new Error('Airport lookup failed')
-      const airports = (await res.json()) as Airport[]
+      const airports = await fetchAirportSuggestions(q)
       const airport = airports[0]
       if (airport) select(airport)
     } catch {
@@ -222,4 +218,14 @@ export default function AirportInput({
       </div>
     </div>
   )
+}
+
+async function fetchAirportSuggestions(query: string): Promise<AirportLookupAirport[]> {
+  const res = await fetch(`/api/airports?q=${encodeURIComponent(query)}`)
+  if (!res.ok) throw new Error('Airport lookup failed')
+
+  const body = await res.json() as Result<AirportLookupData>
+  if (!body.ok) throw new Error('Airport lookup failed')
+
+  return body.data.airports
 }

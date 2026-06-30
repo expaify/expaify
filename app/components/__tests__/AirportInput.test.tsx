@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import type { Airport } from '@/lib/airports/data'
+import type { AirportLookupAirport } from '@/lib/types'
 
 type TestElement = ReactElement<Record<string, unknown>>
 
@@ -20,7 +20,7 @@ const ReactMock = jest.requireMock('react') as typeof import('react') & {
 
 const { default: AirportInput } = jest.requireActual('../AirportInput') as typeof import('../AirportInput')
 
-const airports: Airport[] = [
+const airports: AirportLookupAirport[] = [
   {
     iata: 'JFK',
     city: 'New York',
