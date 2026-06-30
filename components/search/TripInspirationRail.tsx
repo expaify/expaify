@@ -5,9 +5,12 @@ import { getTripInspiration, type TripInspirationTheme } from '@/lib/search/trip
 
 export type TripInspirationRailProps = {
   originIata: string;
+  originDisplay?: string;
   onSelect: (selection: {
     originIata: string;
+    originDisplay?: string;
     destinationIata: string;
+    destinationDisplay?: string;
     departDate: string;
     returnDate: string;
     flexible: true;
@@ -23,7 +26,11 @@ const THEME_LABELS: Record<TripInspirationTheme, string> = {
   last_minute: 'Last minute',
 };
 
-export function TripInspirationRail({ originIata, onSelect }: TripInspirationRailProps): JSX.Element {
+export function TripInspirationRail({
+  originIata,
+  originDisplay,
+  onSelect,
+}: TripInspirationRailProps): JSX.Element {
   const items = getTripInspiration(originIata);
 
   return (
@@ -54,7 +61,9 @@ export function TripInspirationRail({ originIata, onSelect }: TripInspirationRai
               onClick={() => {
                 onSelect({
                   originIata: item.originIata,
+                  originDisplay: formatSelectionOriginDisplay(originDisplay, item.originIata),
                   destinationIata: item.destinationIata,
+                  destinationDisplay: formatAirportDisplay(item.destinationCity, item.destinationIata),
                   departDate,
                   returnDate,
                   flexible: true,
@@ -105,4 +114,19 @@ function addDaysIso(dateIso: string, days: number): string {
 
 function formatIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+function formatAirportDisplay(city: string, iata: string): string {
+  return `${city} (${iata})`;
+}
+
+function formatSelectionOriginDisplay(originDisplay: string | undefined, originIata: string) {
+  const display = originDisplay?.trim();
+  if (!display) return undefined;
+
+  const displayIata = display.match(/\(([A-Z]{3})\)$/)?.[1];
+  if (!displayIata || displayIata === originIata) return display;
+
+  const city = display.replace(/\s*\([A-Z]{3}\)$/, '').trim();
+  return city ? formatAirportDisplay(city, originIata) : undefined;
 }

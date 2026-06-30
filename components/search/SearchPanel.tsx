@@ -9,7 +9,9 @@ type TripType = 'roundtrip' | 'oneway';
 
 type SearchSelection = {
   originIata: string;
+  originDisplay?: string;
   destinationIata: string;
+  destinationDisplay?: string;
   departDate: string;
   returnDate: string;
   flexible: true;
@@ -26,6 +28,15 @@ type SearchPanelSelectionSetters = {
   setFlexible: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
+export type SearchPanelSubmitPayload = {
+  originIata: string;
+  destinationIata: string;
+  departDate: string;
+  returnDate: string;
+  flexible: boolean;
+  tripType: TripType;
+};
+
 export type SearchPanelProps = {
   initialOriginIata?: string;
   initialOriginDisplay?: string;
@@ -33,14 +44,7 @@ export type SearchPanelProps = {
   initialDestinationDisplay?: string;
   initialDepartDate?: string;
   initialReturnDate?: string;
-  onSubmit?: (search: {
-    originIata: string;
-    destinationIata: string;
-    departDate: string;
-    returnDate: string;
-    flexible: boolean;
-    tripType: TripType;
-  }) => void;
+  onSubmit?: (search: SearchPanelSubmitPayload) => void;
 };
 
 export function SearchPanel({
@@ -74,14 +78,14 @@ export function SearchPanel({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSubmit?.({
+    onSubmit?.(createSearchPanelSubmitPayload({
       originIata: origin,
       destinationIata: destination,
       departDate,
       returnDate,
       flexible,
       tripType,
-    });
+    }));
   }
 
   return (
@@ -167,7 +171,11 @@ export function SearchPanel({
           )}
         </div>
 
-        <TripInspirationRail originIata={origin} onSelect={handleInspirationSelect} />
+        <TripInspirationRail
+          originIata={origin}
+          originDisplay={originDisplay}
+          onSelect={handleInspirationSelect}
+        />
 
         <label className="flex cursor-pointer select-none items-center gap-2">
           <input
@@ -189,19 +197,28 @@ export function SearchPanel({
   );
 }
 
-function formatAirportDisplay(iata: string): string {
-  return `${iata} (${iata})`;
+function formatAirportDisplay(iata: string, display?: string): string {
+  return display?.trim() || iata;
 }
 
 export function createTripInspirationSelectionHandler(setters: SearchPanelSelectionSetters) {
   return function handleInspirationSelect(selection: SearchSelection) {
     setters.setOrigin(selection.originIata);
-    setters.setOriginDisplay(formatAirportDisplay(selection.originIata));
+    setters.setOriginDisplay(formatAirportDisplay(selection.originIata, selection.originDisplay));
     setters.setDestination(selection.destinationIata);
-    setters.setDestinationDisplay(formatAirportDisplay(selection.destinationIata));
+    setters.setDestinationDisplay(
+      formatAirportDisplay(selection.destinationIata, selection.destinationDisplay),
+    );
     setters.setDepartDate(selection.departDate);
     setters.setReturnDate(selection.returnDate);
     setters.setTripType('roundtrip');
     setters.setFlexible(selection.flexible);
+  };
+}
+
+export function createSearchPanelSubmitPayload(search: SearchPanelSubmitPayload) {
+  return {
+    ...search,
+    returnDate: search.tripType === 'roundtrip' ? search.returnDate : '',
   };
 }

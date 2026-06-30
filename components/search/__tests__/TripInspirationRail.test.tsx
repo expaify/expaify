@@ -1,7 +1,10 @@
 import * as React from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { getTripInspiration } from '@/lib/search/tripInspiration';
-import { createTripInspirationSelectionHandler } from '../SearchPanel';
+import {
+  createSearchPanelSubmitPayload,
+  createTripInspirationSelectionHandler,
+} from '../SearchPanel';
 import { TripInspirationRail } from '../TripInspirationRail';
 
 describe('getTripInspiration', () => {
@@ -28,12 +31,16 @@ describe('getTripInspiration', () => {
 });
 
 describe('TripInspirationRail', () => {
-  it('calls onSelect with flexible dates and valid ISO dates', () => {
+  it('calls onSelect with readable labels, flexible dates, and valid ISO dates', () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-06-30T00:00:00.000Z'));
 
     const onSelect = jest.fn();
-    const rail = TripInspirationRail({ originIata: 'NYC', onSelect });
+    const rail = TripInspirationRail({
+      originIata: 'NYC',
+      originDisplay: 'New York (NYC)',
+      onSelect,
+    });
     const button = findElement(rail, (element) => element.type === 'button');
 
     expect(button).toBeTruthy();
@@ -41,7 +48,9 @@ describe('TripInspirationRail', () => {
 
     expect(onSelect).toHaveBeenCalledWith({
       originIata: 'NYC',
+      originDisplay: 'New York (NYC)',
       destinationIata: 'YUL',
+      destinationDisplay: 'Montreal (YUL)',
       departDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       returnDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       flexible: true,
@@ -51,10 +60,33 @@ describe('TripInspirationRail', () => {
 
     jest.useRealTimers();
   });
+
+  it('keeps origin display labels aligned when inspiration uses a city alias', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-06-30T00:00:00.000Z'));
+
+    const onSelect = jest.fn();
+    const rail = TripInspirationRail({
+      originIata: 'JFK',
+      originDisplay: 'New York (JFK)',
+      onSelect,
+    });
+    const button = findElement(rail, (element) => element.type === 'button');
+
+    (button?.props.onClick as () => void)();
+
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({
+      originIata: 'NYC',
+      originDisplay: 'New York (NYC)',
+      destinationDisplay: 'Montreal (YUL)',
+    }));
+
+    jest.useRealTimers();
+  });
 });
 
 describe('SearchPanel', () => {
-  it('receives a rail selection and updates the existing destination field state', () => {
+  it('receives a rail selection and updates the existing fields with readable labels', () => {
     const setters = {
       setOrigin: jest.fn(),
       setOriginDisplay: jest.fn(),
@@ -69,15 +101,56 @@ describe('SearchPanel', () => {
 
     handleSelect({
       originIata: 'NYC',
+      originDisplay: 'New York (NYC)',
       destinationIata: 'SJU',
+      destinationDisplay: 'San Juan (SJU)',
       departDate: '2026-11-06',
       returnDate: '2026-11-10',
       flexible: true,
     });
 
+    expect(setters.setOrigin).toHaveBeenCalledWith('NYC');
+    expect(setters.setOriginDisplay).toHaveBeenCalledWith('New York (NYC)');
     expect(setters.setDestination).toHaveBeenCalledWith('SJU');
-    expect(setters.setDestinationDisplay).toHaveBeenCalledWith('SJU (SJU)');
+    expect(setters.setDestinationDisplay).toHaveBeenCalledWith('San Juan (SJU)');
+    expect(setters.setDepartDate).toHaveBeenCalledWith('2026-11-06');
+    expect(setters.setReturnDate).toHaveBeenCalledWith('2026-11-10');
+    expect(setters.setTripType).toHaveBeenCalledWith('roundtrip');
     expect(setters.setFlexible).toHaveBeenCalledWith(true);
+  });
+
+  it('submits a blank return date for one-way trips without changing round-trip payloads', () => {
+    expect(createSearchPanelSubmitPayload({
+      originIata: 'NYC',
+      destinationIata: 'SJU',
+      departDate: '2026-11-06',
+      returnDate: '2026-11-10',
+      flexible: true,
+      tripType: 'roundtrip',
+    })).toEqual({
+      originIata: 'NYC',
+      destinationIata: 'SJU',
+      departDate: '2026-11-06',
+      returnDate: '2026-11-10',
+      flexible: true,
+      tripType: 'roundtrip',
+    });
+
+    expect(createSearchPanelSubmitPayload({
+      originIata: 'NYC',
+      destinationIata: 'SJU',
+      departDate: '2026-11-06',
+      returnDate: '2026-11-10',
+      flexible: false,
+      tripType: 'oneway',
+    })).toEqual({
+      originIata: 'NYC',
+      destinationIata: 'SJU',
+      departDate: '2026-11-06',
+      returnDate: '',
+      flexible: false,
+      tripType: 'oneway',
+    });
   });
 });
 
