@@ -6,6 +6,7 @@ import AirportInput from './components/AirportInput'
 import FlightCard from './components/FlightCard'
 import HotelCard from './components/HotelCard'
 import FlightResults from '@/components/flights/FlightResults'
+import { sortFlights } from '@/lib/search/sortFlights'
 
 type View = 'form' | 'results'
 type TripType = 'roundtrip' | 'oneway'
@@ -215,6 +216,7 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [suggestion, setSuggestion] = useState<string | null>(null)
+  const [providerNotices, setProviderNotices] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<SortBy>('deal')
   const [filterStops, setFilterStops] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState<ActiveTab>('flights')
@@ -323,6 +325,7 @@ export default function Home() {
     })
     setError(null)
     setSuggestion(null)
+    setProviderNotices([])
     setFlights([])
     setHotels([])
     setScores({})
@@ -375,6 +378,11 @@ export default function Home() {
               newHotels.forEach(fireHotelScore)
             } else if (message.type === 'suggestion' && typeof message.message === 'string') {
               setSuggestion(message.message)
+            } else if (message.type === 'notice' && typeof message.message === 'string') {
+              const notice = message.message
+              setProviderNotices(prev => (
+                prev.includes(notice) ? prev : [...prev, notice]
+              ))
             } else if (message.type === 'done') {
               setIsSearching(false)
             }
@@ -438,9 +446,8 @@ export default function Home() {
   const displayFlights = useMemo(() => {
     let list = [...flights]
     if (filterStops !== null) list = list.filter(fare => fare.stops === filterStops)
-    if (sortBy === 'price') list.sort((a, b) => a.price.priceCents - b.price.priceCents)
-    return list
-  }, [flights, sortBy, filterStops])
+    return sortFlights(list, sortBy, scores)
+  }, [flights, sortBy, filterStops, scores])
 
   const routeLabel = [originDisplay || origin, destDisplay || dest].filter(Boolean).join(' → ')
   const greatCount = Object.values(scores).filter(score => score?.verdict === 'Great').length
@@ -836,7 +843,11 @@ export default function Home() {
                 scores={scores}
                 scoreLoading={scoreLoading}
                 suggestion={suggestion}
+                providerNotices={providerNotices}
                 dest={dest}
+                depart={depart}
+                returnDate={returnDate}
+                tripType={tripType}
                 alertEmail={alertEmail}
                 setAlertEmail={setAlertEmail}
                 alertSent={alertSent}

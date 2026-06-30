@@ -8,6 +8,7 @@ import { BaggageFeeEstimator } from '@/components/baggage/BaggageFeeEstimator'
 import type { BaggageCabinClass } from '@/lib/baggage/types'
 
 type SortBy = 'price' | 'deal'
+type TripType = 'roundtrip' | 'oneway'
 
 type FlightResultsProps = {
   flights: NormalizedFare[]
@@ -20,7 +21,11 @@ type FlightResultsProps = {
   scores: Record<string, DealScore | null>
   scoreLoading: Set<string>
   suggestion: string | null
+  providerNotices: string[]
   dest: string
+  depart: string
+  returnDate: string
+  tripType: TripType
   alertEmail: string
   setAlertEmail: Dispatch<SetStateAction<string>>
   alertSent: boolean
@@ -58,16 +63,58 @@ export default function FlightResults({
   scores,
   scoreLoading,
   suggestion,
+  providerNotices,
   dest,
+  depart,
+  returnDate,
+  tripType,
   alertEmail,
   setAlertEmail,
   alertSent,
   handleAlertSubmit,
 }: FlightResultsProps) {
   const baggageFare = cheapestVisibleFare(displayFlights)
+  const flightProviderNotices = providerNotices.filter(notice =>
+    !notice.toLowerCase().startsWith('hotels unavailable')
+  )
+  const missingDepart = !depart
+  const missingRoundtripReturn = tripType === 'roundtrip' && !returnDate
+  const hasProviderUnavailable = flightProviderNotices.length > 0 && flights.length === 0
+  const emptyTitle = hasProviderUnavailable
+    ? 'Providers unavailable'
+    : missingDepart
+      ? 'Add a departure date'
+      : 'No flights found'
+  const emptyCopy = hasProviderUnavailable
+    ? 'Flight providers did not return inventory for this search. Try again in a moment or adjust the trip details.'
+    : missingDepart
+      ? 'A departure date is needed before live fares can be compared reliably.'
+      : missingRoundtripReturn
+        ? 'Add a return date for round-trip pricing, or switch to one way before searching.'
+        : filterStops !== null
+          ? 'Try changing the stops filter to see more fares.'
+          : 'Try different dates, another destination, or leave destination blank to explore.'
 
   return (
     <>
+      {(providerNotices.length > 0 || missingDepart || missingRoundtripReturn) && (
+        <div className="mb-4 rounded-xl border border-amber-400/15 bg-amber-400/[0.04] px-4 py-3 text-sm text-amber-100/80">
+          {missingDepart && (
+            <p>A departure date is missing, so results may be incomplete.</p>
+          )}
+          {missingRoundtripReturn && (
+            <p>Return date is missing for this round trip. Results may not reflect round-trip inventory.</p>
+          )}
+          {providerNotices.length > 0 && (
+            <div className="space-y-1">
+              {providerNotices.map(notice => (
+                <p key={notice}>{notice}</p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {flights.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <span className="mr-1 text-xs font-bold text-gray-600">Sort:</span>
@@ -116,11 +163,9 @@ export default function FlightResults({
       ) : displayFlights.length === 0 ? (
         <div className="py-24 text-center animate-fade-in">
           <div className="mb-4 text-5xl">✈️</div>
-          <p className="font-display text-lg font-bold text-gray-300">No flights found</p>
+          <p className="font-display text-lg font-bold text-gray-300">{emptyTitle}</p>
           <p className="mx-auto mt-2 max-w-xs text-sm text-gray-600">
-            {filterStops !== null
-              ? 'Try changing the stops filter to see more fares.'
-              : 'Try different dates, another destination, or leave destination blank to explore.'}
+            {emptyCopy}
           </p>
           {suggestion && <p className="mt-2 text-xs text-gray-500">{suggestion}</p>}
         </div>
