@@ -4,6 +4,13 @@ import { cache } from '../cache/redis';
 const BASE_URL = 'https://api.tequila.kiwi.com';
 const CACHE_TTL = 21600; // 6 hours
 
+interface KiwiProviderConfig {
+  approved?: boolean;
+  apiKey?: string;
+  deeplinkAttributionParam?: string;
+  deeplinkAttributionValue?: string;
+}
+
 // ─── Kiwi Tequila API response shapes ────────────────────────────────────────
 
 interface KiwiRoute {
@@ -37,10 +44,52 @@ function toKiwiDate(isoDate: string): string {
   return `${day}/${month}/${year}`;
 }
 
+function toPriceCents(price: number): number | null {
+  const priceText = String(price);
+  if (!/^\d+(?:\.\d{1,2})?$/.test(priceText)) return null;
+
+  const [whole, cents = ''] = priceText.split('.');
+  return Number(whole) * 100 + Number(cents.padEnd(2, '0'));
+}
+
 export class KiwiProvider implements FlightProvider {
-  // Read env var at call time so tests can set it before any method runs
-  private get apiKey(): string {
-    return process.env.KIWI_KEY ?? '';
+  constructor(private readonly config: KiwiProviderConfig = {}) {}
+
+  private validateConfig(): Result<{
+    apiKey: string;
+    deeplinkAttributionParam: string;
+    deeplinkAttributionValue: string;
+  }> {
+    const {
+      approved,
+      apiKey,
+      deeplinkAttributionParam,
+      deeplinkAttributionValue,
+    } = this.config;
+
+    if (!approved) return { ok: false, reason: 'Kiwi not approved' };
+    if (!apiKey) return { ok: false, reason: 'Kiwi not configured' };
+    if (!deeplinkAttributionParam || !deeplinkAttributionValue) {
+      return { ok: false, reason: 'Kiwi affiliate attribution not configured' };
+    }
+
+    return {
+      ok: true,
+      data: { apiKey, deeplinkAttributionParam, deeplinkAttributionValue },
+    };
+  }
+
+  private buildAttributedDeeplink(
+    deeplink: string,
+    attribution: { param: string; value: string }
+  ): Result<string> {
+    try {
+      const url = new URL(deeplink);
+      url.searchParams.set(attribution.param, attribution.value);
+      return { ok: true, data: url.toString() };
+    } catch {
+      return { ok: false, reason: 'Kiwi returned an invalid deeplink' };
+    }
   }
 
   // ─── priceTrends ───────────────────────────────────────────────────────────
@@ -59,8 +108,8 @@ export class KiwiProvider implements FlightProvider {
   ): Promise<Result<NormalizedFare[]>> {
     if (!dest) return { ok: true, data: [] };
 
-    const apiKey = this.apiKey;
-    if (!apiKey) return { ok: false, reason: 'Kiwi not configured' };
+    const config = this.validateConfig();
+    if (!config.ok) return config;
 
     const passengerCount = range.passengers;
     const cacheKey = `kiwi:search:${origin}:${dest}:${range.depart}:${range.return ?? ''}:pax:${passengerCount}`;
@@ -90,7 +139,7 @@ export class KiwiProvider implements FlightProvider {
       }
 
       const res = await fetch(url, {
-        headers: { apikey: apiKey },
+        headers: { apikey: config.data.apiKey },
       });
 
       if (!res.ok) {
@@ -99,8 +148,22 @@ export class KiwiProvider implements FlightProvider {
 
       const json = (await res.json()) as KiwiSearchResponse;
       const fetchedAt = new Date().toISOString();
+      const attribution = {
+        param: config.data.deeplinkAttributionParam,
+        value: config.data.deeplinkAttributionValue,
+      };
 
-      const fares: NormalizedFare[] = (json.data ?? []).map((offer) => {
+      const fares: NormalizedFare[] = [];
+
+      for (const offer of json.data ?? []) {
+        const priceCents = toPriceCents(offer.price);
+        if (priceCents === null) {
+          return { ok: false, reason: 'Kiwi returned an invalid price' };
+        }
+
+        const deeplink = this.buildAttributedDeeplink(offer.deep_link, attribution);
+        if (!deeplink.ok) return deeplink;
+
         const fare: NormalizedFare = {
           id: `kiwi-${offer.id}`,
           fareType: 'cash',
@@ -110,12 +173,12 @@ export class KiwiProvider implements FlightProvider {
           stops: offer.transfers.length,
           carrier: offer.airlines[0] ?? 'Unknown',
           price: {
-            priceCents: Math.round(offer.price * 100),
+            priceCents,
             currency: 'USD',
           },
           passengerCount,
           priceScope: 'party_total',
-          deeplink: offer.deep_link,
+          deeplink: deeplink.data,
           source: 'kiwi',
           fetchedAt,
         };
@@ -125,8 +188,8 @@ export class KiwiProvider implements FlightProvider {
           fare.return = offer.route[offer.route.length - 1].local_arrival;
         }
 
-        return fare;
-      });
+        fares.push(fare);
+      }
 
       await cache.set(cacheKey, fares, CACHE_TTL);
       return { ok: true, data: fares };
