@@ -26,14 +26,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "expaify — flight + hotel deal intelligence",
-  description:
-    "Flight and hotel prices ranked against 90 days of history. Find deals worth booking.",
+  description: "Flight + hotel prices ranked against 90 days of history.",
   keywords: ["flights", "hotels", "flight deals", "cheap flights", "hotel deals", "travel deals"],
   authors: [{ name: "expaify" }],
   metadataBase: new URL("https://expaify.com"),
   openGraph: {
     title: "expaify — flight + hotel deal intelligence",
-    description: "Flight and hotel prices ranked against 90 days of history.",
+    description: "Flight + hotel prices ranked against 90 days of history.",
     url: "https://expaify.com",
     siteName: "expaify",
     type: "website",
@@ -42,7 +41,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "expaify — flight + hotel deal intelligence",
-    description: "Flight and hotel prices ranked against 90 days of history.",
+    description: "Flight + hotel prices ranked against 90 days of history.",
     images: ["https://expaify.com/og.svg"],
   },
   robots: { index: true, follow: true },

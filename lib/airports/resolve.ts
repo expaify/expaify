@@ -1,9 +1,12 @@
+import { AIRPORTS } from './data';
+
 /**
  * Resolves a user-supplied origin string to an IATA airport code.
  *
  * Accepts:
  *  - A 3-letter IATA code (returned uppercased as-is)
  *  - A 5-digit US ZIP code (mapped to the nearest major airport)
+ *  - A known city name (exact or prefix match)
  *
  * Throws an Error for any unrecognised input so the caller can return 400.
  */
@@ -57,5 +60,12 @@ export function resolveToIATA(input: string): string {
     throw new Error(`Unknown origin: ${trimmed}`);
   }
 
-  throw new Error(`Unknown origin: ${trimmed}`);
+  const normalized = trimmed.toLowerCase();
+  const cityMatch = AIRPORTS.find(a => a.city.toLowerCase() === normalized);
+  if (cityMatch) return cityMatch.iata;
+
+  const partial = AIRPORTS.find(a => a.city.toLowerCase().startsWith(normalized));
+  if (partial) return partial.iata;
+
+  throw new Error(`Unrecognised airport: ${trimmed}`);
 }
