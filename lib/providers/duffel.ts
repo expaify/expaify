@@ -4,6 +4,7 @@ import { buildBookingHref } from '../booking/config';
 
 const BASE_URL = 'https://api.duffel.com';
 const CACHE_TTL = 21600; // 6 hours
+const DEFAULT_CABIN_CLASS = 'economy';
 
 // ─── Duffel API response shapes ──────────────────────────────────────────────
 
@@ -41,6 +42,28 @@ interface DuffelOfferRequestResponse {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+function buildDuffelSearchCacheKey(params: {
+  origin: string;
+  dest: string;
+  departDate: string;
+  returnDate: string | null;
+  passengerCount: number;
+  cabinClass: string;
+}): string {
+  const returnPart = params.returnDate ? `return:${params.returnDate}` : 'trip:one-way';
+
+  return [
+    'duffel',
+    'search',
+    `origin:${params.origin}`,
+    `dest:${params.dest}`,
+    `depart:${params.departDate}`,
+    returnPart,
+    `pax:${params.passengerCount}`,
+    `cabin:${params.cabinClass}`,
+  ].join(':');
+}
+
 export class DuffelProvider implements FlightProvider {
   // Read env var at call time so tests can set it before any method runs
   private get apiKey(): string {
@@ -76,7 +99,17 @@ export class DuffelProvider implements FlightProvider {
     if (!apiKey) return { ok: false, reason: 'Duffel not configured' };
 
     const passengerCount = range.passengers;
-    const cacheKey = `duffel:search:${origin}:${dest}:${departDate}:${range.return ?? ''}:pax:${passengerCount}`;
+    const returnDate = range.return && /^\d{4}-\d{2}-\d{2}$/.test(range.return) && range.return >= departDate
+      ? range.return
+      : null;
+    const cacheKey = buildDuffelSearchCacheKey({
+      origin,
+      dest,
+      departDate,
+      returnDate,
+      passengerCount,
+      cabinClass: DEFAULT_CABIN_CLASS,
+    });
 
     try {
       const cached = await cache.get<NormalizedFare[]>(cacheKey);
@@ -87,8 +120,8 @@ export class DuffelProvider implements FlightProvider {
         { origin, destination: dest, departure_date: departDate },
       ];
 
-      if (range.return && /^\d{4}-\d{2}-\d{2}$/.test(range.return) && range.return >= departDate) {
-        slices.push({ origin: dest, destination: origin, departure_date: range.return });
+      if (returnDate) {
+        slices.push({ origin: dest, destination: origin, departure_date: returnDate });
       }
 
       const res = await fetch(`${BASE_URL}/air/offer_requests`, {
@@ -102,7 +135,7 @@ export class DuffelProvider implements FlightProvider {
           data: {
             slices,
             passengers: Array.from({ length: passengerCount }, () => ({ type: 'adult' })),
-            cabin_class: 'economy',
+            cabin_class: DEFAULT_CABIN_CLASS,
             return_offers: false,
           },
         }),
