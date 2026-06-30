@@ -1,0 +1,102 @@
+import type { ReactElement } from 'react'
+import type { DealScore, NormalizedFare } from '@/lib/types'
+
+type TestElement = ReactElement<Record<string, unknown>>
+
+jest.mock('react', () => {
+  const actual = jest.requireActual('react') as typeof import('react')
+
+  return {
+    ...actual,
+    useState: jest.fn((initialValue: unknown) => [initialValue, jest.fn()]),
+  }
+})
+
+const { default: DealBadge } = jest.requireActual('../DealBadge') as typeof import('../DealBadge')
+const { default: FlightCard } = jest.requireActual('../FlightCard') as typeof import('../FlightCard')
+
+function childrenOf(node: TestElement): unknown[] {
+  const children = node.props?.children
+  return Array.isArray(children) ? children : [children].filter(Boolean)
+}
+
+function resolveFunctionElement(node: TestElement): TestElement {
+  if (typeof node.type === 'function') {
+    return (node.type as (props: Record<string, unknown>) => TestElement)(node.props)
+  }
+
+  return node
+}
+
+function collectText(node: unknown): string {
+  if (node === null || node === undefined || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(collectText).join('')
+  if (typeof node === 'object') {
+    return childrenOf(resolveFunctionElement(node as TestElement)).map(collectText).join('')
+  }
+  return ''
+}
+
+const fare: NormalizedFare = {
+  id: 'fare-1',
+  fareType: 'cash',
+  origin: 'JFK',
+  destination: 'LAX',
+  depart: '2026-09-01T09:00:00.000Z',
+  return: '2026-09-08T16:00:00.000Z',
+  cabin: 'economy',
+  stops: 0,
+  carrier: 'AA',
+  price: { priceCents: 24700, currency: 'USD' },
+  deeplink: 'https://example.com/book',
+  source: 'travelpayouts',
+  fetchedAt: '2026-06-30T00:00:00.000Z',
+}
+
+describe('Deal score presentation', () => {
+  it('shows Typical scores and the score explanation on flight cards', () => {
+    const score: DealScore = {
+      percentile: 58,
+      pctVsMedian: 4,
+      medianCents: 23700,
+      currency: 'USD',
+      verdict: 'Typical',
+      confidence: 'high',
+      explanation: '$247 - about 4% above the usual $237 for this route over the last 90 days.',
+    }
+
+    const text = collectText(FlightCard({ fare, score, loading: false }))
+
+    expect(text).toContain('Deal Score')
+    expect(text).toContain('Typical')
+    expect(text).toContain('58th percentile')
+    expect(text).toContain(score.explanation)
+    expect(text).not.toContain('30-day trend')
+  })
+
+  it('labels low-confidence scores as limited history instead of confirmed deals', () => {
+    const badgeText = collectText(DealBadge({ verdict: 'Great', confidence: 'low' }))
+
+    expect(badgeText).toContain('Limited history')
+    expect(badgeText).not.toContain('Great')
+  })
+
+  it('explains limited route history on low-confidence flight cards', () => {
+    const score: DealScore = {
+      percentile: 50,
+      pctVsMedian: 0,
+      medianCents: 0,
+      currency: 'USD',
+      verdict: 'Typical',
+      confidence: 'low',
+      explanation: 'No price history available for this route.',
+    }
+
+    const text = collectText(FlightCard({ fare, score, loading: false }))
+
+    expect(text).toContain('Limited history')
+    expect(text).toContain('Not enough route history for a confirmed deal rating')
+    expect(text).toContain(score.explanation)
+  })
+})

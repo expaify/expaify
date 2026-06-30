@@ -2,22 +2,12 @@
 
 import { useState } from 'react'
 import { DealScore, NormalizedFare } from '@/lib/types'
+import DealBadge from './DealBadge'
 
 type Props = {
   fare?: NormalizedFare
   score: DealScore | null
   loading: boolean
-}
-
-type SparklineProps = {
-  points: number[]
-  color: string
-}
-
-const VERDICT_COLORS: Record<DealScore['verdict'], string> = {
-  Great: '#10b981',
-  Good: '#3b82f6',
-  Typical: '#64748b',
 }
 
 function formatDate(value?: string) {
@@ -136,68 +126,35 @@ function Price({ cents }: { cents: number }) {
   )
 }
 
-function Sparkline({ points, color }: SparklineProps) {
-  if (points.length < 2) return null
-
-  const w = 120
-  const h = 28
-  const pad = 2
-  const min = Math.min(...points)
-  const max = Math.max(...points)
-  const range = max - min || 1
-  const xs = points.map((_, i) => pad + (i / (points.length - 1)) * (w - pad * 2))
-  const ys = points.map(p => pad + (1 - (p - min) / range) * (h - pad * 2))
-  const d = xs
-    .map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${ys[i]!.toFixed(1)}`)
-    .join(' ')
-  const lastX = xs[xs.length - 1]!
-  const lastY = ys[ys.length - 1]!
-
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
-      <path
-        d={d}
-        fill="none"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx={lastX} cy={lastY} r="2.5" fill={color} />
-    </svg>
-  )
-}
-
-function DealBanner({ fare, score }: { fare: NormalizedFare; score: DealScore }) {
-  if (score.verdict === 'Typical') return null
-
-  const isGreat = score.verdict === 'Great'
-  const belowAverage = Math.max(0, Math.abs(Math.round(score.pctVsMedian)))
-  const trend = Array.from({ length: 14 }, (_, i) => {
-    const base = fare.price.priceCents
-    const noise = Math.sin(i * 0.8 + score.percentile) * base * 0.08
-    return Math.round(base + noise)
-  })
-  trend[trend.length - 1] = fare.price.priceCents
+function DealBanner({ score }: { score: DealScore }) {
+  const isLowConfidence = score.confidence === 'low'
+  const panelClasses = isLowConfidence
+    ? 'border-amber-500/20 bg-amber-500/10'
+    : score.verdict === 'Great'
+      ? 'border-emerald-500/20 bg-emerald-500/10'
+      : score.verdict === 'Good'
+        ? 'border-blue-500/20 bg-blue-500/10'
+        : 'border-white/10 bg-white/[0.035]'
+  const percentileLabel = isLowConfidence
+    ? 'Not enough route history for a confirmed deal rating'
+    : `${Math.round(score.percentile)}th percentile`
 
   return (
     <div
-      className={`flex flex-col gap-1.5 rounded-xl px-3 py-2 ${
-        isGreat
-          ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
-          : 'border border-blue-500/20 bg-blue-500/10 text-blue-400'
-      }`}
+      className={`flex flex-col gap-2 rounded-xl border px-3 py-3 ${panelClasses}`}
     >
-      <div className="flex w-full min-w-0 items-center gap-2.5">
-        <span className="text-base leading-none">{isGreat ? '🔥' : '✈️'}</span>
-        <p className="truncate text-xs font-bold">
-          {isGreat ? 'Great deal' : 'Good price'} — {belowAverage}% below average
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
+            Deal Score
+          </p>
+          <p className="mt-0.5 text-xs font-medium leading-5 text-gray-300">
+            {percentileLabel}
+          </p>
+        </div>
+        <DealBadge verdict={score.verdict} confidence={score.confidence} />
       </div>
-      <div className="flex w-full items-center justify-between gap-2">
-        <span className="text-[10px] text-gray-600">30-day trend</span>
-        <Sparkline points={trend} color={VERDICT_COLORS[score.verdict]} />
-      </div>
+      <p className="text-xs leading-5 text-gray-300">{score.explanation}</p>
     </div>
   )
 }
@@ -283,7 +240,7 @@ export default function FlightCard({ fare, score, loading }: Props) {
         {loading ? (
           <div className="h-10 w-full rounded-xl shimmer" />
         ) : score ? (
-          <DealBanner fare={fare} score={score} />
+          <DealBanner score={score} />
         ) : null}
 
         <a
