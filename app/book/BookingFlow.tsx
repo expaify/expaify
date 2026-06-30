@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext } from '@/lib/booking/config'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
@@ -174,12 +174,8 @@ function ReviewShell({
             <h1 className="mt-2 text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-4xl">{title}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--text-2)]">{message}</p>
           </div>
-          {fareContext ? (
+          {fareContext && (
             <FareSummary fareContext={fareContext} duffelSandbox={duffelSandbox} />
-          ) : (
-            <div className={`${panelCls} p-6`}>
-              <p className="text-sm leading-6 text-[color:var(--text-2)]">No fare details were supplied with this booking review.</p>
-            </div>
           )}
         </div>
         <div className="min-w-0 lg:sticky lg:top-6">
@@ -218,6 +214,48 @@ function RecoveryState({
         <div className={actionStackCls}>
           <a href="/" className="btn-primary">
             {actionLabel}
+          </a>
+        </div>
+      </div>
+    </ReviewShell>
+  )
+}
+
+function InvalidBookingState({ duffelSandbox }: { duffelSandbox: boolean }) {
+  const headingRef = useRef<HTMLHeadingElement>(null)
+
+  useEffect(() => {
+    headingRef.current?.focus()
+  }, [])
+
+  return (
+    <ReviewShell
+      title="We can't identify this fare"
+      message="This booking link is missing required fare details or includes trip details expaify cannot verify. Return to search and choose a current flight result before reviewing booking options."
+      fareContext={null}
+      duffelSandbox={duffelSandbox}
+    >
+      <div className={`${panelCls} p-4 sm:p-6`}>
+        <StatusPanel
+          title="Fare context is missing"
+          message="No passenger details, payment details, or provider order can be submitted from this page."
+        />
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          className="sr-only outline-none"
+        >
+          Booking unavailable
+        </h2>
+        <div className={`mt-5 p-4 ${insetPanelCls}`}>
+          <p className={factLabelCls}>What happens now</p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+            Use a current search result so the review page receives a verified provider, route, dates, passenger count, and integer-cent price.
+          </p>
+        </div>
+        <div className={actionStackCls}>
+          <a href="/" className="btn-primary">
+            Back to search
           </a>
         </div>
       </div>
@@ -294,16 +332,7 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
   }
 
   if (!fareContext) {
-    return (
-      <RecoveryState
-        title="We can't identify this fare"
-        message="The booking page is missing the selected provider, route, or price. Return to search and choose a current flight result before reviewing booking options."
-        statusTitle="Fare context is missing"
-        actionLabel="Choose a current fare"
-        fareContext={null}
-        duffelSandbox={duffelSandbox}
-      />
-    )
+    return <InvalidBookingState duffelSandbox={duffelSandbox} />
   }
 
   if (!bookingEnabled) {

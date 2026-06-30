@@ -8,6 +8,8 @@ jest.mock('react', () => {
 
   return {
     ...actual,
+    useEffect: jest.fn((effect: () => void) => effect()),
+    useRef: jest.fn(() => ({ current: { focus: jest.fn() } })),
     useState: jest.fn((initialValue: unknown) => [initialValue, jest.fn()]),
   };
 });
@@ -63,9 +65,12 @@ describe('BookingFlow fare context review', () => {
     }));
 
     expect(text).toContain("We can't identify this fare");
-    expect(text).toContain('missing the selected provider, route, or price');
+    expect(text).toContain('missing required fare details');
     expect(text).toContain('Back to search');
     expect(text).not.toContain('Confirm booking');
+    expect(text).not.toContain('Current fare');
+    expect(text).not.toContain('Traveler details');
+    expect(text).not.toContain('No fare details were supplied');
   });
 
   it('shows the selected fare route, provider, passengers, and integer-cent price context', () => {

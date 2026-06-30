@@ -43,32 +43,60 @@ function cleanOptional(value: unknown): string | undefined {
   return cleaned ? cleaned : undefined;
 }
 
+function parseInteger(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) ? value : null;
+  }
+
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    const parsed = Number(value.trim());
+    return Number.isSafeInteger(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function isAirportCode(value: string): boolean {
+  return /^[A-Z]{3}$/.test(value);
+}
+
+function isCurrencyCode(value: string): boolean {
+  return /^[A-Z]{3}$/.test(value);
+}
+
+function isValidDateInput(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}(T.+)?$/.test(value) && !Number.isNaN(new Date(value).getTime());
+}
+
 export function validateBookingFareContext(input: FareContextInput): BookingFareContext | null {
   const offerId = cleanRequired(input.offerId);
   const provider = cleanRequired(input.provider);
   const origin = cleanRequired(input.origin);
   const destination = cleanRequired(input.destination);
   const depart = cleanRequired(input.depart);
+  const returnDate = cleanOptional(input.return);
   const carrier = cleanRequired(input.carrier);
   const currency = cleanRequired(input.currency);
-  const priceCents = Number(input.priceCents);
-  const stops = Number(input.stops);
-  const passengerCount = Number(input.passengerCount);
+  const priceCents = parseInteger(input.priceCents);
+  const stops = parseInteger(input.stops);
+  const passengerCount = parseInteger(input.passengerCount);
   const priceScope = cleanRequired(input.priceScope);
 
   if (
     !offerId ||
     !provider ||
-    !origin ||
-    !destination ||
+    !isAirportCode(origin) ||
+    !isAirportCode(destination) ||
     !depart ||
+    !isValidDateInput(depart) ||
+    (returnDate !== undefined && !isValidDateInput(returnDate)) ||
     !carrier ||
-    !currency ||
-    !Number.isInteger(priceCents) ||
+    !isCurrencyCode(currency) ||
+    priceCents === null ||
     priceCents <= 0 ||
-    !Number.isInteger(stops) ||
+    stops === null ||
     stops < 0 ||
-    !Number.isInteger(passengerCount) ||
+    passengerCount === null ||
     passengerCount < 1 ||
     passengerCount > 9 ||
     (priceScope !== 'per_person' && priceScope !== 'party_total')
@@ -82,7 +110,7 @@ export function validateBookingFareContext(input: FareContextInput): BookingFare
     origin,
     destination,
     depart,
-    return: cleanOptional(input.return),
+    return: returnDate,
     carrier,
     stops,
     priceCents,
