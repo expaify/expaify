@@ -29,6 +29,8 @@ type FlightResultsProps = {
   alertEmail: string
   setAlertEmail: Dispatch<SetStateAction<string>>
   alertSent: boolean
+  alertLoading: boolean
+  alertError: string | null
   handleAlertSubmit: (event: FormEvent<HTMLFormElement>) => void
 }
 
@@ -71,6 +73,8 @@ export default function FlightResults({
   alertEmail,
   setAlertEmail,
   alertSent,
+  alertLoading,
+  alertError,
   handleAlertSubmit,
 }: FlightResultsProps) {
   const baggageFare = cheapestVisibleFare(displayFlights)
@@ -195,22 +199,28 @@ export default function FlightResults({
               {alertSent ? (
                 <p className="text-sm font-bold text-emerald-400">✓ You&apos;re on the list</p>
               ) : (
-                <form className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row" onSubmit={handleAlertSubmit}>
-                  <input
-                    type="email"
-                    required
-                    value={alertEmail}
-                    onChange={event => setAlertEmail(event.target.value)}
-                    placeholder="your@email.com"
-                    className="field-input !py-2.5 !pl-4 text-sm sm:w-48"
-                  />
-                  <button
-                    type="submit"
-                    className="btn-primary !w-auto whitespace-nowrap px-4 !py-2.5 text-sm"
-                  >
-                    Notify me
-                  </button>
-                </form>
+                <div className="w-full sm:w-auto">
+                  <form className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row" onSubmit={handleAlertSubmit}>
+                    <input
+                      type="email"
+                      required
+                      value={alertEmail}
+                      onChange={event => setAlertEmail(event.target.value)}
+                      placeholder="your@email.com"
+                      className="field-input !py-2.5 !pl-4 text-sm sm:w-48"
+                    />
+                    <button
+                      type="submit"
+                      disabled={alertLoading}
+                      className="btn-primary !w-auto whitespace-nowrap px-4 !py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {alertLoading ? 'Setting...' : 'Notify me'}
+                    </button>
+                  </form>
+                  {alertError && (
+                    <p className="mt-2 text-xs text-red-300 sm:text-right">{alertError}</p>
+                  )}
+                </div>
               )}
             </div>
           )}
