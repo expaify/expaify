@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { DealScore, HotelOffer, NormalizedFare } from '@/lib/types'
+import { resolveToIATA } from '@/lib/airports/resolve'
 import AirportInput from './components/AirportInput'
 import HotelCard from './components/HotelCard'
 import FlightResults from '@/components/flights/FlightResults'
@@ -13,6 +14,17 @@ type SortBy = 'price' | 'deal'
 type ActiveTab = 'flights' | 'hotels'
 type HotelAvailability = 'idle' | 'loading' | 'available' | 'empty' | 'unavailable' | 'skipped'
 type RecentSearch = { origin: string; dest: string; originDisplay: string; destDisplay: string }
+type SearchCriteria = {
+  origin: string
+  dest: string
+  originDisplay: string
+  destDisplay: string
+  depart: string
+  returnDate: string
+  passengers: number
+  tripType: TripType
+  flexDates: boolean
+}
 type AlertSignupResponse =
   | { ok: true; data: { message: string } }
   | { ok: false; reason: string }
@@ -81,6 +93,114 @@ function dedup(fares: NormalizedFare[]): NormalizedFare[] {
   }
 
   return Array.from(best.values()).sort((a, b) => a.price.priceCents - b.price.priceCents)
+}
+
+function isValidDateParam(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
+function parsePositivePassengerCount(value: string | null): number | null {
+  const parsed = Number(value ?? '1')
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 9 ? parsed : null
+}
+
+function buildSearchParams(criteria: SearchCriteria, state: { activeTab?: ActiveTab; sortBy?: SortBy; filterStops?: number | null } = {}) {
+  const params = new URLSearchParams()
+  params.set('origin', criteria.origin.trim())
+  if (criteria.dest.trim()) params.set('dest', criteria.dest.trim())
+  if (criteria.depart) params.set('depart', criteria.depart)
+  if (criteria.returnDate && criteria.tripType === 'roundtrip') params.set('return', criteria.returnDate)
+  params.set('passengers', String(criteria.passengers))
+  params.set('trip', criteria.tripType)
+  if (criteria.flexDates && criteria.depart) params.set('flex', '1')
+  if (state.activeTab && state.activeTab !== 'flights') params.set('tab', state.activeTab)
+  if (state.sortBy && state.sortBy !== 'deal') params.set('sort', state.sortBy)
+  if (state.filterStops !== undefined && state.filterStops !== null) params.set('stops', String(state.filterStops))
+  return params
+}
+
+function parseCriteriaFromUrl(params: URLSearchParams): { criteria: SearchCriteria | null; error: string | null; activeTab: ActiveTab; sortBy: SortBy; filterStops: number | null } {
+  const hasSearchState = ['origin', 'dest', 'depart', 'return', 'passengers', 'trip', 'flex', 'tab', 'sort', 'stops'].some(key => params.has(key))
+  const activeTabParam = params.get('tab')
+  const sortParam = params.get('sort')
+  const stopsParam = params.get('stops')
+  const activeTab: ActiveTab = activeTabParam === 'hotels' ? 'hotels' : 'flights'
+  const sortBy: SortBy = sortParam === 'price' ? 'price' : 'deal'
+  const filterStops = stopsParam === '0' || stopsParam === '1' ? Number(stopsParam) : null
+
+  if (!hasSearchState) {
+    return { criteria: null, error: null, activeTab, sortBy, filterStops }
+  }
+
+  if (activeTabParam && activeTabParam !== 'flights' && activeTabParam !== 'hotels') {
+    return { criteria: null, error: 'The results tab in this link is not valid. Choose flights or hotels.', activeTab, sortBy, filterStops }
+  }
+  if (sortParam && sortParam !== 'deal' && sortParam !== 'price') {
+    return { criteria: null, error: 'The sort option in this link is not valid. Choose best deal or lowest price.', activeTab, sortBy, filterStops }
+  }
+  if (stopsParam && stopsParam !== '0' && stopsParam !== '1') {
+    return { criteria: null, error: 'The stops filter in this link is not valid. Choose all, nonstop, or one stop.', activeTab, sortBy, filterStops }
+  }
+
+  const originRaw = params.get('origin')?.trim() ?? ''
+  if (!originRaw) {
+    return { criteria: null, error: 'This search link is missing an origin. Add a city, ZIP, or airport code to search.', activeTab, sortBy, filterStops }
+  }
+
+  let originIATA: string
+  let destIATA = ''
+  try {
+    originIATA = resolveToIATA(originRaw)
+    const destRaw = params.get('dest')?.trim() ?? ''
+    if (destRaw) destIATA = resolveToIATA(destRaw)
+  } catch {
+    return { criteria: null, error: 'This search link has an airport or ZIP we could not recognize. Correct the route and search again.', activeTab, sortBy, filterStops }
+  }
+
+  const depart = params.get('depart')?.trim() ?? ''
+  const returnDate = params.get('return')?.trim() ?? ''
+  if (depart && !isValidDateParam(depart)) {
+    return { criteria: null, error: 'The departure date in this link is not valid. Use a calendar date before searching.', activeTab, sortBy, filterStops }
+  }
+  if (returnDate && !isValidDateParam(returnDate)) {
+    return { criteria: null, error: 'The return date in this link is not valid. Use a calendar date before searching.', activeTab, sortBy, filterStops }
+  }
+  if (depart && returnDate && returnDate < depart) {
+    return { criteria: null, error: 'The return date in this link is before the departure date. Correct the dates to search.', activeTab, sortBy, filterStops }
+  }
+
+  const passengers = parsePositivePassengerCount(params.get('passengers'))
+  if (passengers === null) {
+    return { criteria: null, error: 'The passenger count in this link is not valid. Choose 1 to 9 passengers.', activeTab, sortBy, filterStops }
+  }
+
+  const tripParam = params.get('trip')
+  if (tripParam && tripParam !== 'roundtrip' && tripParam !== 'oneway') {
+    return { criteria: null, error: 'The trip type in this link is not valid. Choose round trip or one way.', activeTab, sortBy, filterStops }
+  }
+  if (tripParam === 'oneway' && returnDate) {
+    return { criteria: null, error: 'This link mixes one-way travel with a return date. Remove the return date or switch to round trip.', activeTab, sortBy, filterStops }
+  }
+  if (params.has('flex') && params.get('flex') !== '1' && params.get('flex') !== '0') {
+    return { criteria: null, error: 'The flexible dates setting in this link is not valid.', activeTab, sortBy, filterStops }
+  }
+
+  const tripType: TripType = tripParam === 'oneway' ? 'oneway' : 'roundtrip'
+  const criteria: SearchCriteria = {
+    origin: originIATA,
+    dest: destIATA,
+    originDisplay: originIATA,
+    destDisplay: destIATA,
+    depart,
+    returnDate: tripType === 'roundtrip' ? returnDate : '',
+    passengers,
+    tripType,
+    flexDates: params.get('flex') === '1',
+  }
+
+  return { criteria, error: null, activeTab, sortBy, filterStops }
 }
 
 function HotelSkeleton() {
@@ -227,6 +347,7 @@ export default function Home() {
   const [hotelScoreLoading, setHotelScoreLoading] = useState<Set<string>>(new Set())
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
   const [suggestion, setSuggestion] = useState<string | null>(null)
   const [providerNotices, setProviderNotices] = useState<string[]>([])
   const [hotelAvailability, setHotelAvailability] = useState<HotelAvailability>('idle')
@@ -244,21 +365,44 @@ export default function Home() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const o = params.get('origin')
-    const d = params.get('dest')
-    const dep = params.get('depart')
-    const ret = params.get('return')
+    const parsed = parseCriteriaFromUrl(params)
+    setActiveTab(parsed.activeTab)
+    setSortBy(parsed.sortBy)
+    setFilterStops(parsed.filterStops)
 
-    if (o) {
-      setOrigin(o)
-      setOriginDisplay(o)
+    if (parsed.error) {
+      const rawOrigin = params.get('origin')?.trim() ?? ''
+      const rawDest = params.get('dest')?.trim() ?? ''
+      const rawDepart = params.get('depart')?.trim() ?? ''
+      const rawReturn = params.get('return')?.trim() ?? ''
+      const rawPassengers = parsePositivePassengerCount(params.get('passengers'))
+      const rawTrip = params.get('trip')
+      setOrigin('')
+      setOriginDisplay(rawOrigin)
+      setDest('')
+      setDestDisplay(rawDest)
+      if (!rawDepart || isValidDateParam(rawDepart)) setDepart(rawDepart)
+      if (!rawReturn || isValidDateParam(rawReturn)) setReturnDate(rawReturn)
+      if (rawPassengers !== null) setPassengers(rawPassengers)
+      if (rawTrip === 'oneway' || rawTrip === 'roundtrip') setTripType(rawTrip)
+      setFlexDates(params.get('flex') === '1')
+      setFormError(parsed.error)
+      setView('form')
+      return
     }
-    if (d) {
-      setDest(d)
-      setDestDisplay(d)
+
+    if (parsed.criteria) {
+      setOrigin(parsed.criteria.origin)
+      setOriginDisplay(parsed.criteria.originDisplay)
+      setDest(parsed.criteria.dest)
+      setDestDisplay(parsed.criteria.destDisplay)
+      setDepart(parsed.criteria.depart)
+      setReturnDate(parsed.criteria.returnDate)
+      setPassengers(parsed.criteria.passengers)
+      setTripType(parsed.criteria.tripType)
+      setFlexDates(parsed.criteria.flexDates)
+      void runSearch(parsed.criteria, { activeTab: parsed.activeTab })
     }
-    if (dep) setDepart(dep)
-    if (ret) setReturnDate(ret)
   }, [])
 
   useEffect(() => {
@@ -327,11 +471,68 @@ export default function Home() {
       })
   }
 
-  async function runSearch() {
-    if (!origin.trim()) return
+  function currentCriteria(): SearchCriteria {
+    return {
+      origin,
+      dest,
+      originDisplay,
+      destDisplay,
+      depart,
+      returnDate,
+      passengers,
+      tripType,
+      flexDates,
+    }
+  }
+
+  function syncUrl(criteria: SearchCriteria, state: { activeTab?: ActiveTab; sortBy?: SortBy; filterStops?: number | null } = {}) {
+    const url = new URL(window.location.href)
+    url.search = buildSearchParams(criteria, {
+      activeTab: state.activeTab ?? activeTab,
+      sortBy: state.sortBy ?? sortBy,
+      filterStops: state.filterStops ?? filterStops,
+    }).toString()
+    window.history.replaceState(null, '', url.toString())
+  }
+
+  async function runSearch(searchCriteria = currentCriteria(), options: { activeTab?: ActiveTab; updateUrl?: boolean } = {}) {
+    const normalized: SearchCriteria = {
+      ...searchCriteria,
+      origin: searchCriteria.origin.trim(),
+      dest: searchCriteria.dest.trim(),
+      originDisplay: searchCriteria.originDisplay || searchCriteria.origin.trim(),
+      destDisplay: searchCriteria.destDisplay || searchCriteria.dest.trim(),
+      returnDate: searchCriteria.tripType === 'roundtrip' ? searchCriteria.returnDate : '',
+    }
+    if (!normalized.origin) {
+      setFormError('Add an origin to search.')
+      setView('form')
+      return
+    }
+    if (normalized.depart && !isValidDateParam(normalized.depart)) {
+      setFormError('Use a valid departure date before searching.')
+      setView('form')
+      return
+    }
+    if (normalized.returnDate && !isValidDateParam(normalized.returnDate)) {
+      setFormError('Use a valid return date before searching.')
+      setView('form')
+      return
+    }
+    if (normalized.depart && normalized.returnDate && normalized.returnDate < normalized.depart) {
+      setFormError('Return date must be after departure date.')
+      setView('form')
+      return
+    }
 
     setIsSearching(true)
-    const entry = { origin, dest, originDisplay: originDisplay || origin, destDisplay: destDisplay || dest }
+    setFormError(null)
+    const entry = {
+      origin: normalized.origin,
+      dest: normalized.dest,
+      originDisplay: normalized.originDisplay,
+      destDisplay: normalized.destDisplay,
+    }
     setRecentSearches(prev => {
       const deduped = [entry, ...prev.filter(r => !(r.origin === entry.origin && r.dest === entry.dest))].slice(0, 5)
       try {
@@ -342,7 +543,7 @@ export default function Home() {
     setError(null)
     setSuggestion(null)
     setProviderNotices([])
-    setHotelAvailability(dest.trim() && depart && returnDate && tripType === 'roundtrip' ? 'loading' : 'skipped')
+    setHotelAvailability(normalized.dest && normalized.depart && normalized.returnDate && normalized.tripType === 'roundtrip' ? 'loading' : 'skipped')
     setHotelAvailabilityMessage(null)
     setFlights([])
     setHotels([])
@@ -353,19 +554,22 @@ export default function Home() {
     setAlertEmail('')
     setAlertSent(false)
     setView('results')
-    setActiveTab('flights')
+    setActiveTab(options.activeTab ?? 'flights')
     progressKey.current += 1
+    if (options.updateUrl) syncUrl(normalized, { activeTab: options.activeTab ?? 'flights' })
 
     try {
-      const params = new URLSearchParams({ origin: origin.trim() })
-      if (dest.trim()) params.set('dest', dest.trim())
-      if (depart) params.set('depart', depart)
-      if (returnDate && tripType === 'roundtrip') params.set('return', returnDate)
-      params.set('passengers', String(passengers))
-      if (flexDates && depart) params.set('flex', '1')
+      const params = buildSearchParams(normalized)
 
       const response = await fetch(`/api/search?${params.toString()}`)
-      if (!response.ok || !response.body) throw new Error('Search failed')
+      if (!response.ok || !response.body) {
+        let message = 'Search failed'
+        try {
+          const data = await response.json() as { error?: string }
+          if (data.error) message = data.error
+        } catch {}
+        throw new Error(message)
+      }
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
@@ -418,15 +622,15 @@ export default function Home() {
       }
 
       setIsSearching(false)
-    } catch {
-      setError('Something went wrong. Please try again.')
+    } catch (e) {
+      setError(e instanceof Error && e.message !== 'Search failed' ? e.message : 'Something went wrong. Please try again.')
       setIsSearching(false)
     }
   }
 
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    await runSearch()
+    await runSearch(currentCriteria(), { updateUrl: true })
   }
 
   async function handleAlertSubmit(event: FormEvent<HTMLFormElement>) {
@@ -464,13 +668,31 @@ export default function Home() {
 
   function handleShare() {
     const url = new URL(window.location.href)
-    url.searchParams.set('origin', origin)
-    url.searchParams.set('dest', dest)
-    if (depart) url.searchParams.set('depart', depart)
-    if (returnDate) url.searchParams.set('return', returnDate)
+    url.search = buildSearchParams(currentCriteria(), { activeTab, sortBy, filterStops }).toString()
     navigator.clipboard.writeText(url.toString()).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  function handleActiveTabChange(tab: ActiveTab) {
+    setActiveTab(tab)
+    syncUrl(currentCriteria(), { activeTab: tab })
+  }
+
+  function setSortByAndUrl(value: SortBy | ((previous: SortBy) => SortBy)) {
+    setSortBy(previous => {
+      const next = typeof value === 'function' ? value(previous) : value
+      syncUrl(currentCriteria(), { sortBy: next })
+      return next
+    })
+  }
+
+  function setFilterStopsAndUrl(value: number | null | ((previous: number | null) => number | null)) {
+    setFilterStops(previous => {
+      const next = typeof value === 'function' ? value(previous) : value
+      syncUrl(currentCriteria(), { filterStops: next })
+      return next
     })
   }
 
@@ -588,7 +810,7 @@ export default function Home() {
                   <button
                     key={type}
                     type="button"
-                    onClick={() => setTripType(type)}
+                    onClick={() => { setTripType(type); setFormError(null) }}
                     className={`min-h-11 flex-1 rounded-xl border px-3 py-2 text-sm font-bold transition-colors ${
                     tripType === type
                       ? 'border-white bg-white text-slate-950 shadow-sm'
@@ -610,7 +832,7 @@ export default function Home() {
                     id="origin"
                     value={origin}
                     displayValue={originDisplay}
-                    onChange={(iata, display) => { setOrigin(iata); setOriginDisplay(display) }}
+                    onChange={(iata, display) => { setOrigin(iata); setOriginDisplay(display); setFormError(null) }}
                     placeholder="City or airport code"
                     required
                   />
@@ -633,7 +855,7 @@ export default function Home() {
                     id="dest"
                     value={dest}
                     displayValue={destDisplay}
-                    onChange={(iata, display) => { setDest(iata); setDestDisplay(display) }}
+                    onChange={(iata, display) => { setDest(iata); setDestDisplay(display); setFormError(null) }}
                     placeholder="Anywhere"
                   />
                 </div>
@@ -649,7 +871,7 @@ export default function Home() {
                     <input
                       type="date"
                       value={depart}
-                      onChange={event => setDepart(event.target.value)}
+                      onChange={event => { setDepart(event.target.value); setFormError(null) }}
                       className="min-h-[3.25rem] w-full rounded-[0.875rem] border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-slate-950 transition-[border-color,box-shadow,background] [color-scheme:light] focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
                     />
                   </div>
@@ -665,7 +887,7 @@ export default function Home() {
                       <input
                         type="date"
                         value={returnDate}
-                        onChange={event => setReturnDate(event.target.value)}
+                        onChange={event => { setReturnDate(event.target.value); setFormError(null) }}
                         className="min-h-[3.25rem] w-full rounded-[0.875rem] border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-slate-950 transition-[border-color,box-shadow,background] [color-scheme:light] focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
                       />
                     </div>
@@ -699,7 +921,7 @@ export default function Home() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setPassengers(p => Math.max(1, p - 1))}
+                        onClick={() => { setPassengers(p => Math.max(1, p - 1)); setFormError(null) }}
                         className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-bold text-slate-700 transition-colors hover:border-slate-300 disabled:opacity-35"
                         disabled={passengers <= 1}
                         aria-label="Remove passenger"
@@ -709,7 +931,7 @@ export default function Home() {
                       <span className="w-5 text-center text-sm font-extrabold tabular-nums text-slate-950">{passengers}</span>
                       <button
                         type="button"
-                        onClick={() => setPassengers(p => Math.min(9, p + 1))}
+                        onClick={() => { setPassengers(p => Math.min(9, p + 1)); setFormError(null) }}
                         className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-bold text-slate-700 transition-colors hover:border-slate-300 disabled:opacity-35"
                         disabled={passengers >= 9}
                         aria-label="Add passenger"
@@ -719,6 +941,12 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
+
+                {formError && (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium leading-6 text-amber-800" role="alert">
+                    {formError}
+                  </div>
+                )}
 
                 <button
                   type="submit"
@@ -758,6 +986,7 @@ export default function Home() {
                   setOriginDisplay(destination.originDisplay)
                   setDest(destination.dest)
                   setDestDisplay(destination.destDisplay)
+                  setFormError(null)
                 }}
                   className="group flex min-h-[5.5rem] w-[15.5rem] flex-shrink-0 flex-col items-start justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50/50"
               >
@@ -780,6 +1009,7 @@ export default function Home() {
                     setDest(r.dest)
                     setOriginDisplay(r.originDisplay)
                     setDestDisplay(r.destDisplay)
+                    setFormError(null)
                   }}
                     className="inline-flex min-h-9 max-w-full items-center rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-900"
                 >
@@ -847,7 +1077,7 @@ export default function Home() {
               <p className="text-sm text-red-400">{error}</p>
               <button
                 type="button"
-                onClick={runSearch}
+                onClick={() => void runSearch()}
                 className="rounded-lg border border-indigo-500/30 px-3 py-1.5 text-xs font-bold text-indigo-400 transition-colors hover:bg-indigo-500/10"
               >
                 Retry
@@ -900,7 +1130,7 @@ export default function Home() {
                     key={tab}
                     type="button"
                     onClick={() => {
-                      if (!disabled) setActiveTab(tab)
+                      if (!disabled) handleActiveTabChange(tab)
                     }}
                     disabled={disabled}
                     aria-disabled={disabled}
@@ -939,9 +1169,9 @@ export default function Home() {
                 displayFlights={displayFlights}
                 isSearching={isSearching}
                 sortBy={sortBy}
-                setSortBy={setSortBy}
+                setSortBy={setSortByAndUrl}
                 filterStops={filterStops}
-                setFilterStops={setFilterStops}
+                setFilterStops={setFilterStopsAndUrl}
                 scores={scores}
                 scoreLoading={scoreLoading}
                 rankingUpdating={rankingUpdating}
