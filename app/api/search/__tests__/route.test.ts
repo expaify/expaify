@@ -45,6 +45,29 @@ async function readNdjson(response: Response): Promise<string> {
   return await response.text();
 }
 
+function parseNdjson(body: string): Array<Record<string, unknown>> {
+  return body
+    .split('\n')
+    .filter(Boolean)
+    .map(line => JSON.parse(line) as Record<string, unknown>);
+}
+
+const fare = {
+  id: 'tp-1',
+  fareType: 'cash',
+  origin: 'JFK',
+  destination: 'LAX',
+  depart: '2099-09-22',
+  stops: 0,
+  carrier: 'AA',
+  price: { priceCents: 19900, currency: 'USD' },
+  passengerCount: 1,
+  priceScope: 'per_person',
+  deeplink: 'https://example.com/book?marker=test',
+  source: 'travelpayouts',
+  fetchedAt: '2026-06-30T00:00:00.000Z',
+};
+
 describe('GET /api/search date guardrails', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -127,5 +150,92 @@ describe('GET /api/search date guardrails', () => {
       checkin: '2099-09-22',
       checkout: '2099-09-29',
     });
+  });
+
+  it('streams successful fares with a bounded notice when another provider returns failure', async () => {
+    (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [fare] });
+    (duffel.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Duffel /air/offer_requests HTTP 503' });
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
+    const messages = parseNdjson(await readNdjson(response));
+
+    expect(response.status).toBe(200);
+    expect(messages).toContainEqual({
+      type: 'flights',
+      source: 'travelpayouts',
+      data: [fare],
+    });
+    expect(messages).toContainEqual({
+      type: 'notice',
+      provider: 'Duffel',
+      status: 'unavailable',
+      message: 'Duffel is unavailable for this search.',
+    });
+    expect(messages).not.toContainEqual(expect.objectContaining({
+      message: expect.stringContaining('HTTP 503'),
+    }));
+  });
+
+  it('converts an unexpected provider throw into a user-visible notice without dropping successful fares', async () => {
+    (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [fare] });
+    (duffel.searchFares as jest.Mock).mockRejectedValueOnce(new Error('socket hang up'));
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
+    const messages = parseNdjson(await readNdjson(response));
+
+    expect(response.status).toBe(200);
+    expect(messages).toContainEqual({
+      type: 'flights',
+      source: 'travelpayouts',
+      data: [fare],
+    });
+    expect(messages).toContainEqual({
+      type: 'notice',
+      provider: 'Duffel',
+      status: 'unavailable',
+      message: 'Duffel is unavailable for this search.',
+    });
+    expect(messages).not.toContainEqual(expect.objectContaining({
+      message: expect.stringContaining('socket hang up'),
+    }));
+  });
+
+  it('labels incomplete flexible-date coverage when one Travelpayouts date fails but another returns fares', async () => {
+    (travelpayouts.searchFares as jest.Mock)
+      .mockResolvedValueOnce({ ok: true, data: [fare] })
+      .mockResolvedValueOnce({ ok: false, reason: 'Travelpayouts /prices/latest HTTP 502' });
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1&flex=1'));
+    const messages = parseNdjson(await readNdjson(response));
+
+    expect(response.status).toBe(200);
+    expect(messages).toContainEqual(expect.objectContaining({
+      type: 'flights',
+      source: 'travelpayouts',
+    }));
+    expect(messages).toContainEqual({
+      type: 'notice',
+      provider: 'Travelpayouts',
+      status: 'unavailable',
+      message: 'Travelpayouts flexible-date coverage is incomplete for this search.',
+    });
+  });
+
+  it('converts an unexpected hotel provider throw into a bounded hotel status', async () => {
+    mockHotelSearch.mockRejectedValueOnce(new Error('hotel upstream timeout'));
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&return=2099-09-29&trip=roundtrip&passengers=1'));
+    const messages = parseNdjson(await readNdjson(response));
+
+    expect(response.status).toBe(200);
+    expect(messages).toContainEqual({
+      type: 'hotel-status',
+      status: 'unavailable',
+      providerStatus: 'unavailable',
+      message: 'The hotel provider is unavailable right now.',
+    });
+    expect(messages).not.toContainEqual(expect.objectContaining({
+      message: expect.stringContaining('hotel upstream timeout'),
+    }));
   });
 });
