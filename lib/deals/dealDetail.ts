@@ -1,5 +1,10 @@
 import { query } from '../db/client';
-import type { DealDetail, DealKind } from './dealDetailTypes';
+import type {
+  DealDetail,
+  DealKind,
+  DealScoreConfidence,
+  DealScoreVerdict,
+} from './dealDetailTypes';
 
 const DEAL_ID_PATTERN = /^[a-zA-Z0-9_-]{8,128}$/;
 
@@ -16,6 +21,16 @@ type DealRow = {
   currency?: unknown;
   deal_score?: unknown;
   dealScore?: unknown;
+  score_verdict?: unknown;
+  scoreVerdict?: unknown;
+  score_confidence?: unknown;
+  scoreConfidence?: unknown;
+  score_explanation?: unknown;
+  scoreExplanation?: unknown;
+  score_percentile?: unknown;
+  scorePercentile?: unknown;
+  score_pct_vs_median?: unknown;
+  scorePctVsMedian?: unknown;
   image_url?: unknown;
   imageUrl?: unknown;
   booking_url?: unknown;
@@ -49,6 +64,18 @@ function toOptionalString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function toOptionalExternalUrl(value: unknown): string | undefined {
+  const url = toOptionalString(value);
+  if (!url) return undefined;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function toIsoString(value: unknown): string | null {
   if (value instanceof Date) return value.toISOString();
   if (typeof value !== 'string') return null;
@@ -73,6 +100,14 @@ function toOptionalNumber(value: unknown): number | undefined {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
   return undefined;
+}
+
+function toScoreVerdict(value: unknown): DealScoreVerdict | undefined {
+  return value === 'Great' || value === 'Good' || value === 'Typical' ? value : undefined;
+}
+
+function toScoreConfidence(value: unknown): DealScoreConfidence | undefined {
+  return value === 'high' || value === 'low' ? value : undefined;
 }
 
 function toMetadata(value: unknown): Record<string, DealMetadataValue> {
@@ -101,7 +136,7 @@ export function dealRowToDetail(row: DealRow): DealDetail | null {
   const subtitle = toRequiredString(row.subtitle);
   const provider = toRequiredString(row.provider);
   const currency = toRequiredString(row.currency);
-  const bookingUrl = toRequiredString(row.booking_url ?? row.bookingUrl);
+  const bookingUrl = toOptionalExternalUrl(row.booking_url ?? row.bookingUrl);
   const updatedAt = toIsoString(row.updated_at ?? row.updatedAt);
   const price = toInteger(row.price_cents ?? row.price);
 
@@ -113,7 +148,6 @@ export function dealRowToDetail(row: DealRow): DealDetail | null {
     !provider ||
     price === null ||
     !currency ||
-    !bookingUrl ||
     !updatedAt
   ) {
     return null;
@@ -128,6 +162,11 @@ export function dealRowToDetail(row: DealRow): DealDetail | null {
     price,
     currency: currency.toUpperCase(),
     dealScore: toOptionalNumber(row.deal_score ?? row.dealScore),
+    scoreVerdict: toScoreVerdict(row.score_verdict ?? row.scoreVerdict),
+    scoreConfidence: toScoreConfidence(row.score_confidence ?? row.scoreConfidence),
+    scoreExplanation: toOptionalString(row.score_explanation ?? row.scoreExplanation),
+    scorePercentile: toOptionalNumber(row.score_percentile ?? row.scorePercentile),
+    scorePctVsMedian: toOptionalNumber(row.score_pct_vs_median ?? row.scorePctVsMedian),
     imageUrl: toOptionalString(row.image_url ?? row.imageUrl),
     bookingUrl,
     expiresAt: toIsoString(row.expires_at ?? row.expiresAt) ?? undefined,
