@@ -1,7 +1,12 @@
 import type { DealScore, NormalizedFare } from '@/lib/types';
 import { sortFlights } from '../sortFlights';
 
-function makeFare(id: string, priceCents: number, depart = '2026-09-01T09:00:00.000Z'): NormalizedFare {
+function makeFare(
+  id: string,
+  priceCents: number,
+  depart = '2026-09-01T09:00:00.000Z',
+  currency = 'USD',
+): NormalizedFare {
   return {
     id,
     fareType: 'cash',
@@ -12,7 +17,7 @@ function makeFare(id: string, priceCents: number, depart = '2026-09-01T09:00:00.
     cabin: 'economy',
     stops: 0,
     carrier: 'AA',
-    price: { priceCents, currency: 'USD' },
+    price: { priceCents, currency },
     deeplink: `https://example.com/${id}`,
     source: 'travelpayouts',
     fetchedAt: '2026-06-30T00:00:00.000Z',
@@ -91,6 +96,18 @@ describe('sortFlights', () => {
     );
 
     expect(sorted.map(fare => fare.id)).toEqual(['cheap-typical', 'expensive-great']);
+  });
+
+  it('groups fallback price ordering by currency before comparing cents', () => {
+    const fares = [
+      makeFare('usd-expensive', 24000, '2026-09-01T09:00:00.000Z', 'USD'),
+      makeFare('eur-cheap', 12000, '2026-09-01T09:00:00.000Z', 'EUR'),
+      makeFare('usd-cheap', 18000, '2026-09-01T09:00:00.000Z', 'USD'),
+    ];
+
+    const sorted = sortFlights(fares, 'price', {});
+
+    expect(sorted.map(fare => fare.id)).toEqual(['eur-cheap', 'usd-cheap', 'usd-expensive']);
   });
 
   it('does not promote low-confidence scores above high-confidence deals', () => {

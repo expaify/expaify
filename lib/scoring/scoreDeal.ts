@@ -42,6 +42,16 @@ function historyLabel(context: ScoreContext) {
   return context === 'hotel' ? 'hotel' : 'route';
 }
 
+function formatMoney(cents: number, currency: string): string {
+  const sign = cents < 0 ? '-' : '';
+  const absoluteCents = Math.abs(Math.round(cents));
+  const whole = Math.floor(absoluteCents / 100).toLocaleString('en-US');
+  const fractional = String(absoluteCents % 100).padStart(2, '0');
+
+  if (currency === 'USD') return `${sign}$${whole}.${fractional}`;
+  return `${currency} ${sign}${whole}.${fractional}`;
+}
+
 export function scoreDeal(
   currentFare: NormalizedFare,
   history: PricePoint[],
@@ -123,19 +133,19 @@ export function scoreDeal(
   }
 
   // ── Plain-language explanation ─────────────────────────────────────────────
-  const currentDollars = Math.round(currentCents / 100);
-  const medianDollars = Math.round(medianCents / 100);
+  const currentPrice = formatMoney(currentCents, currency);
+  const medianPrice = formatMoney(medianCents, currency);
   const absPct = Math.abs(Math.round(pctVsMedian));
 
   let explanation: string;
   if (confidence === 'low') {
-    explanation = `$${currentDollars} — limited price history for this ${label}, so this is treated as a typical price for now.`;
+    explanation = `${currentPrice} — limited price history for this ${label}, so this is treated as a typical price for now.`;
   } else if (pctVsMedian < -0.5) {
-    explanation = `$${currentDollars} — about ${absPct}% below the usual $${medianDollars} for this ${label} over the last 90 days.`;
+    explanation = `${currentPrice} — about ${absPct}% below the usual ${medianPrice} for this ${label} over the last 90 days.`;
   } else if (pctVsMedian > 0.5) {
-    explanation = `$${currentDollars} — about ${absPct}% above the usual $${medianDollars} for this ${label} over the last 90 days.`;
+    explanation = `${currentPrice} — about ${absPct}% above the usual ${medianPrice} for this ${label} over the last 90 days.`;
   } else {
-    explanation = `$${currentDollars} — right at the typical price of $${medianDollars} for this ${label} over the last 90 days.`;
+    explanation = `${currentPrice} — right at the typical price of ${medianPrice} for this ${label} over the last 90 days.`;
   }
 
   return {

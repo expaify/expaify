@@ -13,6 +13,7 @@ const verdictRank: Record<DealScore['verdict'], number> = {
 
 function compareFallback(a: NormalizedFare, b: NormalizedFare): number {
   return (
+    a.price.currency.localeCompare(b.price.currency) ||
     a.price.priceCents - b.price.priceCents ||
     a.stops - b.stops ||
     a.depart.localeCompare(b.depart) ||
