@@ -324,9 +324,55 @@ describe('DuffelProvider.searchFares success', () => {
     await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
 
     expect(cache.set).toHaveBeenCalledWith(
-      'duffel:search:JFK:LAX:2026-09-22::pax:1',
+      'duffel:search:origin:JFK:dest:LAX:depart:2026-09-22:trip:one-way:pax:1:cabin:economy',
       expect.any(Array),
       21600
+    );
+  });
+
+  it('uses distinct cache keys for one-way and round-trip searches', async () => {
+    mockFetchOk(ONE_WAY_FIXTURE);
+    const { cache } = jest.requireMock('../../cache/redis') as {
+      cache: { get: jest.Mock; set: jest.Mock };
+    };
+
+    const provider = new DuffelProvider();
+    await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+
+    mockFetchOk(ROUND_TRIP_FIXTURE);
+    await provider.searchFares('JFK', 'LAX', {
+      depart: '2026-09-22',
+      return: '2026-09-29',
+      passengers: 1,
+    });
+
+    expect(cache.get).toHaveBeenNthCalledWith(
+      1,
+      'duffel:search:origin:JFK:dest:LAX:depart:2026-09-22:trip:one-way:pax:1:cabin:economy'
+    );
+    expect(cache.get).toHaveBeenNthCalledWith(
+      2,
+      'duffel:search:origin:JFK:dest:LAX:depart:2026-09-22:return:2026-09-29:pax:1:cabin:economy'
+    );
+  });
+
+  it('uses distinct cache keys for different passenger counts', async () => {
+    mockFetchOk(ONE_WAY_FIXTURE);
+    const { cache } = jest.requireMock('../../cache/redis') as {
+      cache: { get: jest.Mock; set: jest.Mock };
+    };
+
+    const provider = new DuffelProvider();
+    await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 2 });
+
+    expect(cache.get).toHaveBeenNthCalledWith(
+      1,
+      'duffel:search:origin:JFK:dest:LAX:depart:2026-09-22:trip:one-way:pax:1:cabin:economy'
+    );
+    expect(cache.get).toHaveBeenNthCalledWith(
+      2,
+      'duffel:search:origin:JFK:dest:LAX:depart:2026-09-22:trip:one-way:pax:2:cabin:economy'
     );
   });
 
