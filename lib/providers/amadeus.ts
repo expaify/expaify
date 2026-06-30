@@ -51,11 +51,19 @@ function decimalStringToCents(value: string): number | null {
 export class AmadeusProvider implements FlightProvider {
   // Read env vars at call time so tests can set them before any method runs
   private get clientId(): string {
-    return process.env.AMADEUS_CLIENT_ID ?? '';
+    return process.env.AMADEUS_ID ?? process.env.AMADEUS_CLIENT_ID ?? '';
   }
 
   private get clientSecret(): string {
-    return process.env.AMADEUS_CLIENT_SECRET ?? '';
+    return process.env.AMADEUS_SECRET ?? process.env.AMADEUS_CLIENT_SECRET ?? '';
+  }
+
+  private buildProviderSearchLink(origin: string, dest: string, depart: string): string {
+    const url = new URL('https://www.amadeus.com/en/search');
+    url.searchParams.set('from', origin);
+    url.searchParams.set('to', dest);
+    url.searchParams.set('departure', depart);
+    return url.toString();
   }
 
   private async getToken(): Promise<Result<string>> {
@@ -203,7 +211,7 @@ export class AmadeusProvider implements FlightProvider {
           },
           passengerCount,
           priceScope: 'party_total',
-          deeplink: `https://www.amadeus.com/en/search?from=${originCode}&to=${destCode}&departure=${depart}`,
+          deeplink: this.buildProviderSearchLink(originCode, destCode, depart),
           source: 'amadeus',
           fetchedAt,
         };
