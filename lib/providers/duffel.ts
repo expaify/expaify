@@ -1,6 +1,7 @@
 import { FlightProvider, FlightSearchRange, NormalizedFare, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
 import { buildBookingHref } from '../booking/config';
+import { fetchWithProviderTimeout } from './timeout';
 
 const BASE_URL = 'https://api.duffel.com';
 const CACHE_TTL = 21600; // 6 hours
@@ -146,7 +147,7 @@ export class DuffelProvider implements FlightProvider {
         slices.push({ origin: dest, destination: origin, departure_date: returnDate });
       }
 
-      const res = await fetch(`${BASE_URL}/air/offer_requests`, {
+      const res = await fetchWithProviderTimeout('Duffel', `${BASE_URL}/air/offer_requests`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,

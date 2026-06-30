@@ -1,5 +1,6 @@
 import { HotelProvider, HotelOffer, Result } from '../types';
 import { cache } from '../cache/redis';
+import { fetchWithProviderTimeout } from './timeout';
 
 const ENGINE_BASE = 'https://engine.hotellook.com/api/v2/cache.json';
 const CACHE_TTL = 21600; // 6 hours
@@ -79,7 +80,7 @@ export class HotellookProvider implements HotelProvider {
         `&token=${encodeURIComponent(token)}` +
         `&limit=20`;
 
-      const res = await fetch(url);
+      const res = await fetchWithProviderTimeout('HotelLook', url);
       if (!res.ok) return { ok: false, reason: `HotelLook HTTP ${res.status}` };
 
       const json = await res.json();

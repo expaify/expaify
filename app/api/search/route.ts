@@ -57,6 +57,9 @@ function classifyProviderIssue(reason: string): ProviderIssueStatus {
   const normalized = reason.toLowerCase();
   if (normalized.includes('malformed')) return 'malformed_response';
   if (
+    normalized.includes('timed out') ||
+    normalized.includes('timeout') ||
+    normalized.includes('aborted') ||
     normalized.includes('not configured') ||
     normalized.includes('not approved') ||
     normalized.includes('http ') ||
@@ -78,6 +81,10 @@ function providerMessage(provider: string, status: ProviderIssueStatus): string 
     return `${provider} returned no matching fares for this search.`;
   }
   return `${provider} is unavailable for this search.`;
+}
+
+function providerFailureReason(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 /**
@@ -146,13 +153,30 @@ export async function GET(request: NextRequest) {
 
       const sendProviderNotice = (provider: string, reason: string) => {
         const status = classifyProviderIssue(reason);
+        const timedOut = reason.toLowerCase().includes('timed out') || reason.toLowerCase().includes('timeout');
         const notice: ProviderNotice = {
           provider,
           status,
-          message: providerMessage(provider, status),
+          message: timedOut
+            ? `${provider} did not respond in time. We could not confirm its inventory for this search.`
+            : providerMessage(provider, status),
         };
         flightProviderIssues.push(notice);
         send({ type: 'notice', ...notice });
+      };
+
+      const runFlightProvider = async (
+        provider: string,
+        source: string,
+        search: Promise<{ ok: true; data: NormalizedFare[] } | { ok: false; reason: string }>,
+      ) => {
+        try {
+          const result = await search;
+          if (result.ok && result.data.length > 0) sendFlights(source, result.data);
+          else if (!result.ok) sendProviderNotice(provider, result.reason);
+        } catch (error) {
+          sendProviderNotice(provider, providerFailureReason(error));
+        }
       };
 
       // Enroll route in snapshot pipeline — fire-and-forget, never blocks response
@@ -168,7 +192,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Race all 4 providers — stream each chunk the moment it resolves
-      await Promise.allSettled([
+      await Promise.all([
         (async () => {
           if (flexDates && depart) {
             const settled = await Promise.allSettled(
@@ -190,26 +214,24 @@ export async function GET(request: NextRequest) {
             );
             if (fares.length === 0 && firstFailure?.status === 'fulfilled' && !firstFailure.value.ok) {
               sendProviderNotice('Travelpayouts', firstFailure.value.reason);
+            } else if (fares.length === 0) {
+              const firstRejection = settled.find(result => result.status === 'rejected');
+              if (firstRejection?.status === 'rejected') {
+                sendProviderNotice('Travelpayouts', providerFailureReason(firstRejection.reason));
+              }
             }
             return;
           }
 
-          const r = await travelpayouts.searchFares(originIATA, destIATA ?? '', range);
-          if (r.ok && r.data.length > 0) sendFlights('travelpayouts', r.data);
-          else if (!r.ok) sendProviderNotice('Travelpayouts', r.reason);
+          await runFlightProvider(
+            'Travelpayouts',
+            'travelpayouts',
+            travelpayouts.searchFares(originIATA, destIATA ?? '', range),
+          );
         })(),
-        duffel.searchFares(originIATA, destIATA ?? '', range).then(r => {
-          if (r.ok && r.data.length > 0) sendFlights('duffel', r.data);
-          else if (!r.ok) sendProviderNotice('Duffel', r.reason);
-        }),
-        amadeus.searchFares(originIATA, destIATA ?? '', range).then(r => {
-          if (r.ok && r.data.length > 0) sendFlights('amadeus', r.data);
-          else if (!r.ok) sendProviderNotice('Amadeus', r.reason);
-        }),
-        kiwi.searchFares(originIATA, destIATA ?? '', range).then(r => {
-          if (r.ok && r.data.length > 0) sendFlights('kiwi', r.data);
-          else if (!r.ok) sendProviderNotice('Kiwi', r.reason);
-        }),
+        runFlightProvider('Duffel', 'duffel', duffel.searchFares(originIATA, destIATA ?? '', range)),
+        runFlightProvider('Amadeus', 'amadeus', amadeus.searchFares(originIATA, destIATA ?? '', range)),
+        runFlightProvider('Kiwi', 'kiwi', kiwi.searchFares(originIATA, destIATA ?? '', range)),
       ]);
 
       const nearby = getNearby(originIATA);
@@ -227,7 +249,8 @@ export async function GET(request: NextRequest) {
 
       // Hotels after all flight providers resolve
       if (destIATA && depart && ret) {
-        const hotelsResult = await hotellook.searchHotels(destIATA, { checkin: depart, checkout: ret });
+        const hotelsResult = await hotellook.searchHotels(destIATA, { checkin: depart, checkout: ret })
+          .catch(error => ({ ok: false as const, reason: providerFailureReason(error) }));
         if (hotelsResult.ok && hotelsResult.data.length > 0) {
           send({ type: 'hotel-status', status: 'available' });
           send({ type: 'hotels', source: 'hotellook', data: hotelsResult.data });
@@ -239,7 +262,9 @@ export async function GET(request: NextRequest) {
             type: 'hotel-status',
             status: 'unavailable',
             providerStatus: status,
-            message: status === 'malformed_response'
+            message: hotelsResult.reason.toLowerCase().includes('timed out') || hotelsResult.reason.toLowerCase().includes('timeout')
+              ? 'The hotel provider did not respond in time. Hotel inventory was not confirmed for this search.'
+              : status === 'malformed_response'
               ? 'The hotel provider returned a response we could not use.'
               : 'The hotel provider is unavailable right now.',
           });

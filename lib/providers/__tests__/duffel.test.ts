@@ -128,6 +128,7 @@ beforeEach(() => {
 
 afterEach(() => {
   delete process.env.DUFFEL_KEY;
+  delete process.env.PROVIDER_TIMEOUT_MS;
 });
 
 // ─── priceTrends tests ───────────────────────────────────────────────────────
@@ -472,6 +473,17 @@ describe('DuffelProvider.searchFares error handling', () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
     expect(result.reason).toBe('ECONNREFUSED');
+  });
+
+  it('returns { ok: false, reason } when the provider fetch times out', async () => {
+    process.env.PROVIDER_TIMEOUT_MS = '1';
+    global.fetch = jest.fn(() => new Promise<Response>(() => {}));
+    const provider = new DuffelProvider();
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.reason).toBe('Duffel timed out');
   });
 
   it('never throws — always returns a Result', async () => {
