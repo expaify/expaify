@@ -30,6 +30,23 @@ function formatDate(dateStr: string): string {
   return dateStr
 }
 
+const SOURCE_BADGE: Record<string, { label: string; classes: string }> = {
+  duffel:         { label: 'Live',  classes: 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' },
+  travelpayouts:  { label: 'TP',    classes: 'bg-white/5 text-gray-500 border border-white/10' },
+  amadeus:        { label: 'GDS',   classes: 'bg-violet-500/10 text-violet-400 border border-violet-500/20' },
+  kiwi:           { label: 'Kiwi',  classes: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' },
+}
+
+function SourceBadge({ source }: { source: string }) {
+  const badge = SOURCE_BADGE[source]
+  if (!badge) return null
+  return (
+    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded tracking-wide ${badge.classes}`}>
+      {badge.label}
+    </span>
+  )
+}
+
 export default function FlightCard({ fare, score, loading }: Props) {
   // Full skeleton — no fare data yet (search in flight)
   if (!fare) {
@@ -101,11 +118,12 @@ export default function FlightCard({ fare, score, loading }: Props) {
       </div>
 
       {/* Flight details */}
-      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm border-t border-white/5 pt-3">
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm border-t border-white/5 pt-3 items-center">
         <span className="font-medium text-gray-300">{fare.carrier}</span>
         <span className="text-gray-500">{formatStops(fare.stops)}</span>
         <span className="text-gray-500">{formatDate(fare.depart)}</span>
         {fare.return && <span className="text-gray-500">↩ {formatDate(fare.return)}</span>}
+        <SourceBadge source={fare.source} />
       </div>
 
       {/* Book button */}

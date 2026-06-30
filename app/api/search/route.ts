@@ -72,10 +72,16 @@ export async function GET(request: NextRequest) {
   if (kiwiResult.ok) flights.push(...kiwiResult.data);
   else if (!kiwiResult.reason.includes('not configured')) notices.push(`Kiwi: ${kiwiResult.reason}`);
 
-  // Deduplicate by deeplink, sort cheapest first
-  const seen = new Set<string>();
-  flights = flights
-    .filter(f => { const key = f.deeplink; return seen.has(key) ? false : (seen.add(key), true); })
+  // Deduplicate by flight identity (carrier + route + depart minute), keep cheapest fare
+  const bestByKey = new Map<string, NormalizedFare>();
+  for (const f of flights) {
+    const key = `${f.carrier}:${f.origin}:${f.destination}:${f.depart.slice(0, 16)}`;
+    const existing = bestByKey.get(key);
+    if (!existing || f.price.priceCents < existing.price.priceCents) {
+      bestByKey.set(key, f);
+    }
+  }
+  flights = Array.from(bestByKey.values())
     .sort((a, b) => a.price.priceCents - b.price.priceCents);
 
   // ── Hotels ──────────────────────────────────────────────────────────────────
