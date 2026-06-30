@@ -54,6 +54,17 @@ interface CalendarEntry {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function majorUnitsToCents(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+
+  const cents = Math.round(value * 100);
+  return Number.isSafeInteger(cents) && cents > 0 ? cents : null;
+}
+
 export class TravelpayoutsProvider implements FlightProvider {
   // Read env vars at call time so tests can set them before any method runs
   private get token(): string {
@@ -74,6 +85,8 @@ export class TravelpayoutsProvider implements FlightProvider {
   // ─── priceTrends ───────────────────────────────────────────────────────────
 
   async priceTrends(origin: string, dest: string): Promise<Result<PricePoint[]>> {
+    if (!this.token) return { ok: false, reason: 'TP_TOKEN not configured' };
+
     const cacheKey = `tp:priceTrends:${origin}:${dest}:monthly`;
 
     try {
@@ -95,14 +108,17 @@ export class TravelpayoutsProvider implements FlightProvider {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const json: any = await res.json();
 
-      const entries: Record<string, MonthlyEntry> =
-        json.data != null ? (json.data as Record<string, MonthlyEntry>) : (json as Record<string, MonthlyEntry>);
+      const entriesRaw = json.data != null ? json.data : json;
+      if (!isRecord(entriesRaw)) {
+        return { ok: false, reason: 'Travelpayouts returned a malformed response' };
+      }
 
-      const points: PricePoint[] = Object.entries(entries).map(([date, entry]) => ({
-        date,
-        priceCents: Math.round(entry.price * 100), // already USD when currency=usd
-        currency: 'USD',
-      }));
+      const points: PricePoint[] = Object.entries(entriesRaw).map(([date, entry]) => {
+        if (!isRecord(entry)) throw new Error('Travelpayouts returned a malformed response');
+        const priceCents = majorUnitsToCents(entry.price);
+        if (priceCents === null) throw new Error('Travelpayouts returned a malformed response');
+        return { date, priceCents, currency: 'USD' };
+      });
 
       await cache.set(cacheKey, points, CACHE_TTL);
       return { ok: true, data: points };
@@ -118,6 +134,7 @@ export class TravelpayoutsProvider implements FlightProvider {
     dest: string,
     range: FlightSearchRange
   ): Promise<Result<NormalizedFare[]>> {
+    if (!this.token) return { ok: false, reason: 'TP_TOKEN not configured' };
     if (!this.marker) return { ok: false, reason: 'TP_AFFILIATE_MARKER not configured' };
 
     const extraParams = `${range.depart}:${range.return ?? ''}:pax:${range.passengers}`;
@@ -142,9 +159,23 @@ export class TravelpayoutsProvider implements FlightProvider {
 
       const latestRes = await fetch(latestUrl);
       if (latestRes.ok) {
-        const latestJson = (await latestRes.json()) as { data?: LatestEntry[]; success?: boolean };
-        const entries: LatestEntry[] = latestJson.data ?? [];
+        const latestJson = (await latestRes.json()) as { data?: unknown; success?: boolean };
+        if (latestJson.data !== undefined && !Array.isArray(latestJson.data)) {
+          return { ok: false, reason: 'Travelpayouts returned a malformed response' };
+        }
+        const entries = (latestJson.data ?? []) as LatestEntry[];
         for (const entry of entries) {
+          const priceCents = majorUnitsToCents(entry.value);
+          if (
+            priceCents === null ||
+            !entry.origin ||
+            !entry.destination ||
+            !entry.depart_date ||
+            typeof entry.number_of_changes !== 'number'
+          ) {
+            return { ok: false, reason: 'Travelpayouts returned a malformed response' };
+          }
+
           const departAt = entry.depart_date;
           fares.push({
             id: `tp-v2-${entry.gate}-${entry.origin}-${entry.destination}-${departAt}`,
@@ -156,7 +187,7 @@ export class TravelpayoutsProvider implements FlightProvider {
             cabin: 'economy',
             stops: entry.number_of_changes,
             carrier: entry.gate,
-            price: { priceCents: Math.round(entry.value * 100), currency: 'USD' },
+            price: { priceCents, currency: 'USD' },
             passengerCount: range.passengers,
             priceScope: 'per_person',
             deeplink: this.buildDeeplink(entry.origin, entry.destination, departAt),
@@ -180,8 +211,24 @@ export class TravelpayoutsProvider implements FlightProvider {
 
         const calRes = await fetch(calUrl);
         if (calRes.ok) {
-          const calJson = (await calRes.json()) as { data?: Record<string, CalendarEntry> };
-          for (const entry of Object.values(calJson.data ?? {})) {
+          const calJson = (await calRes.json()) as { data?: unknown };
+          if (calJson.data !== undefined && !isRecord(calJson.data)) {
+            return { ok: false, reason: 'Travelpayouts returned a malformed response' };
+          }
+          for (const entryRaw of Object.values(calJson.data ?? {})) {
+            const entry = entryRaw as CalendarEntry;
+            const priceCents = majorUnitsToCents(entry.price);
+            if (
+              priceCents === null ||
+              !entry.origin ||
+              !entry.destination ||
+              !entry.airline ||
+              !entry.departure_at ||
+              typeof entry.transfers !== 'number'
+            ) {
+              return { ok: false, reason: 'Travelpayouts returned a malformed response' };
+            }
+
             fares.push({
               id: `tp-cal-${entry.airline}-${entry.origin}-${entry.destination}-${entry.departure_at}`,
               fareType: 'cash',
@@ -192,7 +239,7 @@ export class TravelpayoutsProvider implements FlightProvider {
               cabin: 'economy',
               stops: entry.transfers,
               carrier: entry.airline,
-              price: { priceCents: Math.round(entry.price * 100), currency: 'USD' },
+              price: { priceCents, currency: 'USD' },
               passengerCount: range.passengers,
               priceScope: 'per_person',
               deeplink: this.buildDeeplink(entry.origin, entry.destination, entry.departure_at),
@@ -216,10 +263,20 @@ export class TravelpayoutsProvider implements FlightProvider {
 
         const cheapRes = await fetch(cheapUrl);
         if (cheapRes.ok) {
-          const cheapJson = (await cheapRes.json()) as { data?: Record<string, Record<string, CheapEntry>> };
+          const cheapJson = (await cheapRes.json()) as { data?: unknown };
+          if (cheapJson.data !== undefined && !isRecord(cheapJson.data)) {
+            return { ok: false, reason: 'Travelpayouts returned a malformed response' };
+          }
           // Shape: { data: { [destCode]: { [slot]: CheapEntry } } }
           for (const slots of Object.values(cheapJson.data ?? {})) {
-            for (const fareData of Object.values(slots)) {
+            if (!isRecord(slots)) return { ok: false, reason: 'Travelpayouts returned a malformed response' };
+            for (const fareRaw of Object.values(slots)) {
+              const fareData = fareRaw as CheapEntry;
+              const priceCents = majorUnitsToCents(fareData.price);
+              if (priceCents === null) {
+                return { ok: false, reason: 'Travelpayouts returned a malformed response' };
+              }
+
               const airline = fareData.airline ?? 'Unknown';
               const departAt = fareData.departure_at ?? range.depart;
               fares.push({
@@ -232,7 +289,7 @@ export class TravelpayoutsProvider implements FlightProvider {
                 cabin: 'economy',
                 stops: fareData.transfers ?? 0,
                 carrier: airline,
-                price: { priceCents: Math.round(fareData.price * 100), currency: 'USD' },
+                price: { priceCents, currency: 'USD' },
                 passengerCount: range.passengers,
                 priceScope: 'per_person',
                 deeplink: this.buildDeeplink(origin, dest, departAt),

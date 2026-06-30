@@ -38,8 +38,17 @@ interface KiwiSearchResponse {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+function isKiwiSearchResponse(value: unknown): value is KiwiSearchResponse {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Array.isArray((value as { data?: unknown }).data)
+  );
+}
+
 /** Convert YYYY-MM-DD to DD/MM/YYYY as required by Kiwi Tequila. */
-function toKiwiDate(isoDate: string): string {
+function toKiwiDate(isoDate: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return null;
   const [year, month, day] = isoDate.split('-');
   return `${day}/${month}/${year}`;
 }
@@ -119,6 +128,7 @@ export class KiwiProvider implements FlightProvider {
       if (cached !== null) return { ok: true, data: cached };
 
       const departKiwi = toKiwiDate(range.depart);
+      if (departKiwi === null) return { ok: true, data: [] };
 
       let url =
         `${BASE_URL}/v2/search` +
@@ -133,6 +143,7 @@ export class KiwiProvider implements FlightProvider {
 
       if (range.return) {
         const returnKiwi = toKiwiDate(range.return);
+        if (returnKiwi === null) return { ok: true, data: [] };
         url +=
           `&return_from=${encodeURIComponent(returnKiwi)}` +
           `&return_to=${encodeURIComponent(returnKiwi)}`;
@@ -146,7 +157,11 @@ export class KiwiProvider implements FlightProvider {
         return { ok: false, reason: `Kiwi /v2/search HTTP ${res.status}` };
       }
 
-      const json = (await res.json()) as KiwiSearchResponse;
+      const json = await res.json();
+      if (!isKiwiSearchResponse(json)) {
+        return { ok: false, reason: 'Kiwi returned a malformed response' };
+      }
+
       const fetchedAt = new Date().toISOString();
       const attribution = {
         param: config.data.deeplinkAttributionParam,
@@ -156,6 +171,14 @@ export class KiwiProvider implements FlightProvider {
       const fares: NormalizedFare[] = [];
 
       for (const offer of json.data ?? []) {
+        if (typeof offer !== 'object' || offer === null) {
+          return { ok: false, reason: 'Kiwi returned a malformed response' };
+        }
+
+        if (!Array.isArray(offer.transfers) || !Array.isArray(offer.airlines) || !Array.isArray(offer.route)) {
+          return { ok: false, reason: 'Kiwi returned a malformed response' };
+        }
+
         const priceCents = toPriceCents(offer.price);
         if (priceCents === null) {
           return { ok: false, reason: 'Kiwi returned an invalid price' };

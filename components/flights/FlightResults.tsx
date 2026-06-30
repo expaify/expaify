@@ -3,7 +3,7 @@
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from 'react'
 import FlightCard from '@/app/components/FlightCard'
 import { AIRPORTS } from '@/lib/airports/data'
-import type { DealScore, NormalizedFare } from '@/lib/types'
+import type { DealScore, NormalizedFare, ProviderNotice } from '@/lib/types'
 import { BaggageFeeEstimator } from '@/components/baggage/BaggageFeeEstimator'
 import type { BaggageCabinClass } from '@/lib/baggage/types'
 
@@ -22,7 +22,7 @@ type FlightResultsProps = {
   scoreLoading: Set<string>
   rankingUpdating?: boolean
   suggestion: string | null
-  providerNotices: string[]
+  providerNotices: ProviderNotice[]
   dest: string
   depart: string
   returnDate: string
@@ -55,8 +55,8 @@ function cheapestVisibleFare(fares: NormalizedFare[]): NormalizedFare | null {
   )
 }
 
-function isHotelNotice(notice: string): boolean {
-  return notice.toLowerCase().startsWith('hotels unavailable')
+function isHotelNotice(notice: ProviderNotice): boolean {
+  return notice.provider.toLowerCase().includes('hotel')
 }
 
 function FlightStatePanel({
@@ -161,7 +161,7 @@ export default function FlightResults({
             {flightProviderNotices.length > 0 && (
               <div className="mt-1 space-y-1">
                 {flightProviderNotices.map(notice => (
-                  <p key={notice}>{notice}</p>
+                  <p key={`${notice.provider}-${notice.status}-${notice.message}`}>{notice.message}</p>
                 ))}
               </div>
             )}

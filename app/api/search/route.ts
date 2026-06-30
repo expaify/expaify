@@ -7,7 +7,7 @@ import { amadeus } from '../../../lib/providers/amadeus';
 import { kiwi } from '../../../lib/providers/kiwi';
 import { hotellook } from '../../../lib/providers/hotellook';
 import { query } from '../../../lib/db/client';
-import { type NormalizedFare } from '../../../lib/types';
+import { type NormalizedFare, type ProviderIssueStatus, type ProviderNotice } from '../../../lib/types';
 
 function shiftDate(date: string, days: number): string {
   const shifted = new Date(`${date}T00:00:00.000Z`);
@@ -48,6 +48,33 @@ function validateDateParam(name: string, value: string): void {
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
     throw new Error(`${name} is not a valid date`);
   }
+}
+
+function classifyProviderIssue(reason: string): ProviderIssueStatus {
+  const normalized = reason.toLowerCase();
+  if (normalized.includes('malformed')) return 'malformed_response';
+  if (
+    normalized.includes('not configured') ||
+    normalized.includes('not approved') ||
+    normalized.includes('http ') ||
+    normalized.includes('network') ||
+    normalized.includes('fetch') ||
+    normalized.includes('econn')
+  ) {
+    return 'unavailable';
+  }
+
+  return 'unavailable';
+}
+
+function providerMessage(provider: string, status: ProviderIssueStatus): string {
+  if (status === 'malformed_response') {
+    return `${provider} returned a response we could not use.`;
+  }
+  if (status === 'no_supply') {
+    return `${provider} returned no matching fares for this search.`;
+  }
+  return `${provider} is unavailable for this search.`;
 }
 
 /**
@@ -107,10 +134,22 @@ export async function GET(request: NextRequest) {
       const send = (obj: object) =>
         controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
       let flightResultCount = 0;
+      const flightProviderIssues: ProviderNotice[] = [];
 
       const sendFlights = (source: string, data: NormalizedFare[]) => {
         flightResultCount += data.length;
         send({ type: 'flights', source, data });
+      };
+
+      const sendProviderNotice = (provider: string, reason: string) => {
+        const status = classifyProviderIssue(reason);
+        const notice: ProviderNotice = {
+          provider,
+          status,
+          message: providerMessage(provider, status),
+        };
+        flightProviderIssues.push(notice);
+        send({ type: 'notice', ...notice });
       };
 
       // Enroll route in snapshot pipeline — fire-and-forget, never blocks response
@@ -147,28 +186,38 @@ export async function GET(request: NextRequest) {
               result.status === 'fulfilled' && !result.value.ok
             );
             if (fares.length === 0 && firstFailure?.status === 'fulfilled' && !firstFailure.value.ok) {
-              send({ type: 'notice', message: `Travelpayouts: ${firstFailure.value.reason}` });
+              sendProviderNotice('Travelpayouts', firstFailure.value.reason);
             }
             return;
           }
 
           const r = await travelpayouts.searchFares(originIATA, destIATA ?? '', range);
           if (r.ok && r.data.length > 0) sendFlights('travelpayouts', r.data);
-          else if (!r.ok) send({ type: 'notice', message: `Travelpayouts: ${r.reason}` });
+          else if (!r.ok) sendProviderNotice('Travelpayouts', r.reason);
         })(),
         duffel.searchFares(originIATA, destIATA ?? '', range).then(r => {
           if (r.ok && r.data.length > 0) sendFlights('duffel', r.data);
-          else if (!r.ok && !r.reason.includes('not configured')) send({ type: 'notice', message: `Duffel: ${r.reason}` });
+          else if (!r.ok) sendProviderNotice('Duffel', r.reason);
         }),
         amadeus.searchFares(originIATA, destIATA ?? '', range).then(r => {
           if (r.ok && r.data.length > 0) sendFlights('amadeus', r.data);
+          else if (!r.ok) sendProviderNotice('Amadeus', r.reason);
         }),
         kiwi.searchFares(originIATA, destIATA ?? '', range).then(r => {
           if (r.ok && r.data.length > 0) sendFlights('kiwi', r.data);
+          else if (!r.ok) sendProviderNotice('Kiwi', r.reason);
         }),
       ]);
 
       const nearby = getNearby(originIATA);
+      if (flightResultCount === 0 && flightProviderIssues.length === 0) {
+        send({
+          type: 'notice',
+          provider: 'Flights',
+          status: 'no_supply',
+          message: 'No flight providers returned matching fares for this search.',
+        } satisfies ProviderNotice & { type: 'notice' });
+      }
       if (flightResultCount === 0 && nearby.length > 0) {
         send({ type: 'suggestion', message: `No flights found. Try nearby: ${nearby.join(', ')}` });
       }
@@ -182,7 +231,15 @@ export async function GET(request: NextRequest) {
         } else if (hotelsResult.ok) {
           send({ type: 'hotel-status', status: 'empty', message: 'No hotels were returned for these dates.' });
         } else {
-          send({ type: 'hotel-status', status: 'unavailable', message: `Hotels unavailable: ${hotelsResult.reason}` });
+          const status = classifyProviderIssue(hotelsResult.reason);
+          send({
+            type: 'hotel-status',
+            status: 'unavailable',
+            providerStatus: status,
+            message: status === 'malformed_response'
+              ? 'The hotel provider returned a response we could not use.'
+              : 'The hotel provider is unavailable right now.',
+          });
         }
       } else {
         send({
