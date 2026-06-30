@@ -222,6 +222,9 @@ export default function FlightCard({ fare, score, loading }: Props) {
 
   const departTime = formatTime(fare.depart)
   const returnTime = fare.return ? formatTime(fare.return) : ''
+  const isInternalBooking = fare.source === 'duffel' || fare.deeplink.startsWith('/book')
+  const ctaLabel = isInternalBooking ? 'Review availability' : 'Book flight'
+  const ctaNote = isInternalBooking ? 'In-app booking is paused' : null
 
   return (
     <div className="card rounded-2xl overflow-hidden">
@@ -285,15 +288,22 @@ export default function FlightCard({ fare, score, loading }: Props) {
 
         <a
           href={fare.deeplink}
-          target="_blank"
-          rel="noopener noreferrer sponsored"
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#6366f1,#5b21b6)] text-sm font-bold text-white shadow-[0_4px_16px_rgba(99,102,241,0.35)] transition-opacity hover:opacity-90"
+          target={isInternalBooking ? undefined : '_blank'}
+          rel={isInternalBooking ? undefined : 'noopener noreferrer sponsored'}
+          className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold transition-opacity hover:opacity-90 ${
+            isInternalBooking
+              ? 'border border-white/10 bg-white/5 text-gray-200'
+              : 'bg-[linear-gradient(135deg,#6366f1,#5b21b6)] text-white shadow-[0_4px_16px_rgba(99,102,241,0.35)]'
+          }`}
         >
-          Book flight
+          {ctaLabel}
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
             <path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </a>
+        {ctaNote && (
+          <p className="text-center text-[11px] leading-4 text-gray-500">{ctaNote}</p>
+        )}
       </div>
     </div>
   )

@@ -1,4 +1,5 @@
-import { type NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { isBookingEnabled } from '@/lib/booking/config';
 
 const BASE_URL = 'https://api.duffel.com';
 
@@ -28,8 +29,15 @@ interface DuffelOrderResponse {
   errors?: Array<{ message: string; type?: string; title?: string }>;
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
+    if (!isBookingEnabled()) {
+      return NextResponse.json(
+        { ok: false, reason: 'In-app booking is not available yet. Please use the provider link when available.' },
+        { status: 503 }
+      );
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const body = (await request.json()) as { offerId?: unknown; passenger?: unknown };
 
@@ -165,7 +173,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     // NEVER throw — always return Result shape
     return NextResponse.json(
-      { ok: false, reason: err instanceof Error ? err.message : String(err) },
+      { ok: false, reason: 'Booking unavailable. Please try again later.' },
       { status: 500 }
     );
   }

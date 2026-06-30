@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
-import { useSearchParams } from 'next/navigation'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -9,10 +8,12 @@ type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
 const labelCls = 'block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5'
 const inputCls = 'w-full rounded-xl bg-[#0a0f1e] border border-white/10 px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors'
 
-export default function BookingFlow() {
-  const params = useSearchParams()
-  const offerId = params.get('offerId') ?? ''
+type BookingFlowProps = {
+  bookingEnabled: boolean
+  offerId: string
+}
 
+export default function BookingFlow({ bookingEnabled, offerId }: BookingFlowProps) {
   const [state, setState] = useState<BookingState>('idle')
   const [bookingRef, setBookingRef] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
@@ -75,6 +76,30 @@ export default function BookingFlow() {
     )
   }
 
+  if (!bookingEnabled || !offerId) {
+    return (
+      <div className="mx-auto flex min-h-screen max-w-lg items-center px-4 py-12">
+        <div className="w-full rounded-2xl border border-amber-500/20 bg-gray-900 p-6 text-center sm:p-8">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10">
+            <span className="text-xl text-amber-300">!</span>
+          </div>
+          <h1 className="text-xl font-bold text-white">In-app booking is unavailable</h1>
+          <p className="mt-3 text-sm leading-6 text-gray-400">
+            expaify is showing fares for comparison while booking review is being completed. Passenger details cannot be collected here right now.
+          </p>
+          {!offerId && (
+            <p className="mt-3 text-sm leading-6 text-gray-500">
+              Return to search and choose a current flight result before reviewing booking options.
+            </p>
+          )}
+          <a href="/" className="mt-6 inline-flex h-11 items-center justify-center rounded-xl border border-white/10 px-4 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/5">
+            Back to search
+          </a>
+        </div>
+      </div>
+    )
+  }
+
   if (state === 'error') {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
@@ -93,9 +118,7 @@ export default function BookingFlow() {
       <div className="mb-8">
         <a href="/" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">← Back to search</a>
         <h1 className="text-2xl font-bold text-white mt-4">Complete your booking</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Offer ID: <span className="font-mono text-gray-400 text-xs">{offerId || 'none'}</span>
-        </p>
+        <p className="text-gray-500 text-sm mt-1">Review traveler details before creating the order.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-gray-900 border border-white/8 rounded-2xl p-6 space-y-4">
