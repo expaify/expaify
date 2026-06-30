@@ -80,11 +80,14 @@ export function estimateBaggageFees(input: BaggageFeeInput): BaggageFeeEstimate 
   const paidCheckedBags = Math.max(0, checkedBags - includedCheckedBags);
   const lines: BaggageFeeLine[] = [];
 
-  if (carryOnBags > 0) {
+  const includedCarryOnQuantity = Math.min(carryOnBags, includedCarryOnBags);
+  const includedCheckedQuantity = Math.min(checkedBags, includedCheckedBags);
+
+  if (includedCarryOnQuantity > 0) {
     lines.push(buildLine(
       'carry_on',
-      `${Math.min(carryOnBags, includedCarryOnBags)} carry-on included`,
-      Math.min(carryOnBags, includedCarryOnBags),
+      `${includedCarryOnQuantity} carry-on included`,
+      includedCarryOnQuantity,
       0,
       true,
     ));
@@ -94,11 +97,11 @@ export function estimateBaggageFees(input: BaggageFeeInput): BaggageFeeEstimate 
     lines.push(buildLine('carry_on', 'Additional carry-on estimate', paidCarryOnBags, rule.carryOnFeeUsd, false));
   }
 
-  if (checkedBags > 0) {
+  if (includedCheckedQuantity > 0) {
     lines.push(buildLine(
       'checked_bag',
-      `${Math.min(checkedBags, includedCheckedBags)} checked bag${Math.min(checkedBags, includedCheckedBags) === 1 ? '' : 's'} included`,
-      Math.min(checkedBags, includedCheckedBags),
+      `${includedCheckedQuantity} checked bag${includedCheckedQuantity === 1 ? '' : 's'} included`,
+      includedCheckedQuantity,
       0,
       true,
     ));
