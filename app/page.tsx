@@ -156,10 +156,10 @@ export default function Home() {
             <p className="text-xs font-medium text-indigo-400 uppercase tracking-widest mb-5 animate-fade-up">
               Deal intelligence
             </p>
-            <h1 className="text-7xl font-bold tracking-tight leading-none mb-4 bg-gradient-to-r from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent animate-fade-up delay-75">
+            <h1 className="text-5xl sm:text-7xl font-bold tracking-tight leading-none mb-4 bg-gradient-to-r from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent animate-fade-up delay-75">
               expaify
             </h1>
-            <p className="text-gray-300 text-lg font-medium mb-2 animate-fade-up delay-150">
+            <p className="text-gray-300 text-base sm:text-lg font-medium mb-2 animate-fade-up delay-150">
               Find deals worth booking.
             </p>
             <p className="text-gray-500 text-sm animate-fade-up delay-225">
@@ -171,7 +171,7 @@ export default function Home() {
           <div className="bg-gray-900 border border-white/8 rounded-2xl p-6 shadow-2xl shadow-black/50">
             <form onSubmit={handleSearch} className="space-y-4">
               {/* Origin + Destination side-by-side with swap button */}
-              <div className="flex items-end gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <div className="flex-1">
                   <label
                     htmlFor="origin"
@@ -196,7 +196,7 @@ export default function Home() {
                   type="button"
                   onClick={handleSwap}
                   aria-label="Swap origin and destination"
-                  className="rounded-xl bg-white/5 border border-white/10 px-2.5 py-3 text-gray-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                  className="rounded-xl bg-white/5 border border-white/10 px-2.5 py-3 text-gray-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0 rotate-90 sm:rotate-0"
                 >
                   ↔
                 </button>
@@ -292,12 +292,12 @@ export default function Home() {
             onClick={handleBack}
             className="text-sm text-gray-400 border border-white/10 rounded-lg px-3 py-1.5 hover:border-white/20 hover:text-gray-200 transition-colors"
           >
-            ← New search
+            ← New<span className="hidden sm:inline"> search</span>
           </button>
         </div>
       </nav>
 
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto px-3 sm:px-4 py-8">
         {/* Error banner */}
         {error && (
           <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 mb-6 flex items-center justify-between gap-4">
@@ -335,7 +335,7 @@ export default function Home() {
 
             {/* Sort + filter controls bar */}
             {!isSearching && flights.length > 0 && (
-              <div className="bg-gray-900/60 border border-white/8 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-3 mb-6">
+              <div className="bg-gray-900/60 border border-white/8 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-2 mb-6">
                 {/* Sort pills */}
                 <div className="flex items-center gap-1.5">
                   {(['price', 'deal', 'stops'] as SortBy[]).map((option) => {

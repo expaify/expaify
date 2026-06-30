@@ -90,7 +90,7 @@ export default function FlightCard({ fare, score, loading }: Props) {
           ) : (
             <div className="mt-1.5">
               <DealBadge verdict={score.verdict} confidence={score.confidence} />
-              <p className="text-xs text-gray-500 leading-relaxed mt-1">
+              <p className="text-xs text-gray-500 leading-relaxed mt-1 line-clamp-2">
                 {score.explanation}
               </p>
               <div className="mt-2">
