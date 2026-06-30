@@ -1,14 +1,12 @@
 /**
  * HotellookProvider tests.
  *
- * All Travelpayouts/Hotellook hotel API endpoints currently return 404.
- * The provider returns { ok: true, data: [] } for every input without
- * making any network calls.
+ * The provider calls Travelpayouts HotelLook through engine.hotellook.com.
+ * Tests mock fetch and Redis so they never hit the real API.
  */
 
+import { cache } from '../../cache/redis';
 import { HotellookProvider, hotellook } from '../hotellook';
-
-// ─── Mock Redis cache (not used in current implementation) ───────────────────
 
 jest.mock('../../cache/redis', () => ({
   cache: {
@@ -17,7 +15,9 @@ jest.mock('../../cache/redis', () => ({
   },
 }));
 
-// ─── Setup ────────────────────────────────────────────────────────────────────
+const fetchMock = global.fetch as jest.Mock;
+const cacheGetMock = cache.get as jest.Mock;
+const cacheSetMock = cache.set as jest.Mock;
 
 beforeEach(() => {
   process.env.TP_TOKEN = 'test-token';
@@ -26,181 +26,167 @@ beforeEach(() => {
   global.fetch = jest.fn();
 });
 
-// ─── Core behaviour ───────────────────────────────────────────────────────────
+describe('HotellookProvider.searchHotels', () => {
+  it('returns a configuration error when TP_TOKEN is missing', async () => {
+    delete process.env.TP_TOKEN;
 
-describe('HotellookProvider.searchHotels — API unavailable', () => {
-  it('returns { ok: true, data: [] } for a normal city + date search', async () => {
-    const provider = new HotellookProvider();
-    const result = await provider.searchHotels('New York', {
-      checkin: '2026-09-22',
-      checkout: '2026-09-29',
-    });
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error(result.reason);
-    expect(result.data).toEqual([]);
-  });
-
-  it('returns { ok: true, data: [] } for an IATA code (JFK)', async () => {
     const provider = new HotellookProvider();
     const result = await provider.searchHotels('JFK', {
       checkin: '2026-09-22',
       checkout: '2026-09-29',
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error(result.reason);
-    expect(result.data).toEqual([]);
+    expect(result).toEqual({ ok: false, reason: 'TP_TOKEN not configured' });
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('returns { ok: true, data: [] } for an IATA code (LAX)', async () => {
+  it('calls the engine cache endpoint and maps HotelLook hotels', async () => {
     const provider = new HotellookProvider();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue([
+        {
+          hotelId: 12345,
+          hotelName: 'Hotel Example',
+          stars: 4,
+          location: { name: 'New York' },
+          priceFrom: 12999,
+          photoUrl: 'https://example.com/hotel.jpg',
+          propertyType: 'Hotel',
+        },
+      ]),
+    });
+
+    const result = await provider.searchHotels('jfk', {
+      checkin: '2026-09-22',
+      checkout: '2026-09-29',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://engine.hotellook.com/api/v2/cache.json?location=JFK&checkIn=2026-09-22&checkOut=2026-09-29&currency=USD&token=test-token&limit=20'
+    );
+    expect(result.data).toEqual([
+      {
+        id: '12345',
+        name: 'Hotel Example',
+        area: 'New York',
+        stars: 4,
+        rating: 4,
+        pricePerNight: { priceCents: 12999, currency: 'USD' },
+        deeplink: 'https://tp.media/r?marker=marker42&trs=233847&p=4536&u=https://hotellook.com/hotels/12345',
+        photoUrl: 'https://example.com/hotel.jpg',
+        source: 'hotellook',
+      },
+    ]);
+  });
+
+  it('returns an empty array when HotelLook returns an empty array', async () => {
+    const provider = new HotellookProvider();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue([]),
+    });
+
     const result = await provider.searchHotels('LAX', {
       checkin: '2026-09-22',
       checkout: '2026-09-29',
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error(result.reason);
-    expect(result.data).toEqual([]);
+    expect(result).toEqual({ ok: true, data: [] });
   });
 
-  it('returns { ok: true, data: [] } for an IATA code (LHR)', async () => {
+  it('returns HTTP status errors without throwing', async () => {
     const provider = new HotellookProvider();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 503,
+    });
+
     const result = await provider.searchHotels('LHR', {
       checkin: '2026-09-22',
       checkout: '2026-09-29',
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error(result.reason);
-    expect(result.data).toEqual([]);
+    expect(result).toEqual({ ok: false, reason: 'HTTP 503' });
   });
 
-  it('returns { ok: true, data: [] } when checkin is missing', async () => {
+  it('returns parse failures without throwing', async () => {
     const provider = new HotellookProvider();
-    const result = await provider.searchHotels('JFK', { checkin: '', checkout: '2026-09-29' });
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockRejectedValue(new Error('invalid json')),
+    });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error(result.reason);
-    expect(result.data).toEqual([]);
-  });
-
-  it('returns { ok: true, data: [] } when checkout is missing', async () => {
-    const provider = new HotellookProvider();
-    const result = await provider.searchHotels('JFK', { checkin: '2026-09-22', checkout: '' });
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error(result.reason);
-    expect(result.data).toEqual([]);
-  });
-
-  it('returns { ok: true, data: [] } when both dates are missing', async () => {
-    const provider = new HotellookProvider();
-    const result = await provider.searchHotels('Paris', { checkin: '', checkout: '' });
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error(result.reason);
-    expect(result.data).toEqual([]);
-  });
-
-  it('returns { ok: true, data: [] } for an unknown city', async () => {
-    const provider = new HotellookProvider();
-    const result = await provider.searchHotels('UnknownCity', {
+    const result = await provider.searchHotels('CDG', {
       checkin: '2026-09-22',
       checkout: '2026-09-29',
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error(result.reason);
-    expect(result.data).toEqual([]);
+    expect(result).toEqual({ ok: false, reason: 'invalid json' });
   });
 
-  it('returns { ok: true, data: [] } for an empty area string', async () => {
+  it('uses cached hotel results when present', async () => {
+    const cached = [
+      {
+        id: 'cached-1',
+        name: 'Cached Hotel',
+        area: 'Chicago',
+        pricePerNight: { priceCents: 9999, currency: 'USD' },
+        deeplink: 'https://example.com/cached',
+        source: 'hotellook',
+      },
+    ];
+    cacheGetMock.mockResolvedValueOnce(cached);
+
     const provider = new HotellookProvider();
-    const result = await provider.searchHotels('', {
+    const result = await provider.searchHotels('ORD', {
       checkin: '2026-09-22',
       checkout: '2026-09-29',
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error(result.reason);
-    expect(result.data).toEqual([]);
-  });
-
-  it('makes no network requests regardless of input', async () => {
-    const provider = new HotellookProvider();
-    await provider.searchHotels('Miami', {
-      checkin: '2026-09-22',
-      checkout: '2026-09-29',
-    });
-
+    expect(result).toEqual({ ok: true, data: cached });
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('result.data is always a plain array (not null or undefined)', async () => {
+  it('caches API results for 6 hours', async () => {
     const provider = new HotellookProvider();
-    const result = await provider.searchHotels('Tokyo', {
-      checkin: '2026-10-01',
-      checkout: '2026-10-07',
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue([
+        {
+          hotelId: 987,
+          hotelName: 'Cache Me',
+          stars: '5',
+          location: { name: 'Miami' },
+          priceFrom: 23001.9,
+        },
+      ]),
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error(result.reason);
-    expect(Array.isArray(result.data)).toBe(true);
-    expect(result.data).toHaveLength(0);
-  });
-
-  it('is stable across multiple sequential calls', async () => {
-    const provider = new HotellookProvider();
-    const inputs = ['New York', 'LAX', 'London', 'UnknownPlace'];
-
-    for (const area of inputs) {
-      const result = await provider.searchHotels(area, {
-        checkin: '2026-09-22',
-        checkout: '2026-09-29',
-      });
-      expect(result.ok).toBe(true);
-      if (!result.ok) throw new Error(result.reason);
-      expect(result.data).toEqual([]);
-    }
-  });
-
-  it('ok is exactly true (boolean), not just truthy', async () => {
-    const provider = new HotellookProvider();
-    const result = await provider.searchHotels('Berlin', {
+    const result = await provider.searchHotels('MIA', {
       checkin: '2026-09-22',
       checkout: '2026-09-29',
     });
 
     expect(result.ok).toBe(true);
+    expect(cacheSetMock).toHaveBeenCalledWith(
+      'hotellook:search:MIA:2026-09-22:2026-09-29',
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: '987',
+          pricePerNight: { priceCents: 23001, currency: 'USD' },
+        }),
+      ]),
+      21600
+    );
   });
 });
-
-// ─── Singleton export ─────────────────────────────────────────────────────────
 
 describe('hotellook singleton', () => {
   it('is an instance of HotellookProvider', () => {
     expect(hotellook).toBeInstanceOf(HotellookProvider);
-  });
-
-  it('singleton also returns { ok: true, data: [] }', async () => {
-    const result = await hotellook.searchHotels('SFO', {
-      checkin: '2026-09-22',
-      checkout: '2026-09-29',
-    });
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error(result.reason);
-    expect(result.data).toEqual([]);
-  });
-
-  it('singleton makes no network requests', async () => {
-    await hotellook.searchHotels('Chicago', {
-      checkin: '2026-09-22',
-      checkout: '2026-09-29',
-    });
-
-    expect(global.fetch).not.toHaveBeenCalled();
   });
 });
