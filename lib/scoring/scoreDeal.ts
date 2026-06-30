@@ -16,8 +16,8 @@ import type {
  *   - Current fare above all history     → percentile = 100
  *   - Current fare below all history     → percentile = 0
  *
- * MVP assumption: history is already in the same currency as the fare (USD).
- * Multi-currency conversion will be wired in via lib/fx when available.
+ * Only same-currency history is comparable. Multi-currency conversion will be
+ * wired in via lib/fx when available.
  */
 type ScoreableOffer = NormalizedFare | NormalizedHotelOffer;
 type ScoreContext = 'route' | 'hotel';
@@ -60,8 +60,10 @@ export function scoreDeal(
   // NOTE: Award fares score differently (miles vs cash, redemption value, etc.).
   // When fareType === 'award', branch here into scoreAwardDeal() — not yet implemented.
 
-  // ── Edge case: no history ──────────────────────────────────────────────────
-  if (history.length === 0) {
+  const comparableHistory = history.filter((h) => h.currency === currency);
+
+  // ── Edge case: no comparable history ───────────────────────────────────────
+  if (comparableHistory.length === 0) {
     return {
       percentile: 50,
       pctVsMedian: 0,
@@ -69,15 +71,19 @@ export function scoreDeal(
       currency,
       verdict: 'Typical',
       confidence: 'low',
-      explanation: `No price history available for this ${label}.`,
+      explanation:
+        history.length === 0
+          ? `No price history available for this ${label}.`
+          : `No comparable ${currency} price history available for this ${label}.`,
     };
   }
 
   // ── Confidence ─────────────────────────────────────────────────────────────
-  const confidence: 'high' | 'low' = history.length >= 10 ? 'high' : 'low';
+  const confidence: 'high' | 'low' =
+    comparableHistory.length >= 10 ? 'high' : 'low';
 
   // ── Sort price points ascending ────────────────────────────────────────────
-  const sorted = history.map((h) => h.priceCents).sort((a, b) => a - b);
+  const sorted = comparableHistory.map((h) => h.priceCents).sort((a, b) => a - b);
   const n = sorted.length;
 
   // ── Median ─────────────────────────────────────────────────────────────────
@@ -122,7 +128,9 @@ export function scoreDeal(
   const absPct = Math.abs(Math.round(pctVsMedian));
 
   let explanation: string;
-  if (pctVsMedian < -0.5) {
+  if (confidence === 'low') {
+    explanation = `$${currentDollars} — limited price history for this ${label}, so this is treated as a typical price for now.`;
+  } else if (pctVsMedian < -0.5) {
     explanation = `$${currentDollars} — about ${absPct}% below the usual $${medianDollars} for this ${label} over the last 90 days.`;
   } else if (pctVsMedian > 0.5) {
     explanation = `$${currentDollars} — about ${absPct}% above the usual $${medianDollars} for this ${label} over the last 90 days.`;

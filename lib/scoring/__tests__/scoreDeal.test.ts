@@ -56,6 +56,14 @@ function makeHistory(cents: number[]): PricePoint[] {
   }));
 }
 
+function makeHistoryInCurrency(cents: number[], currency: string): PricePoint[] {
+  return cents.map((priceCents, i) => ({
+    date: `2026-0${(i % 9) + 1}-15`,
+    priceCents,
+    currency,
+  }));
+}
+
 function makeHotel(priceCents: number): NormalizedHotelOffer {
   return {
     id: 'hotel-1',
@@ -94,6 +102,8 @@ describe('scoreDeal — edge cases', () => {
     expect(result.percentile).toBe(50);
     expect(result.pctVsMedian).toBe(0);
     expect(result.medianCents).toBe(price);
+    expect(result.verdict).toBe('Typical');
+    expect(result.confidence).toBe('high');
   });
 
   it('fare above all history yields percentile = 100 and Typical verdict', () => {
@@ -108,6 +118,8 @@ describe('scoreDeal — edge cases', () => {
     const history = makeHistory([30000, 35000, 40000, 45000, 50000, 55000, 60000, 65000, 70000, 75000]);
     const result = scoreDeal(makeFare(10000), history);
     expect(result.percentile).toBe(0);
+    expect(result.verdict).toBe('Great');
+    expect(result.confidence).toBe('high');
   });
 
   it('high confidence threshold: exactly 10 points is high, 9 is low', () => {
@@ -123,6 +135,28 @@ describe('scoreDeal — edge cases', () => {
     expect(result.confidence).toBe('low');
     expect(result.verdict).toBe('Typical');
     expect(result.verdict).not.toBe('Great');
+    expect(result.verdict).not.toBe('Good');
+    expect(result.explanation).toContain('limited price history');
+    expect(result.explanation).toContain('treated as a typical price');
+  });
+
+  it('even-numbered history uses the midpoint median for pctVsMedian', () => {
+    const result = scoreDeal(makeFare(25000), makeHistory([
+      10000,
+      20000,
+      30000,
+      40000,
+      50000,
+      60000,
+      70000,
+      80000,
+      90000,
+      100000,
+    ]));
+
+    expect(result.medianCents).toBe(55000);
+    expect(result.pctVsMedian).toBeCloseTo(-54.55, 2);
+    expect(result.verdict).toBe('Good');
   });
 
   it('verdict boundaries: percentile 15 → Great, 16 → Good, 40 → Good, 41 → Typical', () => {
@@ -150,6 +184,34 @@ describe('scoreDeal — edge cases', () => {
     const fare: NormalizedFare = { ...makeFare(30000), price: { priceCents: 30000, currency: 'EUR' } };
     const result = scoreDeal(fare, makeHistory([25000, 30000, 35000]));
     expect(result.currency).toBe('EUR');
+  });
+
+  it('currency mismatch returns neutral low confidence instead of claiming a deal', () => {
+    const fare: NormalizedFare = { ...makeFare(10000), price: { priceCents: 10000, currency: 'EUR' } };
+    const usdHistory = makeHistory(Array(12).fill(40000));
+    const result = scoreDeal(fare, usdHistory);
+
+    expect(result.currency).toBe('EUR');
+    expect(result.percentile).toBe(50);
+    expect(result.pctVsMedian).toBe(0);
+    expect(result.medianCents).toBe(0);
+    expect(result.confidence).toBe('low');
+    expect(result.verdict).toBe('Typical');
+    expect(result.explanation).toBe('No comparable EUR price history available for this route.');
+  });
+
+  it('mixed-currency history only scores comparable currency points', () => {
+    const fare: NormalizedFare = { ...makeFare(10000), price: { priceCents: 10000, currency: 'EUR' } };
+    const history = [
+      ...makeHistoryInCurrency([30000, 35000, 40000, 45000, 50000, 55000, 60000, 65000, 70000], 'EUR'),
+      ...makeHistoryInCurrency([1000, 1200, 1400, 1600, 1800], 'USD'),
+    ];
+    const result = scoreDeal(fare, history);
+
+    expect(result.medianCents).toBe(50000);
+    expect(result.percentile).toBe(50);
+    expect(result.confidence).toBe('low');
+    expect(result.verdict).toBe('Typical');
   });
 
   it('explanation mentions current price and median price', () => {
