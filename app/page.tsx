@@ -18,11 +18,11 @@ type AlertSignupResponse =
   | { ok: false; reason: string }
 
 const destinations = [
-  { label: 'London', emoji: '🎡', origin: 'JFK', dest: 'LHR', originDisplay: 'New York (JFK)', destDisplay: 'London (LHR)', tag: 'Classic' },
-  { label: 'Tokyo', emoji: '⛩️', origin: 'LAX', dest: 'NRT', originDisplay: 'Los Angeles (LAX)', destDisplay: 'Tokyo (NRT)', tag: 'Trending' },
-  { label: 'Paris', emoji: '🗼', origin: 'JFK', dest: 'CDG', originDisplay: 'New York (JFK)', destDisplay: 'Paris (CDG)', tag: 'Romantic' },
-  { label: 'Dubai', emoji: '🏙️', origin: 'JFK', dest: 'DXB', originDisplay: 'New York (JFK)', destDisplay: 'Dubai (DXB)', tag: 'Luxury' },
-  { label: 'Miami', emoji: '🌴', origin: 'JFK', dest: 'MIA', originDisplay: 'New York (JFK)', destDisplay: 'Miami (MIA)', tag: 'Beach' },
+  { label: 'New York to London', origin: 'JFK', dest: 'LHR', originDisplay: 'New York (JFK)', destDisplay: 'London (LHR)', tag: 'Transatlantic', meta: 'Deal history ready' },
+  { label: 'Los Angeles to Tokyo', origin: 'LAX', dest: 'NRT', originDisplay: 'Los Angeles (LAX)', destDisplay: 'Tokyo (NRT)', tag: 'Long haul', meta: 'Flexible date friendly' },
+  { label: 'New York to Paris', origin: 'JFK', dest: 'CDG', originDisplay: 'New York (JFK)', destDisplay: 'Paris (CDG)', tag: 'Europe', meta: 'Popular route' },
+  { label: 'New York to Dubai', origin: 'JFK', dest: 'DXB', originDisplay: 'New York (JFK)', destDisplay: 'Dubai (DXB)', tag: 'Premium cabins', meta: 'Price swings often' },
+  { label: 'New York to Miami', origin: 'JFK', dest: 'MIA', originDisplay: 'New York (JFK)', destDisplay: 'Miami (MIA)', tag: 'Domestic', meta: 'Frequent fare drops' },
 ]
 
 const delays = ['', 'delay-75', 'delay-150', 'delay-225', 'delay-300']
@@ -52,10 +52,19 @@ function IconCalendar({ className = '' }: { className?: string }) {
   )
 }
 
-function IconLocation({ className = '' }: { className?: string }) {
+function IconMoon({ className = '' }: { className?: string }) {
   return (
-    <svg className={className} width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 2C8.69 2 6 4.69 6 8c0 5.25 6 14 6 14s6-8.75 6-14c0-3.31-2.69-6-6-6zm0 8.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" fill="currentColor" />
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M20.5 15.1A8.5 8.5 0 018.9 3.5a8.5 8.5 0 1011.6 11.6z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function IconSun({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 2.5v2M12 19.5v2M4.6 4.6L6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   )
 }
@@ -112,9 +121,9 @@ function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label="Toggle theme"
-      className="fixed top-4 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-400 transition-all hover:bg-white/10 hover:text-gray-200"
+      className="fixed top-4 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-slate-300 hover:text-slate-900"
     >
-      {light ? '🌙' : '☀️'}
+      {light ? <IconMoon /> : <IconSun />}
     </button>
   )
 }
@@ -518,61 +527,83 @@ export default function Home() {
 
   if (view === 'form') {
     return (
-      <main className="relative flex min-h-screen items-start justify-center overflow-x-hidden bg-[#07091A] px-4 py-10 sm:items-center sm:py-16">
+      <main className="min-h-screen overflow-x-hidden bg-[#f5f7fb] text-slate-950">
         <ThemeToggle />
 
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute left-1/2 top-0 h-[500px] w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_50%_0%,rgba(99,102,241,1),transparent_70%)] opacity-25 blur-3xl" />
-          <div className="absolute bottom-0 left-0 h-[400px] w-[500px] bg-[radial-gradient(ellipse_at_0%_100%,rgba(139,92,246,1),transparent_70%)] opacity-10 blur-3xl" />
-          <div className="absolute right-0 top-1/3 h-[300px] w-[400px] bg-[radial-gradient(ellipse_at_100%_50%,rgba(59,130,246,1),transparent_70%)] opacity-[0.08] blur-3xl" />
-          <svg className="absolute inset-0 h-full w-full opacity-[0.025]" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
-        </div>
-
-        <div className="relative w-full max-w-xl">
-          <div className="mb-8 text-center animate-fade-up sm:mb-10">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/5 px-4 py-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 dot-pulse" />
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">
-                Live deal intelligence
+        <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+          <header className="flex min-h-10 items-center justify-between pr-12">
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-white shadow-sm">
+                <IconPlane />
               </span>
+              <div>
+                <p className="font-display text-xl font-extrabold leading-none tracking-tight text-slate-950">expaify</p>
+                <p className="mt-0.5 text-xs font-semibold text-slate-500">Travel deal intelligence</p>
+              </div>
             </div>
-            <h1 className="font-display bg-[linear-gradient(135deg,#fff_0%,#c7d2fe_44%,#818cf8_100%)] bg-clip-text text-6xl font-extrabold leading-none tracking-tighter text-transparent sm:text-9xl">
-              expaify
-            </h1>
-            <p className="mt-5 text-base font-semibold text-gray-300 sm:text-lg">
-              Flights ranked by real deal quality.
-            </p>
-          </div>
+          </header>
 
-          <section className="rounded-2xl border border-white/8 bg-[#0C1122]/85 p-4 shadow-[0_24px_64px_rgba(0,0,0,0.6)] backdrop-blur-xl animate-fade-up delay-75 sm:rounded-3xl sm:p-6">
-            <div className="mb-5 flex rounded-xl bg-white/[0.04] p-1">
-              {(['roundtrip', 'oneway'] as TripType[]).map(type => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setTripType(type)}
-                  className={`flex-1 rounded-lg border py-2 text-sm font-bold transition-colors ${
-                    tripType === type
-                      ? 'border-indigo-500/30 bg-indigo-500/25 text-indigo-300'
-                      : 'border-transparent text-gray-500 hover:text-gray-300'
-                  }`}
-                >
-                  {type === 'roundtrip' ? 'Round trip' : 'One way'}
-                </button>
-              ))}
-            </div>
+          <div className="grid flex-1 items-start gap-8 py-8 lg:grid-cols-[minmax(0,0.86fr)_minmax(620px,1.14fr)] lg:items-center lg:py-10">
+            <section className="max-w-xl animate-fade-up">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                Live fare scoring
+              </div>
+              <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+                Know when a flight price is actually worth booking.
+              </h1>
+              <p className="mt-5 max-w-lg text-base font-medium leading-7 text-slate-600 sm:text-lg">
+                Search current fares and compare each option against recent route history, median price, and deal percentile.
+              </p>
 
-            <form onSubmit={handleSearch} className="space-y-4">
-              <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)]">
+              <div className="mt-7 grid grid-cols-3 gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div className="min-w-0 px-1">
+                  <p className="text-[11px] font-bold uppercase text-slate-400">Verdict</p>
+                  <p className="mt-1 text-sm font-bold text-slate-950">Great, Good, Typical</p>
+                </div>
+                <div className="min-w-0 border-l border-slate-200 px-3">
+                  <p className="text-[11px] font-bold uppercase text-slate-400">Baseline</p>
+                  <p className="mt-1 text-sm font-bold text-slate-950">90-day route history</p>
+                </div>
+                <div className="min-w-0 border-l border-slate-200 px-3">
+                  <p className="text-[11px] font-bold uppercase text-slate-400">Hotels</p>
+                  <p className="mt-1 text-sm font-bold text-slate-950">Checked when dates fit</p>
+                </div>
+              </div>
+            </section>
+
+            <section className="animate-fade-up delay-75 rounded-[1.75rem] border border-slate-200 bg-white p-3 shadow-[0_24px_70px_rgba(15,23,42,0.13)] sm:p-4">
+              <div className="mb-4 flex items-start justify-between gap-4 px-1 pt-1 sm:px-2">
                 <div>
-                  <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
+                  <h2 className="font-display text-lg font-extrabold tracking-tight text-slate-950 sm:text-xl">Search flights</h2>
+                  <p className="mt-1 text-sm font-medium text-slate-500">Add a route to rank live prices by deal quality.</p>
+                </div>
+                <div className="hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 sm:block">
+                  Cash fares first
+                </div>
+              </div>
+
+              <div className="mb-4 flex rounded-2xl bg-slate-100 p-1">
+                {(['roundtrip', 'oneway'] as TripType[]).map(type => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setTripType(type)}
+                    className={`min-h-11 flex-1 rounded-xl border px-3 py-2 text-sm font-bold transition-colors ${
+                    tripType === type
+                      ? 'border-white bg-white text-slate-950 shadow-sm'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                  >
+                    {type === 'roundtrip' ? 'Round trip' : 'One way'}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSearch} className="space-y-4">
+                <div className="grid grid-cols-1 items-end gap-3 lg:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)]">
+                <div>
+                  <label className="mb-1.5 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
                     From
                   </label>
                   <AirportInput
@@ -589,13 +620,13 @@ export default function Home() {
                   type="button"
                   onClick={handleSwap}
                   aria-label="Swap origin and destination"
-                  className="mx-auto flex h-11 w-11 rotate-90 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-gray-500 transition-colors hover:border-indigo-500/30 hover:text-indigo-300 sm:rotate-0"
+                    className="mx-auto flex h-11 w-11 rotate-90 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 lg:rotate-0"
                 >
                   <IconSwap />
                 </button>
 
                 <div>
-                  <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
+                  <label className="mb-1.5 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
                     To
                   </label>
                   <AirportInput
@@ -608,34 +639,34 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className={`grid gap-3 ${tripType === 'roundtrip' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                <div className={`grid gap-3 ${tripType === 'roundtrip' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
                 <div>
-                  <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
+                  <label className="mb-1.5 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
                     Depart
                   </label>
                   <div className="relative">
-                    <IconCalendar className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600" />
+                      <IconCalendar className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="date"
                       value={depart}
                       onChange={event => setDepart(event.target.value)}
-                      className="field-input"
+                      className="min-h-[3.25rem] w-full rounded-[0.875rem] border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-slate-950 transition-[border-color,box-shadow,background] [color-scheme:light] focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
                     />
                   </div>
                 </div>
 
                 {tripType === 'roundtrip' && (
                   <div>
-                    <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
+                    <label className="mb-1.5 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
                       Return
                     </label>
                     <div className="relative">
-                      <IconCalendar className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600" />
+                        <IconCalendar className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         type="date"
                         value={returnDate}
                         onChange={event => setReturnDate(event.target.value)}
-                        className="field-input"
+                        className="min-h-[3.25rem] w-full rounded-[0.875rem] border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-slate-950 transition-[border-color,box-shadow,background] [color-scheme:light] focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
                       />
                     </div>
                   </div>
@@ -646,46 +677,58 @@ export default function Home() {
                 <PriceCalendar prices={calendarPrices} selected={depart} onSelect={setDepart} />
               )}
 
-              <label className="flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-xl px-1">
-                <input
-                  type="checkbox"
-                  checked={flexDates}
-                  onChange={e => setFlexDates(e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-white/5 accent-indigo-500"
-                />
-                <span className="text-xs text-gray-400 font-medium">
-                  I'm flexible <span className="text-gray-600">(±3 days)</span>
-                </span>
-              </label>
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.7fr)]">
+                  <label className="flex min-h-14 cursor-pointer select-none items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4">
+                    <span>
+                      <span className="block text-sm font-bold text-slate-900">Flexible dates</span>
+                      <span className="block text-xs font-medium text-slate-500">Search nearby dates when possible</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={flexDates}
+                      onChange={e => setFlexDates(e.target.checked)}
+                      className="h-5 w-5 rounded border-slate-300 bg-white accent-indigo-600"
+                    />
+                  </label>
 
-              <div className="flex min-h-11 items-center justify-between px-1">
-                <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">Passengers</span>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setPassengers(p => Math.max(1, p - 1))}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-bold text-gray-300 transition-colors hover:bg-white/10 disabled:opacity-30"
-                    disabled={passengers <= 1}
-                  >
-                    −
-                  </button>
-                  <span className="w-5 text-center text-sm font-bold tabular-nums text-gray-100">{passengers}</span>
-                  <button
-                    type="button"
-                    onClick={() => setPassengers(p => Math.min(9, p + 1))}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-bold text-gray-300 transition-colors hover:bg-white/10 disabled:opacity-30"
-                    disabled={passengers >= 9}
-                  >
-                    +
-                  </button>
+                  <div className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4">
+                    <span>
+                      <span className="block text-sm font-bold text-slate-900">Passengers</span>
+                      <span className="block text-xs font-medium text-slate-500">{passengers === 1 ? '1 traveler' : `${passengers} travelers`}</span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPassengers(p => Math.max(1, p - 1))}
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-bold text-slate-700 transition-colors hover:border-slate-300 disabled:opacity-35"
+                        disabled={passengers <= 1}
+                        aria-label="Remove passenger"
+                      >
+                        -
+                      </button>
+                      <span className="w-5 text-center text-sm font-extrabold tabular-nums text-slate-950">{passengers}</span>
+                      <button
+                        type="button"
+                        onClick={() => setPassengers(p => Math.min(9, p + 1))}
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-bold text-slate-700 transition-colors hover:border-slate-300 disabled:opacity-35"
+                        disabled={passengers >= 9}
+                        aria-label="Add passenger"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <button type="submit" className="btn-primary" disabled={isSearching}>
+                <button
+                  type="submit"
+                  className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[0.875rem] bg-slate-950 px-6 py-4 font-display text-[0.9375rem] font-bold text-white shadow-[0_14px_30px_rgba(15,23,42,0.22)] transition-[opacity,transform,box-shadow] hover:opacity-95 hover:shadow-[0_18px_36px_rgba(15,23,42,0.26)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+                  disabled={isSearching}
+                >
                 {isSearching ? (
                   <>
                     <span className="spinner" />
-                    Scanning deals…
+                      Scanning deals...
                   </>
                 ) : (
                   <>
@@ -696,8 +739,16 @@ export default function Home() {
               </button>
             </form>
           </section>
+          </div>
 
-          <div className="mt-5 flex gap-2 overflow-x-auto pb-1 scrollbar-hide animate-fade-up delay-150">
+          <section className="pb-7 animate-fade-up delay-150">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">Route suggestions</h2>
+              {recentSearches.length > 0 && (
+                <span className="text-xs font-semibold text-slate-400">Recent searches saved locally</span>
+              )}
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
             {destinations.map(destination => (
               <button
                 key={destination.label}
@@ -708,22 +759,18 @@ export default function Home() {
                   setDest(destination.dest)
                   setDestDisplay(destination.destDisplay)
                 }}
-                className="group flex min-h-24 flex-shrink-0 flex-col items-center gap-1.5 rounded-2xl border border-white/8 bg-white/3 px-5 py-3 transition-all hover:border-indigo-500/30 hover:bg-indigo-500/10"
+                  className="group flex min-h-[5.5rem] w-[15.5rem] flex-shrink-0 flex-col items-start justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50/50"
               >
-                <span className="text-2xl">{destination.emoji}</span>
-                <span className="text-xs font-bold text-gray-300 group-hover:text-indigo-300 transition-colors">
-                  {destination.label}
-                </span>
-                <span className="text-[10px] text-gray-600 bg-white/5 px-2 py-0.5 rounded-full">
-                  {destination.tag}
-                </span>
+                  <span className="text-sm font-extrabold text-slate-950 transition-colors group-hover:text-indigo-800">{destination.label}</span>
+                  <span className="text-xs font-medium text-slate-500">{destination.meta}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">{destination.tag}</span>
               </button>
             ))}
-          </div>
+            </div>
 
           {recentSearches.length > 0 && (
-            <div className="mt-3 flex items-center gap-2 flex-wrap animate-fade-up delay-150">
-              <span className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Recent</span>
+              <div className="mt-4 flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Recent</span>
               {recentSearches.map(r => (
                 <button
                   key={r.origin + r.dest}
@@ -734,39 +781,14 @@ export default function Home() {
                     setOriginDisplay(r.originDisplay)
                     setDestDisplay(r.destDisplay)
                   }}
-                  className="btn-pill min-h-9 max-w-full text-xs"
+                    className="inline-flex min-h-9 max-w-full items-center rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-900"
                 >
                   {r.originDisplay || r.origin} → {r.destDisplay || r.dest}
                 </button>
               ))}
             </div>
           )}
-
-          <div className="relative mt-8 animate-fade-up delay-225">
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-[linear-gradient(to_bottom,transparent,rgba(7,9,26,0.95)_60%)] px-4 text-center">
-              <p className="mt-16 text-sm font-bold text-gray-300">Search to see real deals</p>
-              <p className="mt-1 text-xs text-gray-600">Prices scored against 90 days of history</p>
-            </div>
-            <div className="grid grid-cols-1 gap-3 opacity-40 pointer-events-none select-none sm:grid-cols-3" aria-hidden="true">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="card overflow-hidden rounded-2xl">
-                  <div className="space-y-4 p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl shimmer" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-3.5 w-24 rounded shimmer" />
-                        <div className="h-2.5 w-14 rounded shimmer" />
-                      </div>
-                      <div className="h-8 w-16 rounded shimmer" />
-                    </div>
-                    <div className="h-12 rounded-xl shimmer" />
-                    <div className="h-10 rounded-xl shimmer" />
-                    <div className="h-11 rounded-xl shimmer" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          </section>
         </div>
       </main>
     )

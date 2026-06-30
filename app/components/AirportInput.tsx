@@ -158,7 +158,7 @@ export default function AirportInput({
 
   return (
     <div ref={rootRef} className="relative">
-      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-600">
+      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 2C8.69 2 6 4.69 6 8c0 5.25 6 14 6 14s6-8.75 6-14c0-3.31-2.69-6-6-6zm0 8.5A2.5 2.5 0 1112 5.5a2.5 2.5 0 010 5z" fill="currentColor" />
         </svg>
@@ -180,14 +180,14 @@ export default function AirportInput({
         aria-controls={listboxId}
         aria-activedescendant={activeOptionId}
         aria-describedby={statusId}
-        className="field-input"
+        className="min-h-[3.25rem] w-full rounded-[0.875rem] border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-slate-950 transition-[border-color,box-shadow,background] placeholder:text-slate-400 placeholder:font-medium focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
       />
       {open && (
         <div
           id={listboxId}
           role="listbox"
           aria-label={`${placeholder} suggestions`}
-          className="absolute left-0 right-0 top-full z-50 mt-2 max-h-72 overflow-y-auto rounded-xl border border-white/8 bg-[#111827] shadow-xl"
+          className="absolute left-0 right-0 top-full z-50 mt-2 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl"
         >
           {results.length > 0 ? (
             results.map((airport, i) => (
@@ -200,20 +200,20 @@ export default function AirportInput({
                   e.preventDefault()
                   select(airport)
                 }}
-                className={`grid cursor-pointer grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-3 transition-colors hover:bg-white/5 ${i === highlighted ? 'bg-indigo-500/10' : ''}`}
+                className={`grid cursor-pointer grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 ${i === highlighted ? 'bg-indigo-50' : ''}`}
               >
-                <span className="text-xs font-bold text-indigo-400">{airport.iata}</span>
+                <span className="text-xs font-bold text-indigo-700">{airport.iata}</span>
                 <span className="min-w-0 leading-tight">
-                  <span className="block break-words text-sm font-medium text-gray-200">{airport.city}</span>
-                  <span className="mt-0.5 block break-words text-xs leading-snug text-gray-500">{airport.name}</span>
+                  <span className="block break-words text-sm font-semibold text-slate-900">{airport.city}</span>
+                  <span className="mt-0.5 block break-words text-xs leading-snug text-slate-500">{airport.name}</span>
                 </span>
-                <span className="text-[10px] font-semibold text-gray-600">{airport.country}</span>
+                <span className="text-[10px] font-semibold text-slate-400">{airport.country}</span>
               </div>
             ))
           ) : lookupState === 'settled' ? (
-            <div className="px-4 py-3 text-sm text-gray-400">No matching airports found.</div>
+            <div className="px-4 py-3 text-sm text-slate-500">No matching airports found.</div>
           ) : lookupState === 'error' ? (
-            <div className="px-4 py-3 text-sm text-gray-400">Airport lookup is unavailable.</div>
+            <div className="px-4 py-3 text-sm text-slate-500">Airport lookup is unavailable.</div>
           ) : null}
         </div>
       )}
