@@ -58,6 +58,21 @@ export interface HotelOffer {
 
 export type NormalizedHotelOffer = HotelOffer;
 
+export interface AirportLookupAirport {
+  iata: string;
+  name: string;
+  city: string;
+  country: string;
+}
+
+export interface AirportLookupData {
+  airports: AirportLookupAirport[];
+  query: string;
+  status: 'ok' | 'too_short';
+  minQueryLength: number;
+  limit: number;
+}
+
 export interface FlightProvider {
   searchFares(
     origin: string,
