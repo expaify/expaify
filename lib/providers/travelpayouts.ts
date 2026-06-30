@@ -67,9 +67,8 @@ export class TravelpayoutsProvider implements FlightProvider {
   private buildDeeplink(origin: string, dest: string, departDate: string): string {
     const compact = departDate.slice(0, 10).replace(/-/g, '').slice(4); // MMDD
     const marker = this.marker;
-    if (!marker) console.warn('[travelpayouts] TP_AFFILIATE_MARKER is unset — deeplinks will not earn affiliate revenue');
     const base = `https://www.aviasales.com/search/${origin}${compact}${dest}1`;
-    return marker ? `${base}?marker=${marker}` : base;
+    return `${base}?marker=${encodeURIComponent(marker)}`;
   }
 
   // ─── priceTrends ───────────────────────────────────────────────────────────
@@ -119,6 +118,8 @@ export class TravelpayoutsProvider implements FlightProvider {
     dest: string,
     range: FlightSearchRange
   ): Promise<Result<NormalizedFare[]>> {
+    if (!this.marker) return { ok: false, reason: 'TP_AFFILIATE_MARKER not configured' };
+
     const extraParams = `${range.depart}:${range.return ?? ''}:pax:${range.passengers}`;
     const cacheKey = `tp:searchFares:v2:${origin}:${dest}:${extraParams}`;
 
