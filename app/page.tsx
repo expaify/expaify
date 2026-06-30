@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { DealScore, HotelOffer, NormalizedFare, ProviderIssueStatus, ProviderNotice } from '@/lib/types'
 import { resolveToIATA } from '@/lib/airports/resolve'
 import AirportInput from './components/AirportInput'
@@ -298,6 +299,60 @@ function SiteFooter({
         </nav>
       </div>
     </footer>
+  )
+}
+
+function ResultsStatePanel({
+  eyebrow,
+  title,
+  children,
+  action,
+  secondaryAction,
+  tone = 'default',
+}: {
+  eyebrow: string
+  title: string
+  children: ReactNode
+  action?: ReactNode
+  secondaryAction?: ReactNode
+  tone?: 'default' | 'warning' | 'error'
+}) {
+  const toneClasses = tone === 'error'
+    ? 'border-[var(--error)]/25 bg-[var(--error-soft)]'
+    : tone === 'warning'
+      ? 'border-[var(--warning)]/25 bg-[var(--warning-soft)]'
+      : 'border-[var(--border)] bg-[var(--bg-surface)]'
+  const eyebrowClasses = tone === 'error'
+    ? 'text-[var(--error)]'
+    : tone === 'warning'
+      ? 'text-[var(--warning)]'
+      : 'text-[var(--text-2)]'
+
+  return (
+    <section
+      className={`rounded-[var(--radius-card)] border px-4 py-5 shadow-[var(--shadow-card)] animate-fade-in sm:px-5 sm:py-6 ${toneClasses}`}
+      role={tone === 'error' ? 'alert' : 'status'}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className={`text-[11px] font-bold uppercase tracking-wide ${eyebrowClasses}`}>
+            {eyebrow}
+          </p>
+          <h2 className="mt-1 font-display text-lg font-bold leading-7 text-[var(--text-1)] sm:text-xl">
+            {title}
+          </h2>
+          <div className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-2)]">
+            {children}
+          </div>
+        </div>
+        {(action || secondaryAction) && (
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-36">
+            {action}
+            {secondaryAction}
+          </div>
+        )}
+      </div>
+    </section>
   )
 }
 
@@ -805,6 +860,11 @@ export default function Home() {
   }, [filteredFlights, sortBy, scores, rankingUpdating])
 
   const routeLabel = [originDisplay || origin, destDisplay || dest].filter(Boolean).join(' → ')
+  const resultContext = [
+    routeLabel || 'Anywhere',
+    depart && returnDate ? `${depart} - ${returnDate}` : depart,
+    passengers > 1 ? `${passengers} passengers` : null,
+  ].filter(Boolean).join(' · ')
   const greatCount = Object.values(scores).filter(score => score?.verdict === 'Great').length
   const hotelsTabDisabled = hotels.length === 0 && ['idle', 'skipped', 'unavailable'].includes(hotelAvailability)
   const hotelUnavailableCopy =
@@ -1153,15 +1213,11 @@ export default function Home() {
               <p className="text-sm text-gray-400">Scanning deals across providers…</p>
             </div>
           ) : error ? (
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-              <p className="text-sm text-red-400">{error}</p>
-              <button
-                type="button"
-                onClick={() => void runSearch()}
-                className="rounded-lg border border-indigo-500/30 px-3 py-1.5 text-xs font-bold text-indigo-400 transition-colors hover:bg-indigo-500/10"
-              >
-                Retry
-              </button>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-200">Search needs attention</p>
+              <p className="mt-0.5 truncate text-xs font-medium text-gray-500">
+                {resultContext}
+              </p>
             </div>
           ) : (
             <div className="min-w-0">
@@ -1197,6 +1253,39 @@ export default function Home() {
             )}
           </button>
         </div>
+
+        {error && (
+          <div className="mb-6">
+            <ResultsStatePanel
+              eyebrow="Search error"
+              title="We could not complete this search"
+              tone="error"
+              action={(
+                <button
+                  type="button"
+                  onClick={() => void runSearch()}
+                  className="btn-primary min-h-11 px-4 py-2.5 text-sm"
+                >
+                  Retry search
+                </button>
+              )}
+              secondaryAction={(
+                <button
+                  type="button"
+                  onClick={() => setView('form')}
+                  className="btn-pill min-h-11 w-full px-4 py-2.5 text-sm"
+                >
+                  Edit search
+                </button>
+              )}
+            >
+              <p>{error}</p>
+              <p className="mt-2 text-xs font-medium leading-5 text-[var(--text-3)]">
+                {resultContext}
+              </p>
+            </ResultsStatePanel>
+          </div>
+        )}
 
         {!error && (
           <>
@@ -1267,6 +1356,7 @@ export default function Home() {
                 alertLoading={alertLoading}
                 alertError={alertError}
                 handleAlertSubmit={handleAlertSubmit}
+                onEditSearch={() => setView('form')}
               />
             )}
 
@@ -1288,14 +1378,25 @@ export default function Home() {
                     ))}
                   </div>
                 ) : hotels.length === 0 ? (
-                  <div className="rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-8 text-center animate-fade-in sm:px-6 sm:py-10">
-                    <p className="font-display text-base font-bold text-gray-200 sm:text-lg">
-                      {hotelEmptyTitle}
+                  <ResultsStatePanel
+                    eyebrow="Hotel results"
+                    title={hotelEmptyTitle}
+                    tone={hotelAvailability === 'unavailable' ? 'warning' : 'default'}
+                    action={(
+                      <button
+                        type="button"
+                        onClick={() => setView('form')}
+                        className="btn-primary min-h-11 px-4 py-2.5 text-sm"
+                      >
+                        Edit search
+                      </button>
+                    )}
+                  >
+                    <p>{hotelUnavailableCopy}</p>
+                    <p className="mt-2 text-xs font-medium leading-5 text-[var(--text-3)]">
+                      {resultContext}
                     </p>
-                    <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
-                      {hotelUnavailableCopy}
-                    </p>
-                  </div>
+                  </ResultsStatePanel>
                 ) : (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {hotels.map((hotel, index) => (
