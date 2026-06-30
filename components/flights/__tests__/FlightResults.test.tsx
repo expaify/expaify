@@ -79,10 +79,14 @@ describe('FlightResults', () => {
   it('surfaces provider notices and avoids presenting them as no inventory', () => {
     const text = collectText(FlightResults({
       ...defaultProps,
-      providerNotices: ['Travelpayouts: provider temporarily unavailable'],
+      providerNotices: [{
+        provider: 'Travelpayouts',
+        status: 'unavailable',
+        message: 'Travelpayouts is unavailable for this search.',
+      }],
     }));
 
-    expect(text).toContain('Travelpayouts: provider temporarily unavailable');
+    expect(text).toContain('Travelpayouts is unavailable for this search.');
     expect(text).toContain('Flight providers unavailable');
     expect(text).not.toContain('No flight inventory found');
   });

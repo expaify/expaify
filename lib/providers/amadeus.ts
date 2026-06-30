@@ -36,6 +36,14 @@ interface AmadeusSearchResponse {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isAmadeusSearchResponse(value: unknown): value is AmadeusSearchResponse {
+  return isRecord(value) && Array.isArray(value.data);
+}
+
 function decimalStringToCents(value: string): number | null {
   const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value);
   if (!match) return null;
@@ -83,8 +91,10 @@ export class AmadeusProvider implements FlightProvider {
       return { ok: false, reason: `Amadeus token fetch HTTP ${res.status}` };
     }
 
-    const json = (await res.json()) as AmadeusTokenResponse;
-    if (!json.access_token) return { ok: false, reason: 'Amadeus token response missing access_token' };
+    const json = (await res.json()) as Partial<AmadeusTokenResponse>;
+    if (typeof json.access_token !== 'string' || typeof json.expires_in !== 'number') {
+      return { ok: false, reason: 'Amadeus returned a malformed response' };
+    }
 
     // Cache the token with TTL 60s less than expires_in (usually 1799s → 1740s)
     const ttl = Math.max(0, json.expires_in - 60);
@@ -164,14 +174,20 @@ export class AmadeusProvider implements FlightProvider {
         return { ok: false, reason: `Amadeus /shopping/flight-offers HTTP ${res.status}` };
       }
 
-      const json = (await res.json()) as AmadeusSearchResponse;
+      const json = await res.json();
+      if (!isAmadeusSearchResponse(json)) {
+        return { ok: false, reason: 'Amadeus returned a malformed response' };
+      }
+
       const fetchedAt = new Date().toISOString();
 
       const fares: NormalizedFare[] = (json.data ?? []).map((offer) => {
+        if (!Array.isArray(offer.itineraries)) return null;
         const firstItinerary = offer.itineraries[0];
-        if (!firstItinerary) return null;
+        if (!firstItinerary || !Array.isArray(firstItinerary.segments)) return null;
 
         const lastItinerary = offer.itineraries[offer.itineraries.length - 1];
+        if (!lastItinerary || !Array.isArray(lastItinerary.segments)) return null;
         const firstSegment = firstItinerary.segments[0];
         if (!firstSegment) return null;
 
@@ -179,11 +195,15 @@ export class AmadeusProvider implements FlightProvider {
           firstItinerary.segments[firstItinerary.segments.length - 1];
         if (!lastSegmentOfFirstItin) return null;
 
-        const originCode = firstSegment.departure.iataCode;
-        const destCode = lastSegmentOfFirstItin.arrival.iataCode;
-        const depart = firstSegment.departure.at ?? range.depart;
+        const originCode = firstSegment.departure?.iataCode;
+        const destCode = lastSegmentOfFirstItin.arrival?.iataCode;
+        const depart = firstSegment.departure?.at ?? range.depart;
+        if (!originCode || !destCode || !offer.price?.grandTotal || !offer.price.currency) {
+          return null;
+        }
 
         const stops = offer.itineraries.reduce((total, itinerary) => {
+          if (!Array.isArray(itinerary.segments)) return total;
           const connectionStops = Math.max(0, itinerary.segments.length - 1);
           const technicalStops = itinerary.segments.reduce(
             (sum, seg) => sum + (seg.numberOfStops ?? 0),

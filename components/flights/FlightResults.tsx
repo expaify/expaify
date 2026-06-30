@@ -3,7 +3,7 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react'
 import FlightCard from '@/app/components/FlightCard'
 import { AIRPORTS } from '@/lib/airports/data'
-import type { DealScore, NormalizedFare } from '@/lib/types'
+import type { DealScore, NormalizedFare, ProviderNotice } from '@/lib/types'
 import { BaggageFeeEstimator } from '@/components/baggage/BaggageFeeEstimator'
 import type { BaggageCabinClass } from '@/lib/baggage/types'
 
@@ -22,7 +22,7 @@ type FlightResultsProps = {
   scoreLoading: Set<string>
   rankingUpdating?: boolean
   suggestion: string | null
-  providerNotices: string[]
+  providerNotices: ProviderNotice[]
   dest: string
   depart: string
   returnDate: string
@@ -55,10 +55,6 @@ function cheapestVisibleFare(fares: NormalizedFare[]): NormalizedFare | null {
   )
 }
 
-function isHotelNotice(notice: string): boolean {
-  return notice.toLowerCase().startsWith('hotels unavailable')
-}
-
 export default function FlightResults({
   flights,
   displayFlights,
@@ -84,11 +80,12 @@ export default function FlightResults({
   handleAlertSubmit,
 }: FlightResultsProps) {
   const baggageFare = cheapestVisibleFare(displayFlights)
-  const flightProviderNotices = providerNotices.filter(notice => !isHotelNotice(notice))
+  const flightProviderNotices = providerNotices.filter(notice => notice.provider.toLowerCase() !== 'hotels')
   const missingDepart = !depart
   const missingRoundtripReturn = tripType === 'roundtrip' && !returnDate
   const filtersHideResults = flights.length > 0 && displayFlights.length === 0
-  const hasProviderUnavailable = flightProviderNotices.length > 0 && flights.length === 0 && !missingDepart && !missingRoundtripReturn
+  const providerFailures = flightProviderNotices.filter(notice => notice.status !== 'no_supply')
+  const hasProviderUnavailable = providerFailures.length > 0 && flights.length === 0 && !missingDepart && !missingRoundtripReturn
   const incompleteDates = missingDepart || missingRoundtripReturn
   const emptyTitle = incompleteDates
     ? 'Dates needed for a complete search'
@@ -123,7 +120,7 @@ export default function FlightResults({
           {flightProviderNotices.length > 0 && (
             <div className="mt-1 space-y-1">
               {flightProviderNotices.map(notice => (
-                <p key={notice}>{notice}</p>
+                <p key={`${notice.provider}:${notice.status}:${notice.message}`}>{notice.message}</p>
               ))}
             </div>
           )}

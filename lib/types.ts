@@ -75,3 +75,11 @@ export interface HotelProvider {
 }
 
 export type Result<T> = { ok: true; data: T } | { ok: false; reason: string };
+
+export type ProviderIssueStatus = 'unavailable' | 'no_supply' | 'malformed_response';
+
+export interface ProviderNotice {
+  provider: string;
+  status: ProviderIssueStatus;
+  message: string;
+}

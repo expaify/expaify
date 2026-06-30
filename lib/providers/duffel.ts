@@ -42,6 +42,28 @@ interface DuffelOfferRequestResponse {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+function decimalStringToCents(value: string): number | null {
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value);
+  if (!match) return null;
+
+  const whole = Number(match[1]);
+  const cents = Number((match[2] ?? '').padEnd(2, '0'));
+  if (!Number.isSafeInteger(whole) || !Number.isSafeInteger(cents)) return null;
+
+  const total = whole * 100 + cents;
+  return Number.isSafeInteger(total) ? total : null;
+}
+
+function isDuffelOfferResponse(value: unknown): value is DuffelOfferRequestResponse {
+  if (typeof value !== 'object' || value === null || !('data' in value)) return false;
+  const data = (value as { data?: unknown }).data;
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    Array.isArray((data as { offers?: unknown }).offers)
+  );
+}
+
 function buildDuffelSearchCacheKey(params: {
   origin: string;
   dest: string;
@@ -142,11 +164,14 @@ export class DuffelProvider implements FlightProvider {
       });
 
       if (!res.ok) {
-        const body = await Promise.resolve().then(() => res.text()).catch(() => '');
-        return { ok: false, reason: `Duffel /air/offer_requests HTTP ${res.status}: ${body.slice(0, 200)}` };
+        return { ok: false, reason: `Duffel /air/offer_requests HTTP ${res.status}` };
       }
 
-      const json = (await res.json()) as DuffelOfferRequestResponse;
+      const json = await res.json();
+      if (!isDuffelOfferResponse(json)) {
+        return { ok: false, reason: 'Duffel returned a malformed response' };
+      }
+
       const offers = json.data.offers;
 
       const fetchedAt = new Date().toISOString();
@@ -154,6 +179,9 @@ export class DuffelProvider implements FlightProvider {
       const fares: NormalizedFare[] = offers.map((offer) => {
         const firstSlice = offer.slices[0];
         const lastSlice = offer.slices[offer.slices.length - 1];
+        const priceCents = decimalStringToCents(offer.total_amount);
+
+        if (!firstSlice || !lastSlice || !offer.owner?.iata_code || priceCents === null) return null;
 
         // stops = sum of (segments.length - 1) per slice
         const stops = offer.slices.reduce(
@@ -171,8 +199,7 @@ export class DuffelProvider implements FlightProvider {
           stops,
           carrier: offer.owner.iata_code,
           price: {
-            // total_amount is a decimal string (e.g. "450.00") — convert to integer cents
-            priceCents: Math.round(parseFloat(offer.total_amount) * 100),
+            priceCents,
             currency: offer.total_currency,
           },
           passengerCount,
@@ -190,7 +217,7 @@ export class DuffelProvider implements FlightProvider {
         fare.deeplink = buildBookingHref(fare);
 
         return fare;
-      });
+      }).filter((fare): fare is NormalizedFare => fare !== null);
 
       await cache.set(cacheKey, fares, CACHE_TTL);
       return { ok: true, data: fares };

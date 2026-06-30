@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { DealScore, HotelOffer, NormalizedFare } from '@/lib/types'
+import { DealScore, HotelOffer, NormalizedFare, ProviderNotice } from '@/lib/types'
 import AirportInput from './components/AirportInput'
 import HotelCard from './components/HotelCard'
 import FlightResults from '@/components/flights/FlightResults'
@@ -228,7 +228,7 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [suggestion, setSuggestion] = useState<string | null>(null)
-  const [providerNotices, setProviderNotices] = useState<string[]>([])
+  const [providerNotices, setProviderNotices] = useState<ProviderNotice[]>([])
   const [hotelAvailability, setHotelAvailability] = useState<HotelAvailability>('idle')
   const [hotelAvailabilityMessage, setHotelAvailabilityMessage] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<SortBy>('deal')
@@ -384,7 +384,13 @@ export default function Home() {
           if (!line.trim()) continue
 
           try {
-            const message = JSON.parse(line) as { type: string; data?: unknown; message?: string; status?: string }
+            const message = JSON.parse(line) as {
+              type: string
+              data?: unknown
+              message?: string
+              provider?: string
+              status?: string
+            }
             if (message.type === 'flights' && Array.isArray(message.data)) {
               const newFares = message.data as NormalizedFare[]
               accumulated.push(...newFares)
@@ -404,9 +410,20 @@ export default function Home() {
             } else if (message.type === 'suggestion' && typeof message.message === 'string') {
               setSuggestion(message.message)
             } else if (message.type === 'notice' && typeof message.message === 'string') {
-              const notice = message.message
+              const status = message.status === 'malformed_response' || message.status === 'no_supply' || message.status === 'unavailable'
+                ? message.status
+                : 'unavailable'
+              const notice: ProviderNotice = {
+                provider: typeof message.provider === 'string' ? message.provider : 'Provider',
+                status,
+                message: message.message,
+              }
               setProviderNotices(prev => (
-                prev.includes(notice) ? prev : [...prev, notice]
+                prev.some(item =>
+                  item.provider === notice.provider &&
+                  item.status === notice.status &&
+                  item.message === notice.message
+                ) ? prev : [...prev, notice]
               ))
             } else if (message.type === 'done') {
               setIsSearching(false)

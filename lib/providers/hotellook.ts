@@ -25,6 +25,10 @@ type HotelLookOffer = HotelOffer & {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+function isHotelLookEntry(value: unknown): value is HotelLookCacheEntry {
+  return typeof value === 'object' && value !== null;
+}
+
 function priceFromToCents(priceFrom: HotelLookCacheEntry['priceFrom']): number | null {
   if (priceFrom === undefined || priceFrom === null) return null;
   if (typeof priceFrom === 'string' && priceFrom.trim() === '') return null;
@@ -76,15 +80,22 @@ export class HotellookProvider implements HotelProvider {
         `&limit=20`;
 
       const res = await fetch(url);
-      if (!res.ok) return { ok: false, reason: `HTTP ${res.status}` };
+      if (!res.ok) return { ok: false, reason: `HotelLook HTTP ${res.status}` };
 
-      const json = (await res.json()) as HotelLookCacheEntry[];
-      if (!Array.isArray(json) || json.length === 0) return { ok: true, data: [] };
+      const json = await res.json();
+      if (!Array.isArray(json)) {
+        return { ok: false, reason: 'HotelLook returned a malformed response' };
+      }
+      if (json.length === 0) return { ok: true, data: [] };
 
       const hotels: HotelLookOffer[] = json.flatMap((entry) => {
+        if (!isHotelLookEntry(entry)) return [];
         const hotelId = Number(entry.hotelId);
         const stars = Number(entry.stars ?? 0);
         const priceCents = priceFromToCents(entry.priceFrom);
+        if (!Number.isSafeInteger(hotelId) || hotelId <= 0 || typeof entry.hotelName !== 'string') {
+          return [];
+        }
         if (priceCents === null) return [];
 
         return {

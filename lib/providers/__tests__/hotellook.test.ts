@@ -200,7 +200,7 @@ describe('HotellookProvider.searchHotels', () => {
       checkout: '2026-09-29',
     });
 
-    expect(result).toEqual({ ok: false, reason: 'HTTP 503' });
+    expect(result).toEqual({ ok: false, reason: 'HotelLook HTTP 503' });
   });
 
   it('returns parse failures without throwing', async () => {
