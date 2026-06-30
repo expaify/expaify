@@ -39,10 +39,10 @@ function CountControl({
 
   return (
     <div className="min-w-0">
-      <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
+      <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-2)]">
         {label}
       </label>
-      <div className="flex h-10 items-center gap-2 rounded-[0.875rem] border border-white/8 bg-white/[0.03] px-2">
+      <div className="flex h-10 items-center gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-raised)] px-2">
         <button
           type="button"
           className="btn-pill !h-7 !w-7 !justify-center !p-0 disabled:cursor-not-allowed disabled:opacity-40"
@@ -52,7 +52,7 @@ function CountControl({
         >
           -
         </button>
-        <span className="min-w-5 flex-1 text-center font-display text-sm font-extrabold tabular-nums text-gray-100">
+        <span className="min-w-5 flex-1 text-center font-display text-sm font-extrabold tabular-nums text-[var(--text-1)]">
           {value}
         </span>
         <button
@@ -117,21 +117,21 @@ export function BaggageFeeEstimator(props: BaggageFeeEstimatorProps): JSX.Elemen
   }, [query])
 
   return (
-    <section className="card mb-4 overflow-hidden rounded-2xl p-4 animate-fade-in" aria-label="Baggage fee estimator">
+    <section className="card mb-4 overflow-hidden p-4 animate-fade-in" aria-label="Baggage fee estimator">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start">
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <p className="font-display text-sm font-extrabold text-gray-100">
+            <p className="font-display text-sm font-extrabold text-[var(--text-1)]">
               Baggage fee estimate
             </p>
             {loading && (
-              <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-indigo-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 dot-pulse" />
+              <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-[var(--brand)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] dot-pulse" />
                 Updating estimate
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-xs leading-5 text-gray-600">
+          <p className="mt-0.5 text-xs font-medium leading-5 text-[var(--text-2)]">
             Estimate only for {props.carrierCode.toUpperCase()} · {props.cabinClass.replace('_', ' ').toLowerCase()}
           </p>
         </div>
@@ -144,32 +144,32 @@ export function BaggageFeeEstimator(props: BaggageFeeEstimatorProps): JSX.Elemen
 
       <div className="mt-3 min-h-[5.25rem]" aria-live="polite">
         {unavailable ? (
-          <div className="min-h-[5.25rem] rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-3 py-3">
-            <p className="text-xs font-semibold text-amber-100">Baggage fee estimate unavailable right now.</p>
-            <p className="mt-1 text-[11px] leading-4 text-amber-100/70">
+          <div className="min-h-[5.25rem] rounded-[var(--radius-card)] border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-3 py-3">
+            <p className="text-xs font-semibold text-[var(--warning)]">Baggage fee estimate unavailable right now.</p>
+            <p className="mt-1 text-[11px] font-medium leading-4 text-[var(--text-2)]">
               We could not load an estimate, so do not assume checked or carry-on bag fees are included.
             </p>
           </div>
         ) : loading && !estimate ? (
-          <div className="min-h-[5.25rem] rounded-xl border border-indigo-300/15 bg-indigo-300/[0.04] px-3 py-3">
-            <p className="mb-2 text-xs font-semibold text-indigo-200">Loading baggage fee estimate</p>
-            <div className="h-4 w-3/4 rounded shimmer" />
-            <div className="mt-2 h-4 w-1/2 rounded shimmer" />
+          <div className="min-h-[5.25rem] rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-raised)] px-3 py-3">
+            <p className="mb-2 text-xs font-semibold text-[var(--brand)]">Loading baggage fee estimate</p>
+            <div className="h-4 w-3/4 rounded-[var(--radius-control)] shimmer" />
+            <div className="mt-2 h-4 w-1/2 rounded-[var(--radius-control)] shimmer" />
           </div>
         ) : estimate ? (
           <div className="space-y-3">
             <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
               <div className="min-w-0 space-y-1">
-                <p className="text-xs font-semibold leading-5 text-gray-400">
+                <p className="text-xs font-semibold leading-5 text-[var(--text-2)]">
                   Estimated included: {estimate.includedCarryOnBags} carry-on, {estimate.includedCheckedBags} checked
                 </p>
-                <p className="text-[11px] leading-4 text-gray-600">
+                <p className="text-[11px] font-medium leading-4 text-[var(--text-3)]">
                   {confidenceCopy(estimate.confidence)}
                 </p>
               </div>
               <div className="text-left sm:text-right">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">Estimated add-on</p>
-                <p className="font-display text-2xl font-extrabold text-white tabular-nums" data-testid="baggage-total">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-2)]">Estimated add-on</p>
+                <p className="font-display text-2xl font-extrabold text-[var(--text-1)] tabular-nums" data-testid="baggage-total">
                   {usd.format(estimate.estimatedTotalUsd)}
                 </p>
               </div>
@@ -180,12 +180,12 @@ export function BaggageFeeEstimator(props: BaggageFeeEstimatorProps): JSX.Elemen
                 {estimate.lines.map((line, index) => (
                   <div
                     key={`${line.kind}-${line.label}-${index}`}
-                    className="flex min-w-0 items-start justify-between gap-3 rounded-lg bg-white/[0.025] px-2.5 py-2"
+                    className="flex min-w-0 items-start justify-between gap-3 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-raised)] px-2.5 py-2"
                   >
-                    <span className="min-w-0 break-words text-[11px] font-medium leading-4 text-gray-400">
+                    <span className="min-w-0 break-words text-[11px] font-medium leading-4 text-[var(--text-2)]">
                       {line.label}
                     </span>
-                    <span className="shrink-0 text-right text-[11px] font-bold leading-4 text-gray-300">
+                    <span className="shrink-0 text-right text-[11px] font-bold leading-4 text-[var(--text-1)]">
                       {line.included ? 'Included' : usd.format(line.totalUsd)}
                     </span>
                   </div>
@@ -193,7 +193,7 @@ export function BaggageFeeEstimator(props: BaggageFeeEstimatorProps): JSX.Elemen
               </div>
             )}
 
-            <p className="text-[10px] leading-4 text-gray-700">{estimate.disclaimer}</p>
+            <p className="text-[10px] font-medium leading-4 text-[var(--text-3)]">{estimate.disclaimer}</p>
           </div>
         ) : null}
       </div>
