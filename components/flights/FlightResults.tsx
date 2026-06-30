@@ -33,6 +33,7 @@ type FlightResultsProps = {
   alertLoading: boolean
   alertError: string | null
   handleAlertSubmit: (event: FormEvent<HTMLFormElement>) => void
+  onEditSearch?: () => void
 }
 
 const delays = ['', 'delay-75', 'delay-150', 'delay-225', 'delay-300']
@@ -63,11 +64,13 @@ function FlightStatePanel({
   eyebrow,
   title,
   children,
+  action,
   tone = 'default',
 }: {
   eyebrow: string
   title: string
   children: ReactNode
+  action?: ReactNode
   tone?: 'default' | 'warning'
 }) {
   const toneClasses = tone === 'warning'
@@ -79,17 +82,26 @@ function FlightStatePanel({
 
   return (
     <section
-      className={`rounded-[var(--radius-card)] border px-4 py-4 shadow-[var(--shadow-card)] animate-fade-in sm:px-5 ${toneClasses}`}
+      className={`rounded-[var(--radius-card)] border px-4 py-5 shadow-[var(--shadow-card)] animate-fade-in sm:px-5 sm:py-6 ${toneClasses}`}
       role="status"
     >
-      <p className={`text-[11px] font-bold uppercase tracking-wide ${eyebrowClasses}`}>
-        {eyebrow}
-      </p>
-      <h2 className="mt-1 font-display text-base font-bold leading-6 text-[var(--text-1)] sm:text-lg">
-        {title}
-      </h2>
-      <div className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-2)]">
-        {children}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className={`text-[11px] font-bold uppercase tracking-wide ${eyebrowClasses}`}>
+            {eyebrow}
+          </p>
+          <h2 className="mt-1 font-display text-lg font-bold leading-7 text-[var(--text-1)] sm:text-xl">
+            {title}
+          </h2>
+          <div className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-2)]">
+            {children}
+          </div>
+        </div>
+        {action && (
+          <div className="flex w-full shrink-0 sm:w-auto">
+            {action}
+          </div>
+        )}
       </div>
     </section>
   )
@@ -118,6 +130,7 @@ export default function FlightResults({
   alertLoading,
   alertError,
   handleAlertSubmit,
+  onEditSearch,
 }: FlightResultsProps) {
   const baggageFare = cheapestVisibleFare(displayFlights)
   const flightProviderNotices = providerNotices.filter(notice => !isHotelNotice(notice))
@@ -141,7 +154,24 @@ export default function FlightResults({
         ? 'Clear the stops filter or choose All to review the fares returned for this search.'
         : hasProviderUnavailable
           ? 'The flight providers we could reach did not return usable inventory. Try again shortly or adjust the trip details.'
-          : 'No current fares matched this route and date combination. Try nearby dates, another destination, or search anywhere.'
+          : 'No current fares matched this route and date combination. Edit the search to try nearby dates, another destination, or anywhere.'
+  const emptyAction = filtersHideResults ? (
+    <button
+      type="button"
+      onClick={() => setFilterStops(null)}
+      className="btn-primary min-h-11 w-full px-4 py-2.5 text-sm sm:w-auto"
+    >
+      Show all stops
+    </button>
+  ) : onEditSearch ? (
+    <button
+      type="button"
+      onClick={onEditSearch}
+      className="btn-primary min-h-11 w-full px-4 py-2.5 text-sm sm:w-auto"
+    >
+      Edit search
+    </button>
+  ) : null
 
   return (
     <>
@@ -236,7 +266,7 @@ export default function FlightResults({
                 <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] dot-pulse-2" />
                 <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] dot-pulse-3" />
               </span>
-              <p>Fare cards will appear as providers return usable prices for this route.</p>
+              <p>Fare cards will appear here as providers return usable prices for this search.</p>
             </div>
           </FlightStatePanel>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -250,6 +280,7 @@ export default function FlightResults({
           eyebrow="Flight results"
           title={emptyTitle}
           tone={hasProviderUnavailable ? 'warning' : 'default'}
+          action={emptyAction}
         >
           <p>
             {emptyCopy}
