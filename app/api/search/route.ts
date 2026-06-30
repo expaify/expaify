@@ -41,8 +41,6 @@ function parsePassengers(value: string | null): number {
 }
 
 function validateDateParam(name: string, value: string): void {
-  if (!value) return;
-
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new Error(`${name} must use YYYY-MM-DD format`);
   }
@@ -51,6 +49,10 @@ function validateDateParam(name: string, value: string): void {
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
     throw new Error(`${name} is not a valid date`);
   }
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function classifyProviderIssue(reason: string): ProviderIssueStatus {
@@ -116,12 +118,28 @@ export async function GET(request: NextRequest) {
 
   const depart = params.get('depart') ?? '';
   const ret = params.get('return') ?? '';
+  const trip = params.get('trip') ?? 'roundtrip';
   let passengers: number;
   try {
+    if (trip !== 'roundtrip' && trip !== 'oneway') {
+      throw new Error('Trip type must be roundtrip or oneway');
+    }
+    if (!depart) {
+      throw new Error('Departure date is required. Choose a departure date before searching.');
+    }
+    if (trip === 'roundtrip' && !ret) {
+      throw new Error('Return date is required for round trips. Choose a return date or switch to one way.');
+    }
+    if (trip === 'oneway' && ret) {
+      throw new Error('One-way searches cannot include a return date. Remove the return date or switch to round trip.');
+    }
     validateDateParam('depart', depart);
-    validateDateParam('return', ret);
-    if (depart && ret && ret < depart) {
-      throw new Error('Return date must be after departure date');
+    if (ret) validateDateParam('return', ret);
+    if (depart < todayIso()) {
+      throw new Error('Departure date cannot be in the past. Choose today or a future date.');
+    }
+    if (ret && ret < depart) {
+      throw new Error('Return date must be on or after departure date.');
     }
     passengers = parsePassengers(params.get('passengers'));
   } catch (e) {
