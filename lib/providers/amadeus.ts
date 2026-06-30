@@ -1,4 +1,4 @@
-import { FlightProvider, NormalizedFare, PricePoint, Result } from '../types';
+import { FlightProvider, FlightSearchRange, NormalizedFare, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
 
 const TOKEN_URL = 'https://test.api.amadeus.com/v1/security/oauth2/token';
@@ -96,7 +96,7 @@ export class AmadeusProvider implements FlightProvider {
   async searchFares(
     origin: string,
     dest: string,
-    range: { depart: string; return?: string }
+    range: FlightSearchRange
   ): Promise<Result<NormalizedFare[]>> {
     if (!dest) return { ok: true, data: [] };
 
@@ -106,7 +106,8 @@ export class AmadeusProvider implements FlightProvider {
       return { ok: false, reason: 'Amadeus not configured' };
     }
 
-    const cacheKey = `amadeus:search:${origin}:${dest}:${range.depart}:${range.return ?? ''}`;
+    const passengerCount = range.passengers;
+    const cacheKey = `amadeus:search:${origin}:${dest}:${range.depart}:${range.return ?? ''}:pax:${passengerCount}`;
 
     try {
       const cached = await cache.get<NormalizedFare[]>(cacheKey);
@@ -142,7 +143,10 @@ export class AmadeusProvider implements FlightProvider {
         body: JSON.stringify({
           currencyCode: 'USD',
           originDestinations,
-          travelers: [{ id: '1', travelerType: 'ADULT' }],
+          travelers: Array.from({ length: passengerCount }, (_, index) => ({
+            id: String(index + 1),
+            travelerType: 'ADULT',
+          })),
           sources: ['GDS'],
           searchCriteria: { maxFlightOffers: 20 },
         }),
@@ -197,6 +201,8 @@ export class AmadeusProvider implements FlightProvider {
             priceCents,
             currency: offer.price.currency,
           },
+          passengerCount,
+          priceScope: 'party_total',
           deeplink: `https://www.amadeus.com/en/search?from=${originCode}&to=${destCode}&departure=${depart}`,
           source: 'amadeus',
           fetchedAt,

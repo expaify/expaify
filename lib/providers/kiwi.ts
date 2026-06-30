@@ -1,8 +1,8 @@
-import { FlightProvider, NormalizedFare, PricePoint, Result } from '../types';
+import { FlightProvider, FlightSearchRange, NormalizedFare, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
 
 const BASE_URL = 'https://api.tequila.kiwi.com';
-const CACHE_TTL = 1800; // 30 minutes
+const CACHE_TTL = 21600; // 6 hours
 
 // ─── Kiwi Tequila API response shapes ────────────────────────────────────────
 
@@ -55,14 +55,15 @@ export class KiwiProvider implements FlightProvider {
   async searchFares(
     origin: string,
     dest: string,
-    range: { depart: string; return?: string }
+    range: FlightSearchRange
   ): Promise<Result<NormalizedFare[]>> {
     if (!dest) return { ok: true, data: [] };
 
     const apiKey = this.apiKey;
     if (!apiKey) return { ok: false, reason: 'Kiwi not configured' };
 
-    const cacheKey = `kiwi:search:${origin}:${dest}:${range.depart}`;
+    const passengerCount = range.passengers;
+    const cacheKey = `kiwi:search:${origin}:${dest}:${range.depart}:${range.return ?? ''}:pax:${passengerCount}`;
 
     try {
       const cached = await cache.get<NormalizedFare[]>(cacheKey);
@@ -76,7 +77,7 @@ export class KiwiProvider implements FlightProvider {
         `&fly_to=${encodeURIComponent(dest)}` +
         `&date_from=${encodeURIComponent(departKiwi)}` +
         `&date_to=${encodeURIComponent(departKiwi)}` +
-        `&adults=1` +
+        `&adults=${encodeURIComponent(String(passengerCount))}` +
         `&curr=USD` +
         `&limit=20` +
         `&sort=price`;
@@ -112,6 +113,8 @@ export class KiwiProvider implements FlightProvider {
             priceCents: Math.round(offer.price * 100),
             currency: 'USD',
           },
+          passengerCount,
+          priceScope: 'party_total',
           deeplink: offer.deep_link,
           source: 'kiwi',
           fetchedAt,

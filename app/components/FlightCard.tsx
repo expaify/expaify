@@ -108,7 +108,7 @@ function AirlineLogo({ carrier }: { carrier: string }) {
   )
 }
 
-function Price({ cents }: { cents: number }) {
+function Price({ cents, label }: { cents: number; label: string }) {
   const whole = Math.floor(cents / 100).toLocaleString('en-US')
   const fractional = String(Math.abs(cents % 100)).padStart(2, '0')
 
@@ -121,7 +121,7 @@ function Price({ cents }: { cents: number }) {
         </span>
         <span className="text-sm font-medium text-gray-500">.{fractional}</span>
       </div>
-      <p className="mt-0.5 text-[10px] font-medium text-gray-600">per person</p>
+      <p className="mt-0.5 text-[10px] font-medium text-gray-600">{label}</p>
     </div>
   )
 }
@@ -182,6 +182,9 @@ export default function FlightCard({ fare, score, loading }: Props) {
   const isInternalBooking = fare.source === 'duffel' || fare.deeplink.startsWith('/book')
   const ctaLabel = isInternalBooking ? 'Review availability' : 'Book flight'
   const ctaNote = isInternalBooking ? 'In-app booking is paused' : null
+  const priceLabel = fare.priceScope === 'party_total'
+    ? `total for ${fare.passengerCount ?? 1} adult${(fare.passengerCount ?? 1) === 1 ? '' : 's'}`
+    : 'per person'
 
   return (
     <div className="card rounded-2xl overflow-hidden">
@@ -197,7 +200,7 @@ export default function FlightCard({ fare, score, loading }: Props) {
               <CabinBadge cabin={fare.cabin} />
             </div>
           </div>
-          <Price cents={fare.price.priceCents} />
+          <Price cents={fare.price.priceCents} label={priceLabel} />
         </div>
 
         <div className="flex items-center gap-3 rounded-2xl bg-white/[0.025] px-3 py-3">

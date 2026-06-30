@@ -135,7 +135,7 @@ describe('AmadeusProvider.searchFares guard clauses', () => {
   it('returns { ok: true, data: [] } when dest is empty string', async () => {
     global.fetch = jest.fn();
     const provider = new AmadeusProvider();
-    const result = await provider.searchFares('JFK', '', { depart: '2026-09-22' });
+    const result = await provider.searchFares('JFK', '', { depart: '2026-09-22', passengers: 1 });
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
@@ -148,7 +148,7 @@ describe('AmadeusProvider.searchFares guard clauses', () => {
     delete process.env.AMADEUS_CLIENT_SECRET;
     global.fetch = jest.fn();
     const provider = new AmadeusProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22' });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
@@ -161,7 +161,7 @@ describe('AmadeusProvider.searchFares success', () => {
   it('fetches an OAuth token, posts flight-offers request, and maps fares', async () => {
     mockFetchTokenAndOffers(ONE_WAY_FIXTURE);
     const provider = new AmadeusProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22' });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
@@ -189,6 +189,7 @@ describe('AmadeusProvider.searchFares success', () => {
     const result = await provider.searchFares('SFO', 'ORD', {
       depart: '2026-10-01',
       return: '2026-10-08',
+      passengers: 1,
     });
 
     expect(result.ok).toBe(true);
@@ -200,7 +201,7 @@ describe('AmadeusProvider.searchFares success', () => {
   it('uses the sandbox token endpoint and form-encoded credentials', async () => {
     mockFetchTokenAndOffers(ONE_WAY_FIXTURE);
     const provider = new AmadeusProvider();
-    await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22' });
+    await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
 
     expect(global.fetch).toHaveBeenNthCalledWith(
       1,
@@ -219,6 +220,7 @@ describe('AmadeusProvider.searchFares success', () => {
     await provider.searchFares('SFO', 'ORD', {
       depart: '2026-10-01',
       return: '2026-10-08',
+      passengers: 1,
     });
 
     expect(global.fetch).toHaveBeenNthCalledWith(
@@ -236,6 +238,7 @@ describe('AmadeusProvider.searchFares success', () => {
     const call = (global.fetch as jest.Mock).mock.calls[1];
     const body = JSON.parse(call[1].body as string) as {
       originDestinations: Array<{ originLocationCode: string; destinationLocationCode: string }>;
+      travelers: Array<{ id: string; travelerType: string }>;
       searchCriteria: { maxFlightOffers: number };
     };
 
@@ -248,6 +251,7 @@ describe('AmadeusProvider.searchFares success', () => {
       originLocationCode: 'ORD',
       destinationLocationCode: 'SFO',
     });
+    expect(body.travelers).toEqual([{ id: '1', travelerType: 'ADULT' }]);
     expect(body.searchCriteria.maxFlightOffers).toBe(20);
   });
 
@@ -258,11 +262,11 @@ describe('AmadeusProvider.searchFares success', () => {
     };
 
     const provider = new AmadeusProvider();
-    await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22' });
+    await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
 
     expect(cache.set).toHaveBeenCalledWith('amadeus:token', 'amadeus_access_token_123', 1739);
     expect(cache.set).toHaveBeenCalledWith(
-      'amadeus:search:JFK:LAX:2026-09-22:',
+      'amadeus:search:JFK:LAX:2026-09-22::pax:1',
       expect.any(Array),
       21600
     );
@@ -291,7 +295,7 @@ describe('AmadeusProvider.searchFares success', () => {
     global.fetch = jest.fn();
 
     const provider = new AmadeusProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22' });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
@@ -309,7 +313,7 @@ describe('AmadeusProvider.searchFares error handling', () => {
     } as Response);
 
     const provider = new AmadeusProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22' });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
@@ -322,7 +326,7 @@ describe('AmadeusProvider.searchFares error handling', () => {
       .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) } as Response);
 
     const provider = new AmadeusProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22' });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
@@ -333,7 +337,7 @@ describe('AmadeusProvider.searchFares error handling', () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('Network failure'));
 
     const provider = new AmadeusProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22' });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');

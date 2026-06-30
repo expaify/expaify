@@ -1,9 +1,9 @@
-import { FlightProvider, NormalizedFare, PricePoint, Result } from '../types';
+import { FlightProvider, FlightSearchRange, NormalizedFare, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
 import { buildBookingHref } from '../booking/config';
 
 const BASE_URL = 'https://api.duffel.com';
-const CACHE_TTL = 1800; // 30 minutes
+const CACHE_TTL = 21600; // 6 hours
 
 // ─── Duffel API response shapes ──────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ export class DuffelProvider implements FlightProvider {
   async searchFares(
     origin: string,
     dest: string,
-    range: { depart: string; return?: string }
+    range: FlightSearchRange
   ): Promise<Result<NormalizedFare[]>> {
     // Duffel requires a destination and a valid future departure date
     if (!dest) return { ok: true, data: [] };
@@ -75,7 +75,8 @@ export class DuffelProvider implements FlightProvider {
     const apiKey = this.apiKey;
     if (!apiKey) return { ok: false, reason: 'Duffel not configured' };
 
-    const cacheKey = `duffel:search:${origin}:${dest}:${departDate}`;
+    const passengerCount = range.passengers;
+    const cacheKey = `duffel:search:${origin}:${dest}:${departDate}:${range.return ?? ''}:pax:${passengerCount}`;
 
     try {
       const cached = await cache.get<NormalizedFare[]>(cacheKey);
@@ -100,7 +101,7 @@ export class DuffelProvider implements FlightProvider {
         body: JSON.stringify({
           data: {
             slices,
-            passengers: [{ type: 'adult' }],
+            passengers: Array.from({ length: passengerCount }, () => ({ type: 'adult' })),
             cabin_class: 'economy',
             return_offers: false,
           },
@@ -141,6 +142,8 @@ export class DuffelProvider implements FlightProvider {
             priceCents: Math.round(parseFloat(offer.total_amount) * 100),
             currency: offer.total_currency,
           },
+          passengerCount,
+          priceScope: 'party_total',
           deeplink: '',
           source: 'duffel',
           fetchedAt,

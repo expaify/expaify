@@ -29,6 +29,11 @@ function dedupFares(fares: NormalizedFare[]): NormalizedFare[] {
   return Array.from(best.values()).sort((a, b) => a.price.priceCents - b.price.priceCents);
 }
 
+function parsePassengers(value: string | null): number {
+  const parsed = Number(value ?? '1');
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 9 ? parsed : 1;
+}
+
 /**
  * GET /api/search
  *
@@ -65,7 +70,7 @@ export async function GET(request: NextRequest) {
 
   const depart = params.get('depart') ?? '';
   const ret = params.get('return') ?? '';
-  const passengers = parseInt(params.get('passengers') ?? '1', 10);
+  const passengers = parsePassengers(params.get('passengers'));
   const flexDates = params.get('flex') === '1';
   const range = { depart, return: ret || undefined, passengers };
 

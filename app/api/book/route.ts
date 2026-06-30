@@ -62,6 +62,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, reason: 'valid Duffel fare context is required' }, { status: 400 });
     }
 
+    if (selectedFare.passengerCount !== 1) {
+      return NextResponse.json(
+        { ok: false, reason: 'Multi-passenger booking review is not supported yet. Return to search and choose one passenger or book with the provider.' },
+        { status: 400 }
+      );
+    }
+
     // Validate passenger object present
     if (!passenger || typeof passenger !== 'object' || Array.isArray(passenger)) {
       return NextResponse.json({ ok: false, reason: 'passenger data is required' }, { status: 400 });
