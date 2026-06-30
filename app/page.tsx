@@ -3,7 +3,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { DealScore, HotelOffer, NormalizedFare } from '@/lib/types'
 import AirportInput from './components/AirportInput'
-import FlightCard from './components/FlightCard'
 import HotelCard from './components/HotelCard'
 import FlightResults from '@/components/flights/FlightResults'
 import { sortFlights } from '@/lib/search/sortFlights'
@@ -475,7 +474,7 @@ export default function Home() {
 
   if (view === 'form') {
     return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#07091A] px-4 py-16">
+      <main className="relative flex min-h-screen items-start justify-center overflow-x-hidden bg-[#07091A] px-4 py-10 sm:items-center sm:py-16">
         <ThemeToggle />
 
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -493,14 +492,14 @@ export default function Home() {
         </div>
 
         <div className="relative w-full max-w-xl">
-          <div className="mb-10 text-center animate-fade-up">
+          <div className="mb-8 text-center animate-fade-up sm:mb-10">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/5 px-4 py-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 dot-pulse" />
               <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">
                 Live deal intelligence
               </span>
             </div>
-            <h1 className="font-display bg-[linear-gradient(135deg,#fff_0%,#c7d2fe_44%,#818cf8_100%)] bg-clip-text text-7xl font-extrabold leading-none tracking-tighter text-transparent sm:text-9xl">
+            <h1 className="font-display bg-[linear-gradient(135deg,#fff_0%,#c7d2fe_44%,#818cf8_100%)] bg-clip-text text-6xl font-extrabold leading-none tracking-tighter text-transparent sm:text-9xl">
               expaify
             </h1>
             <p className="mt-5 text-base font-semibold text-gray-300 sm:text-lg">
@@ -508,7 +507,7 @@ export default function Home() {
             </p>
           </div>
 
-          <section className="rounded-3xl border border-white/8 bg-[#0C1122]/85 p-6 shadow-[0_24px_64px_rgba(0,0,0,0.6)] backdrop-blur-xl animate-fade-up delay-75">
+          <section className="rounded-2xl border border-white/8 bg-[#0C1122]/85 p-4 shadow-[0_24px_64px_rgba(0,0,0,0.6)] backdrop-blur-xl animate-fade-up delay-75 sm:rounded-3xl sm:p-6">
             <div className="mb-5 flex rounded-xl bg-white/[0.04] p-1">
               {(['roundtrip', 'oneway'] as TripType[]).map(type => (
                 <button
@@ -526,8 +525,8 @@ export default function Home() {
               ))}
             </div>
 
-            <form onSubmit={handleSearch} className="space-y-3">
-              <div className="grid grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] items-end gap-2">
+            <form onSubmit={handleSearch} className="space-y-4">
+              <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)]">
                 <div>
                   <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
                     From
@@ -546,7 +545,7 @@ export default function Home() {
                   type="button"
                   onClick={handleSwap}
                   aria-label="Swap origin and destination"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-gray-600 transition-colors hover:border-indigo-500/30 hover:text-indigo-300"
+                  className="mx-auto flex h-11 w-11 rotate-90 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-gray-500 transition-colors hover:border-indigo-500/30 hover:text-indigo-300 sm:rotate-0"
                 >
                   <IconSwap />
                 </button>
@@ -565,7 +564,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className={`grid gap-3 ${tripType === 'roundtrip' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              <div className={`grid gap-3 ${tripType === 'roundtrip' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
                 <div>
                   <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
                     Depart
@@ -603,7 +602,7 @@ export default function Home() {
                 <PriceCalendar prices={calendarPrices} selected={depart} onSelect={setDepart} />
               )}
 
-              <label className="flex items-center gap-2 cursor-pointer select-none">
+              <label className="flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-xl px-1">
                 <input
                   type="checkbox"
                   checked={flexDates}
@@ -615,22 +614,22 @@ export default function Home() {
                 </span>
               </label>
 
-              <div className="flex items-center justify-between px-1">
+              <div className="flex min-h-11 items-center justify-between px-1">
                 <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">Passengers</span>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setPassengers(p => Math.max(1, p - 1))}
-                    className="w-7 h-7 rounded-full bg-white/5 border border-white/10 text-gray-300 text-sm font-bold hover:bg-white/10 transition-colors flex items-center justify-center disabled:opacity-30"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-bold text-gray-300 transition-colors hover:bg-white/10 disabled:opacity-30"
                     disabled={passengers <= 1}
                   >
                     −
                   </button>
-                  <span className="text-sm font-bold text-gray-100 w-4 text-center tabular-nums">{passengers}</span>
+                  <span className="w-5 text-center text-sm font-bold tabular-nums text-gray-100">{passengers}</span>
                   <button
                     type="button"
                     onClick={() => setPassengers(p => Math.min(9, p + 1))}
-                    className="w-7 h-7 rounded-full bg-white/5 border border-white/10 text-gray-300 text-sm font-bold hover:bg-white/10 transition-colors flex items-center justify-center disabled:opacity-30"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-bold text-gray-300 transition-colors hover:bg-white/10 disabled:opacity-30"
                     disabled={passengers >= 9}
                   >
                     +
@@ -665,7 +664,7 @@ export default function Home() {
                   setDest(destination.dest)
                   setDestDisplay(destination.destDisplay)
                 }}
-                className="flex-shrink-0 flex flex-col items-center gap-1.5 px-5 py-3 rounded-2xl border border-white/8 bg-white/3 hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all group"
+                className="group flex min-h-24 flex-shrink-0 flex-col items-center gap-1.5 rounded-2xl border border-white/8 bg-white/3 px-5 py-3 transition-all hover:border-indigo-500/30 hover:bg-indigo-500/10"
               >
                 <span className="text-2xl">{destination.emoji}</span>
                 <span className="text-xs font-bold text-gray-300 group-hover:text-indigo-300 transition-colors">
@@ -691,7 +690,7 @@ export default function Home() {
                     setOriginDisplay(r.originDisplay)
                     setDestDisplay(r.destDisplay)
                   }}
-                  className="btn-pill text-xs"
+                  className="btn-pill min-h-9 max-w-full text-xs"
                 >
                   {r.originDisplay || r.origin} → {r.destDisplay || r.dest}
                 </button>
@@ -700,7 +699,7 @@ export default function Home() {
           )}
 
           <div className="relative mt-8 animate-fade-up delay-225">
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-[linear-gradient(to_bottom,transparent,rgba(7,9,26,0.95)_60%)]">
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-[linear-gradient(to_bottom,transparent,rgba(7,9,26,0.95)_60%)] px-4 text-center">
               <p className="mt-16 text-sm font-bold text-gray-300">Search to see real deals</p>
               <p className="mt-1 text-xs text-gray-600">Prices scored against 90 days of history</p>
             </div>
@@ -736,11 +735,11 @@ export default function Home() {
       {isSearching && <div key={progressKey.current} className="search-progress-bar" />}
 
       <header className="sticky top-0 z-20 border-b border-white/8 bg-[#07091A]/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
+        <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 pr-16 sm:gap-4 sm:pr-4">
           <button
             type="button"
             onClick={() => setView('form')}
-            className="font-display shrink-0 text-xl font-extrabold tracking-tighter text-white transition-opacity hover:opacity-70"
+            className="font-display shrink-0 text-lg font-extrabold tracking-tighter text-white transition-opacity hover:opacity-70 sm:text-xl"
           >
             expaify
           </button>
@@ -748,7 +747,7 @@ export default function Home() {
           <button
             type="button"
             onClick={() => setView('form')}
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-white/8 bg-white/[0.04] px-4 py-2.5 text-left transition-colors hover:border-indigo-500/30 hover:bg-indigo-500/[0.05]"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-left transition-colors hover:border-indigo-500/30 hover:bg-indigo-500/[0.05] sm:gap-3 sm:px-4"
           >
             <IconPlane className="shrink-0 text-indigo-400" />
             <span className="truncate text-sm font-semibold text-gray-200">
@@ -760,16 +759,16 @@ export default function Home() {
               </span>
             )}
             <span className="ml-auto shrink-0 text-xs font-medium text-gray-600">
-              Edit ✎
+              Edit
             </span>
           </button>
         </div>
       </header>
 
       <div className="mx-auto max-w-6xl px-4 py-6">
-        <div className="mb-5 flex flex-wrap items-start gap-3 animate-fade-in">
+        <div className="mb-5 flex flex-col gap-3 animate-fade-in sm:flex-row sm:items-start">
           {isSearching ? (
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               <div className="flex gap-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 dot-pulse" />
                 <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 dot-pulse-2" />
@@ -778,7 +777,7 @@ export default function Home() {
               <p className="text-sm text-gray-400">Scanning deals across providers…</p>
             </div>
           ) : error ? (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               <p className="text-sm text-red-400">{error}</p>
               <button
                 type="button"
@@ -789,7 +788,7 @@ export default function Home() {
               </button>
             </div>
           ) : (
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-200">
                 {flights.length} flight{flights.length === 1 ? '' : 's'} found{routeLabel ? ` · ${routeLabel}` : ''}
                 {passengers > 1 && <span className="text-gray-600"> × {passengers} passengers</span>}
@@ -804,7 +803,7 @@ export default function Home() {
           <button
             type="button"
             onClick={handleShare}
-            className="btn-pill ml-auto flex items-center gap-1.5"
+            className="btn-pill flex min-h-10 items-center gap-1.5 self-start sm:ml-auto"
             title="Copy link"
           >
             {copied ? (
@@ -825,7 +824,7 @@ export default function Home() {
 
         {!error && (
           <>
-            <div className="mb-6 flex border-b border-white/8">
+            <div className="mb-6 flex overflow-x-auto border-b border-white/8 scrollbar-hide">
               {(['flights', 'hotels'] as ActiveTab[]).map(tab => {
                 const count = tab === 'flights' ? flights.length : hotels.length
                 const active = activeTab === tab
@@ -839,7 +838,7 @@ export default function Home() {
                     }}
                     disabled={disabled}
                     aria-disabled={disabled}
-                    className={`relative px-5 py-3 text-sm font-bold capitalize transition-colors ${
+                    className={`relative min-h-11 flex-shrink-0 px-4 py-3 text-sm font-bold capitalize transition-colors sm:px-5 ${
                       disabled
                         ? 'cursor-not-allowed text-gray-700'
                         : active ? 'text-gray-100' : 'text-gray-600 hover:text-gray-300'
@@ -862,7 +861,7 @@ export default function Home() {
             </div>
 
             {hotelsTabDisabled && !isSearching && (
-              <div className="mb-6 rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-gray-500">
+              <div className="mb-6 rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-gray-500">
                 Hotels are not available for this search. {hotelUnavailableCopy}
               </div>
             )}
