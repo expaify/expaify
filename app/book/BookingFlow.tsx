@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
-import type { BookingFareContext } from '@/lib/booking/config'
+import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext } from '@/lib/booking/config'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -214,11 +214,11 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
     )
   }
 
-  if (fareContext.passengerCount !== 1) {
+  if (fareContext.passengerCount > BOOKING_FORM_PASSENGER_LIMIT) {
     return (
       <RecoveryState
         title="Multi-passenger review is paused"
-        message="This fare is priced for multiple adults, but booking review currently collects details for one passenger only. Return to search with one passenger or continue with the provider when available."
+        message={`This fare is priced for ${fareContext.passengerCount} adults, but booking review currently collects details for one passenger only. Return to search with one passenger; expaify will not create an order from incomplete traveler details.`}
         fareContext={fareContext}
         duffelSandbox={duffelSandbox}
       />
