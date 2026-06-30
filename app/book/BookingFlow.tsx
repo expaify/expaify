@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
+import type { BookingFareContext } from '@/lib/booking/config'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -10,10 +11,116 @@ const inputCls = 'w-full rounded-xl bg-[#0a0f1e] border border-white/10 px-4 py-
 
 type BookingFlowProps = {
   bookingEnabled: boolean
-  offerId: string
+  duffelSandbox: boolean
+  fareContext: BookingFareContext | null
 }
 
-export default function BookingFlow({ bookingEnabled, offerId }: BookingFlowProps) {
+function formatMoney(cents: number, currency: string) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+  }).format(cents / 100)
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  }
+
+  if (value.includes('T')) {
+    options.hour = 'numeric'
+    options.minute = '2-digit'
+  }
+
+  return date.toLocaleString('en-US', options)
+}
+
+function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareContext; duffelSandbox: boolean }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Selected fare</p>
+          <h2 className="mt-1 text-lg font-bold text-white">
+            {fareContext.origin} to {fareContext.destination}
+          </h2>
+          <p className="mt-1 text-sm text-gray-400">
+            {fareContext.carrier} · {fareContext.stops === 0 ? 'Nonstop' : `${fareContext.stops} stop${fareContext.stops === 1 ? '' : 's'}`}
+          </p>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-lg font-bold text-white">{formatMoney(fareContext.priceCents, fareContext.currency)}</p>
+          <p className="text-[11px] text-gray-500">per person</p>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 border-t border-white/10 pt-4 text-sm sm:grid-cols-2">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Depart</p>
+          <p className="mt-1 text-gray-200">{formatDateTime(fareContext.depart)}</p>
+        </div>
+        {fareContext.return && (
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Return</p>
+            <p className="mt-1 text-gray-200">{formatDateTime(fareContext.return)}</p>
+          </div>
+        )}
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Provider</p>
+          <p className="mt-1 text-gray-200">
+            {fareContext.provider === 'duffel' ? `Duffel${duffelSandbox ? ' sandbox' : ''}` : fareContext.provider}
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Offer</p>
+          <p className="mt-1 truncate font-mono text-xs text-gray-400">{fareContext.offerId}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RecoveryState({
+  title,
+  message,
+  fareContext,
+  duffelSandbox,
+}: {
+  title: string
+  message: string
+  fareContext: BookingFareContext | null
+  duffelSandbox: boolean
+}) {
+  return (
+    <div className="mx-auto flex min-h-screen max-w-2xl items-center px-4 py-12">
+      <div className="w-full rounded-2xl border border-amber-500/20 bg-gray-900 p-6 sm:p-8">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10">
+          <span className="text-xl text-amber-300">!</span>
+        </div>
+        <div className="text-center">
+          <h1 className="text-xl font-bold text-white">{title}</h1>
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-gray-400">{message}</p>
+        </div>
+        {fareContext && (
+          <div className="mt-6">
+            <FareSummary fareContext={fareContext} duffelSandbox={duffelSandbox} />
+          </div>
+        )}
+        <div className="mt-6 text-center">
+          <a href="/" className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 px-4 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/5">
+            Back to search
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext }: BookingFlowProps) {
   const [state, setState] = useState<BookingState>('idle')
   const [bookingRef, setBookingRef] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
@@ -32,14 +139,15 @@ export default function BookingFlow({ bookingEnabled, offerId }: BookingFlowProp
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!offerId) { setErrorMsg('No offer ID found in URL.'); setState('error'); return }
+    if (!fareContext) { setErrorMsg('Selected fare context is missing. Return to search and choose a current fare.'); setState('error'); return }
     setState('loading')
     try {
       const res = await fetch('/api/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          offerId,
+          offerId: fareContext.offerId,
+          fareContext,
           passenger: { title, given_name: firstName, family_name: lastName, born_on: dob, email, phone_number: phone, gender },
         }),
       })
@@ -76,27 +184,25 @@ export default function BookingFlow({ bookingEnabled, offerId }: BookingFlowProp
     )
   }
 
-  if (!bookingEnabled || !offerId) {
+  if (!fareContext) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-lg items-center px-4 py-12">
-        <div className="w-full rounded-2xl border border-amber-500/20 bg-gray-900 p-6 text-center sm:p-8">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10">
-            <span className="text-xl text-amber-300">!</span>
-          </div>
-          <h1 className="text-xl font-bold text-white">In-app booking is unavailable</h1>
-          <p className="mt-3 text-sm leading-6 text-gray-400">
-            expaify is showing fares for comparison while booking review is being completed. Passenger details cannot be collected here right now.
-          </p>
-          {!offerId && (
-            <p className="mt-3 text-sm leading-6 text-gray-500">
-              Return to search and choose a current flight result before reviewing booking options.
-            </p>
-          )}
-          <a href="/" className="mt-6 inline-flex h-11 items-center justify-center rounded-xl border border-white/10 px-4 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/5">
-            Back to search
-          </a>
-        </div>
-      </div>
+      <RecoveryState
+        title="We can't identify this fare"
+        message="The booking page is missing the selected provider, route, or price. Return to search and choose a current flight result before reviewing booking options."
+        fareContext={null}
+        duffelSandbox={duffelSandbox}
+      />
+    )
+  }
+
+  if (!bookingEnabled) {
+    return (
+      <RecoveryState
+        title="In-app booking is paused"
+        message="This fare is preserved for review, but expaify is not collecting passenger details or creating orders while booking review is being completed."
+        fareContext={fareContext}
+        duffelSandbox={duffelSandbox}
+      />
     )
   }
 
@@ -117,8 +223,14 @@ export default function BookingFlow({ bookingEnabled, offerId }: BookingFlowProp
     <div className="max-w-lg mx-auto px-4 py-12">
       <div className="mb-8">
         <a href="/" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">← Back to search</a>
-        <h1 className="text-2xl font-bold text-white mt-4">Complete your booking</h1>
-        <p className="text-gray-500 text-sm mt-1">Review traveler details before creating the order.</p>
+        <h1 className="text-2xl font-bold text-white mt-4">Review selected fare</h1>
+        <p className="text-gray-500 text-sm mt-1">
+          {duffelSandbox ? 'Duffel sandbox mode is active. This does not create a live airline ticket.' : 'Review fare context before creating the order.'}
+        </p>
+      </div>
+
+      <div className="mb-4">
+        <FareSummary fareContext={fareContext} duffelSandbox={duffelSandbox} />
       </div>
 
       <form onSubmit={handleSubmit} className="bg-gray-900 border border-white/8 rounded-2xl p-6 space-y-4">
@@ -173,7 +285,7 @@ export default function BookingFlow({ bookingEnabled, offerId }: BookingFlowProp
           disabled={state === 'loading'}
           className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:from-indigo-400 hover:to-indigo-500 transition-all disabled:opacity-60"
         >
-          {state === 'loading' ? 'Confirming…' : 'Confirm booking →'}
+          {state === 'loading' ? 'Confirming…' : duffelSandbox ? 'Confirm sandbox booking →' : 'Confirm booking →'}
         </button>
       </form>
     </div>

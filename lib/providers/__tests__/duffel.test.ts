@@ -292,13 +292,23 @@ describe('DuffelProvider.searchFares success', () => {
     expect(result.data[0].return).toBe('2026-10-08T18:00:00Z');
   });
 
-  it('builds deeplink as /book?offerId=<id>', async () => {
+  it('builds deeplink with fare context for the booking page', async () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
     const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22' });
     if (!result.ok) throw new Error(result.reason);
 
-    expect(result.data[0].deeplink).toBe('/book?offerId=off_0000A5KFKQaBC123');
+    const url = new URL(result.data[0].deeplink, 'https://expaify.test');
+    expect(url.pathname).toBe('/book');
+    expect(url.searchParams.get('offerId')).toBe('off_0000A5KFKQaBC123');
+    expect(url.searchParams.get('provider')).toBe('duffel');
+    expect(url.searchParams.get('origin')).toBe('JFK');
+    expect(url.searchParams.get('destination')).toBe('LAX');
+    expect(url.searchParams.get('carrier')).toBe('AA');
+    expect(url.searchParams.get('stops')).toBe('0');
+    expect(url.searchParams.get('priceCents')).toBe('45000');
+    expect(url.searchParams.get('currency')).toBe('USD');
+    expect(url.searchParams.get('depart')).toBe('2026-09-22T08:00:00Z');
   });
 
   it('caches the result with 30-minute TTL', async () => {

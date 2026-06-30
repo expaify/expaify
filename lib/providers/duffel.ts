@@ -1,5 +1,6 @@
 import { FlightProvider, NormalizedFare, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
+import { buildBookingHref } from '../booking/config';
 
 const BASE_URL = 'https://api.duffel.com';
 const CACHE_TTL = 1800; // 30 minutes
@@ -140,7 +141,7 @@ export class DuffelProvider implements FlightProvider {
             priceCents: Math.round(parseFloat(offer.total_amount) * 100),
             currency: offer.total_currency,
           },
-          deeplink: `/book?offerId=${offer.id}`,
+          deeplink: '',
           source: 'duffel',
           fetchedAt,
         };
@@ -149,6 +150,8 @@ export class DuffelProvider implements FlightProvider {
         if (offer.slices.length > 1) {
           fare.return = lastSlice.arriving_at;
         }
+
+        fare.deeplink = buildBookingHref(fare);
 
         return fare;
       });

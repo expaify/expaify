@@ -1,16 +1,16 @@
 import { Suspense } from 'react';
-import { isBookingEnabled } from '@/lib/booking/config';
+import { isBookingEnabled, isDuffelSandboxMode, parseBookingFareContext } from '@/lib/booking/config';
 import BookingFlow from './BookingFlow';
 
 export const metadata = { title: 'Book flight — expaify' };
 
 type BookPageProps = {
-  searchParams: Promise<{ offerId?: string | string[] }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export default async function BookPage({ searchParams }: BookPageProps) {
   const params = await searchParams;
-  const offerId = Array.isArray(params.offerId) ? params.offerId[0] : params.offerId;
+  const fareContext = parseBookingFareContext(params);
 
   return (
     <div className="min-h-screen bg-[#0a0f1e]">
@@ -19,7 +19,11 @@ export default async function BookPage({ searchParams }: BookPageProps) {
           <p className="text-gray-400 text-sm animate-pulse">Loading booking…</p>
         </div>
       }>
-        <BookingFlow bookingEnabled={isBookingEnabled()} offerId={offerId ?? ''} />
+        <BookingFlow
+          bookingEnabled={isBookingEnabled()}
+          duffelSandbox={isDuffelSandboxMode()}
+          fareContext={fareContext}
+        />
       </Suspense>
     </div>
   );
