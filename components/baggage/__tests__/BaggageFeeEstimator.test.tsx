@@ -176,8 +176,11 @@ describe('BaggageFeeEstimator', () => {
 
     expect(collectText(tree)).toContain('$0')
 
-    const increaseChecked = findByAriaLabel(tree, 'Increase Checked')
+    const decreaseChecked = findByAriaLabel(tree, 'Decrease checked bags estimate')
+    const increaseChecked = findByAriaLabel(tree, 'Increase checked bags estimate')
+    expect(decreaseChecked?.props.disabled).toBe(true)
     expect(increaseChecked).not.toBeNull()
+    expect(increaseChecked?.props.disabled).toBe(false)
     ;(increaseChecked?.props.onClick as (() => void) | undefined)?.()
 
     tree = renderEstimator()
@@ -185,5 +188,27 @@ describe('BaggageFeeEstimator', () => {
     tree = renderEstimator()
 
     expect(collectText(tree)).toContain('$40')
+
+    const updatedDecreaseChecked = findByAriaLabel(tree, 'Decrease checked bags estimate')
+    expect(updatedDecreaseChecked?.props.disabled).toBe(false)
+    ;(updatedDecreaseChecked?.props.onClick as (() => void) | undefined)?.()
+
+    tree = renderEstimator()
+    await flushPromises()
+    tree = renderEstimator()
+
+    expect(collectText(tree)).toContain('$0')
+  })
+
+  it('renders a distinct unavailable estimate state when baggage fees cannot load', async () => {
+    global.fetch = jest.fn(() => Promise.reject(new Error('network unavailable')))
+
+    let tree = renderEstimator()
+    await flushPromises()
+    tree = renderEstimator()
+
+    const text = collectText(tree)
+    expect(text).toContain('Baggage fee estimate unavailable right now.')
+    expect(text).toContain('do not assume checked or carry-on bag fees are included')
   })
 })
