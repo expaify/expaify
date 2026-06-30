@@ -14,14 +14,20 @@ function isValidEmail(email: string): boolean {
 // ─── POST /api/alerts — create a price alert ──────────────────────────────────
 
 export async function POST(request: Request) {
-  let body: { email?: unknown; origin?: unknown; destination?: unknown; targetPrice?: unknown };
+  let body: {
+    email?: unknown;
+    origin?: unknown;
+    destination?: unknown;
+    targetPrice?: unknown;
+    hotelId?: unknown;
+  };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { email, origin, destination, targetPrice } = body;
+  const { email, origin, destination, targetPrice, hotelId } = body;
 
   if (typeof email !== 'string' || !isValidEmail(email)) {
     return NextResponse.json({ error: 'Invalid email address' }, { status: 400 });
@@ -48,22 +54,32 @@ export async function POST(request: Request) {
     );
   }
 
+  if (hotelId !== undefined && (typeof hotelId !== 'string' || hotelId.trim().length === 0)) {
+    return NextResponse.json({ error: 'hotelId must be a non-empty string' }, { status: 400 });
+  }
+
   const originUpper = origin.toUpperCase();
   const destUpper = destination.toUpperCase();
   const targetCents = Math.round(targetPrice * 100);
+  const hotelIdValue = typeof hotelId === 'string' ? hotelId.trim() : null;
 
   try {
     const result = await query<{ id: string }>(
-      `INSERT INTO price_alerts (email, origin, destination, target_cents, currency)
-       VALUES ($1, $2, $3, $4, 'USD')
+      `INSERT INTO price_alerts (email, origin, destination, target_cents, currency, hotel_id)
+       VALUES ($1, $2, $3, $4, 'USD', $5)
        RETURNING id`,
-      [email, originUpper, destUpper, targetCents],
+      [email, originUpper, destUpper, targetCents, hotelIdValue],
     );
 
     const id = result.rows[0]?.id ?? '';
+    const message =
+      hotelIdValue === null
+        ? `Alert set! We'll email you when ${originUpper}→${destUpper} drops below $${targetPrice}.`
+        : `Alert set! We'll email you when hotel ${hotelIdValue} drops below $${targetPrice}.`;
+
     return NextResponse.json({
       id,
-      message: `Alert set! We'll email you when ${originUpper}→${destUpper} drops below $${targetPrice}.`,
+      message,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

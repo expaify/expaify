@@ -48,11 +48,13 @@ CREATE TABLE IF NOT EXISTS price_alerts (
   destination TEXT NOT NULL,
   target_cents INTEGER NOT NULL,
   currency TEXT NOT NULL DEFAULT 'USD',
+  hotel_id TEXT,
   active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_checked_at TIMESTAMPTZ,
   triggered_at TIMESTAMPTZ
 );
+ALTER TABLE price_alerts ADD COLUMN IF NOT EXISTS hotel_id TEXT;
 CREATE INDEX IF NOT EXISTS price_alerts_active_idx ON price_alerts(active) WHERE active = true;
 
 -- Routes searched by users — auto-enrolled into nightly snapshot pipeline

@@ -122,14 +122,17 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
 
         <div className="mt-4 flex items-end justify-between gap-3 border-t border-white/5 pt-4">
           <Price cents={hotel.pricePerNight.priceCents} />
-          <a
-            href={hotel.deeplink}
-            target="_blank"
-            rel="noopener noreferrer sponsored"
-            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#6366f1,#5b21b6)] px-4 py-2.5 text-sm font-bold text-white shadow-[0_4px_16px_rgba(99,102,241,0.35)] transition-opacity hover:opacity-90"
-          >
-            See availability →
-          </a>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <a
+              href={hotel.deeplink}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              className="inline-flex items-center justify-center rounded-xl bg-[linear-gradient(135deg,#6366f1,#5b21b6)] px-4 py-2.5 text-sm font-bold text-white shadow-[0_4px_16px_rgba(99,102,241,0.35)] transition-opacity hover:opacity-90"
+            >
+              Book hotel →
+            </a>
+            <p className="text-[10px] font-medium text-gray-600">via HotelLook</p>
+          </div>
         </div>
       </div>
     </div>

@@ -1,12 +1,17 @@
 import { travelpayouts } from '../lib/providers/travelpayouts';
+import { hotellook } from '../lib/providers/hotellook';
 import { query } from '../lib/db/client';
 
-interface Alert {
+interface FlightAlert {
   id: string;
   email: string;
   origin: string;
   destination: string;
   target_cents: number;
+}
+
+interface HotelAlert extends FlightAlert {
+  hotel_id: string;
 }
 
 async function sendAlertEmail(
@@ -39,15 +44,26 @@ async function sendAlertEmail(
   });
 }
 
+function getHotelAlertRange(): { checkin: string; checkout: string } {
+  const now = new Date();
+  const checkin = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  const checkout = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 2));
+
+  return {
+    checkin: checkin.toISOString().slice(0, 10),
+    checkout: checkout.toISOString().slice(0, 10),
+  };
+}
+
 async function main(): Promise<void> {
-  const alertsResult = await query<Alert>(
+  const alertsResult = await query<FlightAlert>(
     `SELECT id, email, origin, destination, target_cents
      FROM price_alerts
-     WHERE active = true AND triggered_at IS NULL`,
+     WHERE active = true AND triggered_at IS NULL AND hotel_id IS NULL`,
   );
 
   const alerts = alertsResult.rows;
-  console.log(`[check-alerts] Found ${alerts.length} active alert(s) to check`);
+  console.log(`[check-alerts] Found ${alerts.length} active flight alert(s) to check`);
 
   for (const alert of alerts) {
     const label = `${alert.origin}→${alert.destination}`;
@@ -86,6 +102,57 @@ async function main(): Promise<void> {
       } else {
         await query(`UPDATE price_alerts SET last_checked_at = now() WHERE id = $1`, [alert.id]);
       }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[check-alerts] ${label} ERROR: ${message}`);
+    }
+  }
+
+  const hotelAlertsResult = await query<HotelAlert>(
+    `SELECT id, email, origin, destination, target_cents, hotel_id
+     FROM price_alerts
+     WHERE active = true AND triggered_at IS NULL AND hotel_id IS NOT NULL`,
+  );
+
+  const hotelAlerts = hotelAlertsResult.rows;
+  console.log(`[check-alerts] Found ${hotelAlerts.length} active hotel alert(s) to check`);
+
+  for (const alert of hotelAlerts) {
+    const label = `${alert.origin} hotel ${alert.hotel_id}`;
+    try {
+      const result = await hotellook.searchHotels(alert.origin, getHotelAlertRange());
+
+      if (!result.ok) {
+        console.error(`[check-alerts] ${label} ERROR: ${result.reason}`);
+        await query(`UPDATE price_alerts SET last_checked_at = now() WHERE id = $1`, [alert.id]);
+        continue;
+      }
+
+      const match = result.data.find(
+        (hotel) =>
+          hotel.id === alert.hotel_id &&
+          hotel.pricePerNight.priceCents <= alert.target_cents,
+      );
+      const targetDollars = Math.round(alert.target_cents / 100);
+
+      if (!match) {
+        console.log(
+          `[check-alerts] Checked alert ${alert.id} (${label}): not triggered`,
+        );
+        await query(`UPDATE price_alerts SET last_checked_at = now() WHERE id = $1`, [alert.id]);
+        continue;
+      }
+
+      const priceDollars = Math.round(match.pricePerNight.priceCents / 100);
+      console.log(
+        `[check-alerts] Checked alert ${alert.id} (${label}): $${priceDollars} vs target $${targetDollars} → TRIGGERED`,
+      );
+
+      await sendAlertEmail(alert.email, alert.origin, match.name, priceDollars, targetDollars);
+      await query(
+        `UPDATE price_alerts SET triggered_at = now(), active = false, last_checked_at = now() WHERE id = $1`,
+        [alert.id],
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[check-alerts] ${label} ERROR: ${message}`);
