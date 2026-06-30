@@ -40,6 +40,18 @@ interface CheapEntry {
   duration?: number;
 }
 
+// v1/prices/calendar entry — cheapest fare per departure date
+interface CalendarEntry {
+  origin: string;
+  destination: string;
+  airline: string;
+  departure_at: string;
+  return_at?: string;
+  price: number;         // USD whole dollars
+  transfers: number;
+  flight_number?: number;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class TravelpayoutsProvider implements FlightProvider {
@@ -147,6 +159,40 @@ export class TravelpayoutsProvider implements FlightProvider {
             source: 'travelpayouts',
             fetchedAt,
           });
+        }
+      }
+
+      // ── v1/prices/calendar — cheapest fare per day for the month ──────────
+      if (dest && range.depart) {
+        const monthParam = range.depart.slice(0, 7); // YYYY-MM
+        const calUrl =
+          `${BASE_V1}/prices/calendar` +
+          `?origin=${encodeURIComponent(origin)}` +
+          `&destination=${encodeURIComponent(dest)}` +
+          `&depart_date=${encodeURIComponent(monthParam)}` +
+          `&calendar_type=departure_date` +
+          `&currency=usd` +
+          `&token=${encodeURIComponent(this.token)}`;
+
+        const calRes = await fetch(calUrl);
+        if (calRes.ok) {
+          const calJson = (await calRes.json()) as { data?: Record<string, CalendarEntry> };
+          for (const entry of Object.values(calJson.data ?? {})) {
+            fares.push({
+              id: `tp-cal-${entry.airline}-${entry.origin}-${entry.destination}-${entry.departure_at}`,
+              fareType: 'cash',
+              origin: entry.origin,
+              destination: entry.destination,
+              depart: entry.departure_at,
+              return: entry.return_at || undefined,
+              stops: entry.transfers,
+              carrier: entry.airline,
+              price: { priceCents: Math.round(entry.price * 100), currency: 'USD' },
+              deeplink: this.buildDeeplink(entry.origin, entry.destination, entry.departure_at),
+              source: 'travelpayouts',
+              fetchedAt,
+            });
+          }
         }
       }
 

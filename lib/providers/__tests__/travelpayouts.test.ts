@@ -93,10 +93,11 @@ function mockFetchOk(body: unknown): void {
   } as Response);
 }
 
-/** Returns LATEST_FIXTURE for first call, CHEAP_FIXTURE for second call */
+/** Returns LATEST_FIXTURE → empty calendar → CHEAP_FIXTURE for the three search calls */
 function mockFetchSearchSequence(): void {
   global.fetch = jest.fn()
     .mockResolvedValueOnce({ ok: true, status: 200, json: async () => LATEST_FIXTURE } as Response)
+    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, data: {} }) } as Response)
     .mockResolvedValueOnce({ ok: true, status: 200, json: async () => CHEAP_FIXTURE } as Response);
 }
 
@@ -282,6 +283,7 @@ describe('TravelpayoutsProvider.searchFares', () => {
     };
     global.fetch = jest.fn()
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, data: [] }) } as Response)
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, data: {} }) } as Response)
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => cheapFixture } as Response);
     const provider = new TravelpayoutsProvider();
     const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-07' });
