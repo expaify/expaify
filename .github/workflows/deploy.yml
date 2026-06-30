@@ -55,6 +55,8 @@ jobs:
                 "REDIS_URL=${{ secrets.REDIS_URL }}" \
                 "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
                 "DUFFEL_KEY=${{ secrets.DUFFEL_KEY }}" \
+                "AMADEUS_CLIENT_ID=${{ secrets.AMADEUS_CLIENT_ID }}" \
+                "AMADEUS_CLIENT_SECRET=${{ secrets.AMADEUS_CLIENT_SECRET }}" \
               --output none
           else
             az containerapp registry set \
@@ -74,5 +76,7 @@ jobs:
                 "REDIS_URL=${{ secrets.REDIS_URL }}" \
                 "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
                 "DUFFEL_KEY=${{ secrets.DUFFEL_KEY }}" \
+                "AMADEUS_CLIENT_ID=${{ secrets.AMADEUS_CLIENT_ID }}" \
+                "AMADEUS_CLIENT_SECRET=${{ secrets.AMADEUS_CLIENT_SECRET }}" \
               --output none
           fi
