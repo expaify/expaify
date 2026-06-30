@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { isBookingEnabled } from '@/lib/booking/config';
+import { isBookingEnabled, validateBookingFareContext } from '@/lib/booking/config';
 
 const BASE_URL = 'https://api.duffel.com';
 
@@ -29,6 +29,12 @@ interface DuffelOrderResponse {
   errors?: Array<{ message: string; type?: string; title?: string }>;
 }
 
+function decimalStringToCents(value: string): number | null {
+  if (!/^\d+(\.\d{1,2})?$/.test(value)) return null;
+  const [whole, fraction = ''] = value.split('.');
+  return Number(`${whole}${fraction.padEnd(2, '0')}`);
+}
+
 export async function POST(request: Request) {
   try {
     if (!isBookingEnabled()) {
@@ -38,14 +44,22 @@ export async function POST(request: Request) {
       );
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const body = (await request.json()) as { offerId?: unknown; passenger?: unknown };
+    const body = (await request.json()) as { offerId?: unknown; fareContext?: unknown; passenger?: unknown };
 
-    const { offerId, passenger } = body;
+    const { offerId, fareContext, passenger } = body;
 
     // Validate offerId
     if (!offerId || typeof offerId !== 'string') {
       return NextResponse.json({ ok: false, reason: 'offerId is required' }, { status: 400 });
+    }
+
+    if (!fareContext || typeof fareContext !== 'object' || Array.isArray(fareContext)) {
+      return NextResponse.json({ ok: false, reason: 'fareContext is required' }, { status: 400 });
+    }
+
+    const selectedFare = validateBookingFareContext(fareContext as Partial<Record<string, unknown>>);
+    if (!selectedFare || selectedFare.offerId !== offerId || selectedFare.provider !== 'duffel') {
+      return NextResponse.json({ ok: false, reason: 'valid Duffel fare context is required' }, { status: 400 });
     }
 
     // Validate passenger object present
@@ -103,11 +117,23 @@ export async function POST(request: Request) {
 
     const offerJson = (await offerRes.json()) as DuffelOfferResponse;
     const passengerId = offerJson.data.passengers[0]?.id;
+    const offerPriceCents = decimalStringToCents(offerJson.data.total_amount);
 
     if (!passengerId) {
       return NextResponse.json(
         { ok: false, reason: 'Could not extract passenger ID from offer' },
         { status: 502 }
+      );
+    }
+
+    if (
+      offerPriceCents === null ||
+      offerPriceCents !== selectedFare.priceCents ||
+      offerJson.data.total_currency !== selectedFare.currency
+    ) {
+      return NextResponse.json(
+        { ok: false, reason: 'Fare price changed. Return to search and choose the current fare.' },
+        { status: 409 }
       );
     }
 
