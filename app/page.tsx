@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react'
 import { NormalizedFare, DealScore, HotelOffer } from '@/lib/types'
 import FlightCard from './components/FlightCard'
 import HotelCard from './components/HotelCard'
+import AlertSignup from './components/AlertSignup'
 
 interface SearchResult {
   flights: NormalizedFare[]
@@ -67,50 +68,56 @@ export default function Home() {
       if (returnDate) params.set('return', returnDate)
 
       const res = await fetch(`/api/search?${params.toString()}`)
-      if (!res.ok) throw new Error('Search request failed')
+      if (!res.ok || !res.body) throw new Error('Search request failed')
 
-      const data = (await res.json()) as SearchResult
-      setFlights(data.flights)
-      setHotels(data.hotels)
-      setNotice(data.notice)
-      setIsSearching(false)
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      const accumulated: NormalizedFare[] = []
 
-      if (data.flights.length > 0) {
-        // Mark all flights as score-loading
-        const initialScores: Record<string, DealScore | null> = {}
-        const loadingIds = new Set<string>()
-        for (const fare of data.flights) {
-          initialScores[fare.id] = null
-          loadingIds.add(fare.id)
+      function dedup(fares: NormalizedFare[]): NormalizedFare[] {
+        const best = new Map<string, NormalizedFare>()
+        for (const f of fares) {
+          const k = `${f.carrier}:${f.origin}:${f.destination}:${f.depart.slice(0, 16)}`
+          const ex = best.get(k)
+          if (!ex || f.price.priceCents < ex.price.priceCents) best.set(k, f)
         }
-        setScores(initialScores)
-        setScoreLoading(loadingIds)
+        return Array.from(best.values()).sort((a, b) => a.price.priceCents - b.price.priceCents)
+      }
 
-        // Fire all /api/score requests in parallel; update each card as it resolves
-        data.flights.forEach((fare) => {
-          fetch('/api/score', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fare }),
-          })
-            .then((r) => {
-              if (!r.ok) throw new Error('Score request failed')
-              return r.json() as Promise<DealScore>
-            })
-            .then((score) => {
-              setScores((prev) => ({ ...prev, [fare.id]: score }))
-            })
-            .catch(() => {
-              // Score unavailable — card renders with null score, no longer loading
-            })
-            .finally(() => {
-              setScoreLoading((prev) => {
-                const next = new Set(prev)
-                next.delete(fare.id)
-                return next
-              })
-            })
-        })
+      function fireScore(fare: NormalizedFare) {
+        setScoreLoading(prev => new Set(prev).add(fare.id))
+        fetch('/api/score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fare }) })
+          .then(r => r.ok ? r.json() as Promise<DealScore> : Promise.reject())
+          .then(score => setScores(prev => ({ ...prev, [fare.id]: score })))
+          .catch(() => {})
+          .finally(() => setScoreLoading(prev => { const n = new Set(prev); n.delete(fare.id); return n }))
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split('\n')
+        buf = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const msg = JSON.parse(line) as { type: string; data?: unknown; message?: string }
+            if (msg.type === 'flights' && Array.isArray(msg.data)) {
+              const newFares = msg.data as NormalizedFare[]
+              accumulated.push(...newFares)
+              setFlights(dedup([...accumulated]))
+              newFares.forEach(fireScore)
+            } else if (msg.type === 'hotels' && Array.isArray(msg.data)) {
+              setHotels(msg.data as HotelOffer[])
+            } else if (msg.type === 'notice' && msg.message) {
+              setNotice(prev => prev ? `${prev} ${msg.message}` : msg.message)
+            } else if (msg.type === 'done') {
+              setIsSearching(false)
+            }
+          } catch { /* ignore malformed line */ }
+        }
       }
     } catch {
       setError('Something went wrong. Try again.')
@@ -416,6 +423,13 @@ export default function Home() {
                   </div>
                 )}
               </section>
+
+              {/* Price alert signup */}
+              {dest.trim() && !isSearching && (
+                <section className="md:col-span-2">
+                  <AlertSignup origin={origin.trim()} destination={dest.trim()} />
+                </section>
+              )}
 
               {/* Hotels section */}
               <section>

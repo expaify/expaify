@@ -197,7 +197,7 @@ describe('DuffelProvider.searchFares success', () => {
       expect(f.destination).toBe('LAX');
       expect(f.source).toBe('duffel');
       expect(typeof f.fetchedAt).toBe('string');
-      expect(f.deeplink).toMatch(/^https:\/\/app\.duffel\.com\/offers\//);
+      expect(f.deeplink).toMatch(/^\/book\?offerId=/);
       expect(Number.isInteger(f.price.priceCents)).toBe(true);
     });
   });
@@ -292,13 +292,13 @@ describe('DuffelProvider.searchFares success', () => {
     expect(result.data[0].return).toBe('2026-10-08T18:00:00Z');
   });
 
-  it('builds deeplink as https://app.duffel.com/offers/<id>', async () => {
+  it('builds deeplink as /book?offerId=<id>', async () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
     const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22' });
     if (!result.ok) throw new Error(result.reason);
 
-    expect(result.data[0].deeplink).toBe('https://app.duffel.com/offers/off_0000A5KFKQaBC123');
+    expect(result.data[0].deeplink).toBe('/book?offerId=off_0000A5KFKQaBC123');
   });
 
   it('caches the result with 30-minute TTL', async () => {

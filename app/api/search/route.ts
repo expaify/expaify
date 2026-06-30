@@ -1,29 +1,25 @@
-import { type NextRequest, NextResponse } from 'next/server';
+import { type NextRequest } from 'next/server';
 import { resolveToIATA } from '../../../lib/airports/resolve';
 import { travelpayouts } from '../../../lib/providers/travelpayouts';
 import { duffel } from '../../../lib/providers/duffel';
 import { amadeus } from '../../../lib/providers/amadeus';
 import { kiwi } from '../../../lib/providers/kiwi';
 import { hotellook } from '../../../lib/providers/hotellook';
-import type { NormalizedFare, HotelOffer } from '../../../lib/types';
+import { query } from '../../../lib/db/client';
 
 /**
  * GET /api/search
  *
- * Query params:
- *   origin  (required) — IATA code or US ZIP
- *   dest    (optional) — IATA code or US ZIP
- *   depart  (optional) — departure date string
- *   return  (optional) — return date string
- *
- * Response: { flights: NormalizedFare[]; hotels: HotelOffer[]; notice?: string }
+ * Streams results as newline-delimited JSON (NDJSON).
+ * Each line: { type: 'flights'|'hotels'|'notice'|'done', ... }
+ * Providers are raced — first to return streams immediately.
  */
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
 
   const originRaw = params.get('origin');
   if (!originRaw) {
-    return NextResponse.json({ error: 'origin is required' }, { status: 400 });
+    return new Response(JSON.stringify({ error: 'origin is required' }), { status: 400 });
   }
 
   let originIATA: string;
@@ -31,7 +27,7 @@ export async function GET(request: NextRequest) {
     originIATA = resolveToIATA(originRaw);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return new Response(JSON.stringify({ error: msg }), { status: 400 });
   }
 
   const destRaw = params.get('dest');
@@ -41,73 +37,69 @@ export async function GET(request: NextRequest) {
       destIATA = resolveToIATA(destRaw);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return NextResponse.json({ error: msg }, { status: 400 });
+      return new Response(JSON.stringify({ error: msg }), { status: 400 });
     }
   }
 
   const depart = params.get('depart') ?? '';
   const ret = params.get('return') ?? '';
-
-  const notices: string[] = [];
-
-  // ── Flights — fan out to all 4 providers in parallel ───────────────────────
-  let flights: NormalizedFare[] = [];
   const range = { depart, return: ret || undefined };
-  const [tpResult, duffelResult, amadeusResult, kiwiResult] = await Promise.all([
-    travelpayouts.searchFares(originIATA, destIATA ?? '', range),
-    duffel.searchFares(originIATA, destIATA ?? '', range),
-    amadeus.searchFares(originIATA, destIATA ?? '', range),
-    kiwi.searchFares(originIATA, destIATA ?? '', range),
-  ]);
 
-  if (tpResult.ok) flights.push(...tpResult.data);
-  else notices.push(`Travelpayouts: ${tpResult.reason}`);
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (obj: object) =>
+        controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
 
-  if (duffelResult.ok) flights.push(...duffelResult.data);
-  else if (duffelResult.reason !== 'Duffel not configured') notices.push(`Duffel: ${duffelResult.reason}`);
+      // Enroll route in snapshot pipeline — fire-and-forget, never blocks response
+      if (originIATA && destIATA) {
+        query(
+          `INSERT INTO searched_routes (origin, destination)
+           VALUES ($1, $2)
+           ON CONFLICT (origin, destination)
+           DO UPDATE SET search_count = searched_routes.search_count + 1,
+                         last_searched_at = now()`,
+          [originIATA, destIATA]
+        ).catch(() => {});
+      }
 
-  if (amadeusResult.ok) flights.push(...amadeusResult.data);
-  else if (!amadeusResult.reason.includes('not configured')) notices.push(`Amadeus: ${amadeusResult.reason}`);
+      // Race all 4 providers — stream each chunk the moment it resolves
+      await Promise.allSettled([
+        travelpayouts.searchFares(originIATA, destIATA ?? '', range).then(r => {
+          if (r.ok && r.data.length > 0) send({ type: 'flights', source: 'travelpayouts', data: r.data });
+          else if (!r.ok) send({ type: 'notice', message: `Travelpayouts: ${r.reason}` });
+        }),
+        duffel.searchFares(originIATA, destIATA ?? '', range).then(r => {
+          if (r.ok && r.data.length > 0) send({ type: 'flights', source: 'duffel', data: r.data });
+          else if (!r.ok && !r.reason.includes('not configured')) send({ type: 'notice', message: `Duffel: ${r.reason}` });
+        }),
+        amadeus.searchFares(originIATA, destIATA ?? '', range).then(r => {
+          if (r.ok && r.data.length > 0) send({ type: 'flights', source: 'amadeus', data: r.data });
+        }),
+        kiwi.searchFares(originIATA, destIATA ?? '', range).then(r => {
+          if (r.ok && r.data.length > 0) send({ type: 'flights', source: 'kiwi', data: r.data });
+        }),
+      ]);
 
-  if (kiwiResult.ok) flights.push(...kiwiResult.data);
-  else if (!kiwiResult.reason.includes('not configured')) notices.push(`Kiwi: ${kiwiResult.reason}`);
+      // Hotels after all flight providers resolve
+      if (destIATA && depart && ret) {
+        const hotelsResult = await hotellook.searchHotels(destIATA, { checkin: depart, checkout: ret });
+        if (hotelsResult.ok && hotelsResult.data.length > 0)
+          send({ type: 'hotels', source: 'hotellook', data: hotelsResult.data });
+        else if (!hotelsResult.ok)
+          send({ type: 'notice', message: `Hotels unavailable: ${hotelsResult.reason}` });
+      }
 
-  // Deduplicate by flight identity (carrier + route + depart minute), keep cheapest fare
-  const bestByKey = new Map<string, NormalizedFare>();
-  for (const f of flights) {
-    const key = `${f.carrier}:${f.origin}:${f.destination}:${f.depart.slice(0, 16)}`;
-    const existing = bestByKey.get(key);
-    if (!existing || f.price.priceCents < existing.price.priceCents) {
-      bestByKey.set(key, f);
-    }
-  }
-  flights = Array.from(bestByKey.values())
-    .sort((a, b) => a.price.priceCents - b.price.priceCents);
+      send({ type: 'done' });
+      controller.close();
+    },
+  });
 
-  // ── Hotels ──────────────────────────────────────────────────────────────────
-  // Hotels require a destination city and both dates to be useful
-  let hotels: HotelOffer[] = [];
-  if (destIATA && depart && ret) {
-    const hotelsResult = await hotellook.searchHotels(
-      destIATA,
-      { checkin: depart, checkout: ret },
-    );
-    if (hotelsResult.ok) {
-      hotels = hotelsResult.data;
-    } else {
-      notices.push(`Hotels unavailable: ${hotelsResult.reason}`);
-    }
-  }
-
-  const response: {
-    flights: NormalizedFare[];
-    hotels: HotelOffer[];
-    notice?: string;
-  } = { flights, hotels };
-
-  if (notices.length > 0) {
-    response.notice = notices.join(' ');
-  }
-
-  return NextResponse.json(response);
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'application/x-ndjson',
+      'Cache-Control': 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
 }

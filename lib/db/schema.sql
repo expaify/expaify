@@ -40,3 +40,14 @@ CREATE TABLE IF NOT EXISTS price_alerts (
   triggered_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS price_alerts_active_idx ON price_alerts(active) WHERE active = true;
+
+-- Routes searched by users — auto-enrolled into nightly snapshot pipeline
+CREATE TABLE IF NOT EXISTS searched_routes (
+  origin            CHAR(3) NOT NULL,
+  destination       CHAR(3) NOT NULL,
+  first_searched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  search_count      INTEGER NOT NULL DEFAULT 1,
+  last_searched_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (origin, destination)
+);
+CREATE INDEX IF NOT EXISTS idx_searched_routes_count ON searched_routes(search_count DESC);

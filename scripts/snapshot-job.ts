@@ -45,6 +45,31 @@ async function main(): Promise<void> {
     }
   }
 
+  // Also snapshot user-searched routes (top 200 by search count, last 90 days)
+  try {
+    const { rows } = await query<{ origin: string; destination: string }>(
+      `SELECT origin, destination FROM searched_routes
+       WHERE first_searched_at > NOW() - INTERVAL '90 days'
+       ORDER BY search_count DESC
+       LIMIT 200`
+    );
+    for (const route of rows) {
+      const alreadyDone = GOLDEN_ROUTES.some(g => g.origin === route.origin && g.dest === route.destination);
+      if (alreadyDone) continue;
+      const label = `${route.origin}-${route.destination}`;
+      try {
+        const result = await travelpayouts.priceTrends(route.origin, route.destination);
+        if (!result.ok) { console.error(`[${label}] ${result.reason}`); continue; }
+        const n = await insertSnapshots(route.origin, route.destination, result.data);
+        console.log(`[${label}] inserted ${n} rows (user route)`);
+      } catch (err) {
+        console.error(`[${label}] ${err instanceof Error ? err.message : err}`);
+      }
+    }
+  } catch (err) {
+    console.error('[snapshot] Failed to fetch searched_routes:', err);
+  }
+
   process.exit(0);
 }
 
