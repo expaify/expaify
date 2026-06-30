@@ -1,8 +1,8 @@
 import { FlightProvider, NormalizedFare, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
-import { convertToUSD } from '../fx/convert';
 
-const BASE_URL = 'https://api.travelpayouts.com/v1';
+const BASE_V1 = 'https://api.travelpayouts.com/v1';
+const BASE_V2 = 'https://api.travelpayouts.com/v2';
 const CACHE_TTL = 21600; // 6 hours
 
 // ─── Travelpayouts API response shapes ───────────────────────────────────────
@@ -17,8 +17,21 @@ interface MonthlyEntry {
   duration?: number;
 }
 
+// v2/prices/latest entry — prices already in requested currency
+interface LatestEntry {
+  origin: string;
+  destination: string;
+  depart_date: string;
+  return_date?: string;
+  gate: string;          // booking channel / airline
+  value: number;         // USD whole dollars
+  number_of_changes: number;
+  found_at: string;
+}
+
+// v1/prices/cheap entry — prices in requested currency, keyed by dest then slot
 interface CheapEntry {
-  price: number;       // whole RUB
+  price: number;         // USD whole dollars when currency=usd
   airline?: string;
   flight_number?: number;
   departure_at?: string;
@@ -57,9 +70,10 @@ export class TravelpayoutsProvider implements FlightProvider {
       if (cached !== null) return { ok: true, data: cached };
 
       const url =
-        `${BASE_URL}/prices/monthly` +
+        `${BASE_V1}/prices/monthly` +
         `?origin=${encodeURIComponent(origin)}` +
         `&destination=${encodeURIComponent(dest)}` +
+        `&currency=usd` +
         `&token=${encodeURIComponent(this.token)}`;
 
       const res = await fetch(url);
@@ -70,14 +84,12 @@ export class TravelpayoutsProvider implements FlightProvider {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const json: any = await res.json();
 
-      // The API wraps results under a "data" key; guard both shapes
       const entries: Record<string, MonthlyEntry> =
         json.data != null ? (json.data as Record<string, MonthlyEntry>) : (json as Record<string, MonthlyEntry>);
 
       const points: PricePoint[] = Object.entries(entries).map(([date, entry]) => ({
         date,
-        // price is whole RUB → convert to RUB cents → USD cents
-        priceCents: convertToUSD(Math.round(entry.price * 100), 'RUB'),
+        priceCents: Math.round(entry.price * 100), // already USD when currency=usd
         currency: 'USD',
       }));
 
@@ -88,7 +100,7 @@ export class TravelpayoutsProvider implements FlightProvider {
     }
   }
 
-  // ─── searchFares ───────────────────────────────────────────────────────────
+  // ─── searchFares — fans out to v2/latest + v1/cheap for maximum coverage ──
 
   async searchFares(
     origin: string,
@@ -96,62 +108,83 @@ export class TravelpayoutsProvider implements FlightProvider {
     range: { depart: string; return?: string }
   ): Promise<Result<NormalizedFare[]>> {
     const extraParams = `${range.depart}:${range.return ?? ''}`;
-    const cacheKey = `tp:searchFares:${origin}:${dest}:${extraParams}`;
+    const cacheKey = `tp:searchFares:v2:${origin}:${dest}:${extraParams}`;
 
     try {
       const cached = await cache.get<NormalizedFare[]>(cacheKey);
       if (cached !== null) return { ok: true, data: cached };
 
-      let url =
-        `${BASE_URL}/prices/cheap` +
-        `?origin=${encodeURIComponent(origin)}` +
-        `&destination=${encodeURIComponent(dest)}` +
-        `&depart_date=${encodeURIComponent(range.depart)}` +
-        `&token=${encodeURIComponent(this.token)}`;
-
-      if (range.return) {
-        url += `&return_date=${encodeURIComponent(range.return)}`;
-      }
-
-      const res = await fetch(url);
-      if (!res.ok) {
-        return { ok: false, reason: `Travelpayouts /prices/cheap HTTP ${res.status}` };
-      }
-
-      const json = (await res.json()) as {
-        data?: Record<string, Record<string, CheapEntry>>;
-        success?: boolean;
-      };
-
-      const data: Record<string, Record<string, CheapEntry>> =
-        json.data ?? (json as unknown as Record<string, Record<string, CheapEntry>>);
-
       const fetchedAt = new Date().toISOString();
       const fares: NormalizedFare[] = [];
 
-      for (const [airline, slots] of Object.entries(data)) {
-        for (const fareData of Object.values(slots)) {
-          const departAt = fareData.departure_at ?? range.depart;
-          const returnAt = fareData.return_at ?? range.return;
+      // ── v2/prices/latest — multiple booking gates, more results ────────────
+      let latestUrl =
+        `${BASE_V2}/prices/latest` +
+        `?origin=${encodeURIComponent(origin)}` +
+        `&currency=usd` +
+        `&limit=20` +
+        `&token=${encodeURIComponent(this.token)}`;
+      if (dest) latestUrl += `&destination=${encodeURIComponent(dest)}`;
+      if (range.depart) latestUrl += `&depart_date=${encodeURIComponent(range.depart)}`;
 
+      const latestRes = await fetch(latestUrl);
+      if (latestRes.ok) {
+        const latestJson = (await latestRes.json()) as { data?: LatestEntry[]; success?: boolean };
+        const entries: LatestEntry[] = latestJson.data ?? [];
+        for (const entry of entries) {
+          const departAt = entry.depart_date;
           fares.push({
-            id: `tp-${airline}-${origin}-${dest}-${departAt}`,
+            id: `tp-v2-${entry.gate}-${entry.origin}-${entry.destination}-${departAt}`,
             fareType: 'cash',
-            origin,
-            destination: dest,
+            origin: entry.origin,
+            destination: entry.destination,
             depart: departAt,
-            return: returnAt,
-            stops: fareData.transfers ?? 0,
-            carrier: airline,
-            price: {
-              // price is whole RUB → RUB cents → USD cents
-              priceCents: convertToUSD(Math.round(fareData.price * 100), 'RUB'),
-              currency: 'USD',
-            },
-            deeplink: this.buildDeeplink(origin, dest, departAt),
+            return: entry.return_date || undefined,
+            stops: entry.number_of_changes,
+            carrier: entry.gate,
+            price: { priceCents: Math.round(entry.value * 100), currency: 'USD' },
+            deeplink: this.buildDeeplink(entry.origin, entry.destination, departAt),
             source: 'travelpayouts',
             fetchedAt,
           });
+        }
+      }
+
+      // ── v1/prices/cheap — cheapest fare per airline ────────────────────────
+      if (dest) {
+        let cheapUrl =
+          `${BASE_V1}/prices/cheap` +
+          `?origin=${encodeURIComponent(origin)}` +
+          `&destination=${encodeURIComponent(dest)}` +
+          `&currency=usd` +
+          `&token=${encodeURIComponent(this.token)}`;
+        if (range.depart) cheapUrl += `&depart_date=${encodeURIComponent(range.depart)}`;
+        if (range.return) cheapUrl += `&return_date=${encodeURIComponent(range.return)}`;
+
+        const cheapRes = await fetch(cheapUrl);
+        if (cheapRes.ok) {
+          const cheapJson = (await cheapRes.json()) as { data?: Record<string, Record<string, CheapEntry>> };
+          // Shape: { data: { [destCode]: { [slot]: CheapEntry } } }
+          for (const slots of Object.values(cheapJson.data ?? {})) {
+            for (const fareData of Object.values(slots)) {
+              const airline = fareData.airline ?? 'Unknown';
+              const departAt = fareData.departure_at ?? range.depart;
+              fares.push({
+                id: `tp-v1-${airline}-${origin}-${dest}-${departAt}`,
+                fareType: 'cash',
+                origin,
+                destination: dest,
+                depart: departAt,
+                return: fareData.return_at || range.return,
+                stops: fareData.transfers ?? 0,
+                carrier: airline,
+                price: { priceCents: Math.round(fareData.price * 100), currency: 'USD' },
+                deeplink: this.buildDeeplink(origin, dest, departAt),
+                source: 'travelpayouts',
+                fetchedAt,
+              });
+            }
+          }
         }
       }
 

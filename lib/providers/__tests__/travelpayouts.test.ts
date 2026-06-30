@@ -19,23 +19,50 @@ jest.mock('../../cache/redis', () => ({
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
-/** Recorded response from GET /prices/monthly?origin=MOW&destination=AMS */
+/** Recorded response from GET /prices/monthly — prices in USD (currency=usd) */
 const MONTHLY_FIXTURE = {
   success: true,
   data: {
-    '2024-03-01': { price: 35000, airline: 'SU', flight_number: 101, transfers: 0 },
-    '2024-04-01': { price: 28000, airline: 'SU', flight_number: 102, transfers: 0 },
-    '2024-05-01': { price: 22500, airline: 'TK', flight_number: 201, transfers: 1 },
+    '2024-03-01': { price: 350, airline: 'SU', flight_number: 101, transfers: 0 },
+    '2024-04-01': { price: 280, airline: 'SU', flight_number: 102, transfers: 0 },
+    '2024-05-01': { price: 225, airline: 'TK', flight_number: 201, transfers: 1 },
   },
 };
 
-/** Recorded response from GET /prices/cheap?origin=MOW&destination=AMS */
+/** v2/prices/latest response — prices in USD, multiple booking gates */
+const LATEST_FIXTURE = {
+  success: true,
+  data: [
+    {
+      origin: 'MOW',
+      destination: 'AMS',
+      depart_date: '2024-06-15',
+      return_date: '2024-06-22',
+      gate: 'Aviasales',
+      value: 220,
+      number_of_changes: 0,
+      found_at: '2024-06-01T12:00:00',
+    },
+    {
+      origin: 'MOW',
+      destination: 'AMS',
+      depart_date: '2024-06-17',
+      return_date: undefined,
+      gate: 'Farera',
+      value: 185,
+      number_of_changes: 1,
+      found_at: '2024-06-01T13:00:00',
+    },
+  ],
+};
+
+/** v1/prices/cheap response — keyed by dest code, entry has airline field */
 const CHEAP_FIXTURE = {
   success: true,
   data: {
-    SU: {
+    AMS: {
       '1': {
-        price: 22000,
+        price: 220,
         airline: 'SU',
         flight_number: 103,
         departure_at: '2024-06-15T09:00:00Z',
@@ -43,10 +70,8 @@ const CHEAP_FIXTURE = {
         transfers: 0,
         duration: 210,
       },
-    },
-    TK: {
-      '1': {
-        price: 18500,
+      '2': {
+        price: 185,
         airline: 'TK',
         flight_number: 301,
         departure_at: '2024-06-17T06:30:00Z',
@@ -66,6 +91,13 @@ function mockFetchOk(body: unknown): void {
     status: 200,
     json: async () => body,
   } as Response);
+}
+
+/** Returns LATEST_FIXTURE for first call, CHEAP_FIXTURE for second call */
+function mockFetchSearchSequence(): void {
+  global.fetch = jest.fn()
+    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => LATEST_FIXTURE } as Response)
+    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => CHEAP_FIXTURE } as Response);
 }
 
 function mockFetchError(status: number): void {
@@ -112,14 +144,13 @@ describe('TravelpayoutsProvider.priceTrends', () => {
     // priceCents must be integers
     points.forEach((p) => expect(Number.isInteger(p.priceCents)).toBe(true));
 
-    // Check specific conversion: 35000 RUB → 35000 * 100 RUB-cents * 0.011 = 38500 USD-cents
+    // Prices come back as USD whole dollars (currency=usd param) → ×100 for cents
     const march = points.find((p) => p.date === '2024-03-01');
     expect(march).toBeDefined();
-    expect(march!.priceCents).toBe(Math.round(35000 * 100 * 0.011)); // 38500
+    expect(march!.priceCents).toBe(35000); // $350 USD → 35000 cents
 
-    // 28000 RUB → 30800 USD-cents
     const april = points.find((p) => p.date === '2024-04-01');
-    expect(april!.priceCents).toBe(Math.round(28000 * 100 * 0.011)); // 30800
+    expect(april!.priceCents).toBe(28000); // $280 USD → 28000 cents
   });
 
   it('date field matches the key from the API response', async () => {
@@ -193,7 +224,7 @@ describe('TravelpayoutsProvider.priceTrends', () => {
 
 describe('TravelpayoutsProvider.searchFares', () => {
   it('returns NormalizedFare[] with fareType cash and USD prices', async () => {
-    mockFetchOk(CHEAP_FIXTURE);
+    mockFetchSearchSequence();
     const provider = new TravelpayoutsProvider();
     const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06', return: '2024-06' });
 
@@ -213,7 +244,7 @@ describe('TravelpayoutsProvider.searchFares', () => {
   });
 
   it('includes affiliate marker in every deeplink', async () => {
-    mockFetchOk(CHEAP_FIXTURE);
+    mockFetchSearchSequence();
     const provider = new TravelpayoutsProvider();
     const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06' });
 
@@ -225,45 +256,44 @@ describe('TravelpayoutsProvider.searchFares', () => {
     });
   });
 
-  it('converts RUB prices to USD cents correctly', async () => {
-    mockFetchOk(CHEAP_FIXTURE);
+  it('maps USD prices to cents correctly (no RUB conversion)', async () => {
+    mockFetchSearchSequence();
     const provider = new TravelpayoutsProvider();
     const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06' });
     if (!result.ok) throw new Error(result.reason);
 
-    // SU fare: 22000 RUB → 22000 * 100 * 0.011 = 24200 USD-cents
+    // v1/cheap SU fare: $220 USD → 22000 cents
     const suFare = result.data.find((f) => f.carrier === 'SU');
     expect(suFare).toBeDefined();
-    expect(suFare!.price.priceCents).toBe(Math.round(22000 * 100 * 0.011)); // 24200
+    expect(suFare!.price.priceCents).toBe(22000);
 
-    // TK fare: 18500 RUB → 18500 * 100 * 0.011 = 20350 USD-cents
+    // v1/cheap TK fare: $185 USD → 18500 cents
     const tkFare = result.data.find((f) => f.carrier === 'TK');
-    expect(tkFare!.price.priceCents).toBe(Math.round(18500 * 100 * 0.011)); // 20350
+    expect(tkFare).toBeDefined();
+    expect(tkFare!.price.priceCents).toBe(18500);
   });
 
   it('uses stops=0 when transfers field is absent', async () => {
-    const fixture = {
+    const cheapFixture = {
       success: true,
       data: {
-        SU: {
-          '1': {
-            price: 10000,
-            departure_at: '2024-07-01T10:00:00Z',
-            // no transfers field
-          },
-        },
+        AMS: { '1': { price: 100, airline: 'SU', departure_at: '2024-07-01T10:00:00Z' } },
       },
     };
-    mockFetchOk(fixture);
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, data: [] }) } as Response)
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => cheapFixture } as Response);
     const provider = new TravelpayoutsProvider();
     const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-07' });
     if (!result.ok) throw new Error(result.reason);
-    expect(result.data[0].stops).toBe(0);
+    const suFare = result.data.find((f) => f.carrier === 'SU');
+    expect(suFare).toBeDefined();
+    expect(suFare!.stops).toBe(0);
   });
 
   it('deeplink does not include marker when TP_AFFILIATE_MARKER is unset', async () => {
     delete process.env.TP_AFFILIATE_MARKER;
-    mockFetchOk(CHEAP_FIXTURE);
+    mockFetchSearchSequence();
     const provider = new TravelpayoutsProvider();
     const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06' });
     if (!result.ok) throw new Error(result.reason);
@@ -273,14 +303,15 @@ describe('TravelpayoutsProvider.searchFares', () => {
     });
   });
 
-  it('returns { ok: false, reason: ... } on HTTP error', async () => {
+  it('returns { ok: true, data: [] } when all HTTP calls fail', async () => {
     mockFetchError(429);
     const provider = new TravelpayoutsProvider();
     const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06' });
 
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error('Expected error');
-    expect(result.reason).toMatch(/429/);
+    // Multi-source fanout: individual provider HTTP errors → empty results, not { ok: false }
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected ok with empty data');
+    expect(result.data).toHaveLength(0);
   });
 
   it('returns { ok: false, reason: ... } when fetch throws', async () => {
