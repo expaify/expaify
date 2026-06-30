@@ -1,6 +1,23 @@
 import * as React from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import FlightResults from '../FlightResults';
+import type { NormalizedFare } from '@/lib/types';
+
+jest.mock('@/app/components/FlightCard', () => ({
+  __esModule: true,
+  default: () => {
+    const React = require('react') as typeof import('react');
+    return React.createElement('div', null, 'Flight card');
+  },
+}));
+
+jest.mock('@/components/baggage/BaggageFeeEstimator', () => ({
+  __esModule: true,
+  BaggageFeeEstimator: () => {
+    const React = require('react') as typeof import('react');
+    return React.createElement('div', null, 'Baggage fee estimate');
+  },
+}));
 
 function collectText(node: ReactNode): string {
   if (node === null || node === undefined || typeof node === 'boolean') return '';
@@ -40,6 +57,24 @@ const defaultProps = {
   handleAlertSubmit: jest.fn(),
 };
 
+const fare: NormalizedFare = {
+  id: 'fare-1',
+  fareType: 'cash',
+  source: 'travelpayouts',
+  carrier: 'AA',
+  origin: 'JFK',
+  destination: 'LAX',
+  depart: '2026-09-01T08:00:00.000Z',
+  return: '2026-09-08T17:00:00.000Z',
+  price: { priceCents: 25000, currency: 'USD' },
+  deeplink: 'https://example.com/book',
+  stops: 0,
+  cabin: 'economy',
+  priceScope: 'per_person',
+  passengerCount: 1,
+  fetchedAt: '2026-06-30T00:00:00.000Z',
+};
+
 describe('FlightResults', () => {
   it('surfaces provider notices and avoids presenting them as no inventory', () => {
     const text = collectText(FlightResults({
@@ -48,8 +83,8 @@ describe('FlightResults', () => {
     }));
 
     expect(text).toContain('Travelpayouts: provider temporarily unavailable');
-    expect(text).toContain('Providers unavailable');
-    expect(text).not.toContain('No flights found');
+    expect(text).toContain('Flight providers unavailable');
+    expect(text).not.toContain('No flight inventory found');
   });
 
   it('explains missing departure date context before showing an empty inventory state', () => {
@@ -58,8 +93,34 @@ describe('FlightResults', () => {
       depart: '',
     }));
 
-    expect(text).toContain('A departure date is missing');
+    expect(text).toContain('Departure date is missing');
+    expect(text).toContain('Dates needed for a complete search');
     expect(text).toContain('Add a departure date');
-    expect(text).toContain('needed before live fares can be compared reliably');
+  });
+
+  it('distinguishes filters hiding fares from no provider inventory', () => {
+    const text = collectText(FlightResults({
+      ...defaultProps,
+      flights: [fare],
+      displayFlights: [],
+      filterStops: 1,
+    }));
+
+    expect(text).toContain('Filters are hiding the available fares');
+    expect(text).toContain('Clear the stops filter');
+    expect(text).not.toContain('No flight inventory found');
+  });
+
+  it('uses restrained ranking update copy without changing result controls', () => {
+    const text = collectText(FlightResults({
+      ...defaultProps,
+      flights: [fare],
+      displayFlights: [fare],
+      rankingUpdating: true,
+    }));
+
+    expect(text).toContain('Best deal');
+    expect(text).toContain('Lowest price');
+    expect(text).toContain('Updating deal ranking as scores finish.');
   });
 });

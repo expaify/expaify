@@ -499,12 +499,22 @@ export default function Home() {
   const hotelsTabDisabled = hotels.length === 0 && ['idle', 'skipped', 'unavailable'].includes(hotelAvailability)
   const hotelUnavailableCopy =
     hotelAvailability === 'unavailable'
-      ? hotelAvailabilityMessage ?? 'Hotel availability is unavailable right now.'
+      ? hotelAvailabilityMessage ?? 'The hotel provider is unavailable right now.'
       : hotelAvailability === 'skipped'
-        ? hotelAvailabilityMessage ?? 'Enter a destination plus depart and return dates to check hotel availability.'
+        ? !dest.trim()
+          ? 'Add a destination to check hotel availability.'
+          : !depart || !returnDate || tripType !== 'roundtrip'
+            ? 'Add departure and return dates to check hotel availability.'
+            : hotelAvailabilityMessage ?? 'Hotel availability was not checked for this search.'
         : hotelAvailability === 'empty'
-          ? 'No hotels were returned for these dates.'
-          : 'Hotel availability is not ready yet.'
+          ? hotelAvailabilityMessage ?? 'No hotels were returned for these dates.'
+          : 'Hotel availability is still loading.'
+  const hotelEmptyTitle =
+    hotelAvailability === 'empty'
+      ? 'No hotel inventory found'
+      : hotelAvailability === 'unavailable'
+        ? 'Hotels unavailable'
+        : 'Hotel dates needed'
 
   if (view === 'form') {
     return (
@@ -896,7 +906,8 @@ export default function Home() {
 
             {hotelsTabDisabled && !isSearching && (
               <div className="mb-6 rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-gray-500">
-                Hotels are not available for this search. {hotelUnavailableCopy}
+                <p className="font-semibold text-gray-300">Hotels were not included.</p>
+                <p className="mt-0.5">{hotelUnavailableCopy}</p>
               </div>
             )}
 
@@ -945,12 +956,11 @@ export default function Home() {
                     ))}
                   </div>
                 ) : hotels.length === 0 ? (
-                  <div className="py-24 text-center animate-fade-in">
-                    <div className="mb-4 text-5xl">🏨</div>
-                    <p className="font-display text-lg font-bold text-gray-300">
-                      {hotelAvailability === 'empty' ? 'No hotels found' : 'Hotels unavailable'}
+                  <div className="rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-8 text-center animate-fade-in sm:px-6 sm:py-10">
+                    <p className="font-display text-base font-bold text-gray-200 sm:text-lg">
+                      {hotelEmptyTitle}
                     </p>
-                    <p className="mx-auto mt-2 max-w-xs text-sm text-gray-600">
+                    <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
                       {hotelUnavailableCopy}
                     </p>
                   </div>

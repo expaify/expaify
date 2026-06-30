@@ -55,6 +55,10 @@ function cheapestVisibleFare(fares: NormalizedFare[]): NormalizedFare | null {
   )
 }
 
+function isHotelNotice(notice: string): boolean {
+  return notice.toLowerCase().startsWith('hotels unavailable')
+}
+
 export default function FlightResults({
   flights,
   displayFlights,
@@ -80,40 +84,45 @@ export default function FlightResults({
   handleAlertSubmit,
 }: FlightResultsProps) {
   const baggageFare = cheapestVisibleFare(displayFlights)
-  const flightProviderNotices = providerNotices.filter(notice =>
-    !notice.toLowerCase().startsWith('hotels unavailable')
-  )
+  const flightProviderNotices = providerNotices.filter(notice => !isHotelNotice(notice))
   const missingDepart = !depart
   const missingRoundtripReturn = tripType === 'roundtrip' && !returnDate
-  const hasProviderUnavailable = flightProviderNotices.length > 0 && flights.length === 0
-  const emptyTitle = hasProviderUnavailable
-    ? 'Providers unavailable'
-    : missingDepart
-      ? 'Add a departure date'
-      : 'No flights found'
-  const emptyCopy = hasProviderUnavailable
-    ? 'Flight providers did not return inventory for this search. Try again in a moment or adjust the trip details.'
-    : missingDepart
-      ? 'A departure date is needed before live fares can be compared reliably.'
-      : missingRoundtripReturn
-        ? 'Add a return date for round-trip pricing, or switch to one way before searching.'
-        : filterStops !== null
-          ? 'Try changing the stops filter to see more fares.'
-          : 'Try different dates, another destination, or leave destination blank to explore.'
+  const filtersHideResults = flights.length > 0 && displayFlights.length === 0
+  const hasProviderUnavailable = flightProviderNotices.length > 0 && flights.length === 0 && !missingDepart && !missingRoundtripReturn
+  const incompleteDates = missingDepart || missingRoundtripReturn
+  const emptyTitle = incompleteDates
+    ? 'Dates needed for a complete search'
+    : filtersHideResults
+      ? 'Filters are hiding the available fares'
+      : hasProviderUnavailable
+        ? 'Flight providers unavailable'
+        : 'No flight inventory found'
+  const emptyCopy = missingDepart
+    ? 'Add a departure date so providers can return current fares and Deal Scores can be compared honestly.'
+    : missingRoundtripReturn
+      ? 'Add a return date for round-trip pricing, or switch to one way before searching again.'
+      : filtersHideResults
+        ? 'Clear the stops filter or choose All to review the fares returned for this search.'
+        : hasProviderUnavailable
+          ? 'The flight providers we could reach did not return usable inventory. Try again shortly or adjust the trip details.'
+          : 'No current fares matched this route and date combination. Try nearby dates, another destination, or search anywhere.'
 
   return (
     <>
-      {(providerNotices.length > 0 || missingDepart || missingRoundtripReturn) && (
-        <div className="mb-4 rounded-xl border border-amber-400/15 bg-amber-400/[0.04] px-4 py-3 text-sm text-amber-100/80">
+      {(flightProviderNotices.length > 0 || missingDepart || missingRoundtripReturn) && (
+        <div className="mb-4 rounded-xl border border-amber-400/20 bg-amber-400/[0.045] px-4 py-3 text-sm leading-6 text-amber-100/85">
+          <p className="text-xs font-bold uppercase tracking-wide text-amber-200/70">
+            Search notice
+          </p>
           {missingDepart && (
-            <p>A departure date is missing, so results may be incomplete.</p>
+            <p className="mt-1">Departure date is missing, so live fare coverage may be incomplete.</p>
           )}
           {missingRoundtripReturn && (
-            <p>Return date is missing for this round trip. Results may not reflect round-trip inventory.</p>
+            <p className="mt-1">Return date is missing for this round trip. Results may not reflect round-trip inventory.</p>
           )}
-          {providerNotices.length > 0 && (
-            <div className="space-y-1">
-              {providerNotices.map(notice => (
+          {flightProviderNotices.length > 0 && (
+            <div className="mt-1 space-y-1">
+              {flightProviderNotices.map(notice => (
                 <p key={notice}>{notice}</p>
               ))}
             </div>
@@ -122,40 +131,43 @@ export default function FlightResults({
       )}
 
       {flights.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs font-bold text-gray-600">Sort:</span>
-          {(['deal', 'price'] as const).map(option => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setSortBy(option)}
-              className={`btn-pill ${sortBy === option ? 'active' : ''}`}
-            >
-              {option === 'deal' ? '🏷 Best deal' : '💰 Lowest price'}
-            </button>
-          ))}
-          <span className="ml-2 mr-1 text-xs font-bold text-gray-600">Stops:</span>
-          {([null, 0, 1] as const).map(value => (
-            <button
-              key={String(value)}
-              type="button"
-              onClick={() => setFilterStops(value)}
-              className={`btn-pill ${filterStops === value ? 'active' : ''}`}
-            >
-              {value === null ? 'All' : value === 0 ? 'Nonstop' : '1 stop'}
-            </button>
-          ))}
-          <span className="ml-auto text-xs text-gray-600">
-            {displayFlights.length} result{displayFlights.length !== 1 ? 's' : ''}
-          </span>
-          {rankingUpdating && (
-            <span
-              className="w-full text-xs font-semibold text-indigo-300 sm:w-auto"
-              aria-live="polite"
-            >
-              Ranking updating after scores finish
+        <div className="mb-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-bold text-gray-600">Sort</span>
+            {(['deal', 'price'] as const).map(option => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setSortBy(option)}
+                className={`btn-pill ${sortBy === option ? 'active' : ''}`}
+              >
+                {option === 'deal' ? 'Best deal' : 'Lowest price'}
+              </button>
+            ))}
+            <span className="ml-2 mr-1 text-xs font-bold text-gray-600">Stops</span>
+            {([null, 0, 1] as const).map(value => (
+              <button
+                key={String(value)}
+                type="button"
+                onClick={() => setFilterStops(value)}
+                className={`btn-pill ${filterStops === value ? 'active' : ''}`}
+              >
+                {value === null ? 'All' : value === 0 ? 'Nonstop' : '1 stop'}
+              </button>
+            ))}
+            <span className="ml-auto text-xs text-gray-600">
+              {displayFlights.length} result{displayFlights.length !== 1 ? 's' : ''}
             </span>
-          )}
+          </div>
+          <div className="mt-2 min-h-5" aria-live="polite">
+            {rankingUpdating && (
+              <span
+                className="block text-xs font-semibold leading-5 text-indigo-300"
+              >
+                Updating deal ranking as scores finish.
+              </span>
+            )}
+          </div>
         </div>
       )}
 
@@ -175,10 +187,9 @@ export default function FlightResults({
           ))}
         </div>
       ) : displayFlights.length === 0 ? (
-        <div className="py-24 text-center animate-fade-in">
-          <div className="mb-4 text-5xl">✈️</div>
-          <p className="font-display text-lg font-bold text-gray-300">{emptyTitle}</p>
-          <p className="mx-auto mt-2 max-w-xs text-sm text-gray-600">
+        <div className="rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-8 text-center animate-fade-in sm:px-6 sm:py-10">
+          <p className="font-display text-base font-bold text-gray-200 sm:text-lg">{emptyTitle}</p>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
             {emptyCopy}
           </p>
           {suggestion && <p className="mt-2 text-xs text-gray-500">{suggestion}</p>}
