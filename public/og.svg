@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0a0f1e"/>
+  <rect x="0" y="0" width="1200" height="630" fill="url(#grad)"/>
+  <defs>
+    <radialGradient id="grad" cx="30%" cy="40%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#0a0f1e" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <text x="600" y="260" font-family="system-ui,sans-serif" font-size="96" font-weight="700" text-anchor="middle" fill="white">expaify</text>
+  <text x="600" y="340" font-family="system-ui,sans-serif" font-size="32" text-anchor="middle" fill="#9ca3af">flight deal intelligence</text>
+  <text x="600" y="400" font-family="system-ui,sans-serif" font-size="24" text-anchor="middle" fill="#6366f1">expaify.com</text>
+</svg>
