@@ -141,6 +141,26 @@ function PriceUnavailable({ reason }: { reason: string }) {
   )
 }
 
+function isSafeInternalBookingLink(source: string, deeplink: string): boolean {
+  if (source !== 'duffel') return false
+
+  try {
+    const url = new URL(deeplink, 'https://expaify.local')
+    return url.origin === 'https://expaify.local' && url.pathname === '/book'
+  } catch {
+    return false
+  }
+}
+
+function isSafeExternalProviderLink(deeplink: string): boolean {
+  try {
+    const url = new URL(deeplink.trim())
+    return url.protocol === 'https:' || url.protocol === 'http:'
+  } catch {
+    return false
+  }
+}
+
 function DealBanner({ score }: { score: DealScore }) {
   const isLowConfidence = score.confidence === 'low'
   const panelClasses = isLowConfidence
@@ -218,8 +238,8 @@ export default function FlightCard({ fare, score, loading }: Props) {
   const departTime = formatTime(fare.depart)
   const returnTime = fare.return ? formatTime(fare.return) : ''
   const hasValidPrice = isValidMoney(fare.price)
-  const isInternalBooking = fare.source === 'duffel' || fare.deeplink.startsWith('/book')
-  const hasDeeplink = fare.deeplink.trim().length > 0 && fare.deeplink !== '#'
+  const isInternalBooking = isSafeInternalBookingLink(fare.source, fare.deeplink)
+  const hasDeeplink = isInternalBooking || isSafeExternalProviderLink(fare.deeplink)
   const canOpenProvider = hasDeeplink && hasValidPrice
   const ctaLabel = !hasValidPrice
     ? 'Price unavailable'

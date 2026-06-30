@@ -66,14 +66,6 @@ export class AmadeusProvider implements FlightProvider {
     return process.env.AMADEUS_SECRET ?? process.env.AMADEUS_CLIENT_SECRET ?? '';
   }
 
-  private buildProviderSearchLink(origin: string, dest: string, depart: string): string {
-    const url = new URL('https://www.amadeus.com/en/search');
-    url.searchParams.set('from', origin);
-    url.searchParams.set('to', dest);
-    url.searchParams.set('departure', depart);
-    return url.toString();
-  }
-
   private async getToken(): Promise<Result<string>> {
     const cached = await cache.get<string>('amadeus:token');
     if (cached !== null) return { ok: true, data: cached };
@@ -231,7 +223,7 @@ export class AmadeusProvider implements FlightProvider {
           },
           passengerCount,
           priceScope: 'party_total',
-          deeplink: this.buildProviderSearchLink(originCode, destCode, depart),
+          deeplink: '',
           source: 'amadeus',
           fetchedAt,
         };

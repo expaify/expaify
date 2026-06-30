@@ -177,6 +177,31 @@ describe('Deal score presentation', () => {
     expect(text).not.toContain('$0')
   })
 
+  it('renders unsafe flight deeplinks as unavailable instead of clickable provider CTAs', () => {
+    const unsafeFare = {
+      ...fare,
+      deeplink: 'javascript:alert(1)',
+    } as NormalizedFare
+
+    const text = collectText(FlightCard({ fare: unsafeFare, score: null, loading: false }))
+
+    expect(text).toContain('Provider link unavailable')
+    expect(text).toContain('Availability cannot be verified from this result.')
+    expect(text).not.toContain('Check with travelpayouts')
+  })
+
+  it('keeps safe attributed flight deeplinks bookable', () => {
+    const attributedFare = {
+      ...fare,
+      deeplink: 'https://www.aviasales.com/search/JFK0901LAX1?marker=marker99',
+    } as NormalizedFare
+
+    const text = collectText(FlightCard({ fare: attributedFare, score: null, loading: false }))
+
+    expect(text).toContain('Check with travelpayouts')
+    expect(text).toContain('Opens provider search. Price and availability can change.')
+  })
+
   it('renders missing hotel price or deeplink as an honest unavailable state', () => {
     const unavailableHotel: HotelOffer = {
       ...hotel,

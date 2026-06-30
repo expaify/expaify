@@ -185,14 +185,7 @@ describe('AmadeusProvider.searchFares success', () => {
     });
     expect(fares[1].stops).toBe(1);
     fares.forEach((fare) => expect(Number.isInteger(fare.price.priceCents)).toBe(true));
-
-    const deeplink = new URL(fares[0].deeplink);
-    expect(deeplink.origin + deeplink.pathname).toBe('https://www.amadeus.com/en/search');
-    expect(deeplink.searchParams.get('from')).toBe('JFK');
-    expect(deeplink.searchParams.get('to')).toBe('LAX');
-    expect(deeplink.searchParams.get('departure')).toBe('2026-09-22T08:00:00');
-    expect(deeplink.searchParams.has('marker')).toBe(false);
-    expect(deeplink.searchParams.has('affiliate')).toBe(false);
+    fares.forEach((fare) => expect(fare.deeplink).toBe(''));
   });
 
   it('sets return from the final return itinerary segment for round trips', async () => {
