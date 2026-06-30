@@ -12,7 +12,8 @@ const factLabelCls = 'text-[11px] font-semibold uppercase tracking-wide text-[co
 const factValueCls = 'mt-1 text-sm font-semibold leading-5 text-[color:var(--text-1)]'
 const panelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] shadow-[var(--shadow-card)]'
 const insetPanelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)]'
-const secondaryButtonCls = 'inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-semibold text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:shadow-[var(--focus-ring)]'
+const secondaryButtonCls = 'inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-semibold text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:border-[color:var(--border-focus)] focus-visible:shadow-[var(--focus-ring)]'
+const actionStackCls = 'mt-5 flex flex-col gap-3'
 
 type BookingFlowProps = {
   bookingEnabled: boolean
@@ -120,10 +121,12 @@ function StatusPanel({
   title,
   message,
   tone = 'amber',
+  live = 'polite',
 }: {
   title: string
   message: string
   tone?: 'amber' | 'red' | 'green'
+  live?: 'polite' | 'assertive'
 }) {
   const toneClasses = {
     amber: 'border-[color:var(--border-strong)] bg-[color:var(--warning-soft)] text-[color:var(--warning)]',
@@ -132,7 +135,7 @@ function StatusPanel({
   }
 
   return (
-    <div role="status" aria-live="polite" className={`rounded-lg border p-4 sm:p-5 ${toneClasses[tone]}`}>
+    <div role={live === 'assertive' ? 'alert' : 'status'} aria-live={live} className={`rounded-lg border p-4 sm:p-5 ${toneClasses[tone]}`}>
       <div className="flex gap-3">
         <span aria-hidden="true" className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-current" />
         <div className="min-w-0">
@@ -190,27 +193,33 @@ function ReviewShell({
 function RecoveryState({
   title,
   message,
+  statusTitle = 'Booking remains review-only',
+  actionLabel = 'Back to search',
   fareContext,
   duffelSandbox,
 }: {
   title: string
   message: string
+  statusTitle?: string
+  actionLabel?: string
   fareContext: BookingFareContext | null
   duffelSandbox: boolean
 }) {
   return (
     <ReviewShell title={title} message={message} fareContext={fareContext} duffelSandbox={duffelSandbox}>
       <div className={`${panelCls} p-4 sm:p-6`}>
-        <StatusPanel title="Booking remains review-only" message={message} />
+        <StatusPanel title={statusTitle} message={message} />
         <div className={`mt-5 p-4 ${insetPanelCls}`}>
           <p className={factLabelCls}>What happens now</p>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
             This page is review-only. expaify is not collecting payment details, submitting traveler information, or creating an airline order from this fare.
           </p>
         </div>
-        <a href="/" className={`mt-5 ${secondaryButtonCls}`}>
-          Back to search
-        </a>
+        <div className={actionStackCls}>
+          <a href="/" className="btn-primary">
+            {actionLabel}
+          </a>
+        </div>
       </div>
     </ReviewShell>
   )
@@ -289,6 +298,8 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
       <RecoveryState
         title="We can't identify this fare"
         message="The booking page is missing the selected provider, route, or price. Return to search and choose a current flight result before reviewing booking options."
+        statusTitle="Fare context is missing"
+        actionLabel="Choose a current fare"
         fareContext={null}
         duffelSandbox={duffelSandbox}
       />
@@ -300,6 +311,7 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
       <RecoveryState
         title="In-app booking is paused"
         message="This fare is preserved for review. expaify is intentionally not collecting passenger details, payment information, or creating provider orders while in-app booking is paused."
+        statusTitle="Booking remains paused"
         fareContext={fareContext}
         duffelSandbox={duffelSandbox}
       />
@@ -311,6 +323,8 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
       <RecoveryState
         title="Multi-passenger review is paused"
         message={`This fare is priced for ${fareContext.passengerCount} adults, but booking review currently collects details for one passenger only. Return to search with one passenger; expaify will not create an order from incomplete traveler details.`}
+        statusTitle="One passenger is supported"
+        actionLabel="Search one passenger"
         fareContext={fareContext}
         duffelSandbox={duffelSandbox}
       />
@@ -326,10 +340,15 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
         duffelSandbox={duffelSandbox}
       >
         <div className={`${panelCls} p-4 sm:p-6`}>
-          <StatusPanel title="Booking request stopped" message={errorMsg} tone="red" />
-          <button onClick={() => setState('idle')} className={`mt-5 ${secondaryButtonCls}`}>
-            Try again
-          </button>
+          <StatusPanel title="Booking request stopped" message={errorMsg} tone="red" live="assertive" />
+          <div className={actionStackCls}>
+            <button onClick={() => setState('idle')} className="btn-primary">
+              Review details again
+            </button>
+            <a href="/" className={secondaryButtonCls}>
+              Back to search
+            </a>
+          </div>
         </div>
       </ReviewShell>
     )
@@ -342,7 +361,7 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
       fareContext={fareContext}
       duffelSandbox={duffelSandbox}
     >
-      <form onSubmit={handleSubmit} className={`${panelCls} p-4 sm:p-6`}>
+      <form onSubmit={handleSubmit} aria-busy={state === 'loading'} className={`${panelCls} p-4 sm:p-6`}>
         <div className="mb-5">
           <p className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand)]">Traveler details</p>
           <h2 className="mt-2 text-xl font-bold leading-tight text-[color:var(--text-1)]">Continue with this fare</h2>
@@ -354,6 +373,14 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
             {duffelSandbox ? 'Duffel sandbox mode is active. This is a test provider path and does not create a live airline ticket.' : 'Review fare context before creating the order.'}
           </p>
         </div>
+        {state === 'loading' && (
+          <div role="status" aria-live="polite" className={`mb-5 p-4 ${insetPanelCls}`}>
+            <p className={factLabelCls}>Submitting request</p>
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+              Keeping the selected fare visible while the provider responds.
+            </p>
+          </div>
+        )}
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -407,7 +434,7 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
               disabled={state === 'loading'}
               className="btn-primary"
             >
-              {state === 'loading' ? 'Confirming...' : duffelSandbox ? 'Confirm sandbox booking' : 'Confirm booking'}
+              {state === 'loading' ? 'Confirming request...' : duffelSandbox ? 'Confirm sandbox booking' : 'Confirm booking'}
             </button>
             <p className="mt-3 text-center text-xs leading-5 text-[color:var(--text-3)]">
               {duffelSandbox ? 'Sandbox submission only. No live ticket is issued.' : 'expaify sends these details only after you confirm.'}
