@@ -1,16 +1,16 @@
 'use client'
 
-import { FormEvent, useEffect, useRef, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { DealScore, HotelOffer, NormalizedFare } from '@/lib/types'
-import AlertSignup from './components/AlertSignup'
 import AirportInput from './components/AirportInput'
 import FlightCard from './components/FlightCard'
 import HotelCard from './components/HotelCard'
 
 type View = 'form' | 'results'
 type TripType = 'roundtrip' | 'oneway'
-type SortBy = 'price' | 'deal' | 'stops'
+type SortBy = 'price' | 'deal'
 type ActiveTab = 'flights' | 'hotels'
+type RecentSearch = { origin: string; dest: string; originDisplay: string; destDisplay: string }
 
 const destinations = [
   { label: 'London', emoji: '🎡', origin: 'JFK', dest: 'LHR', originDisplay: 'New York (JFK)', destDisplay: 'London (LHR)', tag: 'Classic' },
@@ -95,6 +95,7 @@ export default function Home() {
   const [dest, setDest] = useState('')
   const [originDisplay, setOriginDisplay] = useState('')
   const [destDisplay, setDestDisplay] = useState('')
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([])
   const [depart, setDepart] = useState('')
   const [returnDate, setReturnDate] = useState('')
   const [passengers, setPassengers] = useState(1)
@@ -107,14 +108,43 @@ export default function Home() {
   const [hotelScoreLoading, setHotelScoreLoading] = useState<Set<string>>(new Set())
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<SortBy>('price')
-  const [nonstopOnly, setNonstopOnly] = useState(false)
+  const [sortBy, setSortBy] = useState<SortBy>('deal')
+  const [filterStops, setFilterStops] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState<ActiveTab>('flights')
+  const [copied, setCopied] = useState(false)
+  const [alertEmail, setAlertEmail] = useState('')
+  const [alertSent, setAlertSent] = useState(false)
   const progressKey = useRef<number>(0)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const o = params.get('origin')
+    const d = params.get('dest')
+    const dep = params.get('depart')
+    const ret = params.get('return')
+
+    if (o) {
+      setOrigin(o)
+      setOriginDisplay(o)
+    }
+    if (d) {
+      setDest(d)
+      setDestDisplay(d)
+    }
+    if (dep) setDepart(dep)
+    if (ret) setReturnDate(ret)
+  }, [])
 
   useEffect(() => {
     if (tripType === 'oneway') setReturnDate('')
   }, [tripType])
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('expaify_recent')
+      if (stored) setRecentSearches(JSON.parse(stored) as RecentSearch[])
+    } catch {}
+  }, [])
 
   function fireScore(fare: NormalizedFare) {
     setScoreLoading(prev => new Set(prev).add(fare.id))
@@ -163,6 +193,14 @@ export default function Home() {
     if (!origin.trim()) return
 
     setIsSearching(true)
+    const entry = { origin, dest, originDisplay: originDisplay || origin, destDisplay: destDisplay || dest }
+    setRecentSearches(prev => {
+      const deduped = [entry, ...prev.filter(r => !(r.origin === entry.origin && r.dest === entry.dest))].slice(0, 5)
+      try {
+        localStorage.setItem('expaify_recent', JSON.stringify(deduped))
+      } catch {}
+      return deduped
+    })
     setError(null)
     setFlights([])
     setHotels([])
@@ -170,6 +208,8 @@ export default function Home() {
     setHotelScores({})
     setScoreLoading(new Set())
     setHotelScoreLoading(new Set())
+    setAlertEmail('')
+    setAlertSent(false)
     setView('results')
     setActiveTab('flights')
     progressKey.current += 1
@@ -233,6 +273,36 @@ export default function Home() {
     await runSearch()
   }
 
+  async function handleAlertSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!alertEmail || !origin.trim() || !dest.trim() || flights.length === 0) return
+
+    const response = await fetch('/api/alerts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: alertEmail,
+        origin: origin.trim(),
+        dest: dest.trim(),
+        thresholdCents: Math.min(...flights.map(fare => fare.price.priceCents)),
+      }),
+    })
+
+    if (response.ok) setAlertSent(true)
+  }
+
+  function handleShare() {
+    const url = new URL(window.location.href)
+    url.searchParams.set('origin', origin)
+    url.searchParams.set('dest', dest)
+    if (depart) url.searchParams.set('depart', depart)
+    if (returnDate) url.searchParams.set('return', returnDate)
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
   function handleSwap() {
     const tmpIata = origin
     const tmpDisplay = originDisplay
@@ -242,14 +312,12 @@ export default function Home() {
     setDestDisplay(tmpDisplay)
   }
 
-  const displayedFlights = flights
-    .filter(fare => !nonstopOnly || fare.stops === 0)
-    .slice()
-    .sort((a, b) => {
-      if (sortBy === 'price') return a.price.priceCents - b.price.priceCents
-      if (sortBy === 'stops') return a.stops - b.stops || a.price.priceCents - b.price.priceCents
-      return (scores[a.id]?.percentile ?? 101) - (scores[b.id]?.percentile ?? 101)
-    })
+  const displayFlights = useMemo(() => {
+    let list = [...flights]
+    if (filterStops !== null) list = list.filter(fare => fare.stops === filterStops)
+    if (sortBy === 'price') list.sort((a, b) => a.price.priceCents - b.price.priceCents)
+    return list
+  }, [flights, sortBy, filterStops])
 
   const routeLabel = [originDisplay || origin, destDisplay || dest].filter(Boolean).join(' → ')
   const greatCount = Object.values(scores).filter(score => score?.verdict === 'Great').length
@@ -453,6 +521,27 @@ export default function Home() {
             ))}
           </div>
 
+          {recentSearches.length > 0 && (
+            <div className="mt-3 flex items-center gap-2 flex-wrap animate-fade-up delay-150">
+              <span className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Recent</span>
+              {recentSearches.map(r => (
+                <button
+                  key={r.origin + r.dest}
+                  type="button"
+                  onClick={() => {
+                    setOrigin(r.origin)
+                    setDest(r.dest)
+                    setOriginDisplay(r.originDisplay)
+                    setDestDisplay(r.destDisplay)
+                  }}
+                  className="btn-pill text-xs"
+                >
+                  {r.originDisplay || r.origin} → {r.destDisplay || r.dest}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="relative mt-8 animate-fade-up delay-225">
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-[linear-gradient(to_bottom,transparent,rgba(7,9,26,0.95)_60%)]">
               <p className="mt-16 text-sm font-bold text-gray-300">Search to see real deals</p>
@@ -519,7 +608,7 @@ export default function Home() {
       </header>
 
       <div className="mx-auto max-w-6xl px-4 py-6">
-        <div className="mb-5 flex items-start justify-between gap-4 animate-fade-in">
+        <div className="mb-5 flex flex-wrap items-start gap-3 animate-fade-in">
           {isSearching ? (
             <div className="flex items-center gap-3">
               <div className="flex gap-1">
@@ -553,6 +642,26 @@ export default function Home() {
               )}
             </div>
           )}
+          <button
+            type="button"
+            onClick={handleShare}
+            className="btn-pill ml-auto flex items-center gap-1.5"
+            title="Copy link"
+          >
+            {copied ? (
+              <>
+                <span className="text-emerald-400">✓</span>
+                Copied!
+              </>
+            ) : (
+              <>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
+                </svg>
+                Share
+              </>
+            )}
+          </button>
         </div>
 
         {!error && (
@@ -586,59 +695,56 @@ export default function Home() {
 
             {activeTab === 'flights' && (
               <>
-                {(flights.length > 0 || isSearching) && (
-                  <div className="mb-5 flex flex-wrap items-center gap-2">
-                    <span className="mr-1 text-[10px] font-bold uppercase tracking-widest text-gray-600">
-                      Sort by
+                {flights.length > 0 && (
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                    <span className="mr-1 text-xs font-bold text-gray-600">Sort:</span>
+                    {(['deal', 'price'] as const).map(option => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setSortBy(option)}
+                        className={`btn-pill ${sortBy === option ? 'active' : ''}`}
+                      >
+                        {option === 'deal' ? '🏷 Best deal' : '💰 Lowest price'}
+                      </button>
+                    ))}
+                    <span className="ml-2 mr-1 text-xs font-bold text-gray-600">Stops:</span>
+                    {([null, 0, 1] as const).map(value => (
+                      <button
+                        key={String(value)}
+                        type="button"
+                        onClick={() => setFilterStops(value)}
+                        className={`btn-pill ${filterStops === value ? 'active' : ''}`}
+                      >
+                        {value === null ? 'All' : value === 0 ? 'Nonstop' : '1 stop'}
+                      </button>
+                    ))}
+                    <span className="ml-auto text-xs text-gray-600">
+                      {displayFlights.length} result{displayFlights.length !== 1 ? 's' : ''}
                     </span>
-                    {(['price', 'deal', 'stops'] as SortBy[]).map(option => {
-                      const labels: Record<SortBy, string> = {
-                        price: 'Best price',
-                        deal: 'Best deal',
-                        stops: 'Fewest stops',
-                      }
-                      return (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => setSortBy(option)}
-                          className={`btn-pill ${sortBy === option ? 'active' : ''}`}
-                        >
-                          {labels[option]}
-                        </button>
-                      )
-                    })}
-                    <div className="mx-1 h-4 w-px bg-white/8" />
-                    <button
-                      type="button"
-                      onClick={() => setNonstopOnly(value => !value)}
-                      className={`btn-pill ${nonstopOnly ? 'active' : ''}`}
-                    >
-                      ✈ Nonstop only
-                    </button>
                   </div>
                 )}
 
-                {isSearching && displayedFlights.length === 0 ? (
+                {isSearching && displayFlights.length === 0 ? (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {Array.from({ length: 6 }).map((_, index) => (
                       <FlightCard key={index} score={null} loading />
                     ))}
                   </div>
-                ) : displayedFlights.length === 0 ? (
+                ) : displayFlights.length === 0 ? (
                   <div className="py-24 text-center animate-fade-in">
                     <div className="mb-4 text-5xl">✈️</div>
                     <p className="font-display text-lg font-bold text-gray-300">No flights found</p>
                     <p className="mx-auto mt-2 max-w-xs text-sm text-gray-600">
-                      {nonstopOnly
-                        ? 'Try removing the nonstop filter to see connecting fares.'
+                      {filterStops !== null
+                        ? 'Try changing the stops filter to see more fares.'
                         : 'Try different dates, another destination, or leave destination blank to explore.'}
                     </p>
                   </div>
                 ) : (
                   <>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      {displayedFlights.map((fare, index) => (
+                      {displayFlights.map((fare, index) => (
                         <div key={fare.id} className={`animate-fade-up ${delays[Math.min(index, delays.length - 1)]}`}>
                           <FlightCard
                             fare={fare}
@@ -650,9 +756,34 @@ export default function Home() {
                       {isSearching && <FlightCard score={null} loading />}
                     </div>
 
-                    {!isSearching && dest.trim() && flights.length > 0 && (
-                      <div className="mt-8 animate-fade-up">
-                        <AlertSignup origin={origin.trim()} destination={dest.trim()} />
+                    {!isSearching && dest.trim() && flights.length >= 3 && (
+                      <div className="card mt-4 flex flex-col items-center gap-4 p-5 animate-fade-up sm:flex-row">
+                        <div className="flex-1 text-center sm:text-left">
+                          <p className="font-display font-bold text-gray-200">🔔 Track this route</p>
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            Get an email when prices drop below today&apos;s level
+                          </p>
+                        </div>
+                        {alertSent ? (
+                          <p className="text-sm font-bold text-emerald-400">✓ You&apos;re on the list</p>
+                        ) : (
+                          <form className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row" onSubmit={handleAlertSubmit}>
+                            <input
+                              type="email"
+                              required
+                              value={alertEmail}
+                              onChange={event => setAlertEmail(event.target.value)}
+                              placeholder="your@email.com"
+                              className="field-input !py-2.5 !pl-4 text-sm sm:w-48"
+                            />
+                            <button
+                              type="submit"
+                              className="btn-primary !w-auto whitespace-nowrap px-4 !py-2.5 text-sm"
+                            >
+                              Notify me
+                            </button>
+                          </form>
+                        )}
                       </div>
                     )}
                   </>

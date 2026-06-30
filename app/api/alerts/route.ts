@@ -17,7 +17,9 @@ export async function POST(request: Request) {
   let body: {
     email?: unknown;
     origin?: unknown;
+    dest?: unknown;
     destination?: unknown;
+    thresholdCents?: unknown;
     targetPrice?: unknown;
     hotelId?: unknown;
   };
@@ -27,7 +29,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { email, origin, destination, targetPrice, hotelId } = body;
+  const { email, origin, hotelId } = body;
+  const destination = body.destination ?? body.dest;
+  const targetCents =
+    typeof body.thresholdCents === 'number'
+      ? body.thresholdCents
+      : typeof body.targetPrice === 'number'
+        ? Math.round(body.targetPrice * 100)
+        : null;
 
   if (typeof email !== 'string' || !isValidEmail(email)) {
     return NextResponse.json({ error: 'Invalid email address' }, { status: 400 });
@@ -47,9 +56,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (typeof targetPrice !== 'number' || targetPrice < 50 || targetPrice > 5000) {
+  if (typeof targetCents !== 'number' || !Number.isInteger(targetCents) || targetCents < 5000 || targetCents > 500000) {
     return NextResponse.json(
-      { error: 'targetPrice must be a number between 50 and 5000' },
+      { error: 'thresholdCents must be an integer between 5000 and 500000' },
       { status: 400 },
     );
   }
@@ -60,22 +69,22 @@ export async function POST(request: Request) {
 
   const originUpper = origin.toUpperCase();
   const destUpper = destination.toUpperCase();
-  const targetCents = Math.round(targetPrice * 100);
   const hotelIdValue = typeof hotelId === 'string' ? hotelId.trim() : null;
 
   try {
     const result = await query<{ id: string }>(
-      `INSERT INTO price_alerts (email, origin, destination, target_cents, currency, hotel_id)
-       VALUES ($1, $2, $3, $4, 'USD', $5)
+      `INSERT INTO price_alerts (email, origin, destination, target_cents, currency, hotel_id, created_at)
+       VALUES ($1, $2, $3, $4, 'USD', $5, now())
        RETURNING id`,
       [email, originUpper, destUpper, targetCents, hotelIdValue],
     );
 
     const id = result.rows[0]?.id ?? '';
+    const targetDollars = Math.round(targetCents / 100);
     const message =
       hotelIdValue === null
-        ? `Alert set! We'll email you when ${originUpper}→${destUpper} drops below $${targetPrice}.`
-        : `Alert set! We'll email you when hotel ${hotelIdValue} drops below $${targetPrice}.`;
+        ? `Alert set! We'll email you when ${originUpper}→${destUpper} drops below $${targetDollars}.`
+        : `Alert set! We'll email you when hotel ${hotelIdValue} drops below $${targetDollars}.`;
 
     return NextResponse.json({
       id,
