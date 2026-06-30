@@ -112,7 +112,7 @@ describe('Deal score presentation', () => {
     expect(text).toContain(score.explanation)
   })
 
-  it('shows hotel score details, nightly price context, and a named booking link', () => {
+  it('shows hotel score details, nightly price context, and a provider handoff link', () => {
     const score: DealScore = {
       percentile: 22,
       pctVsMedian: -18,
@@ -135,7 +135,8 @@ describe('Deal score presentation', () => {
     expect(text).toContain(score.explanation)
     expect(text).toContain('$189 USD')
     expect(text).toContain('per night before taxes and fees')
-    expect(text).toContain('Book hotel')
+    expect(text).toContain('Check with HotelLook')
+    expect(text).toContain('Opens provider site. Prices can change.')
   })
 
   it('shows flight price currency and trip scope from structured money', () => {
@@ -151,6 +152,15 @@ describe('Deal score presentation', () => {
     expect(text).toContain('$450.01 USD')
     expect(text).toContain('Passenger total')
     expect(text).toContain('total trip price for 2 adults')
+  })
+
+  it('renders an explicit Deal Score unavailable state when score is not available', () => {
+    const text = collectText(FlightCard({ fare, score: null, loading: false }))
+
+    expect(text).toContain('Deal Score')
+    expect(text).toContain('Unavailable right now')
+    expect(text).toContain('could not compare this fare against route history yet')
+    expect(text).not.toContain('Loading deal score')
   })
 
   it('renders missing flight price as unavailable without a provider CTA', () => {
@@ -179,7 +189,7 @@ describe('Deal score presentation', () => {
     expect(text).toContain('Price unavailable')
     expect(text).toContain('Booking unavailable')
     expect(text).toContain('No confirmed nightly price or valid booking link was returned.')
-    expect(text).not.toContain('Book hotel')
+    expect(text).not.toContain('Check with HotelLook')
   })
 
   it('does not format invalid hotel currency as money', () => {

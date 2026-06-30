@@ -174,6 +174,26 @@ function DealBanner({ score }: { score: DealScore }) {
   )
 }
 
+function DealUnavailable() {
+  return (
+    <div
+      className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-raised)] px-3.5 py-3"
+      role="status"
+      aria-label="Deal Score unavailable for this fare right now."
+    >
+      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-2)]">
+        Deal Score
+      </p>
+      <p className="mt-0.5 text-sm font-semibold leading-5 text-[var(--text-1)]">
+        Unavailable right now
+      </p>
+      <p className="mt-1 text-xs font-medium leading-5 text-[var(--text-2)]">
+        We could not compare this fare against route history yet. The live price is still shown above.
+      </p>
+    </div>
+  )
+}
+
 export default function FlightCard({ fare, score, loading }: Props) {
   if (fare === undefined) {
     return (
@@ -305,7 +325,9 @@ export default function FlightCard({ fare, score, loading }: Props) {
           <div className="h-20 w-full rounded-[var(--radius-card)] shimmer" aria-label="Loading deal score" />
         ) : score ? (
           <DealBanner score={score} />
-        ) : null}
+        ) : (
+          <DealUnavailable />
+        )}
 
         <div className="space-y-2">
           {canOpenProvider ? (
