@@ -21,10 +21,14 @@ type BookingFlowProps = {
 }
 
 function formatMoney(cents: number, currency: string) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-  }).format(cents / 100)
+  const sign = cents < 0 ? '-' : ''
+  const absoluteCents = Math.abs(cents)
+  const whole = Math.floor(absoluteCents / 100).toLocaleString('en-US')
+  const fractional = String(absoluteCents % 100).padStart(2, '0')
+
+  if (currency === 'USD') return `${sign}$${whole}.${fractional}`
+
+  return `${currency} ${sign}${whole}.${fractional}`
 }
 
 function formatDateTime(value: string) {
@@ -60,8 +64,8 @@ function getPassengerLabel(count: number) {
 
 function getPriceBasisLabel(fareContext: BookingFareContext) {
   return fareContext.priceScope === 'party_total'
-    ? `Party total for ${getPassengerLabel(fareContext.passengerCount)}`
-    : 'Per person'
+    ? `total for ${getPassengerLabel(fareContext.passengerCount)}`
+    : 'per person'
 }
 
 function FareFact({ label, value }: { label: string; value: string }) {
