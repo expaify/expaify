@@ -12,6 +12,7 @@ interface SearchResult {
 }
 
 type View = 'form' | 'results'
+type SortBy = 'price' | 'deal' | 'stops'
 
 const popularRoutes = [
   { label: 'JFK → LAX', origin: 'JFK', dest: 'LAX' },
@@ -40,6 +41,10 @@ export default function Home() {
   const [scoreLoading, setScoreLoading] = useState<Set<string>>(new Set())
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Sort + filter state
+  const [sortBy, setSortBy] = useState<SortBy>('price')
+  const [nonstopOnly, setNonstopOnly] = useState(false)
 
   async function handleSearch(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -123,6 +128,19 @@ export default function Home() {
     setOrigin(dest)
     setDest(tmp)
   }
+
+  // ─── Compute displayed flights (filter + sort) ──────────────────────────────
+  const displayedFlights = flights
+    .filter((fare) => !nonstopOnly || fare.stops === 0)
+    .slice()
+    .sort((a, b) => {
+      if (sortBy === 'price') return a.price.priceCents - b.price.priceCents
+      if (sortBy === 'stops') return a.stops - b.stops
+      // 'deal': lower percentile = better deal; unscored fares sort last
+      const aPerc = scores[a.id]?.percentile ?? 101
+      const bPerc = scores[b.id]?.percentile ?? 101
+      return aPerc - bPerc
+    })
 
   // ─── Search form (hero) ──────────────────────────────────────────────────────
   if (view === 'form') {
@@ -305,10 +323,57 @@ export default function Home() {
             {/* Results count header */}
             {isSearching ? (
               <p className="text-sm text-gray-500 animate-pulse mb-6">Scanning deals…</p>
+            ) : nonstopOnly ? (
+              <p className="text-sm text-gray-400 mb-6">
+                Showing {displayedFlights.length} of {flights.length} flight{flights.length !== 1 ? 's' : ''}{dest.trim() ? ` to ${dest.trim()}` : ''}
+              </p>
             ) : (
               <p className="text-sm text-gray-400 mb-6">
                 Found {flights.length} flight{flights.length !== 1 ? 's' : ''}{dest.trim() ? ` to ${dest.trim()}` : ''}
               </p>
+            )}
+
+            {/* Sort + filter controls bar */}
+            {!isSearching && flights.length > 0 && (
+              <div className="bg-gray-900/60 border border-white/8 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-3 mb-6">
+                {/* Sort pills */}
+                <div className="flex items-center gap-1.5">
+                  {(['price', 'deal', 'stops'] as SortBy[]).map((option) => {
+                    const labels: Record<SortBy, string> = { price: 'Price', deal: 'Deal', stops: 'Stops' }
+                    const active = sortBy === option
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setSortBy(option)}
+                        className={`text-xs font-medium px-3 py-1 rounded-full transition-colors ${
+                          active
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-white/5 text-gray-400 hover:text-white border border-white/10'
+                        }`}
+                      >
+                        {labels[option]}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Divider */}
+                <div className="w-px h-4 bg-white/10 self-center" />
+
+                {/* Nonstop toggle */}
+                <button
+                  type="button"
+                  onClick={() => setNonstopOnly((prev) => !prev)}
+                  className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${
+                    nonstopOnly
+                      ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                      : 'bg-white/5 text-gray-400 hover:text-white border border-white/10'
+                  }`}
+                >
+                  Nonstop only
+                </button>
+              </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -325,18 +390,18 @@ export default function Home() {
                       <FlightCard key={i} loading score={null} />
                     ))}
                   </div>
-                ) : flights.length === 0 ? (
+                ) : displayedFlights.length === 0 ? (
                   <div className="rounded-2xl border border-white/8 bg-gray-900 px-4 py-10 text-center">
                     <p className="text-gray-400 text-sm font-medium">
-                      No flights found for this route.
+                      {flights.length > 0 ? 'No nonstop flights for this route.' : 'No flights found for this route.'}
                     </p>
                     <p className="text-gray-600 text-xs mt-1">
-                      Try different dates or a different destination.
+                      {flights.length > 0 ? 'Try removing the nonstop filter.' : 'Try different dates or a different destination.'}
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {flights.map((fare, index) => (
+                    {displayedFlights.map((fare, index) => (
                       <div
                         key={fare.id}
                         className={`animate-fade-up ${staggerDelays[Math.min(index, 3)]}`}
