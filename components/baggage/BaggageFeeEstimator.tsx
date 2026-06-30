@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import type { JSX } from 'react'
 import type { BaggageCabinClass, BaggageFeeEstimate } from '@/lib/baggage/types'
 
 export type BaggageFeeEstimatorProps = {
