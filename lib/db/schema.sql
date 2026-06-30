@@ -25,3 +25,18 @@ SELECT
 FROM snapshots
 WHERE fetched_at >= NOW() - INTERVAL '90 days'
 GROUP BY origin, destination;
+
+-- Price alerts — users subscribe to be emailed when a route drops below a target
+CREATE TABLE IF NOT EXISTS price_alerts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL,
+  origin TEXT NOT NULL,
+  destination TEXT NOT NULL,
+  target_cents INTEGER NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'USD',
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_checked_at TIMESTAMPTZ,
+  triggered_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS price_alerts_active_idx ON price_alerts(active) WHERE active = true;

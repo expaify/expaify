@@ -138,8 +138,7 @@ export class DuffelProvider implements FlightProvider {
             priceCents: Math.round(parseFloat(offer.total_amount) * 100),
             currency: offer.total_currency,
           },
-          // Phase 3+ will replace this with a proper Duffel booking flow
-          deeplink: `https://app.duffel.com/offers/${offer.id}`,
+          deeplink: `/book?offerId=${offer.id}`,
           source: 'duffel',
           fetchedAt,
         };
