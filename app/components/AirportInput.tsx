@@ -5,6 +5,7 @@ import type { KeyboardEvent } from 'react'
 import type { Airport } from '@/lib/airports/data'
 
 const cache = new Map<string, Airport[]>()
+type LookupState = 'idle' | 'loading' | 'settled' | 'error'
 
 interface AirportInputProps {
   id: string
@@ -27,7 +28,11 @@ export default function AirportInput({
   const [open, setOpen] = useState(false)
   const [results, setResults] = useState<Airport[]>([])
   const [highlighted, setHighlighted] = useState(0)
+  const [lookupState, setLookupState] = useState<LookupState>('idle')
   const rootRef = useRef<HTMLDivElement>(null)
+  const listboxId = `${id}-airport-listbox`
+  const statusId = `${id}-airport-status`
+  const activeOptionId = open && results[highlighted] ? `${id}-airport-option-${results[highlighted].iata}` : undefined
 
   useEffect(() => {
     setInputText(displayValue || '')
@@ -48,6 +53,7 @@ export default function AirportInput({
       setResults([])
       setOpen(false)
       setHighlighted(0)
+      setLookupState('idle')
       return
     }
 
@@ -56,21 +62,25 @@ export default function AirportInput({
       if (cached) {
         setResults(cached)
         setHighlighted(0)
-        setOpen(cached.length > 0)
+        setLookupState('settled')
+        setOpen(true)
         return
       }
 
       try {
+        setLookupState('loading')
         const res = await fetch(`/api/airports?q=${encodeURIComponent(q)}`)
         if (!res.ok) throw new Error('Airport lookup failed')
         const airports = (await res.json()) as Airport[]
         cache.set(q, airports)
         setResults(airports)
         setHighlighted(0)
-        setOpen(airports.length > 0)
+        setLookupState('settled')
+        setOpen(true)
       } catch {
         setResults([])
-        setOpen(false)
+        setLookupState('error')
+        setOpen(true)
       }
     }, 120)
 
@@ -86,11 +96,14 @@ export default function AirportInput({
 
   function handleInputChange(next: string) {
     setInputText(next)
-    setOpen(true)
+    setOpen(next.trim().length > 0)
+    setLookupState('idle')
     if (next === '') {
       onChange('', '')
-      setResults([])
+    } else {
+      onChange('', next)
     }
+    setResults([])
   }
 
   async function selectFirstMatch() {
@@ -119,6 +132,7 @@ export default function AirportInput({
   async function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Escape') {
       setOpen(false)
+      setHighlighted(0)
       return
     }
 
@@ -160,29 +174,52 @@ export default function AirportInput({
         placeholder={placeholder}
         required={required}
         autoComplete="off"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={open}
+        aria-controls={listboxId}
+        aria-activedescendant={activeOptionId}
+        aria-describedby={statusId}
         className="field-input"
       />
-      {open && results.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-72 overflow-y-auto rounded-xl border border-white/8 bg-[#111827] shadow-xl">
-          {results.map((airport, i) => (
-            <div
-              key={airport.iata}
-              onMouseDown={e => {
-                e.preventDefault()
-                select(airport)
-              }}
-              className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-white/5 ${i === highlighted ? 'bg-indigo-500/10' : ''}`}
-            >
-              <span className="w-8 flex-shrink-0 text-xs font-bold text-indigo-400">{airport.iata}</span>
-              <span className="min-w-0">
-                <span className="text-sm font-medium text-gray-200">{airport.city}</span>
-                <span className="ml-1 text-xs text-gray-500">{airport.name}</span>
-              </span>
-              <span className="ml-auto text-[10px] text-gray-600">{airport.country}</span>
-            </div>
-          ))}
+      {open && (
+        <div
+          id={listboxId}
+          role="listbox"
+          aria-label={`${placeholder} suggestions`}
+          className="absolute left-0 right-0 top-full z-50 mt-2 max-h-72 overflow-y-auto rounded-xl border border-white/8 bg-[#111827] shadow-xl"
+        >
+          {results.length > 0 ? (
+            results.map((airport, i) => (
+              <div
+                id={`${id}-airport-option-${airport.iata}`}
+                key={airport.iata}
+                role="option"
+                aria-selected={i === highlighted}
+                onMouseDown={e => {
+                  e.preventDefault()
+                  select(airport)
+                }}
+                className={`grid cursor-pointer grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-3 transition-colors hover:bg-white/5 ${i === highlighted ? 'bg-indigo-500/10' : ''}`}
+              >
+                <span className="text-xs font-bold text-indigo-400">{airport.iata}</span>
+                <span className="min-w-0 leading-tight">
+                  <span className="block break-words text-sm font-medium text-gray-200">{airport.city}</span>
+                  <span className="mt-0.5 block break-words text-xs leading-snug text-gray-500">{airport.name}</span>
+                </span>
+                <span className="text-[10px] font-semibold text-gray-600">{airport.country}</span>
+              </div>
+            ))
+          ) : lookupState === 'settled' ? (
+            <div className="px-4 py-3 text-sm text-gray-400">No matching airports found.</div>
+          ) : lookupState === 'error' ? (
+            <div className="px-4 py-3 text-sm text-gray-400">Airport lookup is unavailable.</div>
+          ) : null}
         </div>
       )}
+      <div id={statusId} role="status" aria-live="polite" className="sr-only">
+        {open && lookupState === 'settled' && results.length === 0 ? 'No matching airports found.' : ''}
+      </div>
     </div>
   )
 }
