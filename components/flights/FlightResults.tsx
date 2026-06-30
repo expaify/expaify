@@ -1,6 +1,6 @@
 'use client'
 
-import type { Dispatch, FormEvent, SetStateAction } from 'react'
+import type { Dispatch, FormEvent, ReactNode, SetStateAction } from 'react'
 import FlightCard from '@/app/components/FlightCard'
 import { AIRPORTS } from '@/lib/airports/data'
 import type { DealScore, NormalizedFare } from '@/lib/types'
@@ -59,6 +59,42 @@ function isHotelNotice(notice: string): boolean {
   return notice.toLowerCase().startsWith('hotels unavailable')
 }
 
+function FlightStatePanel({
+  eyebrow,
+  title,
+  children,
+  tone = 'default',
+}: {
+  eyebrow: string
+  title: string
+  children: ReactNode
+  tone?: 'default' | 'warning'
+}) {
+  const toneClasses = tone === 'warning'
+    ? 'border-[var(--warning)]/25 bg-[var(--warning-soft)]'
+    : 'border-[var(--border)] bg-[var(--bg-surface)]'
+  const eyebrowClasses = tone === 'warning'
+    ? 'text-[var(--warning)]'
+    : 'text-[var(--text-2)]'
+
+  return (
+    <section
+      className={`rounded-[var(--radius-card)] border px-4 py-4 shadow-[var(--shadow-card)] animate-fade-in sm:px-5 ${toneClasses}`}
+      role="status"
+    >
+      <p className={`text-[11px] font-bold uppercase tracking-wide ${eyebrowClasses}`}>
+        {eyebrow}
+      </p>
+      <h2 className="mt-1 font-display text-base font-bold leading-6 text-[var(--text-1)] sm:text-lg">
+        {title}
+      </h2>
+      <div className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-2)]">
+        {children}
+      </div>
+    </section>
+  )
+}
+
 export default function FlightResults({
   flights,
   displayFlights,
@@ -110,23 +146,26 @@ export default function FlightResults({
   return (
     <>
       {(flightProviderNotices.length > 0 || missingDepart || missingRoundtripReturn) && (
-        <div className="mb-4 rounded-[var(--radius-card)] border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-4 py-3 text-sm leading-6 text-[var(--text-2)]">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--warning)]">
-            Search notice
-          </p>
-          {missingDepart && (
-            <p className="mt-1">Departure date is missing, so live fare coverage may be incomplete.</p>
-          )}
-          {missingRoundtripReturn && (
-            <p className="mt-1">Return date is missing for this round trip. Results may not reflect round-trip inventory.</p>
-          )}
-          {flightProviderNotices.length > 0 && (
-            <div className="mt-1 space-y-1">
-              {flightProviderNotices.map(notice => (
-                <p key={notice}>{notice}</p>
-              ))}
-            </div>
-          )}
+        <div className="mb-4">
+          <FlightStatePanel
+            eyebrow="Search notice"
+            title="Provider coverage may be incomplete"
+            tone="warning"
+          >
+            {missingDepart && (
+              <p className="mt-1">Departure date is missing, so live fare coverage may be incomplete.</p>
+            )}
+            {missingRoundtripReturn && (
+              <p className="mt-1">Return date is missing for this round trip. Results may not reflect round-trip inventory.</p>
+            )}
+            {flightProviderNotices.length > 0 && (
+              <div className="mt-1 space-y-1">
+                {flightProviderNotices.map(notice => (
+                  <p key={notice}>{notice}</p>
+                ))}
+              </div>
+            )}
+          </FlightStatePanel>
         </div>
       )}
 
@@ -186,19 +225,37 @@ export default function FlightResults({
       )}
 
       {isSearching && displayFlights.length === 0 ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <FlightCard key={index} score={null} loading />
-          ))}
+        <div className="space-y-4">
+          <FlightStatePanel
+            eyebrow="Flights"
+            title="Checking live flight inventory"
+          >
+            <div className="flex items-start gap-3">
+              <span className="mt-2 flex shrink-0 gap-1" aria-hidden="true">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] dot-pulse" />
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] dot-pulse-2" />
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] dot-pulse-3" />
+              </span>
+              <p>Fare cards will appear as providers return usable prices for this route.</p>
+            </div>
+          </FlightStatePanel>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <FlightCard key={index} score={null} loading />
+            ))}
+          </div>
         </div>
       ) : displayFlights.length === 0 ? (
-        <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-8 text-center shadow-[var(--shadow-card)] animate-fade-in sm:px-6 sm:py-10" role="status">
-          <p className="font-display text-base font-bold text-[var(--text-1)] sm:text-lg">{emptyTitle}</p>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--text-2)]">
+        <FlightStatePanel
+          eyebrow="Flight results"
+          title={emptyTitle}
+          tone={hasProviderUnavailable ? 'warning' : 'default'}
+        >
+          <p>
             {emptyCopy}
           </p>
           {suggestion && <p className="mt-3 text-xs font-medium leading-5 text-[var(--text-3)]">{suggestion}</p>}
-        </div>
+        </FlightStatePanel>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
