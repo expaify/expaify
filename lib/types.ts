@@ -38,8 +38,10 @@ export interface HotelOffer {
   id: string;
   name: string;
   area: string;
+  stars: number;
   pricePerNight: Money;
   rating?: number;
+  photoUrl?: string;
   deeplink: string;
   source: string;
 }

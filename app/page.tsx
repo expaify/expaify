@@ -6,35 +6,29 @@ import FlightCard from './components/FlightCard'
 import HotelCard from './components/HotelCard'
 import AlertSignup from './components/AlertSignup'
 
-interface SearchResult {
-  flights: NormalizedFare[]
-  hotels: HotelOffer[]
-  notice?: string
-}
-
 type View = 'form' | 'results'
 type SortBy = 'price' | 'deal' | 'stops'
+type TripType = 'roundtrip' | 'oneway'
+type ActiveTab = 'flights' | 'hotels'
 
 const popularRoutes = [
-  { label: 'JFK → LAX', origin: 'JFK', dest: 'LAX' },
-  { label: 'JFK → LHR', origin: 'JFK', dest: 'LHR' },
-  { label: 'LAX → NRT', origin: 'LAX', dest: 'NRT' },
-  { label: 'ORD → LHR', origin: 'ORD', dest: 'LHR' },
-  { label: 'SFO → NRT', origin: 'SFO', dest: 'NRT' },
+  { label: 'NYC → London', origin: 'JFK', dest: 'LHR' },
+  { label: 'LA → Tokyo', origin: 'LAX', dest: 'NRT' },
+  { label: 'NYC → Miami', origin: 'JFK', dest: 'MIA' },
+  { label: 'Chicago → Paris', origin: 'ORD', dest: 'CDG' },
+  { label: 'SF → Tokyo', origin: 'SFO', dest: 'NRT' },
 ]
 
 const staggerDelays = ['', 'delay-75', 'delay-150', 'delay-225']
 
 export default function Home() {
   const [view, setView] = useState<View>('form')
-
-  // Form state
+  const [tripType, setTripType] = useState<TripType>('roundtrip')
   const [origin, setOrigin] = useState('')
   const [dest, setDest] = useState('')
   const [depart, setDepart] = useState('')
   const [returnDate, setReturnDate] = useState('')
 
-  // Results state
   const [flights, setFlights] = useState<NormalizedFare[]>([])
   const [hotels, setHotels] = useState<HotelOffer[]>([])
   const [notice, setNotice] = useState<string | undefined>(undefined)
@@ -42,16 +36,34 @@ export default function Home() {
   const [scoreLoading, setScoreLoading] = useState<Set<string>>(new Set())
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  // Sort + filter state
   const [sortBy, setSortBy] = useState<SortBy>('price')
   const [nonstopOnly, setNonstopOnly] = useState(false)
+  const [activeTab, setActiveTab] = useState<ActiveTab>('flights')
 
-  async function handleSearch(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    if (!origin.trim()) return
+  function dedup(fares: NormalizedFare[]): NormalizedFare[] {
+    const best = new Map<string, NormalizedFare>()
+    for (const f of fares) {
+      const k = `${f.carrier}:${f.origin}:${f.destination}:${f.depart.slice(0, 16)}`
+      const ex = best.get(k)
+      if (!ex || f.price.priceCents < ex.price.priceCents) best.set(k, f)
+    }
+    return Array.from(best.values()).sort((a, b) => a.price.priceCents - b.price.priceCents)
+  }
 
-    // Reset and switch to results view showing skeletons
+  function fireScore(fare: NormalizedFare) {
+    setScoreLoading(prev => new Set(prev).add(fare.id))
+    fetch('/api/score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fare }),
+    })
+      .then(r => r.ok ? r.json() as Promise<DealScore> : Promise.reject())
+      .then(score => setScores(prev => ({ ...prev, [fare.id]: score })))
+      .catch(() => {})
+      .finally(() => setScoreLoading(prev => { const n = new Set(prev); n.delete(fare.id); return n }))
+  }
+
+  async function runSearch() {
     setIsSearching(true)
     setError(null)
     setFlights([])
@@ -60,39 +72,21 @@ export default function Home() {
     setScoreLoading(new Set())
     setNotice(undefined)
     setView('results')
+    setActiveTab('flights')
 
     try {
       const params = new URLSearchParams({ origin: origin.trim() })
       if (dest.trim()) params.set('dest', dest.trim())
       if (depart) params.set('depart', depart)
-      if (returnDate) params.set('return', returnDate)
+      if (returnDate && tripType === 'roundtrip') params.set('return', returnDate)
 
       const res = await fetch(`/api/search?${params.toString()}`)
-      if (!res.ok || !res.body) throw new Error('Search request failed')
+      if (!res.ok || !res.body) throw new Error('Search failed')
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buf = ''
       const accumulated: NormalizedFare[] = []
-
-      function dedup(fares: NormalizedFare[]): NormalizedFare[] {
-        const best = new Map<string, NormalizedFare>()
-        for (const f of fares) {
-          const k = `${f.carrier}:${f.origin}:${f.destination}:${f.depart.slice(0, 16)}`
-          const ex = best.get(k)
-          if (!ex || f.price.priceCents < ex.price.priceCents) best.set(k, f)
-        }
-        return Array.from(best.values()).sort((a, b) => a.price.priceCents - b.price.priceCents)
-      }
-
-      function fireScore(fare: NormalizedFare) {
-        setScoreLoading(prev => new Set(prev).add(fare.id))
-        fetch('/api/score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fare }) })
-          .then(r => r.ok ? r.json() as Promise<DealScore> : Promise.reject())
-          .then(score => setScores(prev => ({ ...prev, [fare.id]: score })))
-          .catch(() => {})
-          .finally(() => setScoreLoading(prev => { const n = new Set(prev); n.delete(fare.id); return n }))
-      }
 
       while (true) {
         const { done, value } = await reader.read()
@@ -116,18 +110,19 @@ export default function Home() {
             } else if (msg.type === 'done') {
               setIsSearching(false)
             }
-          } catch { /* ignore malformed line */ }
+          } catch { /* skip malformed line */ }
         }
       }
     } catch {
-      setError('Something went wrong. Try again.')
+      setError('Something went wrong. Please try again.')
       setIsSearching(false)
     }
   }
 
-  function handleBack() {
-    setView('form')
-    setError(null)
+  async function handleSearch(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!origin.trim()) return
+    await runSearch()
   }
 
   function handleSwap() {
@@ -136,148 +131,146 @@ export default function Home() {
     setDest(tmp)
   }
 
-  // ─── Compute displayed flights (filter + sort) ──────────────────────────────
   const displayedFlights = flights
-    .filter((fare) => !nonstopOnly || fare.stops === 0)
+    .filter(f => !nonstopOnly || f.stops === 0)
     .slice()
     .sort((a, b) => {
       if (sortBy === 'price') return a.price.priceCents - b.price.priceCents
       if (sortBy === 'stops') return a.stops - b.stops
-      // 'deal': lower percentile = better deal; unscored fares sort last
-      const aPerc = scores[a.id]?.percentile ?? 101
-      const bPerc = scores[b.id]?.percentile ?? 101
-      return aPerc - bPerc
+      const aP = scores[a.id]?.percentile ?? 101
+      const bP = scores[b.id]?.percentile ?? 101
+      return aP - bP
     })
 
-  // ─── Search form (hero) ──────────────────────────────────────────────────────
+  // ─── Hero / Search form ──────────────────────────────────────────────────────
   if (view === 'form') {
     return (
-      <div className="relative overflow-hidden min-h-screen bg-[#0a0f1e] flex flex-col items-center justify-center px-4 py-16">
-        {/* Background glow blobs */}
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-indigo-600/20 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full bg-violet-600/15 blur-3xl pointer-events-none" />
+      <div className="relative min-h-screen bg-[#080d1a] flex flex-col items-center justify-center px-4 py-16 overflow-hidden">
+        {/* Background */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_60%_0%,rgba(99,102,241,0.15),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_100%,rgba(139,92,246,0.1),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03]" />
 
-        <div className="w-full max-w-md">
-          {/* Hero text */}
-          <div className="mb-10 text-center">
-            <p className="text-xs font-medium text-indigo-400 uppercase tracking-widest mb-5 animate-fade-up">
-              Deal intelligence
+        <div className="relative w-full max-w-xl">
+          {/* Wordmark */}
+          <div className="text-center mb-10">
+            <p className="text-[11px] font-semibold text-indigo-400 uppercase tracking-[0.2em] mb-4">
+              Deal intelligence · Flights + Hotels
             </p>
-            <h1 className="text-5xl sm:text-7xl font-bold tracking-tight leading-none mb-4 bg-gradient-to-r from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent animate-fade-up delay-75">
+            <h1 className="text-6xl sm:text-8xl font-black tracking-tighter leading-none mb-4 bg-gradient-to-br from-white via-indigo-200 to-indigo-500 bg-clip-text text-transparent">
               expaify
             </h1>
-            <p className="text-gray-300 text-base sm:text-lg font-medium mb-2 animate-fade-up delay-150">
-              Find deals worth booking.
-            </p>
-            <p className="text-gray-500 text-sm animate-fade-up delay-225">
-              Flight prices scored against 90 days of history.
+            <p className="text-gray-400 text-base sm:text-lg font-medium">
+              Flight + hotel prices ranked against 90 days of history.
             </p>
           </div>
 
           {/* Search card */}
-          <div className="bg-gray-900 border border-white/8 rounded-2xl p-6 shadow-2xl shadow-black/50">
-            <form onSubmit={handleSearch} className="space-y-4">
-              {/* Origin + Destination side-by-side with swap button */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <div className="flex-1">
-                  <label
-                    htmlFor="origin"
-                    className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5"
-                  >
-                    Origin{' '}
-                    <span className="text-red-400 normal-case tracking-normal">
-                      *
-                    </span>
+          <div className="bg-[#0e1424]/80 border border-white/10 rounded-3xl p-6 shadow-2xl shadow-black/60 backdrop-blur-md">
+            {/* Trip type */}
+            <div className="flex items-center gap-1 mb-5 bg-white/5 rounded-xl p-1">
+              {(['roundtrip', 'oneway'] as TripType[]).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTripType(t)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    tripType === t
+                      ? 'bg-indigo-600 text-white shadow'
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  {t === 'roundtrip' ? 'Round trip' : 'One way'}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleSearch} className="space-y-3">
+              {/* Origin + Swap + Destination */}
+              <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+                    From
                   </label>
                   <input
-                    id="origin"
                     type="text"
                     value={origin}
-                    onChange={(e) => setOrigin(e.target.value)}
-                    placeholder="NYC, JFK, 10001"
+                    onChange={e => setOrigin(e.target.value)}
+                    placeholder="City, airport or code"
                     required
-                    className="w-full rounded-xl bg-[#0a0f1e] border border-white/10 px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={handleSwap}
-                  aria-label="Swap origin and destination"
-                  className="rounded-xl bg-white/5 border border-white/10 px-2.5 py-3 text-gray-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0 rotate-90 sm:rotate-0"
+                  aria-label="Swap"
+                  className="mb-0.5 h-[46px] w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0 text-lg"
                 >
-                  ↔
+                  ⇄
                 </button>
-                <div className="flex-1">
-                  <label
-                    htmlFor="dest"
-                    className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5"
-                  >
-                    Destination
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+                    To
                   </label>
                   <input
-                    id="dest"
                     type="text"
                     value={dest}
-                    onChange={(e) => setDest(e.target.value)}
-                    placeholder="LAX, London, or leave blank"
-                    className="w-full rounded-xl bg-[#0a0f1e] border border-white/10 px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    onChange={e => setDest(e.target.value)}
+                    placeholder="Anywhere"
+                    className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Dates */}
+              <div className={`grid gap-3 ${tripType === 'roundtrip' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 <div>
-                  <label
-                    htmlFor="depart"
-                    className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5"
-                  >
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
                     Depart
                   </label>
                   <input
-                    id="depart"
                     type="date"
                     value={depart}
-                    onChange={(e) => setDepart(e.target.value)}
-                    className="w-full rounded-xl bg-[#0a0f1e] border border-white/10 px-4 py-3 text-sm text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    onChange={e => setDepart(e.target.value)}
+                    className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
-                <div>
-                  <label
-                    htmlFor="return"
-                    className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5"
-                  >
-                    Return
-                  </label>
-                  <input
-                    id="return"
-                    type="date"
-                    value={returnDate}
-                    onChange={(e) => setReturnDate(e.target.value)}
-                    className="w-full rounded-xl bg-[#0a0f1e] border border-white/10 px-4 py-3 text-sm text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
-                  />
-                </div>
+                {tripType === 'roundtrip' && (
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+                      Return
+                    </label>
+                    <input
+                      type="date"
+                      value={returnDate}
+                      onChange={e => setReturnDate(e.target.value)}
+                      className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    />
+                  </div>
+                )}
               </div>
 
               <button
                 type="submit"
-                className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:from-indigo-400 hover:to-indigo-500 hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all"
+                className="w-full rounded-2xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 py-4 text-sm font-bold text-white hover:opacity-90 active:opacity-80 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-[#0e1424] transition-all shadow-lg shadow-indigo-500/20"
               >
-                Search flights →
+                Search flights + hotels →
               </button>
             </form>
           </div>
 
-          {/* Quick-pick route chips */}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-gray-600">Popular:</span>
-            {popularRoutes.map((route) => (
+          {/* Popular routes */}
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-gray-600 font-medium">Popular:</span>
+            {popularRoutes.map(r => (
               <button
-                key={route.label}
+                key={r.label}
                 type="button"
-                onClick={() => { setOrigin(route.origin); setDest(route.dest) }}
-                className="text-xs px-3 py-1 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:border-indigo-500/50 hover:text-indigo-300 transition-colors cursor-pointer"
+                onClick={() => { setOrigin(r.origin); setDest(r.dest) }}
+                className="text-xs px-3 py-1.5 rounded-full border border-white/8 bg-white/4 text-gray-400 hover:border-indigo-500/50 hover:text-indigo-300 hover:bg-indigo-500/5 transition-colors"
               >
-                {route.label}
+                {r.label}
               </button>
             ))}
           </div>
@@ -287,132 +280,164 @@ export default function Home() {
   }
 
   // ─── Results view ────────────────────────────────────────────────────────────
-  return (
-    <div className="min-h-screen bg-[#0a0f1e]">
-      {/* Navbar */}
-      <nav className="sticky top-0 z-10 border-b border-white/8 bg-[#0a0f1e]/80 backdrop-blur-sm">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <span className="font-bold text-white text-lg tracking-tight">
-            expaify
-          </span>
-          <button
-            onClick={handleBack}
-            className="text-sm text-gray-400 border border-white/10 rounded-lg px-3 py-1.5 hover:border-white/20 hover:text-gray-200 transition-colors"
-          >
-            ← New<span className="hidden sm:inline"> search</span>
-          </button>
-        </div>
-      </nav>
+  const routeSummary = [origin.trim(), dest.trim()].filter(Boolean).join(' → ')
+  const greatDeals = Object.values(scores).filter(s => s?.verdict === 'Great').length
 
-      <div className="max-w-3xl mx-auto px-3 sm:px-4 py-8">
-        {/* Error banner */}
-        {error && (
-          <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 mb-6 flex items-center justify-between gap-4">
-            <p className="text-sm text-red-400">{error}</p>
+  return (
+    <div className="min-h-screen bg-[#080d1a]">
+      {/* Sticky header with inline search */}
+      <header className="sticky top-0 z-20 border-b border-white/8 bg-[#080d1a]/90 backdrop-blur-md">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <div className="flex items-center gap-4">
             <button
-              onClick={handleBack}
-              className="text-sm font-medium text-red-400 hover:text-red-300 underline flex-shrink-0"
+              onClick={() => setView('form')}
+              className="font-black text-xl text-white tracking-tighter flex-shrink-0 hover:text-indigo-400 transition-colors"
+            >
+              expaify
+            </button>
+
+            {/* Compact search recap — click to go back */}
+            <button
+              onClick={() => setView('form')}
+              className="flex-1 flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-left hover:border-indigo-500/40 hover:bg-white/8 transition-all group"
+            >
+              <span className="text-sm font-semibold text-gray-200 truncate">{routeSummary || 'Anywhere'}</span>
+              {depart && (
+                <>
+                  <span className="text-white/20 flex-shrink-0">·</span>
+                  <span className="text-sm text-gray-400 flex-shrink-0">{depart}{returnDate && tripType === 'roundtrip' ? ` – ${returnDate}` : ''}</span>
+                </>
+              )}
+              <span className="ml-auto text-xs text-gray-600 group-hover:text-gray-400 transition-colors flex-shrink-0">Edit ✎</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        {/* Status bar */}
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            {isSearching ? (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                <p className="text-sm text-gray-400">Scanning deals across providers…</p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm font-semibold text-gray-200">
+                  {flights.length > 0 ? `${flights.length} flights found` : 'No flights found'}
+                  {dest.trim() ? ` · ${routeSummary}` : ''}
+                </p>
+                {greatDeals > 0 && (
+                  <p className="text-xs text-emerald-400 mt-0.5">🔥 {greatDeals} great deal{greatDeals !== 1 ? 's' : ''} below average</p>
+                )}
+              </div>
+            )}
+          </div>
+          {error && (
+            <button
+              onClick={runSearch}
+              className="text-xs font-medium text-indigo-400 border border-indigo-500/30 rounded-lg px-3 py-1.5 hover:bg-indigo-500/10 transition-colors"
             >
               Retry
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Notice banner */}
-        {notice && !error && (
-          <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 mb-6">
-            <p className="text-sm text-indigo-300">{notice}</p>
+        {error && (
+          <div className="rounded-xl border border-red-500/20 bg-red-500/8 px-4 py-3 mb-6">
+            <p className="text-sm text-red-400">{error}</p>
           </div>
         )}
 
         {!error && (
           <>
-            {/* Results count header */}
-            {isSearching ? (
-              <p className="text-sm text-gray-500 animate-pulse mb-6">Scanning deals…</p>
-            ) : nonstopOnly ? (
-              <p className="text-sm text-gray-400 mb-6">
-                Showing {displayedFlights.length} of {flights.length} flight{flights.length !== 1 ? 's' : ''}{dest.trim() ? ` to ${dest.trim()}` : ''}
-              </p>
-            ) : (
-              <p className="text-sm text-gray-400 mb-6">
-                Found {flights.length} flight{flights.length !== 1 ? 's' : ''}{dest.trim() ? ` to ${dest.trim()}` : ''}
-              </p>
-            )}
+            {/* Tabs */}
+            <div className="flex items-center gap-1 border-b border-white/8 mb-6">
+              {(['flights', 'hotels'] as ActiveTab[]).map(tab => {
+                const count = tab === 'flights' ? flights.length : hotels.length
+                const active = activeTab === tab
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`relative px-5 py-3 text-sm font-semibold capitalize transition-colors ${
+                      active ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+                    }`}
+                  >
+                    {tab}
+                    {count > 0 && (
+                      <span className={`ml-2 text-[11px] px-1.5 py-0.5 rounded-full font-medium ${
+                        active ? 'bg-indigo-500/20 text-indigo-400' : 'bg-white/5 text-gray-500'
+                      }`}>
+                        {count}
+                      </span>
+                    )}
+                    {active && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-t" />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
 
-            {/* Sort + filter controls bar */}
-            {!isSearching && flights.length > 0 && (
-              <div className="bg-gray-900/60 border border-white/8 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-2 mb-6">
-                {/* Sort pills */}
-                <div className="flex items-center gap-1.5">
-                  {(['price', 'deal', 'stops'] as SortBy[]).map((option) => {
-                    const labels: Record<SortBy, string> = { price: 'Price', deal: 'Deal', stops: 'Stops' }
-                    const active = sortBy === option
-                    return (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => setSortBy(option)}
-                        className={`text-xs font-medium px-3 py-1 rounded-full transition-colors ${
-                          active
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-white/5 text-gray-400 hover:text-white border border-white/10'
-                        }`}
-                      >
-                        {labels[option]}
-                      </button>
-                    )
-                  })}
-                </div>
+            {/* ─── Flights tab ─────────────────────────────────────────────────── */}
+            {activeTab === 'flights' && (
+              <>
+                {/* Sort + filter bar */}
+                {(flights.length > 0 || isSearching) && (
+                  <div className="flex flex-wrap items-center gap-2 mb-5">
+                    <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider mr-1">Sort</span>
+                    {(['price', 'deal', 'stops'] as SortBy[]).map(opt => {
+                      const labels: Record<SortBy, string> = { price: 'Best price', deal: 'Best deal', stops: 'Fewest stops' }
+                      const active = sortBy === opt
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => setSortBy(opt)}
+                          className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${
+                            active
+                              ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
+                              : 'bg-white/5 text-gray-400 hover:text-white border border-white/8 hover:border-white/20'
+                          }`}
+                        >
+                          {labels[opt]}
+                        </button>
+                      )
+                    })}
+                    <div className="w-px h-4 bg-white/10 self-center mx-1" />
+                    <button
+                      onClick={() => setNonstopOnly(p => !p)}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                        nonstopOnly
+                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                          : 'bg-white/5 text-gray-400 hover:text-white border-white/8 hover:border-white/20'
+                      }`}
+                    >
+                      ✈ Nonstop only
+                    </button>
+                  </div>
+                )}
 
-                {/* Divider */}
-                <div className="w-px h-4 bg-white/10 self-center" />
-
-                {/* Nonstop toggle */}
-                <button
-                  type="button"
-                  onClick={() => setNonstopOnly((prev) => !prev)}
-                  className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${
-                    nonstopOnly
-                      ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                      : 'bg-white/5 text-gray-400 hover:text-white border border-white/10'
-                  }`}
-                >
-                  Nonstop only
-                </button>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Flights section */}
-              <section>
-                <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">
-                  Flights
-                </h2>
-
-                {isSearching ? (
-                  <div className="space-y-3">
-                    <p className="text-xs text-gray-500 animate-pulse mb-3">Scanning deals across providers…</p>
-                    {Array.from({ length: 3 }).map((_, i) => (
+                {isSearching && displayedFlights.length === 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
                       <FlightCard key={i} loading score={null} />
                     ))}
                   </div>
                 ) : displayedFlights.length === 0 ? (
-                  <div className="rounded-2xl border border-white/8 bg-gray-900 px-4 py-10 text-center">
-                    <p className="text-gray-400 text-sm font-medium">
-                      {flights.length > 0 ? 'No nonstop flights for this route.' : 'No flights found for this route.'}
-                    </p>
-                    <p className="text-gray-600 text-xs mt-1">
-                      {flights.length > 0 ? 'Try removing the nonstop filter.' : 'Try different dates or a different destination.'}
+                  <div className="text-center py-20">
+                    <p className="text-4xl mb-4">✈️</p>
+                    <p className="text-gray-300 font-semibold">No flights found</p>
+                    <p className="text-gray-600 text-sm mt-1">
+                      {nonstopOnly ? 'Try removing the nonstop filter.' : 'Try different dates or destination.'}
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {displayedFlights.map((fare, index) => (
-                      <div
-                        key={fare.id}
-                        className={`animate-fade-up ${staggerDelays[Math.min(index, 3)]}`}
-                      >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {displayedFlights.map((fare, i) => (
+                      <div key={fare.id} className={`animate-fade-up ${staggerDelays[Math.min(i, 3)]}`}>
                         <FlightCard
                           fare={fare}
                           score={scores[fare.id] ?? null}
@@ -420,68 +445,69 @@ export default function Home() {
                         />
                       </div>
                     ))}
+                    {isSearching && (
+                      <FlightCard loading score={null} />
+                    )}
                   </div>
                 )}
-              </section>
 
-              {/* Price alert signup */}
-              {dest.trim() && !isSearching && (
-                <section className="md:col-span-2">
-                  <AlertSignup origin={origin.trim()} destination={dest.trim()} />
-                </section>
-              )}
+                {/* Price alert */}
+                {dest.trim() && !isSearching && flights.length > 0 && (
+                  <div className="mt-8">
+                    <AlertSignup origin={origin.trim()} destination={dest.trim()} />
+                  </div>
+                )}
+              </>
+            )}
 
-              {/* Hotels section */}
-              <section>
-                <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">
-                  Hotels
-                </h2>
-
-                {isSearching ? (
-                  <div className="space-y-3">
-                    {Array.from({ length: 2 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="rounded-2xl border border-white/8 bg-gray-900 p-5 space-y-3 animate-pulse"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="space-y-2 flex-1">
-                            <div className="h-4 w-40 bg-white/10 rounded" />
-                            <div className="h-3 w-24 bg-white/5 rounded" />
-                            <div className="h-3 w-20 bg-white/5 rounded" />
+            {/* ─── Hotels tab ──────────────────────────────────────────────────── */}
+            {activeTab === 'hotels' && (
+              <>
+                {isSearching && hotels.length === 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="rounded-2xl border border-white/8 bg-[#111827] p-5 animate-pulse">
+                        <div className="h-36 bg-white/5 rounded-xl mb-4" />
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="flex-1 space-y-2">
+                            <div className="h-4 bg-white/10 rounded w-3/4" />
+                            <div className="h-3 bg-white/5 rounded w-1/2" />
                           </div>
-                          <div className="space-y-1.5 flex-shrink-0">
-                            <div className="h-7 w-20 bg-white/10 rounded" />
-                            <div className="h-3 w-12 bg-white/5 rounded" />
-                          </div>
+                          <div className="h-9 w-12 bg-white/10 rounded-lg" />
                         </div>
-                        <div className="h-px w-full bg-white/5" />
-                        <div className="flex justify-end">
-                          <div className="h-6 w-14 bg-white/10 rounded-full" />
+                        <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-end">
+                          <div className="space-y-1">
+                            <div className="h-6 w-16 bg-white/10 rounded" />
+                            <div className="h-3 w-14 bg-white/5 rounded" />
+                          </div>
+                          <div className="h-9 w-28 bg-white/10 rounded-xl" />
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : hotels.length === 0 ? (
-                  <div className="rounded-2xl border border-white/8 bg-gray-900 px-4 py-10 text-center">
-                    <p className="text-gray-500 text-sm">
-                      No hotels found — hotels search requires a destination.
+                  <div className="text-center py-20">
+                    <p className="text-4xl mb-4">🏨</p>
+                    <p className="text-gray-300 font-semibold">No hotels found</p>
+                    <p className="text-gray-600 text-sm mt-1">
+                      {!dest.trim()
+                        ? 'Enter a destination to see hotels.'
+                        : !returnDate
+                        ? 'Add a return date to see hotels.'
+                        : 'No hotels available for these dates.'}
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {hotels.map((hotel, index) => (
-                      <div
-                        key={hotel.id}
-                        className={`animate-fade-up ${staggerDelays[Math.min(index, 3)]}`}
-                      >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {hotels.map((hotel, i) => (
+                      <div key={hotel.id} className={`animate-fade-up ${staggerDelays[Math.min(i, 3)]}`}>
                         <HotelCard hotel={hotel} />
                       </div>
                     ))}
                   </div>
                 )}
-              </section>
-            </div>
+              </>
+            )}
           </>
         )}
       </div>
