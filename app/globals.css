@@ -223,6 +223,10 @@ button:disabled,
 .btn-primary:focus-visible { box-shadow: var(--shadow-btn), var(--focus-ring); }
 .btn-primary:active:not(:disabled) { transform: scale(0.99); }
 .btn-primary:disabled { opacity: 0.52; cursor: not-allowed; box-shadow: none; }
+.btn-primary-responsive { width: 100%; }
+@media (min-width: 640px) {
+  .btn-primary-responsive { width: auto; }
+}
 
 .btn-pill {
   display: inline-flex;
