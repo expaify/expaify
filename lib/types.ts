@@ -46,6 +46,8 @@ export interface HotelOffer {
   source: string;
 }
 
+export type NormalizedHotelOffer = HotelOffer;
+
 export interface FlightProvider {
   searchFares(
     origin: string,

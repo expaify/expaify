@@ -14,6 +14,20 @@ CREATE TABLE IF NOT EXISTS snapshots (
 CREATE INDEX IF NOT EXISTS idx_snapshots_route
   ON snapshots (origin, destination, date DESC);
 
+-- Hotel price snapshots written by the nightly job
+CREATE TABLE IF NOT EXISTS hotel_snapshots (
+  id BIGSERIAL PRIMARY KEY,
+  hotel_id TEXT NOT NULL,
+  date DATE NOT NULL,
+  price_per_night_cents INTEGER NOT NULL,
+  currency CHAR(3) NOT NULL DEFAULT 'USD',
+  fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT hotel_snapshots_unique UNIQUE (hotel_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_hotel_snapshots_hotel
+  ON hotel_snapshots (hotel_id, date DESC);
+
 -- Convenience view: route baselines (used by scoreDeal)
 CREATE OR REPLACE VIEW route_baseline AS
 SELECT

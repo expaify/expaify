@@ -100,7 +100,9 @@ export default function Home() {
   const [flights, setFlights] = useState<NormalizedFare[]>([])
   const [hotels, setHotels] = useState<HotelOffer[]>([])
   const [scores, setScores] = useState<Record<string, DealScore | null>>({})
+  const [hotelScores, setHotelScores] = useState<Record<string, DealScore | null>>({})
   const [scoreLoading, setScoreLoading] = useState<Set<string>>(new Set())
+  const [hotelScoreLoading, setHotelScoreLoading] = useState<Set<string>>(new Set())
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<SortBy>('price')
@@ -133,6 +135,29 @@ export default function Home() {
       })
   }
 
+  function fireHotelScore(hotel: HotelOffer) {
+    setHotelScoreLoading(prev => new Set(prev).add(hotel.id))
+
+    const params = new URLSearchParams({
+      type: 'hotel',
+      hotelId: hotel.id,
+      pricePerNightCents: String(hotel.pricePerNight.priceCents),
+      currency: hotel.pricePerNight.currency,
+    })
+
+    fetch(`/api/score?${params.toString()}`)
+      .then(response => response.ok ? response.json() as Promise<DealScore> : Promise.reject())
+      .then(score => setHotelScores(prev => ({ ...prev, [hotel.id]: score })))
+      .catch(() => setHotelScores(prev => ({ ...prev, [hotel.id]: null })))
+      .finally(() => {
+        setHotelScoreLoading(prev => {
+          const next = new Set(prev)
+          next.delete(hotel.id)
+          return next
+        })
+      })
+  }
+
   async function runSearch() {
     if (!origin.trim()) return
 
@@ -141,7 +166,9 @@ export default function Home() {
     setFlights([])
     setHotels([])
     setScores({})
+    setHotelScores({})
     setScoreLoading(new Set())
+    setHotelScoreLoading(new Set())
     setView('results')
     setActiveTab('flights')
     progressKey.current += 1
@@ -178,7 +205,9 @@ export default function Home() {
             setFlights(dedup(accumulated))
             newFares.forEach(fireScore)
           } else if (message.type === 'hotels' && Array.isArray(message.data)) {
-            setHotels(message.data as HotelOffer[])
+            const newHotels = message.data as HotelOffer[]
+            setHotels(newHotels)
+            newHotels.forEach(fireHotelScore)
           } else if (message.type === 'done') {
             setIsSearching(false)
           }
@@ -588,7 +617,11 @@ export default function Home() {
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {hotels.map((hotel, index) => (
                       <div key={hotel.id} className={`animate-fade-up ${delays[Math.min(index, delays.length - 1)]}`}>
-                        <HotelCard hotel={hotel} />
+                        <HotelCard
+                          hotel={hotel}
+                          score={hotelScores[hotel.id] ?? null}
+                          loading={hotelScoreLoading.has(hotel.id)}
+                        />
                       </div>
                     ))}
                   </div>

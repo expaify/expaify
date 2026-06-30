@@ -1,7 +1,8 @@
 import { GOLDEN_ROUTES } from './golden-routes';
 import { travelpayouts } from '../lib/providers/travelpayouts';
+import { hotellook } from '../lib/providers/hotellook';
 import { query } from '../lib/db/client';
-import type { PricePoint } from '../lib/types';
+import type { HotelOffer, PricePoint } from '../lib/types';
 
 async function insertSnapshots(
   origin: string,
@@ -24,6 +25,80 @@ async function insertSnapshots(
   }
 
   return inserted;
+}
+
+function daysFromNow(days: number): string {
+  return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+}
+
+function isValidHotelSnapshot(hotel: HotelOffer): boolean {
+  const hotelId = hotel.id.trim();
+  const priceCents = hotel.pricePerNight.priceCents;
+  const currency = hotel.pricePerNight.currency.trim();
+
+  return (
+    hotelId.length > 0 &&
+    Number.isInteger(priceCents) &&
+    priceCents > 0 &&
+    /^[A-Z]{3}$/.test(currency)
+  );
+}
+
+async function insertHotelSnapshots(hotels: HotelOffer[], date: string): Promise<number> {
+  let inserted = 0;
+
+  for (const hotel of hotels) {
+    if (!isValidHotelSnapshot(hotel)) continue;
+
+    const result = await query(
+      `INSERT INTO hotel_snapshots (hotel_id, date, price_per_night_cents, currency)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT ON CONSTRAINT hotel_snapshots_unique DO NOTHING`,
+      [
+        hotel.id.trim(),
+        date,
+        hotel.pricePerNight.priceCents,
+        hotel.pricePerNight.currency.trim(),
+      ]
+    );
+    inserted += result.rowCount ?? 0;
+  }
+
+  return inserted;
+}
+
+async function snapshotTopHotels(): Promise<void> {
+  const checkin = daysFromNow(7);
+  const checkout = daysFromNow(8);
+
+  try {
+    const { rows } = await query<{ destination: string }>(
+      `SELECT destination
+       FROM searched_routes
+       GROUP BY destination
+       ORDER BY SUM(search_count) DESC
+       LIMIT 50`
+    );
+
+    for (const { destination } of rows) {
+      const label = `hotels:${destination}`;
+
+      try {
+        const result = await hotellook.searchHotels(destination, { checkin, checkout });
+        if (!result.ok) {
+          console.error(`[${label}] ${result.reason}`);
+          continue;
+        }
+
+        const n = await insertHotelSnapshots(result.data, checkin);
+        console.log(`[${label}] inserted ${n} rows`);
+      } catch (err) {
+        console.error(`[${label}] ${err instanceof Error ? err.message : err}`);
+      }
+    }
+  } catch (err) {
+    console.error('[snapshot] Failed to fetch top hotel destinations:', err);
+  }
 }
 
 async function main(): Promise<void> {
@@ -69,6 +144,8 @@ async function main(): Promise<void> {
   } catch (err) {
     console.error('[snapshot] Failed to fetch searched_routes:', err);
   }
+
+  await snapshotTopHotels();
 
   process.exit(0);
 }

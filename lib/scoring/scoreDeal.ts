@@ -1,4 +1,9 @@
-import type { DealScore, NormalizedFare, PricePoint } from '../types';
+import type {
+  DealScore,
+  NormalizedFare,
+  NormalizedHotelOffer,
+  PricePoint,
+} from '../types';
 
 /**
  * Score a flight (or hotel) fare against historical price data.
@@ -14,12 +19,43 @@ import type { DealScore, NormalizedFare, PricePoint } from '../types';
  * MVP assumption: history is already in the same currency as the fare (USD).
  * Multi-currency conversion will be wired in via lib/fx when available.
  */
+type ScoreableOffer = NormalizedFare | NormalizedHotelOffer;
+type ScoreContext = 'route' | 'hotel';
+
+function getCurrentPrice(offer: ScoreableOffer) {
+  if ('pricePerNight' in offer) {
+    return {
+      currentCents: offer.pricePerNight.priceCents,
+      currency: offer.pricePerNight.currency,
+      context: 'hotel' as const,
+    };
+  }
+
+  return {
+    currentCents: offer.price.priceCents,
+    currency: offer.price.currency,
+    context: 'route' as const,
+  };
+}
+
+function historyLabel(context: ScoreContext) {
+  return context === 'hotel' ? 'hotel' : 'route';
+}
+
 export function scoreDeal(
   currentFare: NormalizedFare,
   history: PricePoint[],
+): DealScore;
+export function scoreDeal(
+  currentHotel: NormalizedHotelOffer,
+  history: PricePoint[],
+): DealScore;
+export function scoreDeal(
+  currentOffer: ScoreableOffer,
+  history: PricePoint[],
 ): DealScore {
-  const currentCents = currentFare.price.priceCents;
-  const currency = currentFare.price.currency;
+  const { currentCents, currency, context } = getCurrentPrice(currentOffer);
+  const label = historyLabel(context);
 
   // NOTE: Award fares score differently (miles vs cash, redemption value, etc.).
   // When fareType === 'award', branch here into scoreAwardDeal() — not yet implemented.
@@ -33,7 +69,7 @@ export function scoreDeal(
       currency,
       verdict: 'Typical',
       confidence: 'low',
-      explanation: 'No price history available for this route.',
+      explanation: `No price history available for this ${label}.`,
     };
   }
 
@@ -86,11 +122,11 @@ export function scoreDeal(
 
   let explanation: string;
   if (pctVsMedian < -0.5) {
-    explanation = `$${currentDollars} — about ${absPct}% below the usual $${medianDollars} for this route over the last 90 days.`;
+    explanation = `$${currentDollars} — about ${absPct}% below the usual $${medianDollars} for this ${label} over the last 90 days.`;
   } else if (pctVsMedian > 0.5) {
-    explanation = `$${currentDollars} — about ${absPct}% above the usual $${medianDollars} for this route over the last 90 days.`;
+    explanation = `$${currentDollars} — about ${absPct}% above the usual $${medianDollars} for this ${label} over the last 90 days.`;
   } else {
-    explanation = `$${currentDollars} — right at the typical price of $${medianDollars} for this route over the last 90 days.`;
+    explanation = `$${currentDollars} — right at the typical price of $${medianDollars} for this ${label} over the last 90 days.`;
   }
 
   return {

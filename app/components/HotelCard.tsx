@@ -1,8 +1,13 @@
 'use client'
 
-import { HotelOffer } from '@/lib/types'
+import { DealScore, HotelOffer } from '@/lib/types'
+import DealBadge from './DealBadge'
 
-type Props = { hotel: HotelOffer }
+type Props = {
+  hotel: HotelOffer
+  score?: DealScore | null
+  loading?: boolean
+}
 
 function StarRow({ stars }: { stars: number }) {
   const filled = Math.max(0, Math.min(5, Math.round(stars)))
@@ -59,7 +64,7 @@ function Price({ cents }: { cents: number }) {
   )
 }
 
-export default function HotelCard({ hotel }: Props) {
+export default function HotelCard({ hotel, score = null, loading = false }: Props) {
   return (
     <div className="card rounded-2xl overflow-hidden flex flex-col">
       {hotel.photoUrl ? (
@@ -91,6 +96,14 @@ export default function HotelCard({ hotel }: Props) {
         <h3 className="font-display line-clamp-2 text-sm font-bold leading-snug text-gray-100">
           {hotel.name}
         </h3>
+
+        {loading ? (
+          <div className="mt-3 h-6 w-24 rounded-full shimmer" />
+        ) : score ? (
+          <div className="mt-3">
+            <DealBadge verdict={score.verdict} confidence={score.confidence} />
+          </div>
+        ) : null}
 
         {hotel.area && (
           <div className="mt-1.5 flex items-center gap-1">
