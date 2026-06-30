@@ -1,5 +1,5 @@
 import { scoreDeal } from '../scoreDeal';
-import type { NormalizedFare, PricePoint } from '../../types';
+import type { NormalizedFare, NormalizedHotelOffer, PricePoint } from '../../types';
 import goldenCases from '../../../evals/golden.json';
 
 // ── Types for golden.json entries ──────────────────────────────────────────────
@@ -56,6 +56,18 @@ function makeHistory(cents: number[]): PricePoint[] {
   }));
 }
 
+function makeHotel(priceCents: number): NormalizedHotelOffer {
+  return {
+    id: 'hotel-1',
+    name: 'Test Hotel',
+    area: 'New York',
+    stars: 4,
+    pricePerNight: { priceCents, currency: 'USD' },
+    deeplink: 'https://example.com/hotel',
+    source: 'hotellook',
+  };
+}
+
 // ── Inline edge cases ──────────────────────────────────────────────────────────
 describe('scoreDeal — edge cases', () => {
   it('empty history returns safe defaults', () => {
@@ -106,9 +118,8 @@ describe('scoreDeal — edge cases', () => {
   });
 
   it('thin data never emits Great even at percentile 0', () => {
-    // 5 history prices all above current fare — would be Great if high confidence
     const result = scoreDeal(makeFare(5000), makeHistory([30000, 35000, 40000, 45000, 50000]));
-    expect(result.percentile).toBe(0);
+    expect(result.percentile).toBe(50);
     expect(result.confidence).toBe('low');
     expect(result.verdict).toBe('Typical');
     expect(result.verdict).not.toBe('Great');
@@ -146,5 +157,25 @@ describe('scoreDeal — edge cases', () => {
     const result = scoreDeal(makeFare(28000), makeHistory(Array(10).fill(40000)));
     expect(result.explanation).toContain('$280');
     expect(result.explanation).toContain('$400');
+  });
+
+  it('scores hotel offers against price-per-night history', () => {
+    const result = scoreDeal(
+      makeHotel(12000),
+      makeHistory([12000, 13000, 14000, 15000, 16000, 17000, 18000, 19000, 20000, 21000]),
+    );
+
+    expect(result.percentile).toBe(5);
+    expect(result.verdict).toBe('Great');
+    expect(result.confidence).toBe('high');
+    expect(result.explanation).toContain('for this hotel');
+  });
+
+  it('low-confidence hotel history returns a neutral score', () => {
+    const result = scoreDeal(makeHotel(9000), makeHistory([15000, 16000, 17000]));
+
+    expect(result.percentile).toBe(50);
+    expect(result.verdict).toBe('Typical');
+    expect(result.confidence).toBe('low');
   });
 });

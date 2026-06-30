@@ -93,7 +93,8 @@ export function scoreDeal(
     if (p < currentCents) countBelow++;
     else if (p === currentCents) countEqual++;
   }
-  const percentile = ((countBelow + 0.5 * countEqual) / n) * 100;
+  const rawPercentile = ((countBelow + 0.5 * countEqual) / n) * 100;
+  const percentile = confidence === 'low' ? 50 : rawPercentile;
 
   // ── % vs median ────────────────────────────────────────────────────────────
   const pctVsMedian =
