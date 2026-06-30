@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server';
 import { resolveToIATA } from '../../../lib/airports/resolve';
+import { getNearby } from '../../../lib/airports/nearby';
 import { travelpayouts } from '../../../lib/providers/travelpayouts';
 import { duffel } from '../../../lib/providers/duffel';
 import { amadeus } from '../../../lib/providers/amadeus';
@@ -32,7 +33,7 @@ function dedupFares(fares: NormalizedFare[]): NormalizedFare[] {
  * GET /api/search
  *
  * Streams results as newline-delimited JSON (NDJSON).
- * Each line: { type: 'flights'|'hotels'|'notice'|'done', ... }
+ * Each line: { type: 'flights'|'hotels'|'notice'|'suggestion'|'done', ... }
  * Providers are raced — first to return streams immediately.
  */
 export async function GET(request: NextRequest) {
@@ -73,6 +74,12 @@ export async function GET(request: NextRequest) {
     async start(controller) {
       const send = (obj: object) =>
         controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
+      let flightResultCount = 0;
+
+      const sendFlights = (source: string, data: NormalizedFare[]) => {
+        flightResultCount += data.length;
+        send({ type: 'flights', source, data });
+      };
 
       // Enroll route in snapshot pipeline — fire-and-forget, never blocks response
       if (originIATA && destIATA) {
@@ -101,7 +108,8 @@ export async function GET(request: NextRequest) {
             const fares = settled.flatMap(result =>
               result.status === 'fulfilled' && result.value.ok ? result.value.data : []
             );
-            if (fares.length > 0) send({ type: 'flights', source: 'travelpayouts', data: dedupFares(fares) });
+            const dedupedFares = dedupFares(fares);
+            if (dedupedFares.length > 0) sendFlights('travelpayouts', dedupedFares);
 
             const firstFailure = settled.find(result =>
               result.status === 'fulfilled' && !result.value.ok
@@ -113,20 +121,25 @@ export async function GET(request: NextRequest) {
           }
 
           const r = await travelpayouts.searchFares(originIATA, destIATA ?? '', range);
-          if (r.ok && r.data.length > 0) send({ type: 'flights', source: 'travelpayouts', data: r.data });
+          if (r.ok && r.data.length > 0) sendFlights('travelpayouts', r.data);
           else if (!r.ok) send({ type: 'notice', message: `Travelpayouts: ${r.reason}` });
         })(),
         duffel.searchFares(originIATA, destIATA ?? '', range).then(r => {
-          if (r.ok && r.data.length > 0) send({ type: 'flights', source: 'duffel', data: r.data });
+          if (r.ok && r.data.length > 0) sendFlights('duffel', r.data);
           else if (!r.ok && !r.reason.includes('not configured')) send({ type: 'notice', message: `Duffel: ${r.reason}` });
         }),
         amadeus.searchFares(originIATA, destIATA ?? '', range).then(r => {
-          if (r.ok && r.data.length > 0) send({ type: 'flights', source: 'amadeus', data: r.data });
+          if (r.ok && r.data.length > 0) sendFlights('amadeus', r.data);
         }),
         kiwi.searchFares(originIATA, destIATA ?? '', range).then(r => {
-          if (r.ok && r.data.length > 0) send({ type: 'flights', source: 'kiwi', data: r.data });
+          if (r.ok && r.data.length > 0) sendFlights('kiwi', r.data);
         }),
       ]);
+
+      const nearby = getNearby(originIATA);
+      if (flightResultCount === 0 && nearby.length > 0) {
+        send({ type: 'suggestion', message: `No flights found. Try nearby: ${nearby.join(', ')}` });
+      }
 
       // Hotels after all flight providers resolve
       if (destIATA && depart && ret) {

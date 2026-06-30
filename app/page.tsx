@@ -88,6 +88,32 @@ function HotelSkeleton() {
   )
 }
 
+function ThemeToggle() {
+  const [light, setLight] = useState(false)
+
+  useEffect(() => {
+    setLight(document.documentElement.classList.contains('light'))
+  }, [])
+
+  function toggle() {
+    const next = !light
+    setLight(next)
+    document.documentElement.classList.toggle('light', next)
+    localStorage.setItem('theme', next ? 'light' : 'dark')
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label="Toggle theme"
+      className="fixed top-4 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-400 transition-all hover:bg-white/10 hover:text-gray-200"
+    >
+      {light ? '🌙' : '☀️'}
+    </button>
+  )
+}
+
 function PriceCalendar({
   prices,
   selected,
@@ -187,6 +213,7 @@ export default function Home() {
   const [hotelScoreLoading, setHotelScoreLoading] = useState<Set<string>>(new Set())
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [suggestion, setSuggestion] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<SortBy>('deal')
   const [filterStops, setFilterStops] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState<ActiveTab>('flights')
@@ -294,6 +321,7 @@ export default function Home() {
       return deduped
     })
     setError(null)
+    setSuggestion(null)
     setFlights([])
     setHotels([])
     setScores({})
@@ -344,6 +372,8 @@ export default function Home() {
               const newHotels = message.data as HotelOffer[]
               setHotels(newHotels)
               newHotels.forEach(fireHotelScore)
+            } else if (message.type === 'suggestion' && typeof message.message === 'string') {
+              setSuggestion(message.message)
             } else if (message.type === 'done') {
               setIsSearching(false)
             }
@@ -417,6 +447,8 @@ export default function Home() {
   if (view === 'form') {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#07091A] px-4 py-16">
+        <ThemeToggle />
+
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute left-1/2 top-0 h-[500px] w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_50%_0%,rgba(99,102,241,1),transparent_70%)] opacity-25 blur-3xl" />
           <div className="absolute bottom-0 left-0 h-[400px] w-[500px] bg-[radial-gradient(ellipse_at_0%_100%,rgba(139,92,246,1),transparent_70%)] opacity-10 blur-3xl" />
@@ -670,6 +702,8 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#07091A]">
+      <ThemeToggle />
+
       {isSearching && <div key={progressKey.current} className="search-progress-bar" />}
 
       <header className="sticky top-0 z-20 border-b border-white/8 bg-[#07091A]/90 backdrop-blur-xl">
@@ -836,6 +870,7 @@ export default function Home() {
                         ? 'Try changing the stops filter to see more fares.'
                         : 'Try different dates, another destination, or leave destination blank to explore.'}
                     </p>
+                    {suggestion && <p className="mt-2 text-xs text-gray-500">{suggestion}</p>}
                   </div>
                 ) : (
                   <>
