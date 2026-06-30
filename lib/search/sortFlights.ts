@@ -1,6 +1,9 @@
 import type { DealScore, NormalizedFare } from '@/lib/types'
 
 type SortBy = 'price' | 'deal'
+type SortOptions = {
+  deferDealSort?: boolean
+}
 
 const verdictRank: Record<DealScore['verdict'], number> = {
   Great: 0,
@@ -39,13 +42,23 @@ function compareDealScore(
   )
 }
 
+function hasSettledScore(scores: Record<string, DealScore | null>, fareId: string): boolean {
+  return Object.prototype.hasOwnProperty.call(scores, fareId)
+}
+
 export function sortFlights(
   fares: NormalizedFare[],
   sortBy: SortBy,
-  scores: Record<string, DealScore | null>
+  scores: Record<string, DealScore | null>,
+  options: SortOptions = {}
 ): NormalizedFare[] {
+  const shouldUseFallback =
+    sortBy === 'price' ||
+    options.deferDealSort ||
+    !fares.every(fare => hasSettledScore(scores, fare.id))
+
   return [...fares].sort((a, b) => {
-    if (sortBy === 'price') return compareFallback(a, b)
+    if (shouldUseFallback) return compareFallback(a, b)
     return compareDealScore(a, b, scores)
   })
 }

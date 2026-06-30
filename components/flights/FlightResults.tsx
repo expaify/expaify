@@ -20,6 +20,7 @@ type FlightResultsProps = {
   setFilterStops: Dispatch<SetStateAction<number | null>>
   scores: Record<string, DealScore | null>
   scoreLoading: Set<string>
+  rankingUpdating?: boolean
   suggestion: string | null
   providerNotices: string[]
   dest: string
@@ -64,6 +65,7 @@ export default function FlightResults({
   setFilterStops,
   scores,
   scoreLoading,
+  rankingUpdating = false,
   suggestion,
   providerNotices,
   dest,
@@ -146,6 +148,14 @@ export default function FlightResults({
           <span className="ml-auto text-xs text-gray-600">
             {displayFlights.length} result{displayFlights.length !== 1 ? 's' : ''}
           </span>
+          {rankingUpdating && (
+            <span
+              className="w-full text-xs font-semibold text-indigo-300 sm:w-auto"
+              aria-live="polite"
+            >
+              Ranking updating after scores finish
+            </span>
+          )}
         </div>
       )}
 
