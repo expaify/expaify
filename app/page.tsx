@@ -248,6 +248,56 @@ function ThemeToggle() {
   )
 }
 
+function SiteFooter({
+  variant,
+  showResultsLink = false,
+  showRoutesLink = true,
+}: {
+  variant: 'light' | 'dark'
+  showResultsLink?: boolean
+  showRoutesLink?: boolean
+}) {
+  const isDark = variant === 'dark'
+  const shellClass = isDark
+    ? 'border-white/10 bg-white/[0.025] text-gray-500'
+    : 'border-slate-200 bg-white/70 text-slate-500'
+  const headingClass = isDark ? 'text-gray-200' : 'text-slate-950'
+  const bodyClass = isDark ? 'text-gray-500' : 'text-slate-600'
+  const linkClass = isDark
+    ? 'text-gray-300 hover:text-white focus-visible:text-white'
+    : 'text-slate-700 hover:text-slate-950 focus-visible:text-slate-950'
+
+  return (
+    <footer className={`mt-8 rounded-2xl border px-4 py-5 shadow-sm sm:px-5 ${shellClass}`}>
+      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        <div className="max-w-3xl">
+          <p className={`font-display text-sm font-extrabold ${headingClass}`}>expaify trust notes</p>
+          <div className={`mt-2 grid gap-2 text-xs font-medium leading-5 sm:grid-cols-3 ${bodyClass}`}>
+            <p>Fares and hotel rates can change after provider handoff; final price and availability are set by the provider.</p>
+            <p>Deal Scores compare current prices with recent route history and avoid strong claims when history is thin.</p>
+            <p>Outbound provider links may include affiliate markers. For booking, payment, or trip changes, use the provider support channel.</p>
+          </div>
+        </div>
+        <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-bold">
+          <a className={`rounded-md underline-offset-4 hover:underline ${linkClass}`} href="#search">
+            Search
+          </a>
+          {showResultsLink && (
+            <a className={`rounded-md underline-offset-4 hover:underline ${linkClass}`} href="#results">
+              Results
+            </a>
+          )}
+          {showRoutesLink && (
+            <a className={`rounded-md underline-offset-4 hover:underline ${linkClass}`} href="#route-suggestions">
+              Routes
+            </a>
+          )}
+        </nav>
+      </div>
+    </footer>
+  )
+}
+
 function PriceCalendar({
   prices,
   selected,
@@ -773,7 +823,7 @@ export default function Home() {
       <main className="min-h-screen overflow-x-hidden bg-[#f5f7fb] text-slate-950">
         <ThemeToggle />
 
-        <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+        <div id="search" className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
           <header className="flex min-h-10 items-center justify-between pr-12">
             <div className="flex items-center gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-white shadow-sm">
@@ -990,7 +1040,7 @@ export default function Home() {
           </section>
           </div>
 
-          <section className="pb-7 animate-fade-up delay-150">
+          <section id="route-suggestions" className="pb-7 animate-fade-up delay-150">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">Route suggestions</h2>
               {recentSearches.length > 0 && (
@@ -1040,13 +1090,14 @@ export default function Home() {
             </div>
           )}
           </section>
+          <SiteFooter variant="light" />
         </div>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen bg-[#07091A]">
+    <main id="search" className="min-h-screen bg-[#07091A]">
       <ThemeToggle />
 
       {isSearching && <div key={progressKey.current} className="search-progress-bar" />}
@@ -1082,7 +1133,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 py-6">
+      <div id="results" className="mx-auto max-w-6xl px-4 py-6">
         <div className="mb-5 flex flex-col gap-3 animate-fade-in sm:flex-row sm:items-start">
           {isSearching ? (
             <div className="flex min-w-0 items-center gap-3">
@@ -1254,6 +1305,7 @@ export default function Home() {
             )}
           </>
         )}
+        <SiteFooter variant="dark" showResultsLink showRoutesLink={false} />
       </div>
     </main>
   )
