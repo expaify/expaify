@@ -88,6 +88,85 @@ function HotelSkeleton() {
   )
 }
 
+function PriceCalendar({
+  prices,
+  selected,
+  onSelect,
+}: {
+  prices: Record<string, number>
+  selected: string
+  onSelect: (date: string) => void
+}) {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = today.getMonth()
+  const monthStartOffset = new Date(year, month, 1).getDay()
+  const days = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(year, month, index - monthStartOffset + 1)
+    return date.getMonth() === month ? date.toISOString().slice(0, 10) : null
+  })
+  const values = Object.values(prices).filter((value) => value > 0)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = max - min || 1
+
+  return (
+    <div className="mt-3 rounded-xl border border-white/8 bg-white/2 p-3">
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-gray-600">
+        Cheapest days - {new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' })}
+      </p>
+      <div className="grid grid-cols-7 gap-1">
+        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+          <div key={day} className="py-0.5 text-center text-[9px] font-bold text-gray-700">
+            {day}
+          </div>
+        ))}
+        {days.map((date, index) => {
+          if (!date) return <div key={index} />
+
+          const price = prices[date]
+          const ratio = price ? (price - min) / range : null
+          const bg =
+            ratio === null
+              ? 'bg-transparent'
+              : ratio < 0.25
+                ? 'bg-emerald-500/25'
+                : ratio < 0.5
+                  ? 'bg-yellow-500/20'
+                  : 'bg-red-500/15'
+          const isSelected = date === selected
+
+          return (
+            <button
+              key={date}
+              type="button"
+              onClick={() => onSelect(date)}
+              className={`rounded-lg py-1.5 text-center transition-all ${bg} ${
+                isSelected ? 'ring-1 ring-indigo-400' : 'hover:ring-1 hover:ring-white/20'
+              }`}
+            >
+              <div className="text-[11px] font-medium text-gray-300">
+                {new Date(`${date}T12:00`).getDate()}
+              </div>
+              {price && <div className="text-[9px] text-gray-500">${Math.round(price / 100)}</div>}
+            </button>
+          )
+        })}
+      </div>
+      <div className="mt-2 flex items-center justify-end gap-3">
+        <span className="flex items-center gap-1 text-[9px] text-gray-600">
+          <span className="inline-block h-2 w-2 rounded-sm bg-emerald-500/40" />
+          Cheap
+        </span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-600">
+          <span className="inline-block h-2 w-2 rounded-sm bg-red-500/30" />
+          Expensive
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
   const [view, setView] = useState<View>('form')
   const [tripType, setTripType] = useState<TripType>('roundtrip')
@@ -114,6 +193,7 @@ export default function Home() {
   const [copied, setCopied] = useState(false)
   const [alertEmail, setAlertEmail] = useState('')
   const [alertSent, setAlertSent] = useState(false)
+  const [calendarPrices, setCalendarPrices] = useState<Record<string, number>>({})
   const progressKey = useRef<number>(0)
 
   useEffect(() => {
@@ -138,6 +218,18 @@ export default function Home() {
   useEffect(() => {
     if (tripType === 'oneway') setReturnDate('')
   }, [tripType])
+
+  useEffect(() => {
+    if (!origin || !dest) {
+      setCalendarPrices({})
+      return
+    }
+
+    fetch(`/api/calendar?origin=${encodeURIComponent(origin)}&dest=${encodeURIComponent(dest)}`)
+      .then(response => response.json())
+      .then(data => setCalendarPrices(data as Record<string, number>))
+      .catch(() => {})
+  }, [origin, dest])
 
   useEffect(() => {
     try {
@@ -445,6 +537,10 @@ export default function Home() {
                   </div>
                 )}
               </div>
+
+              {Object.keys(calendarPrices).length > 0 && (
+                <PriceCalendar prices={calendarPrices} selected={depart} onSelect={setDepart} />
+              )}
 
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input

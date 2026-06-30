@@ -9,6 +9,7 @@ export interface NormalizedFare {
   destination: string;
   depart: string;
   return?: string;
+  cabin?: 'economy' | 'premium_economy' | 'business' | 'first';
   stops: number;
   carrier: string;
   price: Money;

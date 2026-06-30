@@ -11,6 +11,7 @@ interface DuffelPlace {
 }
 
 interface DuffelSegment {
+  passengers?: Array<{ cabin_class?: string }>;
   [key: string]: unknown;
 }
 
@@ -131,6 +132,7 @@ export class DuffelProvider implements FlightProvider {
           origin: firstSlice.origin.iata_code,
           destination: firstSlice.destination.iata_code,
           depart: firstSlice.departing_at,
+          cabin: (firstSlice.segments[0]?.passengers?.[0]?.cabin_class ?? 'economy') as NormalizedFare['cabin'],
           stops,
           carrier: offer.owner.iata_code,
           price: {

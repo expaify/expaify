@@ -68,6 +68,28 @@ function StopsChip({ stops }: { stops: number }) {
   )
 }
 
+function CabinBadge({ cabin }: { cabin?: NormalizedFare['cabin'] }) {
+  const labels = {
+    economy: 'Eco',
+    premium_economy: 'Prem',
+    business: 'Biz',
+    first: 'First',
+  }
+  const colors = {
+    economy: 'text-gray-500 border-gray-700',
+    premium_economy: 'text-blue-400 border-blue-800',
+    business: 'text-violet-400 border-violet-800',
+    first: 'text-amber-400 border-amber-800',
+  }
+  const normalizedCabin = cabin ?? 'economy'
+
+  return (
+    <span className={`text-[10px] font-bold border rounded px-1.5 py-0.5 ${colors[normalizedCabin]}`}>
+      {labels[normalizedCabin]}
+    </span>
+  )
+}
+
 function AirlineLogo({ carrier }: { carrier: string }) {
   const [failed, setFailed] = useState(false)
   const cleanCarrier = carrier.trim()
@@ -210,7 +232,10 @@ export default function FlightCard({ fare, score, loading }: Props) {
             <p className="truncate text-sm font-semibold text-gray-100">
               {fare.carrier}
             </p>
-            <StopsChip stops={fare.stops} />
+            <div className="flex items-center gap-1.5">
+              <StopsChip stops={fare.stops} />
+              <CabinBadge cabin={fare.cabin} />
+            </div>
           </div>
           <Price cents={fare.price.priceCents} />
         </div>

@@ -24,6 +24,8 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+const themeScript = `(function(){var t=localStorage.getItem('theme');if(t==='light')document.documentElement.classList.add('light')})()`;
+
 export const metadata: Metadata = {
   title: "expaify — flight + hotel deal intelligence",
   description: "Flight + hotel prices ranked against 90 days of history.",
@@ -55,7 +57,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       className={`${inter.variable} ${jakarta.variable} ${geistMono.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col antialiased">{children}</body>
+      <body className="min-h-full flex flex-col antialiased">
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {children}
+      </body>
     </html>
   );
 }
