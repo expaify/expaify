@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { isBookingEnabled, validateBookingFareContext } from '@/lib/booking/config';
+import { BOOKING_FORM_PASSENGER_LIMIT, isBookingEnabled, validateBookingFareContext } from '@/lib/booking/config';
 
 const BASE_URL = 'https://api.duffel.com';
 
@@ -62,9 +62,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, reason: 'valid Duffel fare context is required' }, { status: 400 });
     }
 
-    if (selectedFare.passengerCount !== 1) {
+    if (selectedFare.passengerCount > BOOKING_FORM_PASSENGER_LIMIT) {
       return NextResponse.json(
-        { ok: false, reason: 'Multi-passenger booking review is not supported yet. Return to search and choose one passenger or book with the provider.' },
+        { ok: false, reason: 'Multi-passenger booking review is not supported yet because expaify collects one passenger only. Return to search and choose one passenger.' },
         { status: 400 }
       );
     }
@@ -123,13 +123,21 @@ export async function POST(request: Request) {
     }
 
     const offerJson = (await offerRes.json()) as DuffelOfferResponse;
-    const passengerId = offerJson.data.passengers[0]?.id;
+    const offerPassengers = offerJson.data.passengers;
+    const passengerId = offerPassengers[0]?.id;
     const offerPriceCents = decimalStringToCents(offerJson.data.total_amount);
 
     if (!passengerId) {
       return NextResponse.json(
         { ok: false, reason: 'Could not extract passenger ID from offer' },
         { status: 502 }
+      );
+    }
+
+    if (offerPassengers.length !== selectedFare.passengerCount) {
+      return NextResponse.json(
+        { ok: false, reason: 'Fare passenger count changed. Return to search and choose the current fare.' },
+        { status: 409 }
       );
     }
 

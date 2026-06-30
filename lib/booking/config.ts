@@ -15,6 +15,8 @@ export type BookingFareContext = {
   priceScope: 'per_person' | 'party_total';
 };
 
+export const BOOKING_FORM_PASSENGER_LIMIT = 1;
+
 type SearchParams = Record<string, string | string[] | undefined>;
 type FareContextInput = Partial<Record<keyof BookingFareContext, unknown>>;
 
