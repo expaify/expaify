@@ -11,6 +11,8 @@ export type BookingFareContext = {
   stops: number;
   priceCents: number;
   currency: string;
+  passengerCount: number;
+  priceScope: 'per_person' | 'party_total';
 };
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -49,6 +51,8 @@ export function validateBookingFareContext(input: FareContextInput): BookingFare
   const currency = cleanRequired(input.currency).toUpperCase();
   const priceCents = Number(input.priceCents);
   const stops = Number(input.stops);
+  const passengerCount = Number(input.passengerCount);
+  const priceScope = cleanRequired(input.priceScope);
 
   if (
     !offerId ||
@@ -61,7 +65,11 @@ export function validateBookingFareContext(input: FareContextInput): BookingFare
     !Number.isInteger(priceCents) ||
     priceCents <= 0 ||
     !Number.isInteger(stops) ||
-    stops < 0
+    stops < 0 ||
+    !Number.isInteger(passengerCount) ||
+    passengerCount < 1 ||
+    passengerCount > 9 ||
+    (priceScope !== 'per_person' && priceScope !== 'party_total')
   ) {
     return null;
   }
@@ -77,6 +85,8 @@ export function validateBookingFareContext(input: FareContextInput): BookingFare
     stops,
     priceCents,
     currency,
+    passengerCount,
+    priceScope,
   };
 }
 
@@ -92,6 +102,8 @@ export function parseBookingFareContext(params: SearchParams): BookingFareContex
     stops: firstParam(params.stops),
     priceCents: firstParam(params.priceCents),
     currency: firstParam(params.currency),
+    passengerCount: firstParam(params.passengerCount),
+    priceScope: firstParam(params.priceScope),
   });
 }
 
@@ -106,6 +118,8 @@ export function buildBookingHref(fare: NormalizedFare): string {
     stops: String(fare.stops),
     priceCents: String(fare.price.priceCents),
     currency: fare.price.currency,
+    passengerCount: String(fare.passengerCount ?? 1),
+    priceScope: fare.priceScope ?? 'per_person',
   });
 
   if (fare.return) params.set('return', fare.return);

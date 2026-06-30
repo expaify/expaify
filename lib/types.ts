@@ -1,6 +1,13 @@
 export type Money = { priceCents: number; currency: string };
 
 export type FareType = 'cash' | 'award';
+export type FarePriceScope = 'per_person' | 'party_total';
+
+export interface FlightSearchRange {
+  depart: string;
+  return?: string;
+  passengers: number;
+}
 
 export interface NormalizedFare {
   id: string;
@@ -13,6 +20,8 @@ export interface NormalizedFare {
   stops: number;
   carrier: string;
   price: Money;
+  passengerCount?: number;
+  priceScope?: FarePriceScope;
   miles?: number;
   deeplink: string;
   source: string;
@@ -53,7 +62,7 @@ export interface FlightProvider {
   searchFares(
     origin: string,
     dest: string,
-    range: { depart: string; return?: string }
+    range: FlightSearchRange
   ): Promise<Result<NormalizedFare[]>>;
   priceTrends(origin: string, dest: string): Promise<Result<PricePoint[]>>;
 }

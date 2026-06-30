@@ -227,7 +227,7 @@ describe('TravelpayoutsProvider.searchFares', () => {
   it('returns NormalizedFare[] with fareType cash and USD prices', async () => {
     mockFetchSearchSequence();
     const provider = new TravelpayoutsProvider();
-    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06', return: '2024-06' });
+    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06', return: '2024-06', passengers: 1 });
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
@@ -247,7 +247,7 @@ describe('TravelpayoutsProvider.searchFares', () => {
   it('includes affiliate marker in every deeplink', async () => {
     mockFetchSearchSequence();
     const provider = new TravelpayoutsProvider();
-    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06' });
+    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06', passengers: 1 });
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
@@ -260,7 +260,7 @@ describe('TravelpayoutsProvider.searchFares', () => {
   it('maps USD prices to cents correctly (no RUB conversion)', async () => {
     mockFetchSearchSequence();
     const provider = new TravelpayoutsProvider();
-    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06' });
+    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06', passengers: 1 });
     if (!result.ok) throw new Error(result.reason);
 
     // v1/cheap SU fare: $220 USD → 22000 cents
@@ -286,7 +286,7 @@ describe('TravelpayoutsProvider.searchFares', () => {
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, data: {} }) } as Response)
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => cheapFixture } as Response);
     const provider = new TravelpayoutsProvider();
-    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-07' });
+    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-07', passengers: 1 });
     if (!result.ok) throw new Error(result.reason);
     const suFare = result.data.find((f) => f.carrier === 'SU');
     expect(suFare).toBeDefined();
@@ -297,7 +297,7 @@ describe('TravelpayoutsProvider.searchFares', () => {
     delete process.env.TP_AFFILIATE_MARKER;
     mockFetchSearchSequence();
     const provider = new TravelpayoutsProvider();
-    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06' });
+    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06', passengers: 1 });
     if (!result.ok) throw new Error(result.reason);
 
     result.data.forEach((f) => {
@@ -308,7 +308,7 @@ describe('TravelpayoutsProvider.searchFares', () => {
   it('returns { ok: true, data: [] } when all HTTP calls fail', async () => {
     mockFetchError(429);
     const provider = new TravelpayoutsProvider();
-    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06' });
+    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06', passengers: 1 });
 
     // Multi-source fanout: individual provider HTTP errors → empty results, not { ok: false }
     expect(result.ok).toBe(true);
@@ -319,7 +319,7 @@ describe('TravelpayoutsProvider.searchFares', () => {
   it('returns { ok: false, reason: ... } when fetch throws', async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED'));
     const provider = new TravelpayoutsProvider();
-    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06' });
+    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06', passengers: 1 });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');

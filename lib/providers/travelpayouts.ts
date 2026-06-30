@@ -1,4 +1,4 @@
-import { FlightProvider, NormalizedFare, PricePoint, Result } from '../types';
+import { FlightProvider, FlightSearchRange, NormalizedFare, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
 
 const BASE_V1 = 'https://api.travelpayouts.com/v1';
@@ -117,9 +117,9 @@ export class TravelpayoutsProvider implements FlightProvider {
   async searchFares(
     origin: string,
     dest: string,
-    range: { depart: string; return?: string }
+    range: FlightSearchRange
   ): Promise<Result<NormalizedFare[]>> {
-    const extraParams = `${range.depart}:${range.return ?? ''}`;
+    const extraParams = `${range.depart}:${range.return ?? ''}:pax:${range.passengers}`;
     const cacheKey = `tp:searchFares:v2:${origin}:${dest}:${extraParams}`;
 
     try {
@@ -156,6 +156,8 @@ export class TravelpayoutsProvider implements FlightProvider {
             stops: entry.number_of_changes,
             carrier: entry.gate,
             price: { priceCents: Math.round(entry.value * 100), currency: 'USD' },
+            passengerCount: range.passengers,
+            priceScope: 'per_person',
             deeplink: this.buildDeeplink(entry.origin, entry.destination, departAt),
             source: 'travelpayouts',
             fetchedAt,
@@ -190,6 +192,8 @@ export class TravelpayoutsProvider implements FlightProvider {
               stops: entry.transfers,
               carrier: entry.airline,
               price: { priceCents: Math.round(entry.price * 100), currency: 'USD' },
+              passengerCount: range.passengers,
+              priceScope: 'per_person',
               deeplink: this.buildDeeplink(entry.origin, entry.destination, entry.departure_at),
               source: 'travelpayouts',
               fetchedAt,
@@ -228,6 +232,8 @@ export class TravelpayoutsProvider implements FlightProvider {
                 stops: fareData.transfers ?? 0,
                 carrier: airline,
                 price: { priceCents: Math.round(fareData.price * 100), currency: 'USD' },
+                passengerCount: range.passengers,
+                priceScope: 'per_person',
                 deeplink: this.buildDeeplink(origin, dest, departAt),
                 source: 'travelpayouts',
                 fetchedAt,

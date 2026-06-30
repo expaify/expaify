@@ -41,6 +41,10 @@ function formatDateTime(value: string) {
 }
 
 function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareContext; duffelSandbox: boolean }) {
+  const priceLabel = fareContext.priceScope === 'party_total'
+    ? `total for ${fareContext.passengerCount} adult${fareContext.passengerCount === 1 ? '' : 's'}`
+    : 'per person'
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
       <div className="flex items-start justify-between gap-4">
@@ -55,7 +59,7 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
         </div>
         <div className="shrink-0 text-right">
           <p className="text-lg font-bold text-white">{formatMoney(fareContext.priceCents, fareContext.currency)}</p>
-          <p className="text-[11px] text-gray-500">per person</p>
+          <p className="text-[11px] text-gray-500">{priceLabel}</p>
         </div>
       </div>
       <div className="mt-4 grid gap-3 border-t border-white/10 pt-4 text-sm sm:grid-cols-2">
@@ -69,6 +73,10 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
             <p className="mt-1 text-gray-200">{formatDateTime(fareContext.return)}</p>
           </div>
         )}
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Passengers</p>
+          <p className="mt-1 text-gray-200">{fareContext.passengerCount} adult{fareContext.passengerCount === 1 ? '' : 's'}</p>
+        </div>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Provider</p>
           <p className="mt-1 text-gray-200">
@@ -200,6 +208,17 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
       <RecoveryState
         title="In-app booking is paused"
         message="This fare is preserved for review, but expaify is not collecting passenger details or creating orders while booking review is being completed."
+        fareContext={fareContext}
+        duffelSandbox={duffelSandbox}
+      />
+    )
+  }
+
+  if (fareContext.passengerCount !== 1) {
+    return (
+      <RecoveryState
+        title="Multi-passenger review is paused"
+        message="This fare is priced for multiple adults, but booking review currently collects details for one passenger only. Return to search with one passenger or continue with the provider when available."
         fareContext={fareContext}
         duffelSandbox={duffelSandbox}
       />
