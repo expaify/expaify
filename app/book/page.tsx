@@ -13,10 +13,10 @@ export default async function BookPage({ searchParams }: BookPageProps) {
   const fareContext = parseBookingFareContext(params);
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e]">
+    <div className="min-h-screen bg-[color:var(--bg-base)]">
       <Suspense fallback={
         <div className="flex items-center justify-center min-h-screen">
-          <p className="text-gray-400 text-sm animate-pulse">Loading booking…</p>
+          <p className="text-sm text-[color:var(--text-3)] animate-pulse">Loading booking...</p>
         </div>
       }>
         <BookingFlow
