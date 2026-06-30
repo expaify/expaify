@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import type { DealScore, NormalizedFare } from '@/lib/types'
+import type { DealScore, HotelOffer, NormalizedFare } from '@/lib/types'
 
 type TestElement = ReactElement<Record<string, unknown>>
 
@@ -14,6 +14,7 @@ jest.mock('react', () => {
 
 const { default: DealBadge } = jest.requireActual('../DealBadge') as typeof import('../DealBadge')
 const { default: FlightCard } = jest.requireActual('../FlightCard') as typeof import('../FlightCard')
+const { default: HotelCard } = jest.requireActual('../HotelCard') as typeof import('../HotelCard')
 
 function childrenOf(node: TestElement): unknown[] {
   const children = node.props?.children
@@ -52,6 +53,17 @@ const fare: NormalizedFare = {
   deeplink: 'https://example.com/book',
   source: 'travelpayouts',
   fetchedAt: '2026-06-30T00:00:00.000Z',
+}
+
+const hotel: HotelOffer = {
+  id: 'hotel-1',
+  name: 'The Example Hotel',
+  area: 'Midtown',
+  stars: 4,
+  pricePerNight: { priceCents: 18900, currency: 'USD' },
+  rating: 8.7,
+  deeplink: 'https://example.com/hotel',
+  source: 'hotellook',
 }
 
 describe('Deal score presentation', () => {
@@ -98,5 +110,53 @@ describe('Deal score presentation', () => {
     expect(text).toContain('Limited history')
     expect(text).toContain('Not enough route history for a confirmed deal rating')
     expect(text).toContain(score.explanation)
+  })
+
+  it('shows hotel score details, nightly price context, and a named booking link', () => {
+    const score: DealScore = {
+      percentile: 22,
+      pctVsMedian: -18,
+      medianCents: 23100,
+      currency: 'USD',
+      verdict: 'Good',
+      confidence: 'high',
+      explanation: '$189 - about 18% below the usual $231 for this hotel over the last 90 days.',
+    }
+
+    const text = collectText(HotelCard({ hotel, score, loading: false }))
+
+    expect(text).toContain('Hotel class')
+    expect(text).toContain('Guest rating')
+    expect(text).toContain('Deal Score')
+    expect(text).toContain('22nd percentile')
+    expect(text).toContain('Usual')
+    expect(text).toContain('$231')
+    expect(text).toContain('18% below usual')
+    expect(text).toContain(score.explanation)
+    expect(text).toContain('$189')
+    expect(text).toContain('per night before taxes and fees')
+    expect(text).toContain('Book hotel')
+  })
+
+  it('renders missing hotel price or deeplink as an honest unavailable state', () => {
+    const unavailableHotel: HotelOffer = {
+      ...hotel,
+      pricePerNight: { priceCents: 0, currency: 'USD' },
+      deeplink: '',
+    }
+
+    const text = collectText(HotelCard({ hotel: unavailableHotel, score: null, loading: false }))
+
+    expect(text).toContain('Price unavailable')
+    expect(text).toContain('Booking unavailable')
+    expect(text).toContain('No confirmed nightly price or valid booking link was returned.')
+    expect(text).not.toContain('Book hotel')
+  })
+
+  it('uses an honest no-photo state without fake hotel imagery', () => {
+    const text = collectText(HotelCard({ hotel, score: null, loading: false }))
+
+    expect(text).toContain('Hotel photo unavailable')
+    expect(text).not.toContain('🏨')
   })
 })
