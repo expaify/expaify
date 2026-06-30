@@ -75,7 +75,7 @@ describe('AirportInput', () => {
     ReactMock.useState.mockClear()
   })
 
-  it('exposes combobox and listbox semantics with a quiet no-match state', () => {
+  it('exposes combobox and listbox semantics with a clear no-match state', () => {
     ReactMock.useState
       .mockImplementationOnce(() => ['zzzz', jest.fn()])
       .mockImplementationOnce(() => [true, jest.fn()])
@@ -91,7 +91,20 @@ describe('AirportInput', () => {
     expect(input.props['aria-expanded']).toBe(true)
     expect(input.props['aria-controls']).toBe('origin-airport-listbox')
     expect(listbox.props.id).toBe('origin-airport-listbox')
-    expect(walk(tree).some(element => childrenOf(element).includes('No matching airports found.'))).toBe(true)
+    expect(walk(tree).some(element => childrenOf(element).includes('No matching airports found. Check the city or 3-letter airport code.'))).toBe(true)
+  })
+
+  it('shows an honest lookup-error state without suggestions', () => {
+    ReactMock.useState
+      .mockImplementationOnce(() => ['New', jest.fn()])
+      .mockImplementationOnce(() => [true, jest.fn()])
+      .mockImplementationOnce(() => [[], jest.fn()])
+      .mockImplementationOnce(() => [0, jest.fn()])
+      .mockImplementationOnce(() => ['error', jest.fn()])
+
+    const tree = renderAirportInput()
+
+    expect(walk(tree).some(element => childrenOf(element).includes('Airport lookup is unavailable. Try again in a moment.'))).toBe(true)
   })
 
   it('clears the submitted IATA code when the user edits display text manually', () => {
@@ -129,6 +142,6 @@ describe('AirportInput', () => {
     })
 
     expect(preventDefault).toHaveBeenCalled()
-    expect(onChange).toHaveBeenCalledWith('LGA', 'New York (LGA)')
+    expect(onChange).toHaveBeenCalledWith('LGA', 'LGA - New York (LaGuardia)')
   })
 })
