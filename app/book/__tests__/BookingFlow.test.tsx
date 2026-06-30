@@ -1,0 +1,86 @@
+import type { ReactElement } from 'react';
+import type { BookingFareContext } from '@/lib/booking/config';
+
+type TestElement = ReactElement<Record<string, unknown>>;
+
+jest.mock('react', () => {
+  const actual = jest.requireActual('react') as typeof import('react');
+
+  return {
+    ...actual,
+    useState: jest.fn((initialValue: unknown) => [initialValue, jest.fn()]),
+  };
+});
+
+const { default: BookingFlow } = jest.requireActual('../BookingFlow') as typeof import('../BookingFlow');
+
+function childrenOf(node: TestElement): unknown[] {
+  const children = node.props?.children;
+  return Array.isArray(children) ? children : [children].filter(Boolean);
+}
+
+function resolveFunctionElement(node: TestElement): TestElement {
+  let current = node;
+
+  while (typeof current.type === 'function') {
+    current = (current.type as (props: Record<string, unknown>) => TestElement)(current.props);
+  }
+
+  return current;
+}
+
+function collectText(node: unknown): string {
+  if (node === null || node === undefined || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(collectText).join('');
+  if (typeof node === 'object') {
+    return childrenOf(resolveFunctionElement(node as TestElement)).map(collectText).join('');
+  }
+  return '';
+}
+
+const fareContext: BookingFareContext = {
+  offerId: 'off_123',
+  provider: 'duffel',
+  origin: 'JFK',
+  destination: 'LAX',
+  depart: '2026-09-22T08:00:00.000Z',
+  return: '2026-09-29T17:30:00.000Z',
+  carrier: 'American Airlines',
+  stops: 1,
+  priceCents: 45001,
+  currency: 'USD',
+  passengerCount: 3,
+  priceScope: 'party_total',
+};
+
+describe('BookingFlow fare context review', () => {
+  it('blocks review when selected fare context is missing', () => {
+    const text = collectText(BookingFlow({
+      bookingEnabled: true,
+      duffelSandbox: true,
+      fareContext: null,
+    }));
+
+    expect(text).toContain("We can't identify this fare");
+    expect(text).toContain('missing the selected provider, route, or price');
+    expect(text).toContain('Back to search');
+    expect(text).not.toContain('Confirm booking');
+  });
+
+  it('shows the selected fare route, provider, passengers, and integer-cent price context', () => {
+    const text = collectText(BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: true,
+      fareContext,
+    }));
+
+    expect(text).toContain('JFK to LAX');
+    expect(text).toContain('JFK → LAX');
+    expect(text).toContain('American Airlines');
+    expect(text).toContain('Duffel sandbox');
+    expect(text).toContain('$450.01');
+    expect(text).toContain('3 adults');
+    expect(text).toContain('total for 3 adults');
+  });
+});

@@ -46,11 +46,11 @@ function cleanOptional(value: unknown): string | undefined {
 export function validateBookingFareContext(input: FareContextInput): BookingFareContext | null {
   const offerId = cleanRequired(input.offerId);
   const provider = cleanRequired(input.provider);
-  const origin = cleanRequired(input.origin).toUpperCase();
-  const destination = cleanRequired(input.destination).toUpperCase();
+  const origin = cleanRequired(input.origin);
+  const destination = cleanRequired(input.destination);
   const depart = cleanRequired(input.depart);
-  const carrier = cleanRequired(input.carrier).toUpperCase();
-  const currency = cleanRequired(input.currency).toUpperCase();
+  const carrier = cleanRequired(input.carrier);
+  const currency = cleanRequired(input.currency);
   const priceCents = Number(input.priceCents);
   const stops = Number(input.stops);
   const passengerCount = Number(input.passengerCount);
