@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { AirportLookupAirport, AirportLookupData, Result } from '@/lib/types'
 
-const cache = new Map<string, AirportLookupAirport[]>()
-type LookupState = 'idle' | 'loading' | 'settled' | 'error'
+const cache = new Map<string, AirportLookupData>()
+type LookupState = 'idle' | 'loading' | 'too_short' | 'settled' | 'error'
 
 interface AirportInputProps {
   id: string
@@ -18,7 +18,6 @@ interface AirportInputProps {
 
 export default function AirportInput({
   id,
-  value: _value,
   displayValue,
   onChange,
   placeholder,
@@ -58,22 +57,22 @@ export default function AirportInput({
     }
 
     const handle = window.setTimeout(async () => {
-      const cached = cache.get(q)
+      const cached = cache.get(q.toLowerCase())
       if (cached) {
-        setResults(cached)
+        setResults(cached.airports)
         setHighlighted(0)
-        setLookupState('settled')
+        setLookupState(cached.status === 'too_short' ? 'too_short' : 'settled')
         setOpen(true)
         return
       }
 
       try {
         setLookupState('loading')
-        const airports = await fetchAirportSuggestions(q)
-        cache.set(q, airports)
-        setResults(airports)
+        const data = await fetchAirportSuggestions(q)
+        cache.set(q.toLowerCase(), data)
+        setResults(data.airports)
         setHighlighted(0)
-        setLookupState('settled')
+        setLookupState(data.status === 'too_short' ? 'too_short' : 'settled')
         setOpen(true)
       } catch {
         setResults([])
@@ -86,7 +85,7 @@ export default function AirportInput({
   }, [inputText])
 
   function select(airport: AirportLookupAirport) {
-    const display = `${airport.city} (${airport.iata})`
+    const display = `${airport.iata} - ${airport.city} (${airport.name})`
     onChange(airport.iata, display)
     setInputText(display)
     setOpen(false)
@@ -109,8 +108,8 @@ export default function AirportInput({
     if (!q) return
 
     try {
-      const airports = await fetchAirportSuggestions(q)
-      const airport = airports[0]
+      const data = await fetchAirportSuggestions(q)
+      const airport = data.airports[0]
       if (airport) select(airport)
     } catch {
       // Keep the user's text in place if lookup fails.
@@ -118,17 +117,21 @@ export default function AirportInput({
   }
 
   function handleBlur() {
-    if (!results.length) return
-
-    if (!_value && results[0]) {
-      select(results[0])
-    }
+    setOpen(false)
+    setHighlighted(0)
   }
 
   async function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Escape') {
+      event.preventDefault()
       setOpen(false)
       setHighlighted(0)
+      return
+    }
+
+    if (event.key === 'ArrowDown' && !open && inputText.trim().length > 0) {
+      event.preventDefault()
+      setOpen(true)
       return
     }
 
@@ -207,25 +210,32 @@ export default function AirportInput({
               </div>
             ))
           ) : lookupState === 'settled' ? (
-            <div className="px-4 py-3 text-sm text-slate-500">No matching airports found.</div>
+            <div className="px-4 py-3 text-sm font-medium text-slate-600">No matching airports found. Check the city or 3-letter airport code.</div>
+          ) : lookupState === 'too_short' ? (
+            <div className="px-4 py-3 text-sm font-medium text-slate-600">Type at least 2 characters to search airports.</div>
+          ) : lookupState === 'loading' ? (
+            <div className="px-4 py-3 text-sm font-medium text-slate-600">Searching airports...</div>
           ) : lookupState === 'error' ? (
-            <div className="px-4 py-3 text-sm text-slate-500">Airport lookup is unavailable.</div>
+            <div className="px-4 py-3 text-sm font-medium text-slate-600">Airport lookup is unavailable. Try again in a moment.</div>
           ) : null}
         </div>
       )}
       <div id={statusId} role="status" aria-live="polite" className="sr-only">
-        {open && lookupState === 'settled' && results.length === 0 ? 'No matching airports found.' : ''}
+        {open && lookupState === 'loading' ? 'Searching airports.' : ''}
+        {open && lookupState === 'too_short' ? 'Type at least 2 characters to search airports.' : ''}
+        {open && lookupState === 'settled' && results.length === 0 ? 'No matching airports found. Check the city or 3-letter airport code.' : ''}
+        {open && lookupState === 'error' ? 'Airport lookup is unavailable. Try again in a moment.' : ''}
       </div>
     </div>
   )
 }
 
-async function fetchAirportSuggestions(query: string): Promise<AirportLookupAirport[]> {
+async function fetchAirportSuggestions(query: string): Promise<AirportLookupData> {
   const res = await fetch(`/api/airports?q=${encodeURIComponent(query)}`)
   if (!res.ok) throw new Error('Airport lookup failed')
 
   const body = await res.json() as Result<AirportLookupData>
   if (!body.ok) throw new Error('Airport lookup failed')
 
-  return body.data.airports
+  return body.data
 }

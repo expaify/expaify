@@ -555,7 +555,12 @@ export default function Home() {
       returnDate: searchCriteria.tripType === 'roundtrip' ? searchCriteria.returnDate : '',
     }
     if (!normalized.origin) {
-      setFormError('Add an origin to search.')
+      setFormError(normalized.originDisplay.trim() ? 'Choose a valid origin airport from the list before searching.' : 'Add an origin to search.')
+      setView('form')
+      return
+    }
+    if (!normalized.dest && normalized.destDisplay.trim()) {
+      setFormError('Choose a valid destination airport from the list, or clear the destination field to search everywhere.')
       setView('form')
       return
     }
@@ -896,7 +901,7 @@ export default function Home() {
               <form onSubmit={handleSearch} className="space-y-4">
                 <div className="grid grid-cols-1 items-end gap-3 lg:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)]">
                 <div>
-                  <label className="mb-1.5 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                  <label htmlFor="origin" className="mb-1.5 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
                     From
                   </label>
                   <AirportInput
@@ -919,7 +924,7 @@ export default function Home() {
                 </button>
 
                 <div>
-                  <label className="mb-1.5 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                  <label htmlFor="dest" className="mb-1.5 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
                     To
                   </label>
                   <AirportInput
