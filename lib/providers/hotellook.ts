@@ -63,106 +63,14 @@ export class HotellookProvider implements HotelProvider {
   }
 
   async searchHotels(
-    area: string,
-    range: { checkin: string; checkout: string }
+    _area: string,
+    _range: { checkin: string; checkout: string }
   ): Promise<Result<HotelOffer[]>> {
-    // Guard: missing dates → return empty (not an error)
-    if (!range.checkin || !range.checkout) {
-      return { ok: true, data: [] };
-    }
-
-    const city = this.resolveCity(area);
-
-    // Guard: empty area → return empty
-    if (!city) {
-      return { ok: true, data: [] };
-    }
-
-    const cacheKey = `tp:hotels:v2:${city}:${range.checkin}:${range.checkout}`;
-
-    try {
-      const cached = await cache.get<HotelOffer[]>(cacheKey);
-      if (cached !== null) return { ok: true, data: cached };
-
-      // ── Step 1: resolve city to a location ID ────────────────────────────
-      const locCacheKey = `tp:hotels:loc:${city}`;
-      let locationId: number | null = await cache.get<number>(locCacheKey);
-
-      if (locationId === null) {
-        const locUrl =
-          `${YASEN_BASE}/available_locations` +
-          `?query=${encodeURIComponent(city)}` +
-          `&locale=en` +
-          `&token=${encodeURIComponent(this.token)}`;
-
-        const locRes = await fetch(locUrl);
-        if (!locRes.ok) {
-          return {
-            ok: false,
-            reason: `available_locations HTTP ${locRes.status}: ${locRes.statusText}`,
-          };
-        }
-
-        const locations = (await locRes.json()) as AvailableLocation[];
-        if (!Array.isArray(locations) || locations.length === 0) {
-          return { ok: true, data: [] };
-        }
-
-        locationId = locations[0].id;
-        // Cache the location ID for 6 h too
-        await cache.set(locCacheKey, locationId, CACHE_TTL);
-      }
-
-      // ── Step 2: fetch prices by location ─────────────────────────────────
-      const pricesUrl =
-        `${YASEN_BASE}/prices_by_dates` +
-        `?locationId=${encodeURIComponent(locationId)}` +
-        `&checkIn=${encodeURIComponent(range.checkin)}` +
-        `&checkOut=${encodeURIComponent(range.checkout)}` +
-        `&adults=1` +
-        `&currency=USD` +
-        `&limit=20` +
-        `&token=${encodeURIComponent(this.token)}`;
-
-      const pricesRes = await fetch(pricesUrl);
-      if (!pricesRes.ok) {
-        return {
-          ok: false,
-          reason: `prices_by_dates HTTP ${pricesRes.status}: ${pricesRes.statusText}`,
-        };
-      }
-
-      const hotels = (await pricesRes.json()) as HotelPrice[];
-      if (!Array.isArray(hotels) || hotels.length === 0) {
-        return { ok: true, data: [] };
-      }
-
-      const marker = this.marker;
-
-      const offers: HotelOffer[] = hotels.map((hotel) => {
-        const hotelId = String(hotel.hotelId);
-        const priceUSD = hotel.priceFrom ?? hotel.priceAvg ?? 0;
-        const deeplink = `https://www.hotellook.com/hotels/${hotelId}?marker=${marker}`;
-
-        return {
-          id: hotelId,
-          name: hotel.hotelName,
-          area: city,
-          pricePerNight: {
-            priceCents: Math.round(priceUSD * 100),
-            currency: 'USD',
-          },
-          rating: hotel.stars,
-          deeplink,
-          source: 'hotellook',
-        };
-      });
-
-      await cache.set(cacheKey, offers, CACHE_TTL);
-      return { ok: true, data: offers };
-    } catch (err) {
-      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
-    }
+    // TODO: hotel API unavailable — switch provider
+    // All known Travelpayouts/Hotellook endpoints (yasen.hotellook.com/tp/v1,
+    // engine.hotellook.com/api/v2, hotel-engine.travelpayouts.com/api/v1)
+    // return 404. Return empty results cleanly until a working provider is wired in.
+    return { ok: true, data: [] };
   }
 }
 
