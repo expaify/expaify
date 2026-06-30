@@ -6,6 +6,27 @@ import { amadeus } from '../../../lib/providers/amadeus';
 import { kiwi } from '../../../lib/providers/kiwi';
 import { hotellook } from '../../../lib/providers/hotellook';
 import { query } from '../../../lib/db/client';
+import { type NormalizedFare } from '../../../lib/types';
+
+function shiftDate(date: string, days: number): string {
+  const shifted = new Date(`${date}T00:00:00.000Z`);
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return shifted.toISOString().slice(0, 10);
+}
+
+function dedupFares(fares: NormalizedFare[]): NormalizedFare[] {
+  const best = new Map<string, NormalizedFare>();
+
+  for (const fare of fares) {
+    const key = `${fare.carrier}:${fare.origin}:${fare.destination}:${fare.depart.slice(0, 16)}`;
+    const existing = best.get(key);
+    if (!existing || fare.price.priceCents < existing.price.priceCents) {
+      best.set(key, fare);
+    }
+  }
+
+  return Array.from(best.values()).sort((a, b) => a.price.priceCents - b.price.priceCents);
+}
 
 /**
  * GET /api/search
@@ -44,6 +65,7 @@ export async function GET(request: NextRequest) {
   const depart = params.get('depart') ?? '';
   const ret = params.get('return') ?? '';
   const passengers = parseInt(params.get('passengers') ?? '1', 10);
+  const flexDates = params.get('flex') === '1';
   const range = { depart, return: ret || undefined, passengers };
 
   const encoder = new TextEncoder();
@@ -66,10 +88,34 @@ export async function GET(request: NextRequest) {
 
       // Race all 4 providers — stream each chunk the moment it resolves
       await Promise.allSettled([
-        travelpayouts.searchFares(originIATA, destIATA ?? '', range).then(r => {
+        (async () => {
+          if (flexDates && depart) {
+            const settled = await Promise.allSettled(
+              [-3, -2, -1, 0, 1, 2, 3].map(days =>
+                travelpayouts.searchFares(originIATA, destIATA ?? '', {
+                  ...range,
+                  depart: shiftDate(depart, days),
+                })
+              )
+            );
+            const fares = settled.flatMap(result =>
+              result.status === 'fulfilled' && result.value.ok ? result.value.data : []
+            );
+            if (fares.length > 0) send({ type: 'flights', source: 'travelpayouts', data: dedupFares(fares) });
+
+            const firstFailure = settled.find(result =>
+              result.status === 'fulfilled' && !result.value.ok
+            );
+            if (fares.length === 0 && firstFailure?.status === 'fulfilled' && !firstFailure.value.ok) {
+              send({ type: 'notice', message: `Travelpayouts: ${firstFailure.value.reason}` });
+            }
+            return;
+          }
+
+          const r = await travelpayouts.searchFares(originIATA, destIATA ?? '', range);
           if (r.ok && r.data.length > 0) send({ type: 'flights', source: 'travelpayouts', data: r.data });
           else if (!r.ok) send({ type: 'notice', message: `Travelpayouts: ${r.reason}` });
-        }),
+        })(),
         duffel.searchFares(originIATA, destIATA ?? '', range).then(r => {
           if (r.ok && r.data.length > 0) send({ type: 'flights', source: 'duffel', data: r.data });
           else if (!r.ok && !r.reason.includes('not configured')) send({ type: 'notice', message: `Duffel: ${r.reason}` });

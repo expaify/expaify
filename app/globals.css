@@ -133,4 +133,6 @@ body {
 input[type="date"] { color-scheme: dark; }
 ::-webkit-scrollbar { width:5px; } ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:99px; }
+.scrollbar-hide { scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 .delay-75{animation-delay:75ms} .delay-150{animation-delay:150ms} .delay-225{animation-delay:225ms} .delay-300{animation-delay:300ms}

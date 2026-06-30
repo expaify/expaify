@@ -12,12 +12,12 @@ type TripType = 'roundtrip' | 'oneway'
 type SortBy = 'price' | 'deal' | 'stops'
 type ActiveTab = 'flights' | 'hotels'
 
-const popularRoutes = [
-  { label: 'New York → London', origin: 'JFK', dest: 'LHR' },
-  { label: 'LA → Tokyo', origin: 'LAX', dest: 'NRT' },
-  { label: 'NYC → Miami', origin: 'JFK', dest: 'MIA' },
-  { label: 'Chicago → Paris', origin: 'ORD', dest: 'CDG' },
-  { label: 'SF → Tokyo', origin: 'SFO', dest: 'NRT' },
+const destinations = [
+  { label: 'London', emoji: '🎡', origin: 'JFK', dest: 'LHR', originDisplay: 'New York (JFK)', destDisplay: 'London (LHR)', tag: 'Classic' },
+  { label: 'Tokyo', emoji: '⛩️', origin: 'LAX', dest: 'NRT', originDisplay: 'Los Angeles (LAX)', destDisplay: 'Tokyo (NRT)', tag: 'Trending' },
+  { label: 'Paris', emoji: '🗼', origin: 'JFK', dest: 'CDG', originDisplay: 'New York (JFK)', destDisplay: 'Paris (CDG)', tag: 'Romantic' },
+  { label: 'Dubai', emoji: '🏙️', origin: 'JFK', dest: 'DXB', originDisplay: 'New York (JFK)', destDisplay: 'Dubai (DXB)', tag: 'Luxury' },
+  { label: 'Miami', emoji: '🌴', origin: 'JFK', dest: 'MIA', originDisplay: 'New York (JFK)', destDisplay: 'Miami (MIA)', tag: 'Beach' },
 ]
 
 const delays = ['', 'delay-75', 'delay-150', 'delay-225', 'delay-300']
@@ -110,7 +110,6 @@ export default function Home() {
   const [sortBy, setSortBy] = useState<SortBy>('price')
   const [nonstopOnly, setNonstopOnly] = useState(false)
   const [activeTab, setActiveTab] = useState<ActiveTab>('flights')
-  const [hoveredRoute, setHoveredRoute] = useState<string | null>(null)
   const progressKey = useRef<number>(0)
 
   useEffect(() => {
@@ -430,30 +429,54 @@ export default function Home() {
             </form>
           </section>
 
-          <div className="mt-5 flex flex-wrap items-center gap-2 animate-fade-up delay-150">
-            <span className="text-xs font-semibold text-gray-700">Popular:</span>
-            {popularRoutes.map(route => {
-              const active = hoveredRoute === route.label
-              return (
-                <button
-                  key={route.label}
-                  type="button"
-                  onClick={() => {
-                    setOrigin(route.origin)
-                    setDest(route.dest)
-                  }}
-                  onMouseEnter={() => setHoveredRoute(route.label)}
-                  onMouseLeave={() => setHoveredRoute(null)}
-                  className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
-                    active
-                      ? 'border-indigo-500/30 bg-indigo-500/[0.06] text-indigo-300'
-                      : 'border-white/8 bg-white/[0.03] text-gray-500'
-                  }`}
-                >
-                  {route.label}
-                </button>
-              )
-            })}
+          <div className="mt-5 flex gap-2 overflow-x-auto pb-1 scrollbar-hide animate-fade-up delay-150">
+            {destinations.map(destination => (
+              <button
+                key={destination.label}
+                type="button"
+                onClick={() => {
+                  setOrigin(destination.origin)
+                  setOriginDisplay(destination.originDisplay)
+                  setDest(destination.dest)
+                  setDestDisplay(destination.destDisplay)
+                }}
+                className="flex-shrink-0 flex flex-col items-center gap-1.5 px-5 py-3 rounded-2xl border border-white/8 bg-white/3 hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all group"
+              >
+                <span className="text-2xl">{destination.emoji}</span>
+                <span className="text-xs font-bold text-gray-300 group-hover:text-indigo-300 transition-colors">
+                  {destination.label}
+                </span>
+                <span className="text-[10px] text-gray-600 bg-white/5 px-2 py-0.5 rounded-full">
+                  {destination.tag}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="relative mt-8 animate-fade-up delay-225">
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-[linear-gradient(to_bottom,transparent,rgba(7,9,26,0.95)_60%)]">
+              <p className="mt-16 text-sm font-bold text-gray-300">Search to see real deals</p>
+              <p className="mt-1 text-xs text-gray-600">Prices scored against 90 days of history</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 opacity-40 pointer-events-none select-none sm:grid-cols-3" aria-hidden="true">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="card overflow-hidden rounded-2xl">
+                  <div className="space-y-4 p-5">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl shimmer" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3.5 w-24 rounded shimmer" />
+                        <div className="h-2.5 w-14 rounded shimmer" />
+                      </div>
+                      <div className="h-8 w-16 rounded shimmer" />
+                    </div>
+                    <div className="h-12 rounded-xl shimmer" />
+                    <div className="h-10 rounded-xl shimmer" />
+                    <div className="h-11 rounded-xl shimmer" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </main>
@@ -639,10 +662,19 @@ export default function Home() {
 
             {activeTab === 'hotels' && (
               <>
-                {isSearching && hotels.length === 0 ? (
+                {isSearching ? (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {Array.from({ length: 6 }).map((_, index) => (
-                      <HotelSkeleton key={index} />
+                    {hotels.map((hotel, index) => (
+                      <div key={hotel.id} className={`animate-fade-up ${delays[Math.min(index, delays.length - 1)]}`}>
+                        <HotelCard
+                          hotel={hotel}
+                          score={hotelScores[hotel.id] ?? null}
+                          loading={hotelScoreLoading.has(hotel.id)}
+                        />
+                      </div>
+                    ))}
+                    {Array.from({ length: hotels.length > 0 ? 2 : 6 }).map((_, index) => (
+                      <HotelSkeleton key={`hotel-skeleton-${index}`} />
                     ))}
                   </div>
                 ) : hotels.length === 0 ? (

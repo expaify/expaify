@@ -1,9 +1,13 @@
 import { NextRequest } from 'next/server'
 import { AIRPORTS } from '@/lib/airports/data'
 
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+}
+
 export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get('q') ?? '').trim().toLowerCase()
-  if (q.length < 1) return Response.json([])
+  if (q.length < 1) return Response.json([], { headers: CACHE_HEADERS })
 
   const scored = AIRPORTS
     .map(a => {
@@ -25,5 +29,5 @@ export async function GET(req: NextRequest) {
     .slice(0, 8)
     .map(({ score: _, ...a }) => a)
 
-  return Response.json(scored)
+  return Response.json(scored, { headers: CACHE_HEADERS })
 }

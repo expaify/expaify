@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { Airport } from '@/lib/airports/data'
 
+const cache = new Map<string, Airport[]>()
+
 interface AirportInputProps {
   id: string
   value: string
@@ -50,10 +52,19 @@ export default function AirportInput({
     }
 
     const handle = window.setTimeout(async () => {
+      const cached = cache.get(q)
+      if (cached) {
+        setResults(cached)
+        setHighlighted(0)
+        setOpen(cached.length > 0)
+        return
+      }
+
       try {
         const res = await fetch(`/api/airports?q=${encodeURIComponent(q)}`)
         if (!res.ok) throw new Error('Airport lookup failed')
         const airports = (await res.json()) as Airport[]
+        cache.set(q, airports)
         setResults(airports)
         setHighlighted(0)
         setOpen(airports.length > 0)
