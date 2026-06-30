@@ -44,7 +44,7 @@ export class HotellookProvider implements HotelProvider {
   }
 
   private get marker(): string {
-    return process.env.TP_AFFILIATE_MARKER ?? '';
+    return process.env.HOTEL_AFFILIATE_ID ?? process.env.TP_AFFILIATE_MARKER ?? '';
   }
 
   private buildDeeplink(hotelId: number): string {
@@ -57,7 +57,7 @@ export class HotellookProvider implements HotelProvider {
   ): Promise<Result<HotelOffer[]>> {
     const token = this.token;
     if (!token) return { ok: false, reason: 'TP_TOKEN not configured' };
-    if (!this.marker) return { ok: false, reason: 'TP_AFFILIATE_MARKER not configured' };
+    if (!this.marker) return { ok: false, reason: 'HOTEL_AFFILIATE_ID not configured' };
 
     const location = area.trim().toUpperCase();
     const cacheKey = `hotellook:search:${location}:${range.checkin}:${range.checkout}`;

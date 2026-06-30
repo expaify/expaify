@@ -21,7 +21,8 @@ const cacheSetMock = cache.set as jest.Mock;
 
 beforeEach(() => {
   process.env.TP_TOKEN = 'test-token';
-  process.env.TP_AFFILIATE_MARKER = 'marker42';
+  process.env.HOTEL_AFFILIATE_ID = 'hotel-marker42';
+  delete process.env.TP_AFFILIATE_MARKER;
   jest.clearAllMocks();
   global.fetch = jest.fn();
 });
@@ -40,7 +41,8 @@ describe('HotellookProvider.searchHotels', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('returns a configuration error when TP_AFFILIATE_MARKER is missing', async () => {
+  it('returns a configuration error when HOTEL_AFFILIATE_ID is missing', async () => {
+    delete process.env.HOTEL_AFFILIATE_ID;
     delete process.env.TP_AFFILIATE_MARKER;
 
     const provider = new HotellookProvider();
@@ -49,8 +51,35 @@ describe('HotellookProvider.searchHotels', () => {
       checkout: '2026-09-29',
     });
 
-    expect(result).toEqual({ ok: false, reason: 'TP_AFFILIATE_MARKER not configured' });
+    expect(result).toEqual({ ok: false, reason: 'HOTEL_AFFILIATE_ID not configured' });
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('uses HOTEL_AFFILIATE_ID as the primary deeplink marker', async () => {
+    process.env.HOTEL_AFFILIATE_ID = 'hotel-primary';
+    process.env.TP_AFFILIATE_MARKER = 'legacy-flight-marker';
+    const provider = new HotellookProvider();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue([
+        {
+          hotelId: 12345,
+          hotelName: 'Hotel Example',
+          priceFrom: 129,
+        },
+      ]),
+    });
+
+    const result = await provider.searchHotels('jfk', {
+      checkin: '2026-09-22',
+      checkout: '2026-09-29',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.data[0].deeplink).toContain('marker=hotel-primary');
+    expect(result.data[0].deeplink).not.toContain('legacy-flight-marker');
   });
 
   it('calls the engine cache endpoint and maps HotelLook major-unit priceFrom to cents', async () => {
@@ -89,7 +118,7 @@ describe('HotellookProvider.searchHotels', () => {
         stars: 4,
         rating: 4,
         pricePerNight: { priceCents: 12999, currency: 'USD' },
-        deeplink: 'https://tp.media/r?marker=marker42&trs=233847&p=4536&u=https://hotellook.com/hotels/12345',
+        deeplink: 'https://tp.media/r?marker=hotel-marker42&trs=233847&p=4536&u=https://hotellook.com/hotels/12345',
         photoUrl: 'https://example.com/hotel.jpg',
         source: 'hotellook',
       },

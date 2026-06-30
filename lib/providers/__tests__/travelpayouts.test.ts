@@ -293,16 +293,14 @@ describe('TravelpayoutsProvider.searchFares', () => {
     expect(suFare!.stops).toBe(0);
   });
 
-  it('deeplink does not include marker when TP_AFFILIATE_MARKER is unset', async () => {
+  it('returns unavailable without fetching when TP_AFFILIATE_MARKER is unset', async () => {
     delete process.env.TP_AFFILIATE_MARKER;
-    mockFetchSearchSequence();
+    global.fetch = jest.fn();
     const provider = new TravelpayoutsProvider();
     const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06', passengers: 1 });
-    if (!result.ok) throw new Error(result.reason);
 
-    result.data.forEach((f) => {
-      expect(f.deeplink).not.toContain('marker');
-    });
+    expect(result).toEqual({ ok: false, reason: 'TP_AFFILIATE_MARKER not configured' });
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('returns { ok: true, data: [] } when all HTTP calls fail', async () => {
