@@ -59,13 +59,21 @@ export class DuffelProvider implements FlightProvider {
     dest: string,
     range: { depart: string; return?: string }
   ): Promise<Result<NormalizedFare[]>> {
-    // Duffel requires a destination
+    // Duffel requires a destination and a valid future departure date
     if (!dest) return { ok: true, data: [] };
+
+    const departDate = range.depart && /^\d{4}-\d{2}-\d{2}$/.test(range.depart)
+      ? range.depart
+      : null;
+    if (!departDate) return { ok: true, data: [] };
+
+    // Reject past dates — Duffel returns 422 for them
+    if (departDate < new Date().toISOString().slice(0, 10)) return { ok: true, data: [] };
 
     const apiKey = this.apiKey;
     if (!apiKey) return { ok: false, reason: 'Duffel not configured' };
 
-    const cacheKey = `duffel:search:${origin}:${dest}:${range.depart}`;
+    const cacheKey = `duffel:search:${origin}:${dest}:${departDate}`;
 
     try {
       const cached = await cache.get<NormalizedFare[]>(cacheKey);
@@ -73,10 +81,10 @@ export class DuffelProvider implements FlightProvider {
 
       // Build slices — outbound always present, return slice optional
       const slices: Array<{ origin: string; destination: string; departure_date: string }> = [
-        { origin, destination: dest, departure_date: range.depart },
+        { origin, destination: dest, departure_date: departDate },
       ];
 
-      if (range.return) {
+      if (range.return && /^\d{4}-\d{2}-\d{2}$/.test(range.return) && range.return >= departDate) {
         slices.push({ origin: dest, destination: origin, departure_date: range.return });
       }
 
@@ -98,7 +106,8 @@ export class DuffelProvider implements FlightProvider {
       });
 
       if (!res.ok) {
-        return { ok: false, reason: `Duffel /air/offer_requests HTTP ${res.status}` };
+        const body = await Promise.resolve().then(() => res.text()).catch(() => '');
+        return { ok: false, reason: `Duffel /air/offer_requests HTTP ${res.status}: ${body.slice(0, 200)}` };
       }
 
       const json = (await res.json()) as DuffelOfferRequestResponse;
