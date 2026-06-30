@@ -1264,7 +1264,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => void runSearch()}
-                  className="btn-primary min-h-11 px-4 py-2.5 text-sm"
+                  className="btn-primary min-h-12 whitespace-nowrap px-5 py-3 text-sm"
                 >
                   Retry search
                 </button>
