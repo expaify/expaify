@@ -198,18 +198,22 @@ export default function Home() {
         for (const line of lines) {
           if (!line.trim()) continue
 
-          const message = JSON.parse(line) as { type: string; data?: unknown; message?: string }
-          if (message.type === 'flights' && Array.isArray(message.data)) {
-            const newFares = message.data as NormalizedFare[]
-            accumulated.push(...newFares)
-            setFlights(dedup(accumulated))
-            newFares.forEach(fireScore)
-          } else if (message.type === 'hotels' && Array.isArray(message.data)) {
-            const newHotels = message.data as HotelOffer[]
-            setHotels(newHotels)
-            newHotels.forEach(fireHotelScore)
-          } else if (message.type === 'done') {
-            setIsSearching(false)
+          try {
+            const message = JSON.parse(line) as { type: string; data?: unknown; message?: string }
+            if (message.type === 'flights' && Array.isArray(message.data)) {
+              const newFares = message.data as NormalizedFare[]
+              accumulated.push(...newFares)
+              setFlights(dedup(accumulated))
+              newFares.forEach(fireScore)
+            } else if (message.type === 'hotels' && Array.isArray(message.data)) {
+              const newHotels = message.data as HotelOffer[]
+              setHotels(newHotels)
+              newHotels.forEach(fireHotelScore)
+            } else if (message.type === 'done') {
+              setIsSearching(false)
+            }
+          } catch {
+            // Skip malformed NDJSON lines without failing the whole search.
           }
         }
       }

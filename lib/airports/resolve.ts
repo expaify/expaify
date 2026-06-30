@@ -50,6 +50,10 @@ const ZIP_RE = /^\d{5}$/;
 export function resolveToIATA(input: string): string {
   const trimmed = input.trim();
 
+  // Handle "City (IATA)" display format from the autocomplete component.
+  const parenMatch = trimmed.match(/\(([A-Z]{3})\)\s*$/);
+  if (parenMatch?.[1]) return parenMatch[1];
+
   if (IATA_RE.test(trimmed)) {
     return trimmed.toUpperCase();
   }

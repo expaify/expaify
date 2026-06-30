@@ -82,9 +82,38 @@ export default function AirportInput({
     }
   }
 
-  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+  async function selectFirstMatch() {
+    const q = inputText.trim()
+    if (!q) return
+
+    try {
+      const res = await fetch(`/api/airports?q=${encodeURIComponent(q)}`)
+      if (!res.ok) throw new Error('Airport lookup failed')
+      const airports = (await res.json()) as Airport[]
+      const airport = airports[0]
+      if (airport) select(airport)
+    } catch {
+      // Keep the user's text in place if lookup fails.
+    }
+  }
+
+  function handleBlur() {
+    if (!results.length) return
+
+    if (!_value && results[0]) {
+      select(results[0])
+    }
+  }
+
+  async function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Escape') {
       setOpen(false)
+      return
+    }
+
+    if (event.key === 'Enter' && (!open || results.length === 0)) {
+      event.preventDefault()
+      await selectFirstMatch()
       return
     }
 
@@ -115,6 +144,7 @@ export default function AirportInput({
         value={inputText}
         onChange={e => handleInputChange(e.target.value)}
         onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
         onFocus={() => inputText.length > 0 && setOpen(true)}
         placeholder={placeholder}
         required={required}
