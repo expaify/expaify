@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext } from '@/lib/booking/config'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
@@ -13,6 +13,7 @@ const factValueCls = 'mt-1 text-sm font-semibold leading-5 text-[color:var(--tex
 const panelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] shadow-[var(--shadow-card)]'
 const insetPanelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)]'
 const secondaryButtonCls = 'inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-semibold text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:shadow-[var(--focus-ring)]'
+const primaryActionCls = 'inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[color:var(--brand)] px-4 text-sm font-bold text-white transition-colors hover:bg-[color:var(--brand-hover)] focus-visible:shadow-[var(--focus-ring)] sm:w-auto'
 
 type BookingFlowProps = {
   bookingEnabled: boolean
@@ -216,6 +217,39 @@ function RecoveryState({
   )
 }
 
+function InvalidBookingState() {
+  const headingRef = useRef<HTMLHeadingElement>(null)
+
+  useEffect(() => {
+    headingRef.current?.focus()
+  }, [])
+
+  return (
+    <main className="mx-auto flex min-h-screen w-full max-w-3xl items-center px-4 py-8 sm:px-6 lg:px-8">
+      <section
+        aria-labelledby="invalid-booking-title"
+        className={`${panelCls} w-full p-5 sm:p-8`}
+      >
+        <p className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand)]">Booking unavailable</p>
+        <h1
+          id="invalid-booking-title"
+          ref={headingRef}
+          tabIndex={-1}
+          className="mt-2 text-2xl font-bold leading-tight text-[color:var(--text-1)] outline-none sm:text-4xl"
+        >
+          We can't identify this fare
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
+          This booking link is missing required fare details or includes trip details expaify cannot verify. Return to search and choose a current flight result before reviewing booking options.
+        </p>
+        <a href="/" className={`mt-6 ${primaryActionCls}`}>
+          Back to search
+        </a>
+      </section>
+    </main>
+  )
+}
+
 export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext }: BookingFlowProps) {
   const [state, setState] = useState<BookingState>('idle')
   const [bookingRef, setBookingRef] = useState('')
@@ -285,14 +319,7 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
   }
 
   if (!fareContext) {
-    return (
-      <RecoveryState
-        title="We can't identify this fare"
-        message="The booking page is missing the selected provider, route, or price. Return to search and choose a current flight result before reviewing booking options."
-        fareContext={null}
-        duffelSandbox={duffelSandbox}
-      />
-    )
+    return <InvalidBookingState />
   }
 
   if (!bookingEnabled) {

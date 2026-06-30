@@ -93,7 +93,30 @@ describe('booking fare context continuity', () => {
     } as const;
 
     expect(validateBookingFareContext({ ...baseContext, priceCents: 450.01 })).toBeNull();
+    expect(validateBookingFareContext({ ...baseContext, priceCents: '1e5' })).toBeNull();
     expect(validateBookingFareContext({ ...baseContext, passengerCount: 0 })).toBeNull();
     expect(validateBookingFareContext({ ...baseContext, priceScope: 'total' })).toBeNull();
+  });
+
+  it('returns null for malformed route, date, or currency context', () => {
+    const baseContext = {
+      offerId: 'off_123',
+      provider: 'duffel',
+      origin: 'JFK',
+      destination: 'LAX',
+      depart: '2026-09-22T08:00:00.000Z',
+      carrier: 'American Airlines',
+      stops: 0,
+      priceCents: 45001,
+      currency: 'USD',
+      passengerCount: 1,
+      priceScope: 'party_total',
+    } as const;
+
+    expect(validateBookingFareContext({ ...baseContext, origin: 'New York' })).toBeNull();
+    expect(validateBookingFareContext({ ...baseContext, destination: 'lax' })).toBeNull();
+    expect(validateBookingFareContext({ ...baseContext, depart: 'not-a-date' })).toBeNull();
+    expect(validateBookingFareContext({ ...baseContext, return: 'not-a-date' })).toBeNull();
+    expect(validateBookingFareContext({ ...baseContext, currency: 'US Dollars' })).toBeNull();
   });
 });
