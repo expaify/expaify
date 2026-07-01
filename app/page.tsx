@@ -11,6 +11,7 @@ import { sortFlights } from '@/lib/search/sortFlights'
 
 type View = 'form' | 'results'
 type TripType = 'roundtrip' | 'oneway'
+type SearchIntent = 'flights' | 'hotels' | 'trip'
 type SortBy = 'price' | 'deal'
 type ActiveTab = 'flights' | 'hotels'
 type HotelAvailability = 'idle' | 'loading' | 'available' | 'empty' | 'unavailable' | 'skipped'
@@ -40,6 +41,33 @@ const destinations = [
 ]
 
 const delays = ['', 'delay-75', 'delay-150', 'delay-225', 'delay-300']
+const searchIntentOptions: Array<{ value: SearchIntent; label: string; description: string }> = [
+  { value: 'flights', label: 'Flights', description: 'Rank current fares' },
+  { value: 'hotels', label: 'Hotels', description: 'Check stays for the trip dates' },
+  { value: 'trip', label: 'Flight + hotel', description: 'Review both when available' },
+]
+
+function activeTabForIntent(intent: SearchIntent): ActiveTab {
+  return intent === 'hotels' ? 'hotels' : 'flights'
+}
+
+function labelForIntent(intent: SearchIntent): string {
+  if (intent === 'hotels') return 'Hotel search'
+  if (intent === 'trip') return 'Flight + hotel search'
+  return 'Flight search'
+}
+
+function submitLabelForIntent(intent: SearchIntent): string {
+  if (intent === 'hotels') return 'Search hotels'
+  if (intent === 'trip') return 'Search flights and hotels'
+  return 'Search flights'
+}
+
+function loadingLabelForIntent(intent: SearchIntent): string {
+  if (intent === 'hotels') return 'Checking hotel options...'
+  if (intent === 'trip') return 'Checking flights and hotels...'
+  return 'Scanning fares...'
+}
 
 function IconPlane({ className = '' }: { className?: string }) {
   return (
@@ -486,6 +514,7 @@ function PriceCalendar({
 
 export default function Home() {
   const [view, setView] = useState<View>('form')
+  const [searchIntent, setSearchIntent] = useState<SearchIntent>('trip')
   const [tripType, setTripType] = useState<TripType>('roundtrip')
   const [origin, setOrigin] = useState('')
   const [dest, setDest] = useState('')
@@ -525,6 +554,7 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search)
     const parsed = parseCriteriaFromUrl(params)
     setActiveTab(parsed.activeTab)
+    setSearchIntent(parsed.activeTab === 'hotels' ? 'hotels' : 'trip')
     setSortBy(parsed.sortBy)
     setFilterStops(parsed.filterStops)
 
@@ -570,7 +600,6 @@ export default function Home() {
 
   useEffect(() => {
     if (tripType === 'oneway') {
-      setReturnDate('')
       setDateErrors(prev => ({ ...prev, returnDate: undefined }))
     }
   }, [tripType])
@@ -720,9 +749,10 @@ export default function Home() {
     setAlertEmail('')
     setAlertSent(false)
     setView('results')
-    setActiveTab(options.activeTab ?? 'flights')
+    const nextActiveTab = options.activeTab ?? activeTabForIntent(searchIntent)
+    setActiveTab(nextActiveTab)
     progressKey.current += 1
-    if (options.updateUrl) syncUrl(normalized, { activeTab: options.activeTab ?? 'flights' })
+    if (options.updateUrl) syncUrl(normalized, { activeTab: nextActiveTab })
 
     try {
       const params = buildSearchParams(normalized)
@@ -867,6 +897,13 @@ export default function Home() {
     syncUrl(currentCriteria(), { activeTab: tab })
   }
 
+  function handleSearchIntentChange(intent: SearchIntent) {
+    setSearchIntent(intent)
+    setFormError(null)
+    if (intent !== 'hotels') return
+    setDateErrors(prev => ({ ...prev, returnDate: undefined }))
+  }
+
   function setSortByAndUrl(value: SortBy | ((previous: SortBy) => SortBy)) {
     setSortBy(previous => {
       const next = typeof value === 'function' ? value(previous) : value
@@ -913,10 +950,13 @@ export default function Home() {
   }, [filteredFlights, sortBy, scores, rankingUpdating])
 
   const routeLabel = [originDisplay || origin, destDisplay || dest].filter(Boolean).join(' → ')
+  const visibleReturnDate = tripType === 'roundtrip' ? returnDate : ''
+  const searchSummaryLabel = labelForIntent(searchIntent)
   const resultContext = [
+    searchSummaryLabel,
     routeLabel || 'Anywhere',
-    depart && returnDate ? `${depart} - ${returnDate}` : depart,
-    passengers > 1 ? `${passengers} passengers` : null,
+    depart && visibleReturnDate ? `${depart} - ${visibleReturnDate}` : depart,
+    passengers === 1 ? '1 traveler' : `${passengers} travelers`,
   ].filter(Boolean).join(' · ')
   const greatCount = Object.values(scores).filter(score => score?.verdict === 'Great').length
   const hotelsTabDisabled = hotels.length === 0 && ['idle', 'skipped'].includes(hotelAvailability)
@@ -964,10 +1004,10 @@ export default function Home() {
                 Live fare scoring
               </div>
               <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-                Know when a flight price is actually worth booking.
+                Know when a travel price is actually worth booking.
               </h1>
               <p className="mt-5 max-w-lg text-base font-medium leading-7 text-slate-600 sm:text-lg">
-                Search current fares and compare each option against recent route history, median price, and deal percentile.
+                Search current fares and hotel options with Deal Score context where route history is available.
               </p>
 
               <div className="mt-7 grid grid-cols-3 gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -989,32 +1029,62 @@ export default function Home() {
             <section className="animate-fade-up delay-75 rounded-[1.75rem] border border-slate-200 bg-white p-3 shadow-[0_24px_70px_rgba(15,23,42,0.13)] sm:p-4">
               <div className="mb-4 flex items-start justify-between gap-4 px-1 pt-1 sm:px-2">
                 <div>
-                  <h2 className="font-display text-lg font-extrabold tracking-tight text-slate-950 sm:text-xl">Search flights</h2>
-                  <p className="mt-1 text-sm font-medium text-slate-500">Add a route to rank live prices by deal quality.</p>
+                  <h2 className="font-display text-lg font-extrabold tracking-tight text-slate-950 sm:text-xl">Search travel deals</h2>
+                  <p className="mt-1 text-sm font-medium text-slate-500">Choose flights, hotels, or both for this search.</p>
                 </div>
                 <div className="hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 sm:block">
                   Cash fares first
                 </div>
               </div>
 
-              <div className="mb-4 flex rounded-2xl bg-slate-100 p-1">
-                {(['roundtrip', 'oneway'] as TripType[]).map(type => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => { setTripType(type); setFormError(null) }}
-                    className={`min-h-11 flex-1 rounded-xl border px-3 py-2 text-sm font-bold transition-colors ${
-                    tripType === type
-                      ? 'border-white bg-white text-slate-950 shadow-sm'
-                      : 'border-transparent text-slate-500 hover:text-slate-800'
-                  }`}
-                  >
-                    {type === 'roundtrip' ? 'Round trip' : 'One way'}
-                  </button>
-                ))}
-              </div>
+              <fieldset className="mb-4">
+                <legend className="sr-only">Search intent</legend>
+                <div className="grid grid-cols-1 gap-2 rounded-2xl bg-slate-100 p-1 sm:grid-cols-3">
+                  {searchIntentOptions.map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleSearchIntentChange(option.value)}
+                      aria-pressed={searchIntent === option.value}
+                      className={`min-h-[4.25rem] rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none ${
+                        searchIntent === option.value
+                          ? 'border-white bg-white text-slate-950 shadow-sm'
+                          : 'border-transparent text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      <span className="block text-sm font-extrabold">{option.label}</span>
+                      <span className="mt-0.5 block text-xs font-semibold leading-4 text-slate-500">
+                        {option.description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
 
               <form onSubmit={handleSearch} className="space-y-4">
+                <fieldset>
+                  <legend className="mb-2 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                    Trip type
+                  </legend>
+                  <div className="flex rounded-2xl bg-slate-100 p-1">
+                    {(['roundtrip', 'oneway'] as TripType[]).map(type => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => { setTripType(type); setFormError(null) }}
+                        aria-pressed={tripType === type}
+                        className={`min-h-11 flex-1 rounded-xl border px-3 py-2 text-sm font-bold transition-colors ${
+                          tripType === type
+                            ? 'border-white bg-white text-slate-950 shadow-sm'
+                            : 'border-transparent text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        {type === 'roundtrip' ? 'Round trip' : 'One way'}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+
                 <div className="grid grid-cols-1 items-end gap-3 lg:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)]">
                 <div>
                   <label htmlFor="origin" className="mb-1.5 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
@@ -1172,12 +1242,12 @@ export default function Home() {
                 {isSearching ? (
                   <>
                     <span className="spinner" />
-                      Scanning deals...
+                    {loadingLabelForIntent(searchIntent)}
                   </>
                 ) : (
                   <>
-                    <IconPlane className="text-indigo-200" />
-                    Search flights
+                    {searchIntent !== 'hotels' && <IconPlane className="text-indigo-200" />}
+                    {submitLabelForIntent(searchIntent)}
                   </>
                 )}
               </button>
@@ -1268,7 +1338,7 @@ export default function Home() {
             </span>
             {depart && (
               <span className="hidden shrink-0 text-sm text-gray-500 sm:inline">
-                {depart}{returnDate ? ` - ${returnDate}` : ''}
+                {depart}{visibleReturnDate ? ` - ${visibleReturnDate}` : ''}
               </span>
             )}
             <span className="ml-auto shrink-0 text-xs font-medium text-gray-600">
@@ -1287,7 +1357,7 @@ export default function Home() {
                 <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 dot-pulse-2" />
                 <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 dot-pulse-3" />
               </div>
-              <p className="text-sm text-gray-400">Scanning deals across providers…</p>
+              <p className="text-sm text-gray-400">{loadingLabelForIntent(searchIntent)}</p>
             </div>
           ) : error ? (
             <div className="min-w-0">
@@ -1299,12 +1369,14 @@ export default function Home() {
           ) : (
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-200">
-                {flights.length} flight{flights.length === 1 ? '' : 's'} found{routeLabel ? ` · ${routeLabel}` : ''}
-                {passengers > 1 && <span className="text-gray-600"> × {passengers} passengers</span>}
+                {searchSummaryLabel} · {routeLabel || 'Anywhere'}
+              </p>
+              <p className="mt-0.5 text-xs font-medium text-gray-500">
+                {flights.length} flight{flights.length === 1 ? '' : 's'} · {hotels.length} hotel{hotels.length === 1 ? '' : 's'} · {passengers === 1 ? '1 traveler' : `${passengers} travelers`}
               </p>
               {greatCount > 0 && (
                 <p className="mt-0.5 text-xs font-semibold text-emerald-400">
-                  🔥 {greatCount} great deal{greatCount === 1 ? '' : 's'}
+                  {greatCount} great deal{greatCount === 1 ? '' : 's'}
                 </p>
               )}
             </div>
@@ -1370,7 +1442,7 @@ export default function Home() {
               {(['flights', 'hotels'] as ActiveTab[]).map(tab => {
                 const count = tab === 'flights' ? flights.length : hotels.length
                 const active = activeTab === tab
-                const disabled = tab === 'hotels' && hotelsTabDisabled
+                const disabled = tab === 'hotels' && hotelsTabDisabled && activeTab !== 'hotels'
                 return (
                   <button
                     key={tab}
@@ -1402,9 +1474,9 @@ export default function Home() {
               })}
             </div>
 
-            {hotelsTabDisabled && !isSearching && (
+            {hotelsTabDisabled && activeTab !== 'hotels' && !isSearching && (
               <div className="mb-6 rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-gray-500">
-                <p className="font-semibold text-gray-300">Hotels were not included.</p>
+                <p className="font-semibold text-gray-300">Hotel results need more trip details.</p>
                 <p className="mt-0.5">{hotelUnavailableCopy}</p>
               </div>
             )}
