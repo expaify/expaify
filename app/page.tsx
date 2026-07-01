@@ -252,17 +252,23 @@ function parseCriteriaFromUrl(params: URLSearchParams): { criteria: SearchCriter
 
 function HotelSkeleton() {
   return (
-    <div className="card rounded-2xl overflow-hidden">
-      <div className="h-40 shimmer" />
+    <div className="card overflow-hidden">
+      <div className="h-36 shimmer sm:h-40" />
       <div className="space-y-3 p-5">
-        <div className="h-4 w-3/4 rounded-lg shimmer" />
-        <div className="h-3 w-1/2 rounded-lg shimmer" />
-        <div className="flex items-end justify-between border-t border-white/5 pt-4">
-          <div className="space-y-1.5">
-            <div className="h-7 w-16 rounded-lg shimmer" />
-            <div className="h-2.5 w-12 rounded-lg shimmer" />
+        <div className="flex flex-wrap gap-2">
+          <div className="h-7 w-32 rounded-full shimmer" />
+          <div className="h-5 w-24 rounded-lg shimmer" />
+        </div>
+        <div className="h-5 w-4/5 rounded-lg shimmer" />
+        <div className="h-4 w-2/3 rounded-lg shimmer" />
+        <div className="h-16 rounded-lg shimmer" />
+        <div className="flex flex-col gap-4 border-t border-white/5 pt-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-2">
+            <div className="h-4 w-20 rounded-lg shimmer" />
+            <div className="h-8 w-28 rounded-lg shimmer" />
+            <div className="h-3 w-36 rounded-lg shimmer" />
           </div>
-          <div className="h-10 w-32 rounded-xl shimmer" />
+          <div className="h-12 w-full rounded-lg shimmer sm:w-40" />
         </div>
       </div>
     </div>
@@ -913,7 +919,7 @@ export default function Home() {
     passengers > 1 ? `${passengers} passengers` : null,
   ].filter(Boolean).join(' · ')
   const greatCount = Object.values(scores).filter(score => score?.verdict === 'Great').length
-  const hotelsTabDisabled = hotels.length === 0 && ['idle', 'skipped', 'unavailable'].includes(hotelAvailability)
+  const hotelsTabDisabled = hotels.length === 0 && ['idle', 'skipped'].includes(hotelAvailability)
   const hotelUnavailableCopy =
     hotelAvailability === 'unavailable'
       ? hotelAvailabilityMessage ?? 'The hotel provider is unavailable right now.'
@@ -1389,7 +1395,7 @@ export default function Home() {
                       {disabled ? 'Unavailable' : count}
                     </span>
                     {active && (
-                      <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-t-full bg-[linear-gradient(90deg,#6366f1,#a78bfa)]" />
+                      <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-t-full bg-indigo-400" />
                     )}
                   </button>
                 )
