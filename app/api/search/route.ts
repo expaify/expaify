@@ -41,8 +41,6 @@ function parsePassengers(value: string | null): number {
 }
 
 function validateDateParam(name: string, value: string): void {
-  if (!value) return;
-
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new Error(`${name} must use YYYY-MM-DD format`);
   }
@@ -51,6 +49,10 @@ function validateDateParam(name: string, value: string): void {
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
     throw new Error(`${name} is not a valid date`);
   }
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function classifyProviderIssue(reason: string): ProviderIssueStatus {
@@ -83,8 +85,16 @@ function providerMessage(provider: string, status: ProviderIssueStatus): string 
   return `${provider} is unavailable for this search.`;
 }
 
-function providerFailureReason(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+function providerExceptionReason(provider: string, error: unknown): string {
+  const detail = error instanceof Error ? error.message : String(error);
+  return detail
+    ? `${provider} provider call failed: ${detail}`
+    : `${provider} provider call failed`;
+}
+
+function isTimeoutReason(reason: string): boolean {
+  const normalized = reason.toLowerCase();
+  return normalized.includes('timed out') || normalized.includes('timeout') || normalized.includes('aborted');
 }
 
 /**
@@ -123,12 +133,28 @@ export async function GET(request: NextRequest) {
 
   const depart = params.get('depart') ?? '';
   const ret = params.get('return') ?? '';
+  const trip = params.get('trip') ?? 'roundtrip';
   let passengers: number;
   try {
+    if (trip !== 'roundtrip' && trip !== 'oneway') {
+      throw new Error('Trip type must be roundtrip or oneway');
+    }
+    if (!depart) {
+      throw new Error('Departure date is required. Choose a departure date before searching.');
+    }
+    if (trip === 'roundtrip' && !ret) {
+      throw new Error('Return date is required for round trips. Choose a return date or switch to one way.');
+    }
+    if (trip === 'oneway' && ret) {
+      throw new Error('One-way searches cannot include a return date. Remove the return date or switch to round trip.');
+    }
     validateDateParam('depart', depart);
-    validateDateParam('return', ret);
-    if (depart && ret && ret < depart) {
-      throw new Error('Return date must be after departure date');
+    if (ret) validateDateParam('return', ret);
+    if (depart < todayIso()) {
+      throw new Error('Departure date cannot be in the past. Choose today or a future date.');
+    }
+    if (ret && ret < depart) {
+      throw new Error('Return date must be on or after departure date.');
     }
     passengers = parsePassengers(params.get('passengers'));
   } catch (e) {
@@ -151,31 +177,31 @@ export async function GET(request: NextRequest) {
         send({ type: 'flights', source, data });
       };
 
-      const sendProviderNotice = (provider: string, reason: string) => {
+      const sendProviderNotice = (provider: string, reason: string, messageOverride?: string) => {
         const status = classifyProviderIssue(reason);
-        const timedOut = reason.toLowerCase().includes('timed out') || reason.toLowerCase().includes('timeout');
+        const timedOut = isTimeoutReason(reason);
         const notice: ProviderNotice = {
           provider,
           status,
-          message: timedOut
+          message: messageOverride ?? (timedOut
             ? `${provider} did not respond in time. We could not confirm its inventory for this search.`
-            : providerMessage(provider, status),
+            : providerMessage(provider, status)),
         };
         flightProviderIssues.push(notice);
         send({ type: 'notice', ...notice });
       };
 
-      const runFlightProvider = async (
+      const searchFlightProvider = async (
         provider: string,
         source: string,
-        search: Promise<{ ok: true; data: NormalizedFare[] } | { ok: false; reason: string }>,
+        search: () => Promise<{ ok: true; data: NormalizedFare[] } | { ok: false; reason: string }>
       ) => {
         try {
-          const result = await search;
+          const result = await search();
           if (result.ok && result.data.length > 0) sendFlights(source, result.data);
           else if (!result.ok) sendProviderNotice(provider, result.reason);
         } catch (error) {
-          sendProviderNotice(provider, providerFailureReason(error));
+          sendProviderNotice(provider, providerExceptionReason(provider, error));
         }
       };
 
@@ -194,44 +220,57 @@ export async function GET(request: NextRequest) {
       // Race all 4 providers — stream each chunk the moment it resolves
       await Promise.all([
         (async () => {
-          if (flexDates && depart) {
-            const settled = await Promise.allSettled(
-              [-3, -2, -1, 0, 1, 2, 3].map(days =>
-                travelpayouts.searchFares(originIATA, destIATA ?? '', {
-                  ...range,
-                  depart: shiftDate(depart, days),
-                })
-              )
-            );
-            const fares = settled.flatMap(result =>
-              result.status === 'fulfilled' && result.value.ok ? result.value.data : []
-            );
-            const dedupedFares = dedupFares(fares);
-            if (dedupedFares.length > 0) sendFlights('travelpayouts', dedupedFares);
+          try {
+            if (flexDates && depart) {
+              const settled = await Promise.allSettled(
+                [-3, -2, -1, 0, 1, 2, 3].map(async days =>
+                  await travelpayouts.searchFares(originIATA, destIATA ?? '', {
+                    ...range,
+                    depart: shiftDate(depart, days),
+                  })
+                )
+              );
+              const fares = settled.flatMap(result =>
+                result.status === 'fulfilled' && result.value.ok ? result.value.data : []
+              );
+              const dedupedFares = dedupFares(fares);
+              if (dedupedFares.length > 0) sendFlights('travelpayouts', dedupedFares);
 
-            const firstFailure = settled.find(result =>
-              result.status === 'fulfilled' && !result.value.ok
-            );
-            if (fares.length === 0 && firstFailure?.status === 'fulfilled' && !firstFailure.value.ok) {
-              sendProviderNotice('Travelpayouts', firstFailure.value.reason);
-            } else if (fares.length === 0) {
+              const firstFailure = settled.find(result =>
+                result.status === 'fulfilled' && !result.value.ok
+              );
               const firstRejection = settled.find(result => result.status === 'rejected');
-              if (firstRejection?.status === 'rejected') {
-                sendProviderNotice('Travelpayouts', providerFailureReason(firstRejection.reason));
+              const incompleteFlexCoverage = firstFailure !== undefined || firstRejection !== undefined;
+              if (fares.length > 0 && incompleteFlexCoverage) {
+                const reason = firstFailure?.status === 'fulfilled' && !firstFailure.value.ok
+                  ? firstFailure.value.reason
+                  : firstRejection?.status === 'rejected'
+                    ? providerExceptionReason('Travelpayouts', firstRejection.reason)
+                    : 'Travelpayouts flexible-date coverage incomplete';
+                sendProviderNotice(
+                  'Travelpayouts',
+                  reason,
+                  'Travelpayouts flexible-date coverage is incomplete for this search.'
+                );
               }
+              if (fares.length === 0 && firstFailure?.status === 'fulfilled' && !firstFailure.value.ok) {
+                sendProviderNotice('Travelpayouts', firstFailure.value.reason);
+              } else if (fares.length === 0 && firstRejection?.status === 'rejected') {
+                sendProviderNotice('Travelpayouts', providerExceptionReason('Travelpayouts', firstRejection.reason));
+              }
+              return;
             }
-            return;
-          }
 
-          await runFlightProvider(
-            'Travelpayouts',
-            'travelpayouts',
-            travelpayouts.searchFares(originIATA, destIATA ?? '', range),
-          );
+            const r = await travelpayouts.searchFares(originIATA, destIATA ?? '', range);
+            if (r.ok && r.data.length > 0) sendFlights('travelpayouts', r.data);
+            else if (!r.ok) sendProviderNotice('Travelpayouts', r.reason);
+          } catch (error) {
+            sendProviderNotice('Travelpayouts', providerExceptionReason('Travelpayouts', error));
+          }
         })(),
-        runFlightProvider('Duffel', 'duffel', duffel.searchFares(originIATA, destIATA ?? '', range)),
-        runFlightProvider('Amadeus', 'amadeus', amadeus.searchFares(originIATA, destIATA ?? '', range)),
-        runFlightProvider('Kiwi', 'kiwi', kiwi.searchFares(originIATA, destIATA ?? '', range)),
+        searchFlightProvider('Duffel', 'duffel', () => duffel.searchFares(originIATA, destIATA ?? '', range)),
+        searchFlightProvider('Amadeus', 'amadeus', () => amadeus.searchFares(originIATA, destIATA ?? '', range)),
+        searchFlightProvider('Kiwi', 'kiwi', () => kiwi.searchFares(originIATA, destIATA ?? '', range)),
       ]);
 
       const nearby = getNearby(originIATA);
@@ -249,20 +288,34 @@ export async function GET(request: NextRequest) {
 
       // Hotels after all flight providers resolve
       if (destIATA && depart && ret) {
-        const hotelsResult = await hotellook.searchHotels(destIATA, { checkin: depart, checkout: ret })
-          .catch(error => ({ ok: false as const, reason: providerFailureReason(error) }));
-        if (hotelsResult.ok && hotelsResult.data.length > 0) {
-          send({ type: 'hotel-status', status: 'available' });
-          send({ type: 'hotels', source: 'hotellook', data: hotelsResult.data });
-        } else if (hotelsResult.ok) {
-          send({ type: 'hotel-status', status: 'empty', message: 'No hotels were returned for these dates.' });
-        } else {
-          const status = classifyProviderIssue(hotelsResult.reason);
+        try {
+          const hotelsResult = await hotellook.searchHotels(destIATA, { checkin: depart, checkout: ret });
+          if (hotelsResult.ok && hotelsResult.data.length > 0) {
+            send({ type: 'hotel-status', status: 'available' });
+            send({ type: 'hotels', source: 'hotellook', data: hotelsResult.data });
+          } else if (hotelsResult.ok) {
+            send({ type: 'hotel-status', status: 'empty', message: 'No hotels were returned for these dates.' });
+          } else {
+            const status = classifyProviderIssue(hotelsResult.reason);
+            send({
+              type: 'hotel-status',
+              status: 'unavailable',
+              providerStatus: status,
+              message: isTimeoutReason(hotelsResult.reason)
+                ? 'The hotel provider did not respond in time. Hotel inventory was not confirmed for this search.'
+                : status === 'malformed_response'
+                ? 'The hotel provider returned a response we could not use.'
+                : 'The hotel provider is unavailable right now.',
+            });
+          }
+        } catch (error) {
+          const reason = providerExceptionReason('Hotel provider', error);
+          const status = classifyProviderIssue(reason);
           send({
             type: 'hotel-status',
             status: 'unavailable',
             providerStatus: status,
-            message: hotelsResult.reason.toLowerCase().includes('timed out') || hotelsResult.reason.toLowerCase().includes('timeout')
+            message: isTimeoutReason(reason)
               ? 'The hotel provider did not respond in time. Hotel inventory was not confirmed for this search.'
               : status === 'malformed_response'
               ? 'The hotel provider returned a response we could not use.'
