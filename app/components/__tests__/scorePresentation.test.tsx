@@ -135,8 +135,8 @@ describe('Deal score presentation', () => {
     expect(text).toContain(score.explanation)
     expect(text).toContain('$189 USD')
     expect(text).toContain('per night before taxes and fees')
-    expect(text).toContain('View stay details')
-    expect(text).toContain('Opens the booking handoff. Final price and availability can change.')
+    expect(text).toContain('Review hotel')
+    expect(text).toContain('Review nightly price before provider handoff.')
   })
 
   it('shows flight price currency and trip scope from structured money', () => {
@@ -198,22 +198,8 @@ describe('Deal score presentation', () => {
 
     const text = collectText(FlightCard({ fare: attributedFare, score: null, loading: false }))
 
-    expect(text).toContain('View fare details')
-    expect(text).toContain('Opens the booking handoff. Final price and availability can change.')
-  })
-
-  it('uses review-only language when internal booking is paused', () => {
-    const pausedBookingFare = {
-      ...fare,
-      source: 'duffel',
-      deeplink: '/book?offerId=test-offer&origin=JFK&destination=LAX&depart=2099-09-22&priceCents=19900&currency=USD&carrier=AA&passengers=1&stops=0',
-    } as NormalizedFare
-
-    const text = collectText(FlightCard({ fare: pausedBookingFare, score: null, loading: false }))
-
-    expect(text).toContain('Review fare details')
-    expect(text).toContain('In-app booking is paused. This page is review-only.')
-    expect(text).not.toContain('Review paused booking')
+    expect(text).toContain('Check with travelpayouts')
+    expect(text).toContain('Opens provider search. Price and availability can change.')
   })
 
   it('renders missing hotel price or deeplink as an honest unavailable state', () => {
@@ -228,7 +214,7 @@ describe('Deal score presentation', () => {
     expect(text).toContain('Price unavailable')
     expect(text).toContain('Booking unavailable')
     expect(text).toContain('No confirmed nightly price or valid booking link was returned.')
-    expect(text).not.toContain('View stay details')
+    expect(text).not.toContain('Check with HotelLook')
   })
 
   it('does not format invalid hotel currency as money', () => {

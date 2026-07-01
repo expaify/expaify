@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import type { BookingFareContext } from '@/lib/booking/config';
+import type { BookingFareContext, BookingHotelContext } from '@/lib/booking/config';
 
 type TestElement = ReactElement<Record<string, unknown>>;
 
@@ -56,6 +56,18 @@ const fareContext: BookingFareContext = {
   priceScope: 'party_total',
 };
 
+const hotelContext: BookingHotelContext = {
+  kind: 'hotel',
+  offerId: 'hotel_123',
+  provider: 'hotellook',
+  name: 'The Example Hotel',
+  area: 'Midtown',
+  priceCents: 18900,
+  currency: 'USD',
+  priceBasis: 'per_night_before_taxes_fees',
+  providerUrl: 'https://tp.media/r?marker=hotel-marker',
+};
+
 describe('BookingFlow fare context review', () => {
   it('blocks review when selected fare context is missing', () => {
     const text = collectText(BookingFlow({
@@ -87,5 +99,41 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('$450.01');
     expect(text).toContain('3 adults');
     expect(text).toContain('total for 3 adults');
+  });
+
+  it('shows selected hotel identity, provider, currency, price basis, and provider confirmation copy', () => {
+    const text = collectText(BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: true,
+      fareContext: null,
+      hotelContext,
+    }));
+
+    expect(text).toContain('Review selected hotel');
+    expect(text).toContain('The Example Hotel');
+    expect(text).toContain('Midtown');
+    expect(text).toContain('hotellook');
+    expect(text).toContain('$189.00');
+    expect(text).toContain('USD');
+    expect(text).toContain('per night before taxes and fees');
+    expect(text).toContain('Taxes, fees, cancellation policy, room details, and live availability still require provider confirmation.');
+    expect(text).toContain('Continue to provider');
+    expect(text).not.toContain('Traveler details');
+    expect(text).not.toContain('Confirm booking');
+  });
+
+  it('shows a recoverable hotel-specific error for malformed hotel handoff links', () => {
+    const text = collectText(BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: true,
+      fareContext: null,
+      hotelContext: null,
+      invalidHotelSelection: true,
+    }));
+
+    expect(text).toContain("We can't identify this hotel");
+    expect(text).toContain('integer-cent price, currency, price basis, and provider handoff URL');
+    expect(text).toContain('Back to search');
+    expect(text).not.toContain("We can't identify this fare");
   });
 });

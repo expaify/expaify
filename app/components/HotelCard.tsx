@@ -2,6 +2,7 @@
 
 import { DealScore, HotelOffer } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
+import { buildHotelBookingHref } from '@/lib/booking/config'
 import DealBadge from './DealBadge'
 
 type Props = {
@@ -53,12 +54,10 @@ function Price({ price }: { price: HotelOffer['pricePerNight'] }) {
       <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
         Nightly rate
       </p>
-      <p className="mt-1 break-words font-display text-2xl font-extrabold leading-tight text-[color:var(--text-1)] tabular-nums sm:text-3xl">
+      <p className="mt-1 font-display text-3xl font-extrabold leading-none text-[color:var(--text-1)] tabular-nums">
         {formatMoney(price)}
       </p>
-      <p className="mt-1 text-xs font-medium leading-5 text-[color:var(--text-3)]">
-        per night before taxes and fees
-      </p>
+      <p className="mt-1 text-xs font-medium text-[color:var(--text-3)]">per night before taxes and fees</p>
     </div>
   )
 }
@@ -179,93 +178,65 @@ function isValidBookingUrl(value: string): boolean {
   }
 }
 
-function formatProvider(source: string) {
-  const normalized = source.trim()
-  if (!normalized) return 'Provider'
-  if (normalized.toLowerCase() === 'hotellook') return 'HotelLook'
-  return normalized
-}
-
 export default function HotelCard({ hotel, score = null, loading = false }: Props) {
   const hasBookingUrl = isValidBookingUrl(hotel.deeplink)
   const hasValidPrice = isValidMoney(hotel.pricePerNight)
   const canBook = hasBookingUrl && hasValidPrice
   const unavailableReason = getUnavailableReason(hasBookingUrl, hasValidPrice)
   const hasRating = hotel.rating !== undefined && hotel.rating > 0
-  const hasStars = Number.isFinite(hotel.stars) && hotel.stars > 0
-  const provider = formatProvider(hotel.source)
+  const bookingHref = canBook ? buildHotelBookingHref(hotel) : ''
 
   return (
-    <article className="card flex h-full min-w-0 flex-col overflow-hidden">
+    <div className="card flex flex-col overflow-hidden">
       {hotel.photoUrl ? (
-        <div className="relative h-36 w-full shrink-0 overflow-hidden bg-[color:var(--bg-muted)] sm:h-40">
+        <div className="relative h-40 w-full shrink-0 overflow-hidden bg-[color:var(--bg-muted)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={hotel.photoUrl}
-            alt=""
+            alt={hotel.name}
             loading="lazy"
             className="absolute inset-0 h-full w-full object-cover"
           />
         </div>
-      ) : null}
+      ) : (
+        <div className="flex h-24 w-full shrink-0 items-end border-b border-[color:var(--border)] bg-[color:var(--bg-muted)] px-5 pb-4">
+          <p className="text-xs font-semibold text-[color:var(--text-3)]">Hotel photo unavailable</p>
+        </div>
+      )}
 
       <div className="flex flex-1 flex-col p-5">
-        <div className="space-y-4">
-          <div className="min-w-0">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className={`inline-flex min-h-7 max-w-full items-center rounded-full border px-2.5 py-1 text-[11px] font-bold leading-4 ${
-                canBook
-                  ? 'border-[color:var(--border-strong)] bg-[color:var(--success-soft)] text-[color:var(--success)]'
-                  : 'border-[color:var(--border)] bg-[color:var(--bg-muted)] text-[color:var(--text-3)]'
-              }`}>
-                {canBook ? 'Available to check' : 'Incomplete listing'}
-              </span>
-              <span className="min-w-0 break-words text-xs font-semibold leading-5 text-[color:var(--text-3)]">
-                Provider: {provider}
-              </span>
-              {!hotel.photoUrl && (
-                <span className="min-w-0 break-words text-xs font-semibold leading-5 text-[color:var(--text-3)]">
-                  Hotel photo unavailable
-                </span>
-              )}
-            </div>
-
-            <h3 className="font-display text-lg font-bold leading-snug text-[color:var(--text-1)]">
+        <div className="space-y-3">
+          <div>
+            <h3 className="font-display line-clamp-2 text-base font-bold leading-snug text-[color:var(--text-1)]">
               {hotel.name}
             </h3>
 
             {hotel.area && (
-              <div className="mt-2 flex items-start gap-1.5">
-                <svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden="true" className="mt-1 shrink-0 text-[color:var(--text-3)]">
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" className="shrink-0 text-[color:var(--text-3)]">
                   <path d="M6 1C4.07 1 2.5 2.57 2.5 4.5c0 2.63 3.5 6.5 3.5 6.5s3.5-3.87 3.5-6.5C9.5 2.57 7.93 1 6 1zm0 4.75a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z" fill="currentColor" />
                 </svg>
-                <p className="min-w-0 break-words text-sm font-medium leading-6 text-[color:var(--text-2)]">
-                  {hotel.area}
-                </p>
+                <p className="truncate text-xs font-medium text-[color:var(--text-2)]">{hotel.area}</p>
               </div>
             )}
           </div>
 
-          {(hasStars || hasRating) && (
-            <div className="grid gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-3 sm:grid-cols-2">
-              {hasStars && (
-                <div className="min-w-0">
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
-                    Hotel class
-                  </p>
-                  <StarRow stars={hotel.stars} />
-                </div>
-              )}
-              {hasRating && (
-                <div className="min-w-0">
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
-                    Guest rating
-                  </p>
-                  <RatingBadge rating={hotel.rating as number} />
-                </div>
-              )}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-3">
+            <div>
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
+                Hotel class
+              </p>
+              <StarRow stars={hotel.stars} />
             </div>
-          )}
+            {hasRating && (
+              <div className="border-l border-[color:var(--border)] pl-4">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
+                  Guest rating
+                </p>
+                <RatingBadge rating={hotel.rating as number} />
+              </div>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -282,29 +253,27 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
           ) : (
             <PriceUnavailable reason={unavailableReason} />
           )}
-          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-40 sm:items-end">
+          <div className="flex w-full shrink-0 flex-col gap-1 sm:w-auto sm:items-end">
             {canBook ? (
               <>
                 <a
-                  href={hotel.deeplink}
-                  target="_blank"
-                  rel="noopener noreferrer sponsored"
-                  aria-label={`Check ${hotel.name} with ${provider}`}
-                  className="btn-primary btn-primary-responsive min-h-12 px-4 py-3 text-sm"
+                  href={bookingHref}
+                  aria-label={`Review ${hotel.name} before provider handoff`}
+                  className="btn-primary btn-primary-responsive h-12"
                 >
-                  Check with {provider}
+                  Review hotel
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                     <path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </a>
-                <p className="text-center text-[11px] font-medium leading-4 text-[color:var(--text-3)] sm:text-right">
-                  Opens provider site. Prices can change.
+                <p className="text-center text-[11px] font-medium text-[color:var(--text-3)] sm:text-right">
+                  Review nightly price before provider handoff.
                 </p>
               </>
             ) : (
               <>
                 <span
-                  className="flex min-h-12 w-full items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-muted)] px-4 py-3 text-center text-sm font-bold leading-5 text-[color:var(--text-3)] sm:w-auto"
+                  className="flex h-12 w-full items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-muted)] px-4 text-sm font-bold text-[color:var(--text-3)] sm:w-auto"
                   role="status"
                   aria-label={`Booking unavailable for ${hotel.name}. ${unavailableReason}`}
                 >
@@ -318,6 +287,6 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
           </div>
         </div>
       </div>
-    </article>
+    </div>
   )
 }

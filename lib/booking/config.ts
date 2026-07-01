@@ -1,4 +1,4 @@
-import type { NormalizedFare } from '../types';
+import type { HotelOffer, NormalizedFare } from '../types';
 
 export type BookingFareContext = {
   offerId: string;
@@ -15,10 +15,23 @@ export type BookingFareContext = {
   priceScope: 'per_person' | 'party_total';
 };
 
+export type BookingHotelContext = {
+  kind: 'hotel';
+  offerId: string;
+  provider: string;
+  name: string;
+  area?: string;
+  priceCents: number;
+  currency: string;
+  priceBasis: 'per_night_before_taxes_fees';
+  providerUrl: string;
+};
+
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
 
 type SearchParams = Record<string, string | string[] | undefined>;
 type FareContextInput = Partial<Record<keyof BookingFareContext, unknown>>;
+type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>>;
 
 export function isBookingEnabled(): boolean {
   return process.env.BOOKING_ENABLED === 'true';
@@ -62,6 +75,15 @@ function isAirportCode(value: string): boolean {
 
 function isCurrencyCode(value: string): boolean {
   return /^[A-Z]{3}$/.test(value);
+}
+
+function isSafeProviderUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
 }
 
 function isValidDateInput(value: string): boolean {
@@ -137,6 +159,58 @@ export function parseBookingFareContext(params: SearchParams): BookingFareContex
   });
 }
 
+export function validateBookingHotelContext(input: HotelContextInput): BookingHotelContext | null {
+  const kind = cleanRequired(input.kind);
+  const offerId = cleanRequired(input.offerId);
+  const provider = cleanRequired(input.provider);
+  const name = cleanRequired(input.name);
+  const area = cleanOptional(input.area);
+  const currency = cleanRequired(input.currency);
+  const priceCents = parseInteger(input.priceCents);
+  const priceBasis = cleanRequired(input.priceBasis);
+  const providerUrl = cleanRequired(input.providerUrl);
+
+  if (
+    kind !== 'hotel' ||
+    !offerId ||
+    !provider ||
+    !name ||
+    !isCurrencyCode(currency) ||
+    priceCents === null ||
+    priceCents <= 0 ||
+    priceBasis !== 'per_night_before_taxes_fees' ||
+    !isSafeProviderUrl(providerUrl)
+  ) {
+    return null;
+  }
+
+  return {
+    kind: 'hotel',
+    offerId,
+    provider,
+    name,
+    area,
+    priceCents,
+    currency,
+    priceBasis,
+    providerUrl,
+  };
+}
+
+export function parseBookingHotelContext(params: SearchParams): BookingHotelContext | null {
+  return validateBookingHotelContext({
+    kind: firstParam(params.kind),
+    offerId: firstParam(params.offerId),
+    provider: firstParam(params.provider),
+    name: firstParam(params.name),
+    area: firstParam(params.area),
+    priceCents: firstParam(params.priceCents),
+    currency: firstParam(params.currency),
+    priceBasis: firstParam(params.priceBasis),
+    providerUrl: firstParam(params.providerUrl),
+  });
+}
+
 export function buildBookingHref(fare: NormalizedFare): string {
   const params = new URLSearchParams({
     offerId: fare.id,
@@ -153,6 +227,23 @@ export function buildBookingHref(fare: NormalizedFare): string {
   });
 
   if (fare.return) params.set('return', fare.return);
+
+  return `/book?${params.toString()}`;
+}
+
+export function buildHotelBookingHref(hotel: HotelOffer): string {
+  const params = new URLSearchParams({
+    kind: 'hotel',
+    offerId: hotel.id,
+    provider: hotel.source,
+    name: hotel.name,
+    priceCents: String(hotel.pricePerNight.priceCents),
+    currency: hotel.pricePerNight.currency,
+    priceBasis: hotel.priceBasis ?? 'per_night_before_taxes_fees',
+    providerUrl: hotel.deeplink,
+  });
+
+  if (hotel.area) params.set('area', hotel.area);
 
   return `/book?${params.toString()}`;
 }
