@@ -28,10 +28,11 @@ const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t!==
 
 export const metadata: Metadata = {
   title: {
-    default: "expaify | Flight and hotel deal intelligence",
+    default: "expaify Deal Desk",
     template: "%s | expaify",
   },
-  description: "Find current flight and hotel deals ranked against recent route price history.",
+  description:
+    "Search live flight and hotel pricing, compare each option to recent route baselines, and review deal confidence before booking.",
   applicationName: "expaify",
   keywords: ["flights", "hotels", "flight deals", "cheap flights", "hotel deals", "travel deals"],
   authors: [{ name: "expaify" }],
@@ -39,8 +40,9 @@ export const metadata: Metadata = {
   publisher: "expaify",
   metadataBase: new URL("https://expaify.com"),
   openGraph: {
-    title: "expaify | Flight and hotel deal intelligence",
-    description: "Find current flight and hotel deals ranked against recent route price history.",
+    title: "expaify Deal Desk",
+    description:
+      "Search live flight and hotel pricing, compare each option to recent route baselines, and review deal confidence before booking.",
     url: "https://expaify.com",
     siteName: "expaify",
     type: "website",
@@ -49,8 +51,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "expaify | Flight and hotel deal intelligence",
-    description: "Find current flight and hotel deals ranked against recent route price history.",
+    title: "expaify Deal Desk",
+    description:
+      "Search live flight and hotel pricing, compare each option to recent route baselines, and review deal confidence before booking.",
     images: ["https://expaify.com/og.svg"],
   },
   robots: { index: true, follow: true },
@@ -65,8 +68,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   colorScheme: "light dark",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f8f6" },
-    { media: "(prefers-color-scheme: dark)", color: "#101411" },
+    { media: "(prefers-color-scheme: light)", color: "#f4f6f3" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f1311" },
   ],
 };
 
