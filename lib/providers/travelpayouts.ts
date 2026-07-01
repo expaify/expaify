@@ -1,5 +1,6 @@
 import { FlightProvider, FlightSearchRange, NormalizedFare, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
+import { fetchWithProviderTimeout } from './timeout';
 
 const BASE_V1 = 'https://api.travelpayouts.com/v1';
 const BASE_V2 = 'https://api.travelpayouts.com/v2';
@@ -100,7 +101,7 @@ export class TravelpayoutsProvider implements FlightProvider {
         `&currency=usd` +
         `&token=${encodeURIComponent(this.token)}`;
 
-      const res = await fetch(url);
+      const res = await fetchWithProviderTimeout('Travelpayouts', url);
       if (!res.ok) {
         return { ok: false, reason: `Travelpayouts /prices/monthly HTTP ${res.status}` };
       }
@@ -157,7 +158,7 @@ export class TravelpayoutsProvider implements FlightProvider {
       if (dest) latestUrl += `&destination=${encodeURIComponent(dest)}`;
       if (range.depart) latestUrl += `&depart_date=${encodeURIComponent(range.depart)}`;
 
-      const latestRes = await fetch(latestUrl);
+      const latestRes = await fetchWithProviderTimeout('Travelpayouts', latestUrl);
       if (latestRes.ok) {
         const latestJson = (await latestRes.json()) as { data?: unknown; success?: boolean };
         if (latestJson.data !== undefined && !Array.isArray(latestJson.data)) {
@@ -209,7 +210,7 @@ export class TravelpayoutsProvider implements FlightProvider {
           `&currency=usd` +
           `&token=${encodeURIComponent(this.token)}`;
 
-        const calRes = await fetch(calUrl);
+        const calRes = await fetchWithProviderTimeout('Travelpayouts', calUrl);
         if (calRes.ok) {
           const calJson = (await calRes.json()) as { data?: unknown };
           if (calJson.data !== undefined && !isRecord(calJson.data)) {
@@ -261,7 +262,7 @@ export class TravelpayoutsProvider implements FlightProvider {
         if (range.depart) cheapUrl += `&depart_date=${encodeURIComponent(range.depart)}`;
         if (range.return) cheapUrl += `&return_date=${encodeURIComponent(range.return)}`;
 
-        const cheapRes = await fetch(cheapUrl);
+        const cheapRes = await fetchWithProviderTimeout('Travelpayouts', cheapUrl);
         if (cheapRes.ok) {
           const cheapJson = (await cheapRes.json()) as { data?: unknown };
           if (cheapJson.data !== undefined && !isRecord(cheapJson.data)) {

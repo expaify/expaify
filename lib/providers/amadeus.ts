@@ -1,5 +1,6 @@
 import { FlightProvider, FlightSearchRange, NormalizedFare, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
+import { fetchWithProviderTimeout } from './timeout';
 
 const TOKEN_URL = 'https://test.api.amadeus.com/v1/security/oauth2/token';
 const FLIGHT_OFFERS_URL = 'https://test.api.amadeus.com/v2/shopping/flight-offers';
@@ -70,7 +71,7 @@ export class AmadeusProvider implements FlightProvider {
     const cached = await cache.get<string>('amadeus:token');
     if (cached !== null) return { ok: true, data: cached };
 
-    const res = await fetch(TOKEN_URL, {
+    const res = await fetchWithProviderTimeout('Amadeus', TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body:
@@ -144,7 +145,7 @@ export class AmadeusProvider implements FlightProvider {
         });
       }
 
-      const res = await fetch(FLIGHT_OFFERS_URL, {
+      const res = await fetchWithProviderTimeout('Amadeus', FLIGHT_OFFERS_URL, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token.data}`,

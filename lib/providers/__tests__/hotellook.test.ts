@@ -108,7 +108,8 @@ describe('HotellookProvider.searchHotels', () => {
     if (!result.ok) throw new Error(result.reason);
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://engine.hotellook.com/api/v2/cache.json?location=JFK&checkIn=2026-09-22&checkOut=2026-09-29&currency=USD&token=test-token&limit=20'
+      'https://engine.hotellook.com/api/v2/cache.json?location=JFK&checkIn=2026-09-22&checkOut=2026-09-29&currency=USD&token=test-token&limit=20',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
     expect(result.data).toEqual([
       {

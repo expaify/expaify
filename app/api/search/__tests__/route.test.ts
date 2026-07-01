@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { GET } from '../route';
+import type { NormalizedFare } from '@/lib/types';
 import { travelpayouts } from '../../../../lib/providers/travelpayouts';
 import { duffel } from '../../../../lib/providers/duffel';
 import { amadeus } from '../../../../lib/providers/amadeus';
@@ -37,22 +38,7 @@ const flightProviders = [travelpayouts, duffel, amadeus, kiwi] as unknown as Arr
 const mockHotelSearch = hotellook.searchHotels as jest.Mock;
 const mockQuery = query as jest.MockedFunction<typeof query>;
 
-function searchRequest(queryString: string): NextRequest {
-  return new NextRequest(`https://expaify.test/api/search?${queryString}`);
-}
-
-async function readNdjson(response: Response): Promise<string> {
-  return await response.text();
-}
-
-function parseNdjson(body: string): Array<Record<string, unknown>> {
-  return body
-    .split('\n')
-    .filter(Boolean)
-    .map(line => JSON.parse(line) as Record<string, unknown>);
-}
-
-const fare = {
+const fare: NormalizedFare = {
   id: 'tp-1',
   fareType: 'cash',
   origin: 'JFK',
@@ -68,7 +54,22 @@ const fare = {
   fetchedAt: '2026-06-30T00:00:00.000Z',
 };
 
-describe('GET /api/search date guardrails', () => {
+function searchRequest(queryString: string): NextRequest {
+  return new NextRequest(`https://expaify.test/api/search?${queryString}`);
+}
+
+async function readNdjson(response: Response): Promise<string> {
+  return await response.text();
+}
+
+function parseNdjson(body: string): Array<Record<string, unknown>> {
+  return body
+    .split('\n')
+    .filter(Boolean)
+    .map(line => JSON.parse(line) as Record<string, unknown>);
+}
+
+describe('GET /api/search guardrails and provider failures', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     flightProviders.forEach(provider => {
@@ -200,6 +201,47 @@ describe('GET /api/search date guardrails', () => {
     }));
   });
 
+  it('uses timeout-specific copy while preserving partial provider results', async () => {
+    (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [fare] });
+    (duffel.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Duffel timed out' });
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
+    const messages = parseNdjson(await readNdjson(response));
+
+    expect(response.status).toBe(200);
+    expect(messages).toContainEqual({
+      type: 'flights',
+      source: 'travelpayouts',
+      data: [fare],
+    });
+    expect(messages).toContainEqual({
+      type: 'notice',
+      provider: 'Duffel',
+      status: 'unavailable',
+      message: 'Duffel did not respond in time. We could not confirm its inventory for this search.',
+    });
+  });
+
+  it('returns controlled timeout notices when all flight providers time out', async () => {
+    (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Travelpayouts timed out' });
+    (duffel.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Duffel timed out' });
+    (amadeus.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Amadeus timed out' });
+    (kiwi.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Kiwi timed out' });
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
+    const messages = parseNdjson(await readNdjson(response));
+
+    expect(response.status).toBe(200);
+    expect(messages.filter(message => message.type === 'flights')).toHaveLength(0);
+    expect(messages.filter(message => message.type === 'notice')).toEqual([
+      expect.objectContaining({ provider: 'Travelpayouts', message: expect.stringContaining('did not respond in time') }),
+      expect.objectContaining({ provider: 'Duffel', message: expect.stringContaining('did not respond in time') }),
+      expect.objectContaining({ provider: 'Amadeus', message: expect.stringContaining('did not respond in time') }),
+      expect.objectContaining({ provider: 'Kiwi', message: expect.stringContaining('did not respond in time') }),
+    ]);
+    expect(messages).toContainEqual(expect.objectContaining({ type: 'done' }));
+  });
+
   it('labels incomplete flexible-date coverage when one Travelpayouts date fails but another returns fares', async () => {
     (travelpayouts.searchFares as jest.Mock)
       .mockResolvedValueOnce({ ok: true, data: [fare] })
@@ -222,7 +264,7 @@ describe('GET /api/search date guardrails', () => {
   });
 
   it('converts an unexpected hotel provider throw into a bounded hotel status', async () => {
-    mockHotelSearch.mockRejectedValueOnce(new Error('hotel upstream timeout'));
+    mockHotelSearch.mockRejectedValueOnce(new Error('hotel upstream failure'));
 
     const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&return=2099-09-29&trip=roundtrip&passengers=1'));
     const messages = parseNdjson(await readNdjson(response));
@@ -235,7 +277,22 @@ describe('GET /api/search date guardrails', () => {
       message: 'The hotel provider is unavailable right now.',
     });
     expect(messages).not.toContainEqual(expect.objectContaining({
-      message: expect.stringContaining('hotel upstream timeout'),
+      message: expect.stringContaining('hotel upstream failure'),
     }));
+  });
+
+  it('uses timeout-specific hotel copy without claiming inventory was searched', async () => {
+    mockHotelSearch.mockResolvedValueOnce({ ok: false, reason: 'HotelLook timed out' });
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&return=2099-09-29&trip=roundtrip&passengers=1'));
+    const messages = parseNdjson(await readNdjson(response));
+
+    expect(response.status).toBe(200);
+    expect(messages).toContainEqual({
+      type: 'hotel-status',
+      status: 'unavailable',
+      providerStatus: 'unavailable',
+      message: 'The hotel provider did not respond in time. Hotel inventory was not confirmed for this search.',
+    });
   });
 });

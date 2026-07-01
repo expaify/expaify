@@ -1,5 +1,6 @@
 import { FlightProvider, FlightSearchRange, NormalizedFare, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
+import { fetchWithProviderTimeout } from './timeout';
 
 const BASE_URL = 'https://api.tequila.kiwi.com';
 const CACHE_TTL = 21600; // 6 hours
@@ -149,7 +150,7 @@ export class KiwiProvider implements FlightProvider {
           `&return_to=${encodeURIComponent(returnKiwi)}`;
       }
 
-      const res = await fetch(url, {
+      const res = await fetchWithProviderTimeout('Kiwi', url, {
         headers: { apikey: config.data.apiKey },
       });
 

@@ -55,6 +55,7 @@ const defaultProps = {
   alertLoading: false,
   alertError: null,
   handleAlertSubmit: jest.fn(),
+  onRetrySearch: jest.fn(),
 };
 
 const fare: NormalizedFare = {
@@ -88,6 +89,7 @@ describe('FlightResults', () => {
 
     expect(text).toContain('Travelpayouts is unavailable for this search.');
     expect(text).toContain('Flight providers unavailable');
+    expect(text).toContain('Retry search');
     expect(text).not.toContain('No flight inventory found');
   });
 

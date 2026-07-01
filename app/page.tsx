@@ -1428,6 +1428,7 @@ export default function Home() {
                 alertError={alertError}
                 handleAlertSubmit={handleAlertSubmit}
                 onEditSearch={() => setView('form')}
+                onRetrySearch={() => void runSearch()}
               />
             )}
 

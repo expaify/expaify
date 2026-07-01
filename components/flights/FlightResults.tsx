@@ -34,6 +34,7 @@ type FlightResultsProps = {
   alertError: string | null
   handleAlertSubmit: (event: FormEvent<HTMLFormElement>) => void
   onEditSearch?: () => void
+  onRetrySearch?: () => void
 }
 
 const delays = ['', 'delay-75', 'delay-150', 'delay-225', 'delay-300']
@@ -142,6 +143,7 @@ export default function FlightResults({
   alertError,
   handleAlertSubmit,
   onEditSearch,
+  onRetrySearch,
 }: FlightResultsProps) {
   const baggageFare = cheapestVisibleFare(displayFlights)
   const flightProviderNotices = providerNotices.filter(notice => !isHotelNotice(notice))
@@ -168,7 +170,7 @@ export default function FlightResults({
       : filtersHideResults
         ? 'Clear the stops filter or choose All to review the fares returned for this search.'
         : hasProviderUnavailable
-          ? 'The flight providers we could reach did not return usable inventory. Try again shortly or adjust the trip details.'
+          ? 'No flight provider returned usable inventory. Try again shortly or adjust the trip details.'
           : 'No current fares matched this route and date combination. Edit the search to try nearby dates, another destination, or anywhere.'
   const emptyAction = filtersHideResults ? (
     <button
@@ -177,6 +179,14 @@ export default function FlightResults({
       className="btn-primary min-h-11 w-full px-4 py-2.5 text-sm sm:w-auto"
     >
       Show all stops
+    </button>
+  ) : hasProviderUnavailable && onRetrySearch ? (
+    <button
+      type="button"
+      onClick={onRetrySearch}
+      className="btn-primary min-h-11 w-full px-4 py-2.5 text-sm sm:w-auto"
+    >
+      Retry search
     </button>
   ) : onEditSearch ? (
     <button

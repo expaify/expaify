@@ -59,6 +59,9 @@ function classifyProviderIssue(reason: string): ProviderIssueStatus {
   const normalized = reason.toLowerCase();
   if (normalized.includes('malformed')) return 'malformed_response';
   if (
+    normalized.includes('timed out') ||
+    normalized.includes('timeout') ||
+    normalized.includes('aborted') ||
     normalized.includes('not configured') ||
     normalized.includes('not approved') ||
     normalized.includes('http ') ||
@@ -87,6 +90,11 @@ function providerExceptionReason(provider: string, error: unknown): string {
   return detail
     ? `${provider} provider call failed: ${detail}`
     : `${provider} provider call failed`;
+}
+
+function isTimeoutReason(reason: string): boolean {
+  const normalized = reason.toLowerCase();
+  return normalized.includes('timed out') || normalized.includes('timeout') || normalized.includes('aborted');
 }
 
 /**
@@ -171,10 +179,13 @@ export async function GET(request: NextRequest) {
 
       const sendProviderNotice = (provider: string, reason: string, messageOverride?: string) => {
         const status = classifyProviderIssue(reason);
+        const timedOut = isTimeoutReason(reason);
         const notice: ProviderNotice = {
           provider,
           status,
-          message: messageOverride ?? providerMessage(provider, status),
+          message: messageOverride ?? (timedOut
+            ? `${provider} did not respond in time. We could not confirm its inventory for this search.`
+            : providerMessage(provider, status)),
         };
         flightProviderIssues.push(notice);
         send({ type: 'notice', ...notice });
@@ -207,7 +218,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Race all 4 providers — stream each chunk the moment it resolves
-      await Promise.allSettled([
+      await Promise.all([
         (async () => {
           try {
             if (flexDates && depart) {
@@ -290,18 +301,23 @@ export async function GET(request: NextRequest) {
               type: 'hotel-status',
               status: 'unavailable',
               providerStatus: status,
-              message: status === 'malformed_response'
+              message: isTimeoutReason(hotelsResult.reason)
+                ? 'The hotel provider did not respond in time. Hotel inventory was not confirmed for this search.'
+                : status === 'malformed_response'
                 ? 'The hotel provider returned a response we could not use.'
                 : 'The hotel provider is unavailable right now.',
             });
           }
         } catch (error) {
-          const status = classifyProviderIssue(providerExceptionReason('Hotel provider', error));
+          const reason = providerExceptionReason('Hotel provider', error);
+          const status = classifyProviderIssue(reason);
           send({
             type: 'hotel-status',
             status: 'unavailable',
             providerStatus: status,
-            message: status === 'malformed_response'
+            message: isTimeoutReason(reason)
+              ? 'The hotel provider did not respond in time. Hotel inventory was not confirmed for this search.'
+              : status === 'malformed_response'
               ? 'The hotel provider returned a response we could not use.'
               : 'The hotel provider is unavailable right now.',
           });
