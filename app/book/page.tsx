@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
-import { isBookingEnabled, isDuffelSandboxMode, parseBookingFareContext } from '@/lib/booking/config';
+import { isBookingEnabled, isDuffelSandboxMode, parseBookingFareContext, parseBookingHotelContext } from '@/lib/booking/config';
 import BookingFlow from './BookingFlow';
 
-export const metadata = { title: 'Book flight — expaify' };
+export const metadata = { title: 'Booking review — expaify' };
 
 type BookPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -11,6 +11,8 @@ type BookPageProps = {
 export default async function BookPage({ searchParams }: BookPageProps) {
   const params = await searchParams;
   const fareContext = parseBookingFareContext(params);
+  const hotelContext = parseBookingHotelContext(params);
+  const requestedHotelReview = params.kind === 'hotel' || (Array.isArray(params.kind) && params.kind[0] === 'hotel');
 
   return (
     <div className="min-h-screen bg-[color:var(--bg-base)]">
@@ -37,6 +39,8 @@ export default async function BookPage({ searchParams }: BookPageProps) {
           bookingEnabled={isBookingEnabled()}
           duffelSandbox={isDuffelSandboxMode()}
           fareContext={fareContext}
+          hotelContext={hotelContext}
+          invalidHotelSelection={requestedHotelReview && !hotelContext}
         />
       </Suspense>
     </div>

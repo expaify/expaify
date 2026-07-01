@@ -2,6 +2,7 @@
 
 import { DealScore, HotelOffer } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
+import { buildHotelBookingHref } from '@/lib/booking/config'
 import DealBadge from './DealBadge'
 
 type Props = {
@@ -183,6 +184,7 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
   const canBook = hasBookingUrl && hasValidPrice
   const unavailableReason = getUnavailableReason(hasBookingUrl, hasValidPrice)
   const hasRating = hotel.rating !== undefined && hotel.rating > 0
+  const bookingHref = canBook ? buildHotelBookingHref(hotel) : ''
 
   return (
     <div className="card flex flex-col overflow-hidden">
@@ -255,19 +257,17 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
             {canBook ? (
               <>
                 <a
-                  href={hotel.deeplink}
-                  target="_blank"
-                  rel="noopener noreferrer sponsored"
-                  aria-label={`Check ${hotel.name} with HotelLook`}
+                  href={bookingHref}
+                  aria-label={`Review ${hotel.name} before provider handoff`}
                   className="btn-primary btn-primary-responsive h-12"
                 >
-                  Check with HotelLook
+                  Review hotel
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                     <path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </a>
                 <p className="text-center text-[11px] font-medium text-[color:var(--text-3)] sm:text-right">
-                  Opens provider site. Prices can change.
+                  Review nightly price before provider handoff.
                 </p>
               </>
             ) : (

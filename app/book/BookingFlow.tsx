@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext } from '@/lib/booking/config'
+import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext, type BookingHotelContext } from '@/lib/booking/config'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -19,6 +19,8 @@ type BookingFlowProps = {
   bookingEnabled: boolean
   duffelSandbox: boolean
   fareContext: BookingFareContext | null
+  hotelContext?: BookingHotelContext | null
+  invalidHotelSelection?: boolean
 }
 
 function formatMoney(cents: number, currency: string) {
@@ -69,6 +71,11 @@ function getPriceBasisLabel(fareContext: BookingFareContext) {
     : 'per person'
 }
 
+function getHotelPriceBasisLabel(priceBasis: BookingHotelContext['priceBasis']) {
+  if (priceBasis === 'per_night_before_taxes_fees') return 'per night before taxes and fees'
+  return 'price basis requires provider confirmation'
+}
+
 function FareFact({ label, value }: { label: string; value: string }) {
   return (
     <div className={`min-w-0 px-3.5 py-3 sm:px-4 ${insetPanelCls}`}>
@@ -117,6 +124,40 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
   )
 }
 
+function HotelSummary({ hotelContext }: { hotelContext: BookingHotelContext }) {
+  return (
+    <section aria-labelledby="hotel-review-title" className={`${panelCls} p-4 sm:p-6`}>
+      <div className="flex flex-col gap-4 border-b border-[color:var(--border)] pb-5 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand)]">Hotel review</p>
+          <h2 id="hotel-review-title" className="mt-2 text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">
+            {hotelContext.name}
+          </h2>
+          {hotelContext.area && (
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">{hotelContext.area}</p>
+          )}
+        </div>
+        <div className="min-w-0 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--bg-raised)] px-4 py-3 md:shrink-0 md:text-right">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]">Selected rate</p>
+          <p className="mt-1 text-2xl font-bold leading-none text-[color:var(--text-1)]">{formatMoney(hotelContext.priceCents, hotelContext.currency)}</p>
+          <p className="mt-1 text-xs font-medium text-[color:var(--text-2)]">{getHotelPriceBasisLabel(hotelContext.priceBasis)}</p>
+        </div>
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <FareFact label="Hotel" value={hotelContext.name} />
+        {hotelContext.area && <FareFact label="Area" value={hotelContext.area} />}
+        <FareFact label="Provider" value={getProviderLabel(hotelContext.provider, false)} />
+        <FareFact label="Price basis" value={getHotelPriceBasisLabel(hotelContext.priceBasis)} />
+        <FareFact label="Currency" value={hotelContext.currency} />
+      </div>
+      <details className={`mt-4 px-4 py-3 text-xs text-[color:var(--text-3)] ${insetPanelCls}`}>
+        <summary className="cursor-pointer rounded-sm font-semibold uppercase tracking-wide text-[color:var(--text-2)] focus-visible:shadow-[var(--focus-ring)]">Technical reference</summary>
+        <p className="mt-3 break-all font-mono leading-5">{hotelContext.offerId}</p>
+      </details>
+    </section>
+  )
+}
+
 function StatusPanel({
   title,
   message,
@@ -152,6 +193,7 @@ function ReviewShell({
   title,
   message,
   fareContext,
+  hotelContext = null,
   duffelSandbox,
   children,
 }: {
@@ -159,6 +201,7 @@ function ReviewShell({
   title: string
   message: string
   fareContext: BookingFareContext | null
+  hotelContext?: BookingHotelContext | null
   duffelSandbox: boolean
   children: ReactNode
 }) {
@@ -176,6 +219,9 @@ function ReviewShell({
           </div>
           {fareContext && (
             <FareSummary fareContext={fareContext} duffelSandbox={duffelSandbox} />
+          )}
+          {hotelContext && (
+            <HotelSummary hotelContext={hotelContext} />
           )}
         </div>
         <div className="min-w-0 lg:sticky lg:top-6">
@@ -263,7 +309,83 @@ function InvalidBookingState({ duffelSandbox }: { duffelSandbox: boolean }) {
   )
 }
 
-export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext }: BookingFlowProps) {
+function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
+  const headingRef = useRef<HTMLHeadingElement>(null)
+
+  useEffect(() => {
+    headingRef.current?.focus()
+  }, [])
+
+  return (
+    <ReviewShell
+      title="We can't identify this hotel"
+      message="This hotel handoff link is missing required offer details or includes a price, currency, provider, or handoff URL expaify cannot verify. Return to search and choose a current hotel result."
+      fareContext={null}
+      duffelSandbox={duffelSandbox}
+    >
+      <div className={`${panelCls} p-4 sm:p-6`}>
+        <StatusPanel
+          title="Hotel context is missing"
+          message="No reservation, payment details, or provider booking request can be submitted from this page."
+        />
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          className="sr-only outline-none"
+        >
+          Hotel handoff unavailable
+        </h2>
+        <div className={`mt-5 p-4 ${insetPanelCls}`}>
+          <p className={factLabelCls}>What happens now</p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+            Use a current hotel result so the review page receives a verified provider, offer identifier, hotel name, integer-cent price, currency, price basis, and provider handoff URL.
+          </p>
+        </div>
+        <div className={actionStackCls}>
+          <a href="/" className="btn-primary">
+            Back to search
+          </a>
+        </div>
+      </div>
+    </ReviewShell>
+  )
+}
+
+function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: BookingHotelContext; duffelSandbox: boolean }) {
+  return (
+    <ReviewShell
+      eyebrow="Hotel handoff"
+      title="Review selected hotel"
+      message="The selected hotel offer is preserved for provider handoff. Taxes, fees, cancellation policy, room details, and live availability still require provider confirmation."
+      fareContext={null}
+      hotelContext={hotelContext}
+      duffelSandbox={duffelSandbox}
+    >
+      <div className={`${panelCls} p-4 sm:p-6`}>
+        <StatusPanel
+          title="Provider confirmation required"
+          message="expaify is not creating a hotel reservation. The provider sets the final taxes, fees, policies, room availability, and total due."
+        />
+        <div className={`mt-5 p-4 ${insetPanelCls}`}>
+          <p className={factLabelCls}>Before you continue</p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+            Compare the hotel name, provider, selected rate, currency, and price basis on the provider page before entering payment details.
+          </p>
+        </div>
+        <div className={actionStackCls}>
+          <a href={hotelContext.providerUrl} target="_blank" rel="noopener noreferrer sponsored" className="btn-primary">
+            Continue to provider
+          </a>
+          <a href="/" className={secondaryButtonCls}>
+            Back to search
+          </a>
+        </div>
+      </div>
+    </ReviewShell>
+  )
+}
+
+export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext, hotelContext = null, invalidHotelSelection = false }: BookingFlowProps) {
   const [state, setState] = useState<BookingState>('idle')
   const [bookingRef, setBookingRef] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
@@ -279,6 +401,14 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
   const maxDob = new Date()
   maxDob.setFullYear(maxDob.getFullYear() - 18)
   const maxDobStr = maxDob.toISOString().slice(0, 10)
+
+  if (hotelContext) {
+    return <HotelHandoffReview hotelContext={hotelContext} duffelSandbox={duffelSandbox} />
+  }
+
+  if (invalidHotelSelection) {
+    return <InvalidHotelState duffelSandbox={duffelSandbox} />
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()

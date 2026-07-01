@@ -1,9 +1,12 @@
 import {
   buildBookingHref,
+  buildHotelBookingHref,
   parseBookingFareContext,
+  parseBookingHotelContext,
   validateBookingFareContext,
+  validateBookingHotelContext,
 } from '../config';
-import type { NormalizedFare } from '@/lib/types';
+import type { HotelOffer, NormalizedFare } from '@/lib/types';
 
 const fare: NormalizedFare = {
   id: 'off_123',
@@ -21,6 +24,18 @@ const fare: NormalizedFare = {
   deeplink: '#',
   source: 'duffel',
   fetchedAt: '2026-06-30T00:00:00.000Z',
+};
+
+const hotel: HotelOffer = {
+  id: 'hotel_123',
+  name: 'The Example Hotel',
+  area: 'Midtown',
+  stars: 4,
+  pricePerNight: { priceCents: 18900, currency: 'USD' },
+  priceBasis: 'per_night_before_taxes_fees',
+  rating: 8.7,
+  deeplink: 'https://tp.media/r?marker=hotel-marker&p=4536&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
+  source: 'hotellook',
 };
 
 describe('booking fare context continuity', () => {
@@ -118,5 +133,67 @@ describe('booking fare context continuity', () => {
     expect(validateBookingFareContext({ ...baseContext, depart: 'not-a-date' })).toBeNull();
     expect(validateBookingFareContext({ ...baseContext, return: 'not-a-date' })).toBeNull();
     expect(validateBookingFareContext({ ...baseContext, currency: 'US Dollars' })).toBeNull();
+  });
+});
+
+describe('booking hotel context continuity', () => {
+  it('builds hotel review hrefs with selected offer identity, provider, price, currency, basis, and handoff URL', () => {
+    const href = buildHotelBookingHref(hotel);
+    const url = new URL(href, 'https://expaify.test');
+
+    expect(url.pathname).toBe('/book');
+    expect(url.searchParams.get('kind')).toBe('hotel');
+    expect(url.searchParams.get('offerId')).toBe(hotel.id);
+    expect(url.searchParams.get('provider')).toBe(hotel.source);
+    expect(url.searchParams.get('name')).toBe(hotel.name);
+    expect(url.searchParams.get('area')).toBe(hotel.area);
+    expect(url.searchParams.get('priceCents')).toBe(String(hotel.pricePerNight.priceCents));
+    expect(url.searchParams.get('currency')).toBe(hotel.pricePerNight.currency);
+    expect(url.searchParams.get('priceBasis')).toBe('per_night_before_taxes_fees');
+    expect(url.searchParams.get('providerUrl')).toBe(hotel.deeplink);
+  });
+
+  it('parses valid hotel review context without changing selected display values', () => {
+    const parsed = parseBookingHotelContext({
+      kind: 'hotel',
+      offerId: 'hotel_123',
+      provider: 'hotellook',
+      name: 'The Example Hotel',
+      area: 'Midtown',
+      priceCents: '18900',
+      currency: 'USD',
+      priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+    });
+
+    expect(parsed).toEqual({
+      kind: 'hotel',
+      offerId: 'hotel_123',
+      provider: 'hotellook',
+      name: 'The Example Hotel',
+      area: 'Midtown',
+      priceCents: 18900,
+      currency: 'USD',
+      priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+    });
+  });
+
+  it('returns null for malformed hotel price, currency, basis, or provider URL', () => {
+    const baseContext = {
+      kind: 'hotel',
+      offerId: 'hotel_123',
+      provider: 'hotellook',
+      name: 'The Example Hotel',
+      priceCents: 18900,
+      currency: 'USD',
+      priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+    } as const;
+
+    expect(validateBookingHotelContext({ ...baseContext, priceCents: 189.99 })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, currency: 'US Dollars' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, priceBasis: 'total' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'javascript:alert(1)' })).toBeNull();
   });
 });

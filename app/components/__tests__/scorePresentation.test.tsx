@@ -135,8 +135,8 @@ describe('Deal score presentation', () => {
     expect(text).toContain(score.explanation)
     expect(text).toContain('$189 USD')
     expect(text).toContain('per night before taxes and fees')
-    expect(text).toContain('Check with HotelLook')
-    expect(text).toContain('Opens provider site. Prices can change.')
+    expect(text).toContain('Review hotel')
+    expect(text).toContain('Review nightly price before provider handoff.')
   })
 
   it('shows flight price currency and trip scope from structured money', () => {

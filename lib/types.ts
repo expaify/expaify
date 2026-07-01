@@ -50,6 +50,7 @@ export interface HotelOffer {
   area: string;
   stars: number;
   pricePerNight: Money;
+  priceBasis?: 'per_night_before_taxes_fees';
   rating?: number;
   photoUrl?: string;
   deeplink: string;
