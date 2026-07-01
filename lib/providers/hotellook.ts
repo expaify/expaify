@@ -30,6 +30,59 @@ function isHotelLookEntry(value: unknown): value is HotelLookCacheEntry {
   return typeof value === 'object' && value !== null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
+  if (!isRecord(value)) return null;
+
+  const price = value.pricePerNight;
+  const stars = value.stars;
+  const rating = value.rating;
+  if (!isRecord(price)) return null;
+
+  const priceCents = price.priceCents;
+  const currency = price.currency;
+
+  if (
+    typeof value.id !== 'string' ||
+    typeof value.name !== 'string' ||
+    typeof value.area !== 'string' ||
+    typeof value.deeplink !== 'string' ||
+    typeof value.source !== 'string' ||
+    typeof stars !== 'number' ||
+    !Number.isFinite(stars) ||
+    typeof priceCents !== 'number' ||
+    !Number.isSafeInteger(priceCents) ||
+    priceCents <= 0 ||
+    typeof currency !== 'string' ||
+    currency.trim() === ''
+  ) {
+    return null;
+  }
+
+  const normalizedRating = typeof rating === 'number' && Number.isFinite(rating) ? rating : undefined;
+  const photoUrl = typeof value.photoUrl === 'string' && value.photoUrl.trim() !== ''
+    ? value.photoUrl
+    : undefined;
+
+  return {
+    id: value.id,
+    name: value.name,
+    area: value.area,
+    stars,
+    rating: normalizedRating,
+    photoUrl,
+    pricePerNight: {
+      priceCents,
+      currency,
+    },
+    deeplink: value.deeplink,
+    source: value.source,
+  };
+}
+
 function priceFromToCents(priceFrom: HotelLookCacheEntry['priceFrom']): number | null {
   if (priceFrom === undefined || priceFrom === null) return null;
   if (typeof priceFrom === 'string' && priceFrom.trim() === '') return null;
@@ -68,8 +121,13 @@ export class HotellookProvider implements HotelProvider {
     const cacheKey = `hotellook:search:${location}:${range.checkin}:${range.checkout}`;
 
     try {
-      const cached = await cache.get<HotelOffer[]>(cacheKey);
-      if (cached !== null) return { ok: true, data: cached };
+      const cached = await cache.get<unknown>(cacheKey);
+      if (Array.isArray(cached)) {
+        const hotels = cached.map(normalizeCachedHotelOffer);
+        if (hotels.every((hotel): hotel is HotelOffer => hotel !== null)) {
+          return { ok: true, data: hotels };
+        }
+      }
 
       const url =
         `${ENGINE_BASE}` +

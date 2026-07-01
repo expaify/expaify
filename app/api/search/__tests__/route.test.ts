@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { GET } from '../route';
-import type { NormalizedFare } from '@/lib/types';
+import type { HotelOffer, NormalizedFare } from '@/lib/types';
 import { travelpayouts } from '../../../../lib/providers/travelpayouts';
 import { duffel } from '../../../../lib/providers/duffel';
 import { amadeus } from '../../../../lib/providers/amadeus';
@@ -52,6 +52,17 @@ const fare: NormalizedFare = {
   deeplink: 'https://example.com/book?marker=test',
   source: 'travelpayouts',
   fetchedAt: '2026-06-30T00:00:00.000Z',
+};
+
+const hotelOffer: HotelOffer = {
+  id: 'hotel-1',
+  name: 'Contract Hotel',
+  area: 'Los Angeles',
+  stars: 4,
+  rating: 4,
+  pricePerNight: { priceCents: 18999, currency: 'USD' },
+  deeplink: 'https://example.com/hotel?marker=test',
+  source: 'hotellook',
 };
 
 function searchRequest(queryString: string): NextRequest {
@@ -273,6 +284,7 @@ describe('GET /api/search guardrails and provider failures', () => {
     expect(messages).toContainEqual({
       type: 'hotel-status',
       status: 'unavailable',
+      provider: 'Hotellook',
       providerStatus: 'unavailable',
       message: 'The hotel provider is unavailable right now.',
     });
@@ -291,8 +303,43 @@ describe('GET /api/search guardrails and provider failures', () => {
     expect(messages).toContainEqual({
       type: 'hotel-status',
       status: 'unavailable',
+      provider: 'Hotellook',
       providerStatus: 'unavailable',
       message: 'The hotel provider did not respond in time. Hotel inventory was not confirmed for this search.',
     });
+  });
+
+  it('keeps empty hotel availability distinct from provider failure', async () => {
+    mockHotelSearch.mockResolvedValueOnce({ ok: true, data: [] });
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&return=2099-09-29&trip=roundtrip&passengers=1'));
+    const messages = parseNdjson(await readNdjson(response));
+
+    expect(response.status).toBe(200);
+    expect(messages).toContainEqual({
+      type: 'hotel-status',
+      status: 'empty',
+      message: 'No hotels were returned for these dates.',
+    });
+    expect(messages.some(message => message.type === 'hotels')).toBe(false);
+  });
+
+  it('streams hotel offers with integer priceCents when availability succeeds', async () => {
+    mockHotelSearch.mockResolvedValueOnce({ ok: true, data: [hotelOffer] });
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&return=2099-09-29&trip=roundtrip&passengers=1'));
+    const messages = parseNdjson(await readNdjson(response));
+
+    expect(response.status).toBe(200);
+    expect(messages).toContainEqual({
+      type: 'hotel-status',
+      status: 'available',
+    });
+    expect(messages).toContainEqual({
+      type: 'hotels',
+      source: 'hotellook',
+      data: [hotelOffer],
+    });
+    expect(Number.isInteger(hotelOffer.pricePerNight.priceCents)).toBe(true);
   });
 });

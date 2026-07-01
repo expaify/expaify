@@ -219,15 +219,30 @@ describe('HotellookProvider.searchHotels', () => {
     expect(result).toEqual({ ok: false, reason: 'invalid json' });
   });
 
+  it('returns fetch failures as Result errors without throwing', async () => {
+    const provider = new HotellookProvider();
+    (global.fetch as jest.Mock).mockRejectedValue(new Error('network down'));
+
+    const result = await provider.searchHotels('CDG', {
+      checkin: '2026-09-22',
+      checkout: '2026-09-29',
+    });
+
+    expect(result).toEqual({ ok: false, reason: 'network down' });
+  });
+
   it('uses cached hotel results when present', async () => {
     const cached = [
       {
         id: 'cached-1',
         name: 'Cached Hotel',
         area: 'Chicago',
+        stars: 4,
+        rating: 4,
         pricePerNight: { priceCents: 9999, currency: 'USD' },
         deeplink: 'https://example.com/cached',
         source: 'hotellook',
+        displayPrice: 99.99,
       },
     ];
     cacheGetMock.mockResolvedValueOnce(cached);
@@ -238,8 +253,64 @@ describe('HotellookProvider.searchHotels', () => {
       checkout: '2026-09-29',
     });
 
-    expect(result).toEqual({ ok: true, data: cached });
+    expect(result).toEqual({
+      ok: true,
+      data: [
+        {
+          id: 'cached-1',
+          name: 'Cached Hotel',
+          area: 'Chicago',
+          stars: 4,
+          rating: 4,
+          pricePerNight: { priceCents: 9999, currency: 'USD' },
+          deeplink: 'https://example.com/cached',
+          source: 'hotellook',
+        },
+      ],
+    });
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not return cached hotel offers with non-integer canonical money', async () => {
+    cacheGetMock.mockResolvedValueOnce([
+      {
+        id: 'cached-float',
+        name: 'Float Hotel',
+        area: 'Chicago',
+        stars: 4,
+        pricePerNight: { priceCents: 9999.5, currency: 'USD' },
+        deeplink: 'https://example.com/cached',
+        source: 'hotellook',
+      },
+    ]);
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue([
+        {
+          hotelId: 222,
+          hotelName: 'Fresh Hotel',
+          stars: 3,
+          priceFrom: '150.25',
+        },
+      ]),
+    });
+
+    const provider = new HotellookProvider();
+    const result = await provider.searchHotels('ORD', {
+      checkin: '2026-09-22',
+      checkout: '2026-09-29',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(global.fetch).toHaveBeenCalled();
+    expect(result.data).toEqual([
+      expect.objectContaining({
+        id: '222',
+        pricePerNight: { priceCents: 15025, currency: 'USD' },
+      }),
+    ]);
   });
 
   it('caches API results for 6 hours', async () => {
