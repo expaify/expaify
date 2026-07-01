@@ -27,7 +27,7 @@ export default function DealBadge({ verdict, confidence }: Props) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${classes}`}
+      className={`inline-flex min-h-7 items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${classes}`}
     >
       {label}
     </span>

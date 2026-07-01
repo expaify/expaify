@@ -6,6 +6,7 @@ import { AIRPORTS } from '@/lib/airports/data'
 import type { DealScore, NormalizedFare, ProviderNotice } from '@/lib/types'
 import { BaggageFeeEstimator } from '@/components/baggage/BaggageFeeEstimator'
 import type { BaggageCabinClass } from '@/lib/baggage/types'
+import { formatMoney } from '@/lib/money'
 
 type SortBy = 'price' | 'deal'
 type TripType = 'roundtrip' | 'oneway'
@@ -94,7 +95,7 @@ function FlightStatePanel({
 
   return (
     <section
-      className={`rounded-[var(--radius-card)] border px-4 py-5 shadow-[var(--shadow-card)] animate-fade-in sm:px-5 sm:py-6 ${toneClasses}`}
+      className={`rounded-[1.25rem] border px-5 py-5 shadow-[var(--shadow-card)] animate-fade-in sm:px-6 sm:py-6 ${toneClasses}`}
       role="status"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -102,7 +103,7 @@ function FlightStatePanel({
           <p className={`text-[11px] font-bold uppercase tracking-wide ${eyebrowClasses}`}>
             {eyebrow}
           </p>
-          <h2 className="mt-1 font-display text-lg font-bold leading-7 text-[var(--text-1)] sm:text-xl">
+          <h2 className="mt-1 font-display text-xl font-bold leading-7 text-[var(--text-1)]">
             {title}
           </h2>
           <div className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-2)]">
@@ -147,6 +148,9 @@ export default function FlightResults({
 }: FlightResultsProps) {
   const baggageFare = cheapestVisibleFare(displayFlights)
   const flightProviderNotices = providerNotices.filter(notice => !isHotelNotice(notice))
+  const bestDealCount = displayFlights.reduce((count, fare) => count + (scores[fare.id]?.verdict === 'Great' ? 1 : 0), 0)
+  const nonstopCount = displayFlights.filter(fare => fare.stops === 0).length
+  const cheapestFare = baggageFare
   const missingDepart = !depart
   const missingRoundtripReturn = tripType === 'roundtrip' && !returnDate
   const filtersHideResults = flights.length > 0 && displayFlights.length === 0
@@ -225,7 +229,42 @@ export default function FlightResults({
       )}
 
       {(flights.length > 0 || isSearching) && (
-        <div className="mb-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-card)] sm:p-4">
+        <div className="mb-5 rounded-[1.25rem] border border-[var(--border)] bg-[var(--bg-raised)] p-4 shadow-[var(--shadow-card)] sm:p-5">
+          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[1rem] border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-3)]">
+                Lowest live fare
+              </p>
+              <p className="mt-1 font-display text-xl font-extrabold text-[var(--text-1)]">
+                {cheapestFare ? formatMoney(cheapestFare.price) : 'Waiting'}
+              </p>
+              <p className="mt-1 text-xs font-medium text-[var(--text-2)]">
+                {cheapestFare ? `${cheapestFare.origin} to ${cheapestFare.destination}` : 'Results will populate here as fares arrive.'}
+              </p>
+            </div>
+            <div className="rounded-[1rem] border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-3)]">
+                Great deals
+              </p>
+              <p className="mt-1 font-display text-xl font-extrabold text-[var(--text-1)]">
+                {bestDealCount}
+              </p>
+              <p className="mt-1 text-xs font-medium text-[var(--text-2)]">
+                Ranked well against recent route history.
+              </p>
+            </div>
+            <div className="rounded-[1rem] border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-3)]">
+                Nonstop options
+              </p>
+              <p className="mt-1 font-display text-xl font-extrabold text-[var(--text-1)]">
+                {nonstopCount}
+              </p>
+              <p className="mt-1 text-xs font-medium text-[var(--text-2)]">
+                Direct itineraries in the current result set.
+              </p>
+            </div>
+          </div>
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
             <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
               <fieldset className="min-w-0">
@@ -241,7 +280,7 @@ export default function FlightResults({
                       aria-pressed={sortBy === option}
                       aria-describedby="flight-results-controls-summary"
                       disabled={controlsDisabled}
-                      className={`btn-pill min-h-10 w-full px-2.5 ${sortBy === option ? 'active' : ''}`}
+                      className={`btn-pill min-h-11 w-full px-3 ${sortBy === option ? 'active' : ''}`}
                     >
                       <span className="truncate">{sortLabels[option]}</span>
                       {sortBy === option && <span className="btn-pill-status">On</span>}
@@ -262,7 +301,7 @@ export default function FlightResults({
                       aria-pressed={filterStops === value}
                       aria-describedby="flight-results-controls-summary"
                       disabled={controlsDisabled}
-                      className={`btn-pill min-h-10 w-full px-2.5 ${filterStops === value ? 'active' : ''}`}
+                      className={`btn-pill min-h-11 w-full px-3 ${filterStops === value ? 'active' : ''}`}
                     >
                       <span className="truncate">{stopFilterLabel(value)}</span>
                       {filterStops === value && <span className="btn-pill-status">On</span>}
@@ -271,7 +310,7 @@ export default function FlightResults({
                 </div>
               </fieldset>
             </div>
-            <span className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-raised)] px-3 py-2 text-xs font-bold text-[var(--text-2)] lg:justify-self-end">
+            <span className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-xs font-bold text-[var(--text-2)] lg:justify-self-end">
               {displayFlights.length} result{displayFlights.length !== 1 ? 's' : ''}
             </span>
           </div>
@@ -311,7 +350,7 @@ export default function FlightResults({
               <p>Fare cards will appear here as providers return usable prices for this search.</p>
             </div>
           </FlightStatePanel>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
               <FlightCard key={index} score={null} loading />
             ))}
@@ -345,21 +384,22 @@ export default function FlightResults({
           </div>
 
           {!isSearching && dest.trim() && flights.length >= 3 && (
-            <div className="mt-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] animate-fade-up sm:p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="mt-5 rounded-[1.25rem] border border-[var(--border)] bg-[var(--bg-raised)] p-5 shadow-[var(--shadow-card)] animate-fade-up sm:p-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex-1 text-left">
-                  <p className="font-display text-sm font-bold text-[var(--text-1)]">Track this route</p>
-                  <p className="mt-1 text-xs leading-5 text-[var(--text-2)]">
-                    Get an email when prices drop below today&apos;s level
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-3)]">Route tracking</p>
+                  <p className="mt-1 font-display text-xl font-bold text-[var(--text-1)]">Track this route</p>
+                  <p className="mt-1 text-sm leading-6 text-[var(--text-2)]">
+                    Get an email when prices drop below the current live range for this search.
                   </p>
                 </div>
                 {alertSent ? (
-                  <p className="rounded-[var(--radius-control)] border border-[var(--success)]/25 bg-[var(--success-soft)] px-3 py-2 text-sm font-bold text-[var(--success)]" role="status">
+                  <p className="rounded-[var(--radius-control)] border border-[var(--success)]/25 bg-[var(--success-soft)] px-4 py-2.5 text-sm font-bold text-[var(--success)]" role="status">
                     You&apos;re on the list
                   </p>
                 ) : (
-                  <div className="w-full sm:w-auto">
-                    <form className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row" onSubmit={handleAlertSubmit}>
+                  <div className="w-full lg:w-auto">
+                    <form className="flex w-full flex-col gap-2 sm:flex-row" onSubmit={handleAlertSubmit}>
                       <label className="sr-only" htmlFor="flight-alert-email">
                         Email for route price alerts
                       </label>
@@ -371,12 +411,12 @@ export default function FlightResults({
                         onChange={event => setAlertEmail(event.target.value)}
                         placeholder="your@email.com"
                         aria-describedby={alertError ? 'flight-alert-error' : undefined}
-                        className="field-input min-h-11 !py-2.5 !pl-4 text-sm sm:w-56"
+                        className="field-input min-h-11 !py-2.5 !pl-4 text-sm sm:w-64"
                       />
                       <button
                         type="submit"
                         disabled={alertLoading}
-                        className="btn-primary min-h-11 !w-full whitespace-nowrap px-4 !py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60 sm:!w-auto"
+                        className="btn-primary min-h-11 !w-full whitespace-nowrap px-5 !py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60 sm:!w-auto"
                       >
                         {alertLoading ? 'Setting...' : 'Notify me'}
                       </button>

@@ -132,7 +132,7 @@ function HotelDealPanel({ score }: { score: DealScore }) {
     : 'Unavailable'
 
   return (
-    <div className={`mt-3 flex flex-col gap-2 rounded-lg border px-3 py-3 ${panelClasses}`}>
+    <div className={`mt-4 flex flex-col gap-2 rounded-[1rem] border px-4 py-3 ${panelClasses}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
@@ -144,7 +144,7 @@ function HotelDealPanel({ score }: { score: DealScore }) {
         </div>
         <DealBadge verdict={score.verdict} confidence={score.confidence} />
       </div>
-      <div className="grid grid-cols-2 gap-2 text-xs">
+      <div className="grid grid-cols-2 gap-3 text-xs">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
             Usual
@@ -185,9 +185,9 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
   const hasRating = hotel.rating !== undefined && hotel.rating > 0
 
   return (
-    <div className="card flex flex-col overflow-hidden">
+    <div className="card flex flex-col overflow-hidden rounded-[1.25rem]">
       {hotel.photoUrl ? (
-        <div className="relative h-40 w-full shrink-0 overflow-hidden bg-[color:var(--bg-muted)]">
+        <div className="relative h-48 w-full shrink-0 overflow-hidden bg-[color:var(--bg-muted)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={hotel.photoUrl}
@@ -202,7 +202,7 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
         </div>
       )}
 
-      <div className="flex flex-1 flex-col p-5">
+      <div className="flex flex-1 flex-col p-6">
         <div className="space-y-3">
           <div>
             <h3 className="font-display line-clamp-2 text-base font-bold leading-snug text-[color:var(--text-1)]">
@@ -219,7 +219,7 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[1rem] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]">
             <div>
               <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
                 Hotel class
@@ -258,16 +258,16 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
                   href={hotel.deeplink}
                   target="_blank"
                   rel="noopener noreferrer sponsored"
-                  aria-label={`Check ${hotel.name} with HotelLook`}
-                  className="btn-primary btn-primary-responsive h-12"
+                  aria-label={`View stay details for ${hotel.name}`}
+                  className="btn-primary btn-primary-responsive h-12 min-w-[11rem]"
                 >
-                  Check with HotelLook
+                  View stay details
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                     <path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </a>
                 <p className="text-center text-[11px] font-medium text-[color:var(--text-3)] sm:text-right">
-                  Opens provider site. Prices can change.
+                  Opens the booking handoff. Final price and availability can change.
                 </p>
               </>
             ) : (

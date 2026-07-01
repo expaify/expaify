@@ -157,7 +157,7 @@ export default function AirportInput({
 
   return (
     <div ref={rootRef} className="relative">
-      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+      <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 2C8.69 2 6 4.69 6 8c0 5.25 6 14 6 14s6-8.75 6-14c0-3.31-2.69-6-6-6zm0 8.5A2.5 2.5 0 1112 5.5a2.5 2.5 0 010 5z" fill="currentColor" />
         </svg>
@@ -186,7 +186,7 @@ export default function AirportInput({
           id={listboxId}
           role="listbox"
           aria-label={`${placeholder} suggestions`}
-          className="absolute left-0 right-0 top-full z-50 mt-2 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl"
+          className="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_22px_60px_rgba(15,23,42,0.16)]"
         >
           {results.length > 0 ? (
             results.map((airport, i) => (
@@ -199,14 +199,14 @@ export default function AirportInput({
                   e.preventDefault()
                   select(airport)
                 }}
-                className={`grid cursor-pointer grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 ${i === highlighted ? 'bg-indigo-50' : ''}`}
+                className={`grid cursor-pointer grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-3 rounded-[0.9rem] px-4 py-3 transition-colors hover:bg-slate-50 ${i === highlighted ? 'bg-indigo-50 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.12)]' : ''}`}
               >
-                <span className="text-xs font-bold text-indigo-700">{airport.iata}</span>
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-center text-[11px] font-bold text-indigo-700">{airport.iata}</span>
                 <span className="min-w-0 leading-tight">
                   <span className="block break-words text-sm font-semibold text-slate-900">{airport.city}</span>
                   <span className="mt-0.5 block break-words text-xs leading-snug text-slate-500">{airport.name}</span>
                 </span>
-                <span className="text-[10px] font-semibold text-slate-400">{airport.country}</span>
+                <span className="pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{airport.country}</span>
               </div>
             ))
           ) : lookupState === 'settled' ? (

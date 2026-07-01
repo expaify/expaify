@@ -161,6 +161,10 @@ function isSafeExternalProviderLink(deeplink: string): boolean {
   }
 }
 
+function externalCtaLabel(source: string): string {
+  return source === 'duffel' ? 'Continue to booking' : 'View fare details';
+}
+
 function DealBanner({ score }: { score: DealScore }) {
   const isLowConfidence = score.confidence === 'low'
   const panelClasses = isLowConfidence
@@ -227,8 +231,8 @@ export default function FlightCard({ fare, score, loading }: Props) {
             </div>
             <div className="ml-auto h-10 w-24 rounded-[var(--radius-control)] shimmer" />
           </div>
-          <div className="h-24 w-full rounded-[var(--radius-card)] shimmer" />
-          <div className="h-20 w-full rounded-[var(--radius-card)] shimmer" />
+          <div className="h-28 w-full rounded-[1rem] shimmer" />
+          <div className="h-24 w-full rounded-[1rem] shimmer" />
           <div className="h-12 w-full rounded-[var(--radius-control)] shimmer" />
         </div>
       </div>
@@ -246,15 +250,15 @@ export default function FlightCard({ fare, score, loading }: Props) {
     : !hasDeeplink
     ? 'Provider link unavailable'
     : isInternalBooking
-      ? 'Review paused booking'
-      : `Check with ${fare.source}`
+      ? 'Review fare details'
+      : externalCtaLabel(fare.source)
   const ctaNote = !hasValidPrice
     ? 'No confirmed fare price was returned for this result.'
     : !hasDeeplink
     ? 'Availability cannot be verified from this result.'
     : isInternalBooking
-      ? 'In-app booking is paused. Review only.'
-      : 'Opens provider search. Price and availability can change.'
+      ? 'In-app booking is paused. This page is review-only.'
+      : 'Opens the booking handoff. Final price and availability can change.'
   const passengerCount = Number.isInteger(fare.passengerCount) && (fare.passengerCount ?? 0) > 0
     ? fare.passengerCount as number
     : 1
@@ -265,11 +269,11 @@ export default function FlightCard({ fare, score, loading }: Props) {
   const unavailableReason = 'No confirmed fare price was returned.'
   const tripLabel = fare.return ? 'Round trip' : 'One way'
   const carrierLabel = fare.carrier.trim() || 'Unknown carrier'
-  const sourceLabel = fare.source.trim() || 'provider'
+  const sourceLabel = isInternalBooking ? 'review path' : 'verified fare'
 
   return (
-    <article className="card overflow-hidden">
-      <div className="space-y-4 p-4 sm:p-5">
+    <article className="card overflow-hidden rounded-[1.25rem]">
+      <div className="space-y-5 p-5 sm:p-6">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
           <div className="flex min-w-0 items-start gap-3">
             <AirlineLogo carrier={carrierLabel} />
@@ -281,7 +285,7 @@ export default function FlightCard({ fare, score, loading }: Props) {
                 {fare.origin} to {fare.destination}
               </h3>
               <p className="truncate text-xs font-medium leading-5 text-[var(--text-2)]">
-                {carrierLabel} via {sourceLabel}
+                {carrierLabel} • {sourceLabel}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 <StopsChip stops={fare.stops} />
@@ -296,7 +300,7 @@ export default function FlightCard({ fare, score, loading }: Props) {
           )}
         </div>
 
-        <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-raised)] px-3.5 py-3.5">
+        <div className="rounded-[1rem] border border-[var(--border)] bg-[var(--bg-raised)] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]">
           <div className="flex items-center gap-3">
             <div className="w-[4.75rem] shrink-0 text-left">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-2)]">
