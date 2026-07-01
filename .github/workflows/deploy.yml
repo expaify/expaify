@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 env:
   IMAGE: expaifyacr.azurecr.io/expaify:${{ github.sha }}
 
@@ -35,7 +39,7 @@ jobs:
 
       - name: Deploy to Azure Container Apps
         run: |
-          EXISTS=$(az containerapp show --name expaify --resource-group expaify-rg --query "name" -o tsv 2>/dev/null || echo "")
+          EXISTS=$(az containerapp show --name expaify --resource-group expaify-rg --query "name" -o tsv 2>/dev/null || true)
 
           if [ -z "$EXISTS" ]; then
             az containerapp create \
@@ -57,15 +61,10 @@ jobs:
                 "DUFFEL_KEY=${{ secrets.DUFFEL_KEY }}" \
                 "AMADEUS_CLIENT_ID=${{ secrets.AMADEUS_CLIENT_ID }}" \
                 "AMADEUS_CLIENT_SECRET=${{ secrets.AMADEUS_CLIENT_SECRET }}" \
+                "SERPAPI_KEY=${{ secrets.SERPAPI_KEY }}" \
+                "BOOKING_ENABLED=${{ secrets.BOOKING_ENABLED }}" \
               --output none
           else
-            az containerapp registry set \
-              --name expaify \
-              --resource-group expaify-rg \
-              --server expaifyacr.azurecr.io \
-              --username ${{ secrets.ACR_USERNAME }} \
-              --password ${{ secrets.ACR_PASSWORD }} \
-              --output none
             az containerapp update \
               --name expaify \
               --resource-group expaify-rg \
@@ -78,5 +77,7 @@ jobs:
                 "DUFFEL_KEY=${{ secrets.DUFFEL_KEY }}" \
                 "AMADEUS_CLIENT_ID=${{ secrets.AMADEUS_CLIENT_ID }}" \
                 "AMADEUS_CLIENT_SECRET=${{ secrets.AMADEUS_CLIENT_SECRET }}" \
+                "SERPAPI_KEY=${{ secrets.SERPAPI_KEY }}" \
+                "BOOKING_ENABLED=${{ secrets.BOOKING_ENABLED }}" \
               --output none
           fi
