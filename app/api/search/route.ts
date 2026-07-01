@@ -7,7 +7,13 @@ import { amadeus } from '../../../lib/providers/amadeus';
 import { kiwi } from '../../../lib/providers/kiwi';
 import { hotellook } from '../../../lib/providers/hotellook';
 import { query } from '../../../lib/db/client';
-import { type NormalizedFare, type ProviderIssueStatus, type ProviderNotice } from '../../../lib/types';
+import {
+  type HotelOffer,
+  type NormalizedFare,
+  type ProviderIssueStatus,
+  type ProviderNotice,
+  type Result,
+} from '../../../lib/types';
 
 function shiftDate(date: string, days: number): string {
   const shifted = new Date(`${date}T00:00:00.000Z`);
@@ -95,6 +101,17 @@ function providerExceptionReason(provider: string, error: unknown): string {
 function isTimeoutReason(reason: string): boolean {
   const normalized = reason.toLowerCase();
   return normalized.includes('timed out') || normalized.includes('timeout') || normalized.includes('aborted');
+}
+
+async function searchHotelAvailability(
+  area: string,
+  range: { checkin: string; checkout: string }
+): Promise<Result<HotelOffer[]>> {
+  try {
+    return await hotellook.searchHotels(area, range);
+  } catch (error) {
+    return { ok: false, reason: providerExceptionReason('HotelLook', error) };
+  }
 }
 
 /**
@@ -288,34 +305,20 @@ export async function GET(request: NextRequest) {
 
       // Hotels after all flight providers resolve
       if (destIATA && depart && ret) {
-        try {
-          const hotelsResult = await hotellook.searchHotels(destIATA, { checkin: depart, checkout: ret });
-          if (hotelsResult.ok && hotelsResult.data.length > 0) {
-            send({ type: 'hotel-status', status: 'available' });
-            send({ type: 'hotels', source: 'hotellook', data: hotelsResult.data });
-          } else if (hotelsResult.ok) {
-            send({ type: 'hotel-status', status: 'empty', message: 'No hotels were returned for these dates.' });
-          } else {
-            const status = classifyProviderIssue(hotelsResult.reason);
-            send({
-              type: 'hotel-status',
-              status: 'unavailable',
-              providerStatus: status,
-              message: isTimeoutReason(hotelsResult.reason)
-                ? 'The hotel provider did not respond in time. Hotel inventory was not confirmed for this search.'
-                : status === 'malformed_response'
-                ? 'The hotel provider returned a response we could not use.'
-                : 'The hotel provider is unavailable right now.',
-            });
-          }
-        } catch (error) {
-          const reason = providerExceptionReason('Hotel provider', error);
-          const status = classifyProviderIssue(reason);
+        const hotelsResult = await searchHotelAvailability(destIATA, { checkin: depart, checkout: ret });
+        if (hotelsResult.ok && hotelsResult.data.length > 0) {
+          send({ type: 'hotel-status', status: 'available' });
+          send({ type: 'hotels', source: 'hotellook', data: hotelsResult.data });
+        } else if (hotelsResult.ok) {
+          send({ type: 'hotel-status', status: 'empty', message: 'No hotels were returned for these dates.' });
+        } else {
+          const status = classifyProviderIssue(hotelsResult.reason);
           send({
             type: 'hotel-status',
             status: 'unavailable',
+            provider: 'Hotellook',
             providerStatus: status,
-            message: isTimeoutReason(reason)
+            message: isTimeoutReason(hotelsResult.reason)
               ? 'The hotel provider did not respond in time. Hotel inventory was not confirmed for this search.'
               : status === 'malformed_response'
               ? 'The hotel provider returned a response we could not use.'
