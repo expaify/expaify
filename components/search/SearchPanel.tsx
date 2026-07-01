@@ -6,6 +6,7 @@ import AirportInput from '@/app/components/AirportInput';
 import { TripInspirationRail } from './TripInspirationRail';
 
 type TripType = 'roundtrip' | 'oneway';
+type SearchIntent = 'flights' | 'hotels' | 'trip';
 
 type SearchSelection = {
   originIata: string;
@@ -56,6 +57,7 @@ export function SearchPanel({
   initialReturnDate = '',
   onSubmit,
 }: SearchPanelProps): JSX.Element {
+  const [searchIntent, setSearchIntent] = React.useState<SearchIntent>('trip');
   const [tripType, setTripType] = React.useState<TripType>('roundtrip');
   const [origin, setOrigin] = React.useState(initialOriginIata);
   const [originDisplay, setOriginDisplay] = React.useState(initialOriginDisplay);
@@ -90,24 +92,56 @@ export function SearchPanel({
 
   return (
     <section className="rounded-3xl border border-white/8 bg-[#0C1122]/85 p-4 shadow-[0_24px_64px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-6">
-      <div className="mb-4 flex rounded-xl bg-white/[0.04] p-1">
-        {(['roundtrip', 'oneway'] as TripType[]).map((type) => (
-          <button
-            key={type}
-            type="button"
-            onClick={() => setTripType(type)}
-            className={`flex-1 rounded-lg border py-2 text-sm font-bold transition-colors ${
-              tripType === type
-                ? 'border-indigo-500/30 bg-indigo-500/25 text-indigo-300'
-                : 'border-transparent text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            {type === 'roundtrip' ? 'Round trip' : 'One way'}
-          </button>
-        ))}
-      </div>
+      <fieldset className="mb-4">
+        <legend className="sr-only">Search intent</legend>
+        <div className="grid grid-cols-1 gap-2 rounded-xl bg-white/[0.04] p-1 sm:grid-cols-3">
+          {([
+            ['flights', 'Flights', 'Rank fares'],
+            ['hotels', 'Hotels', 'Check stays'],
+            ['trip', 'Flight + hotel', 'Review both'],
+          ] as const).map(([intent, label, description]) => (
+            <button
+              key={intent}
+              type="button"
+              onClick={() => setSearchIntent(intent)}
+              aria-pressed={searchIntent === intent}
+              className={`min-h-14 rounded-lg border px-3 py-2 text-left transition-colors ${
+                searchIntent === intent
+                  ? 'border-indigo-500/30 bg-indigo-500/25 text-indigo-200'
+                  : 'border-transparent text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              <span className="block text-sm font-bold">{label}</span>
+              <span className="mt-0.5 block text-xs font-medium">{description}</span>
+            </button>
+          ))}
+        </div>
+      </fieldset>
 
       <form onSubmit={handleSubmit} className="space-y-3">
+        <fieldset>
+          <legend className="mb-2 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
+            Trip type
+          </legend>
+          <div className="flex rounded-xl bg-white/[0.04] p-1">
+            {(['roundtrip', 'oneway'] as TripType[]).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setTripType(type)}
+                aria-pressed={tripType === type}
+                className={`flex-1 rounded-lg border py-2 text-sm font-bold transition-colors ${
+                  tripType === type
+                    ? 'border-indigo-500/30 bg-indigo-500/25 text-indigo-300'
+                    : 'border-transparent text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                {type === 'roundtrip' ? 'Round trip' : 'One way'}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
@@ -190,7 +224,11 @@ export function SearchPanel({
         </label>
 
         <button type="submit" className="btn-primary">
-          Search flights + hotels
+          {searchIntent === 'hotels'
+            ? 'Search hotels'
+            : searchIntent === 'trip'
+              ? 'Search flights and hotels'
+              : 'Search flights'}
         </button>
       </form>
     </section>
