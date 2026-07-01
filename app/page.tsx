@@ -252,17 +252,23 @@ function parseCriteriaFromUrl(params: URLSearchParams): { criteria: SearchCriter
 
 function HotelSkeleton() {
   return (
-    <div className="card rounded-2xl overflow-hidden">
-      <div className="h-40 shimmer" />
+    <div className="card overflow-hidden">
+      <div className="h-36 shimmer sm:h-40" />
       <div className="space-y-3 p-5">
-        <div className="h-4 w-3/4 rounded-lg shimmer" />
-        <div className="h-3 w-1/2 rounded-lg shimmer" />
-        <div className="flex items-end justify-between border-t border-white/5 pt-4">
-          <div className="space-y-1.5">
-            <div className="h-7 w-16 rounded-lg shimmer" />
-            <div className="h-2.5 w-12 rounded-lg shimmer" />
+        <div className="flex flex-wrap gap-2">
+          <div className="h-7 w-32 rounded-full shimmer" />
+          <div className="h-5 w-24 rounded-lg shimmer" />
+        </div>
+        <div className="h-5 w-4/5 rounded-lg shimmer" />
+        <div className="h-4 w-2/3 rounded-lg shimmer" />
+        <div className="h-16 rounded-lg shimmer" />
+        <div className="flex flex-col gap-4 border-t border-white/5 pt-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-2">
+            <div className="h-4 w-20 rounded-lg shimmer" />
+            <div className="h-8 w-28 rounded-lg shimmer" />
+            <div className="h-3 w-36 rounded-lg shimmer" />
           </div>
-          <div className="h-10 w-32 rounded-xl shimmer" />
+          <div className="h-12 w-full rounded-lg shimmer sm:w-40" />
         </div>
       </div>
     </div>
@@ -288,7 +294,7 @@ function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label="Toggle theme"
-      className="fixed top-4 right-4 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200/90 bg-white/90 text-slate-500 shadow-[0_12px_28px_rgba(15,23,42,0.1)] backdrop-blur transition-colors hover:border-slate-300 hover:text-slate-900"
+      className="fixed top-4 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-slate-300 hover:text-slate-900"
     >
       {light ? <IconMoon /> : <IconSun />}
     </button>
@@ -307,7 +313,7 @@ function SiteFooter({
   const isDark = variant === 'dark'
   const shellClass = isDark
     ? 'border-white/10 bg-white/[0.025] text-gray-500'
-    : 'border-slate-200 bg-white/82 text-slate-500 shadow-[0_18px_48px_rgba(15,23,42,0.06)]'
+    : 'border-slate-200 bg-white/70 text-slate-500'
   const headingClass = isDark ? 'text-gray-200' : 'text-slate-950'
   const bodyClass = isDark ? 'text-gray-500' : 'text-slate-600'
   const linkClass = isDark
@@ -373,7 +379,7 @@ function ResultsStatePanel({
 
   return (
     <section
-      className={`rounded-[1.25rem] border px-5 py-5 shadow-[var(--shadow-card)] animate-fade-in sm:px-6 sm:py-6 ${toneClasses}`}
+      className={`rounded-[var(--radius-card)] border px-4 py-5 shadow-[var(--shadow-card)] animate-fade-in sm:px-5 sm:py-6 ${toneClasses}`}
       role={tone === 'error' ? 'alert' : 'status'}
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -381,7 +387,7 @@ function ResultsStatePanel({
           <p className={`text-[11px] font-bold uppercase tracking-wide ${eyebrowClasses}`}>
             {eyebrow}
           </p>
-          <h2 className="mt-1 font-display text-xl font-bold leading-7 text-[var(--text-1)]">
+          <h2 className="mt-1 font-display text-lg font-bold leading-7 text-[var(--text-1)] sm:text-xl">
             {title}
           </h2>
           <div className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-2)]">
@@ -422,13 +428,13 @@ function PriceCalendar({
   const range = max - min || 1
 
   return (
-    <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-      <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">
+    <div className="mt-3 rounded-xl border border-white/8 bg-white/2 p-3">
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-gray-600">
         Cheapest days - {new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' })}
       </p>
       <div className="grid grid-cols-7 gap-1">
         {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-          <div key={day} className="py-0.5 text-center text-[9px] font-bold text-slate-400">
+          <div key={day} className="py-0.5 text-center text-[9px] font-bold text-gray-700">
             {day}
           </div>
         ))}
@@ -453,23 +459,23 @@ function PriceCalendar({
               type="button"
               onClick={() => onSelect(date)}
               className={`rounded-lg py-1.5 text-center transition-all ${bg} ${
-                isSelected ? 'ring-1 ring-indigo-500' : 'hover:ring-1 hover:ring-slate-300'
+                isSelected ? 'ring-1 ring-indigo-400' : 'hover:ring-1 hover:ring-white/20'
               }`}
             >
-              <div className="text-[11px] font-medium text-slate-700">
+              <div className="text-[11px] font-medium text-gray-300">
                 {new Date(`${date}T12:00`).getDate()}
               </div>
-              {price && <div className="text-[9px] text-slate-500">${Math.round(price / 100)}</div>}
+              {price && <div className="text-[9px] text-gray-500">${Math.round(price / 100)}</div>}
             </button>
           )
         })}
       </div>
       <div className="mt-2 flex items-center justify-end gap-3">
-        <span className="flex items-center gap-1 text-[9px] text-slate-500">
+        <span className="flex items-center gap-1 text-[9px] text-gray-600">
           <span className="inline-block h-2 w-2 rounded-sm bg-emerald-500/40" />
           Cheap
         </span>
-        <span className="flex items-center gap-1 text-[9px] text-slate-500">
+        <span className="flex items-center gap-1 text-[9px] text-gray-600">
           <span className="inline-block h-2 w-2 rounded-sm bg-red-500/30" />
           Expensive
         </span>
@@ -912,17 +918,8 @@ export default function Home() {
     depart && returnDate ? `${depart} - ${returnDate}` : depart,
     passengers > 1 ? `${passengers} passengers` : null,
   ].filter(Boolean).join(' · ')
-  const searchDateErrors = validateTravelDates({ depart, returnDate, tripType })
-  const searchDisabledReason = isSearching
-    ? null
-    : !origin.trim()
-      ? 'Add an origin to enable search.'
-      : !dest.trim() && destDisplay.trim()
-        ? 'Choose a valid destination airport from the list, or clear the destination field.'
-        : searchDateErrors.depart ?? searchDateErrors.returnDate ?? null
-  const searchReady = !isSearching && searchDisabledReason === null
   const greatCount = Object.values(scores).filter(score => score?.verdict === 'Great').length
-  const hotelsTabDisabled = hotels.length === 0 && ['idle', 'skipped', 'unavailable'].includes(hotelAvailability)
+  const hotelsTabDisabled = hotels.length === 0 && ['idle', 'skipped'].includes(hotelAvailability)
   const hotelUnavailableCopy =
     hotelAvailability === 'unavailable'
       ? hotelAvailabilityMessage ?? 'The hotel provider is unavailable right now.'
@@ -944,66 +941,59 @@ export default function Home() {
 
   if (view === 'form') {
     return (
-      <main className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,rgba(29,78,216,0.08),transparent_34%),linear-gradient(180deg,#f8fafc_0%,#f3f4f6_38%,#eef2f7_100%)] text-slate-950">
+      <main className="min-h-screen overflow-x-hidden bg-[#f5f7fb] text-slate-950">
         <ThemeToggle />
 
         <div id="search" className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
           <header className="flex min-h-10 items-center justify-between pr-12">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white shadow-[0_10px_26px_rgba(15,23,42,0.16)]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-white shadow-sm">
                 <IconPlane />
               </span>
               <div>
-                <p className="font-display text-xl font-extrabold leading-none text-slate-950">expaify</p>
-                <p className="mt-0.5 text-xs font-semibold text-slate-500">Premium travel search intelligence</p>
+                <p className="font-display text-xl font-extrabold leading-none tracking-tight text-slate-950">expaify</p>
+                <p className="mt-0.5 text-xs font-semibold text-slate-500">Travel deal intelligence</p>
               </div>
-            </div>
-            <div className="hidden items-center gap-2 rounded-full border border-white/70 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm backdrop-blur md:flex">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Live fare scoring
             </div>
           </header>
 
-          <div className="grid flex-1 items-start gap-10 py-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(640px,1.1fr)] lg:items-center lg:py-10">
-            <section className="max-w-2xl animate-fade-up">
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm backdrop-blur">
+          <div className="grid flex-1 items-start gap-8 py-8 lg:grid-cols-[minmax(0,0.86fr)_minmax(620px,1.14fr)] lg:items-center lg:py-10">
+            <section className="max-w-xl animate-fade-up">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Live pricing across flights and stays
+                Live fare scoring
               </div>
-              <h1 className="mt-6 font-display text-4xl font-extrabold leading-[1.02] text-slate-950 sm:text-5xl lg:text-[4.4rem]">
-                Travel search that tells you what is worth booking.
+              <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+                Know when a flight price is actually worth booking.
               </h1>
-              <p className="mt-5 max-w-xl text-base font-medium leading-7 text-slate-600 sm:text-lg">
-                Review live fares, compare them with recent route history, and keep the booking handoff honest before you commit money.
+              <p className="mt-5 max-w-lg text-base font-medium leading-7 text-slate-600 sm:text-lg">
+                Search current fares and compare each option against recent route history, median price, and deal percentile.
               </p>
 
-              <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-white/70 bg-white/78 px-4 py-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">Ranking</p>
-                  <p className="mt-2 text-base font-bold text-slate-950">Great, Good, Typical</p>
-                  <p className="mt-1 text-xs font-medium leading-5 text-slate-500">Score each fare against the recent route baseline.</p>
+              <div className="mt-7 grid grid-cols-3 gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div className="min-w-0 px-1">
+                  <p className="text-[11px] font-bold uppercase text-slate-400">Verdict</p>
+                  <p className="mt-1 text-sm font-bold text-slate-950">Great, Good, Typical</p>
                 </div>
-                <div className="rounded-2xl border border-white/70 bg-white/78 px-4 py-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">Coverage</p>
-                  <p className="mt-2 text-base font-bold text-slate-950">Flights first, hotels when valid</p>
-                  <p className="mt-1 text-xs font-medium leading-5 text-slate-500">Only show hotel inventory when dates are complete enough to trust it.</p>
+                <div className="min-w-0 border-l border-slate-200 px-3">
+                  <p className="text-[11px] font-bold uppercase text-slate-400">Baseline</p>
+                  <p className="mt-1 text-sm font-bold text-slate-950">90-day route history</p>
                 </div>
-                <div className="rounded-2xl border border-white/70 bg-white/78 px-4 py-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">Handoff</p>
-                  <p className="mt-2 text-base font-bold text-slate-950">Clear external booking path</p>
-                  <p className="mt-1 text-xs font-medium leading-5 text-slate-500">Keep the product-owned review layer separate from the final provider checkout.</p>
+                <div className="min-w-0 border-l border-slate-200 px-3">
+                  <p className="text-[11px] font-bold uppercase text-slate-400">Hotels</p>
+                  <p className="mt-1 text-sm font-bold text-slate-950">Checked when dates fit</p>
                 </div>
               </div>
             </section>
 
-            <section className="animate-fade-up delay-75 rounded-[2rem] border border-white/70 bg-white/88 p-3 shadow-[0_28px_80px_rgba(15,23,42,0.12)] backdrop-blur sm:p-4">
+            <section className="animate-fade-up delay-75 rounded-[1.75rem] border border-slate-200 bg-white p-3 shadow-[0_24px_70px_rgba(15,23,42,0.13)] sm:p-4">
               <div className="mb-4 flex items-start justify-between gap-4 px-1 pt-1 sm:px-2">
                 <div>
-                  <h2 className="font-display text-lg font-extrabold text-slate-950 sm:text-xl">Build a trip search</h2>
-                  <p className="mt-1 text-sm font-medium text-slate-500">Start with the route, then rank live prices by actual deal quality.</p>
+                  <h2 className="font-display text-lg font-extrabold tracking-tight text-slate-950 sm:text-xl">Search flights</h2>
+                  <p className="mt-1 text-sm font-medium text-slate-500">Add a route to rank live prices by deal quality.</p>
                 </div>
                 <div className="hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 sm:block">
-                  Trust-first results
+                  Cash fares first
                 </div>
               </div>
 
@@ -1013,7 +1003,7 @@ export default function Home() {
                     key={type}
                     type="button"
                     onClick={() => { setTripType(type); setFormError(null) }}
-                    className={`min-h-11 flex-1 rounded-xl border px-3 py-2 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
+                    className={`min-h-11 flex-1 rounded-xl border px-3 py-2 text-sm font-bold transition-colors ${
                     tripType === type
                       ? 'border-white bg-white text-slate-950 shadow-sm'
                       : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -1044,7 +1034,7 @@ export default function Home() {
                   type="button"
                   onClick={handleSwap}
                   aria-label="Swap origin and destination"
-                    className="mx-auto flex h-11 w-11 rotate-90 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 lg:rotate-0"
+                    className="mx-auto flex h-11 w-11 rotate-90 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 lg:rotate-0"
                 >
                   <IconSwap />
                 </button>
@@ -1148,7 +1138,7 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => { setPassengers(p => Math.max(1, p - 1)); setFormError(null) }}
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-bold text-slate-700 transition-colors hover:border-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-35"
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-bold text-slate-700 transition-colors hover:border-slate-300 disabled:opacity-35"
                         disabled={passengers <= 1}
                         aria-label="Remove passenger"
                       >
@@ -1158,7 +1148,7 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => { setPassengers(p => Math.min(9, p + 1)); setFormError(null) }}
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-bold text-slate-700 transition-colors hover:border-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-35"
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-bold text-slate-700 transition-colors hover:border-slate-300 disabled:opacity-35"
                         disabled={passengers >= 9}
                         aria-label="Add passenger"
                       >
@@ -1176,9 +1166,8 @@ export default function Home() {
 
                 <button
                   type="submit"
-                  aria-describedby={!searchReady ? 'search-submit-help' : undefined}
-                  className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[0.875rem] bg-slate-950 px-6 py-4 font-display text-[0.9375rem] font-bold text-white shadow-[0_18px_36px_rgba(15,23,42,0.22)] transition-[opacity,transform,box-shadow] hover:opacity-95 hover:shadow-[0_22px_42px_rgba(15,23,42,0.26)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
-                  disabled={!searchReady}
+                  className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[0.875rem] bg-slate-950 px-6 py-4 font-display text-[0.9375rem] font-bold text-white shadow-[0_14px_30px_rgba(15,23,42,0.22)] transition-[opacity,transform,box-shadow] hover:opacity-95 hover:shadow-[0_18px_36px_rgba(15,23,42,0.26)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+                  disabled={isSearching}
                 >
                 {isSearching ? (
                   <>
@@ -1192,11 +1181,6 @@ export default function Home() {
                   </>
                 )}
               </button>
-              {!searchReady && searchDisabledReason && (
-                <p id="search-submit-help" className="px-1 pt-1 text-xs font-semibold leading-5 text-slate-500" aria-live="polite">
-                  {searchDisabledReason}
-                </p>
-              )}
             </form>
           </section>
           </div>
@@ -1220,7 +1204,7 @@ export default function Home() {
                   setDestDisplay(destination.destDisplay)
                   setFormError(null)
                 }}
-                  className="group flex min-h-[5.5rem] w-[15.5rem] flex-shrink-0 flex-col items-start justify-between rounded-2xl border border-white/70 bg-white/82 px-4 py-3 text-left shadow-[0_10px_24px_rgba(15,23,42,0.06)] backdrop-blur transition-colors hover:border-indigo-200 hover:bg-indigo-50/50"
+                  className="group flex min-h-[5.5rem] w-[15.5rem] flex-shrink-0 flex-col items-start justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50/50"
               >
                   <span className="text-sm font-extrabold text-slate-950 transition-colors group-hover:text-indigo-800">{destination.label}</span>
                   <span className="text-xs font-medium text-slate-500">{destination.meta}</span>
@@ -1258,17 +1242,17 @@ export default function Home() {
   }
 
   return (
-    <main id="search" className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eff3f8_52%,#f8fafc_100%)]">
+    <main id="search" className="min-h-screen bg-[#07091A]">
       <ThemeToggle />
 
       {isSearching && <div key={progressKey.current} className="search-progress-bar" />}
 
-      <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-3 pr-16 sm:gap-4 sm:pr-4">
+      <header className="sticky top-0 z-20 border-b border-white/8 bg-[#07091A]/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 pr-16 sm:gap-4 sm:pr-4">
           <button
             type="button"
             onClick={() => setView('form')}
-            className="font-display shrink-0 text-lg font-extrabold text-slate-950 transition-opacity hover:opacity-70 sm:text-xl"
+            className="font-display shrink-0 text-lg font-extrabold tracking-tighter text-white transition-opacity hover:opacity-70 sm:text-xl"
           >
             expaify
           </button>
@@ -1276,33 +1260,26 @@ export default function Home() {
           <button
             type="button"
             onClick={() => setView('form')}
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50/60 sm:gap-3 sm:px-4"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-left transition-colors hover:border-indigo-500/30 hover:bg-indigo-500/[0.05] sm:gap-3 sm:px-4"
           >
-            <IconPlane className="shrink-0 text-indigo-600" />
-            <span className="truncate text-sm font-semibold text-slate-900">
+            <IconPlane className="shrink-0 text-indigo-400" />
+            <span className="truncate text-sm font-semibold text-gray-200">
               {routeLabel || 'Anywhere'}
             </span>
             {depart && (
-              <span className="hidden shrink-0 text-sm text-slate-500 sm:inline">
+              <span className="hidden shrink-0 text-sm text-gray-500 sm:inline">
                 {depart}{returnDate ? ` - ${returnDate}` : ''}
               </span>
             )}
-            <span className="ml-auto shrink-0 text-xs font-medium text-slate-500">
+            <span className="ml-auto shrink-0 text-xs font-medium text-gray-600">
               Edit
             </span>
           </button>
         </div>
       </header>
 
-      <div id="results" className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
-        <section className="mb-6 rounded-[2rem] border border-white/70 bg-white/84 px-5 py-5 shadow-[0_24px_70px_rgba(15,23,42,0.08)] backdrop-blur sm:px-6 sm:py-6">
-        <div className="flex flex-col gap-4 animate-fade-in lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Search workspace
-            </div>
-            <div className="mt-3">
+      <div id="results" className="mx-auto max-w-6xl px-4 py-6">
+        <div className="mb-5 flex flex-col gap-3 animate-fade-in sm:flex-row sm:items-start">
           {isSearching ? (
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex gap-1">
@@ -1310,53 +1287,32 @@ export default function Home() {
                 <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 dot-pulse-2" />
                 <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 dot-pulse-3" />
               </div>
-              <p className="text-sm font-medium text-slate-500">Scanning live inventory across active providers.</p>
+              <p className="text-sm text-gray-400">Scanning deals across providers…</p>
             </div>
           ) : error ? (
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900">Search needs attention</p>
-              <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
+              <p className="text-sm font-semibold text-gray-200">Search needs attention</p>
+              <p className="mt-0.5 truncate text-xs font-medium text-gray-500">
                 {resultContext}
               </p>
             </div>
           ) : (
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-sm font-semibold text-gray-200">
                 {flights.length} flight{flights.length === 1 ? '' : 's'} found{routeLabel ? ` · ${routeLabel}` : ''}
-                {passengers > 1 && <span className="text-slate-500"> × {passengers} passengers</span>}
+                {passengers > 1 && <span className="text-gray-600"> × {passengers} passengers</span>}
               </p>
               {greatCount > 0 && (
-                <p className="mt-0.5 text-xs font-semibold text-emerald-700">
-                  {greatCount} great deal{greatCount === 1 ? '' : 's'} surfaced in this search
+                <p className="mt-0.5 text-xs font-semibold text-emerald-400">
+                  🔥 {greatCount} great deal{greatCount === 1 ? '' : 's'}
                 </p>
               )}
             </div>
           )}
-            </div>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
-              {resultContext || 'Add a route and dates to review live pricing with route-level context.'}
-            </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[25rem]">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Route</p>
-              <p className="mt-1 text-sm font-bold text-slate-950">{routeLabel || 'Anywhere'}</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Dates</p>
-              <p className="mt-1 text-sm font-bold text-slate-950">{depart && returnDate ? `${depart} - ${returnDate}` : depart || 'Choose dates'}</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Travelers</p>
-              <p className="mt-1 text-sm font-bold text-slate-950">{passengers} traveler{passengers === 1 ? '' : 's'}</p>
-            </div>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={handleShare}
-            className="btn-pill flex min-h-10 items-center gap-1.5 self-start"
+            className="btn-pill flex min-h-10 items-center gap-1.5 self-start sm:ml-auto"
             title="Copy link"
           >
             {copied ? (
@@ -1374,7 +1330,6 @@ export default function Home() {
             )}
           </button>
         </div>
-        </section>
 
         {error && (
           <div className="mb-6">
@@ -1411,7 +1366,7 @@ export default function Home() {
 
         {!error && (
           <>
-            <div className="mb-6 flex overflow-x-auto border-b border-slate-200 scrollbar-hide">
+            <div className="mb-6 flex overflow-x-auto border-b border-white/8 scrollbar-hide">
               {(['flights', 'hotels'] as ActiveTab[]).map(tab => {
                 const count = tab === 'flights' ? flights.length : hotels.length
                 const active = activeTab === tab
@@ -1427,20 +1382,20 @@ export default function Home() {
                     aria-disabled={disabled}
                     className={`relative min-h-11 flex-shrink-0 px-4 py-3 text-sm font-bold capitalize transition-colors sm:px-5 ${
                       disabled
-                        ? 'cursor-not-allowed text-slate-300'
-                        : active ? 'text-slate-950' : 'text-slate-500 hover:text-slate-800'
+                        ? 'cursor-not-allowed text-gray-700'
+                        : active ? 'text-gray-100' : 'text-gray-600 hover:text-gray-300'
                     }`}
                   >
                     {tab}
                     <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
                       disabled
-                        ? 'bg-slate-100 text-slate-300'
-                        : active ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'
+                        ? 'bg-white/[0.03] text-gray-700'
+                        : active ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/5 text-gray-600'
                     }`}>
                       {disabled ? 'Unavailable' : count}
                     </span>
                     {active && (
-                      <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-t-full bg-[linear-gradient(90deg,#1d4ed8,#059669)]" />
+                      <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-t-full bg-indigo-400" />
                     )}
                   </button>
                 )
@@ -1448,8 +1403,8 @@ export default function Home() {
             </div>
 
             {hotelsTabDisabled && !isSearching && (
-              <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-500 shadow-sm">
-                <p className="font-semibold text-slate-900">Hotels were not included.</p>
+              <div className="mb-6 rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-gray-500">
+                <p className="font-semibold text-gray-300">Hotels were not included.</p>
                 <p className="mt-0.5">{hotelUnavailableCopy}</p>
               </div>
             )}
@@ -1537,7 +1492,7 @@ export default function Home() {
             )}
           </>
         )}
-        <SiteFooter variant="light" showResultsLink showRoutesLink={false} />
+        <SiteFooter variant="dark" showResultsLink showRoutesLink={false} />
       </div>
     </main>
   )
