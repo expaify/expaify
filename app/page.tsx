@@ -11,25 +11,28 @@ export const metadata: Metadata = {
 }
 
 // Sample deal for hero and dark band sections
+const THREE_HOURS_AGO = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+
 const HERO_DEAL = {
   id: 'demo-1',
-  hotelName: 'Grand Mercure Roxy',
-  city: 'Singapore',
+  hotelName: 'Hotel Miramar Rooftop',
+  city: 'Lisbon, Portugal',
   stars: 4,
   photoUrl: undefined,
-  dealPrice: { priceCents: 8900, currency: 'USD' },
-  medianPrice: { priceCents: 16700, currency: 'USD' },
-  discountPct: 47,
-  checkInWindow: 'Sep 14 – 16',
-  snapshotCount: 22,
+  dealPrice: { priceCents: 18900, currency: 'USD' },
+  medianPrice: { priceCents: 41000, currency: 'USD' },
+  discountPct: 54,
+  checkInWindow: 'Mar 12 – 14',
+  snapshotCount: 43,
   links: {
     expedia: '#',
     booking: '#',
     kiwi: '#',
     trip: '#',
   },
-  headline: '47% below its 60-day average',
+  headline: '54% below its 60-day average',
   isMock: true,
+  firstSeen: THREE_HOURS_AGO,
 }
 
 const TEASER_DEALS = [
@@ -43,9 +46,10 @@ const TEASER_DEALS = [
     discountPct: 43,
     checkInWindow: 'Oct 3 – 5',
     snapshotCount: 18,
-    links: { expedia: '#', booking: '#' },
+    links: { expedia: '#', booking: '#', kiwi: '#', trip: '#' },
     headline: '43% below usual',
     isMock: true,
+    firstSeen: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
   },
 ]
 

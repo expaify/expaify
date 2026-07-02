@@ -1,9 +1,7 @@
+import { formatMoney } from "@/lib/money";
 import type { Money } from "@/lib/types";
 import { CompareRow } from "./CompareRow";
 import { DealChip } from "./DealChip";
-import { PriceBlock } from "./PriceBlock";
-import { StarRow } from "./StarRow";
-import { TrustLine } from "./TrustLine";
 
 type DealLinks = {
   expedia?: string;
@@ -26,6 +24,7 @@ type DealCardDeal = {
   links: DealLinks;
   headline?: string;
   isMock?: boolean;
+  firstSeen?: string;
 };
 
 type DealCardProps = {
@@ -33,43 +32,132 @@ type DealCardProps = {
   href?: string;
 };
 
+function timeAgo(iso?: string): string {
+  if (!iso) return "today";
+  const diff = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 60) return minutes <= 1 ? "just now" : `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? "yesterday" : `${days}d ago`;
+}
+
+function starChars(stars: number): string {
+  const n = Math.max(0, Math.min(5, Math.round(stars)));
+  return "★".repeat(n) + "☆".repeat(5 - n);
+}
+
+function savingsCents(deal: DealCardDeal): number {
+  return deal.medianPrice.priceCents - deal.dealPrice.priceCents;
+}
+
 export function DealCard({ deal, href }: DealCardProps) {
+  const savings = savingsCents(deal);
+  const showSavings = savings >= 2000; // ≥ $20/night
+
   const content = (
-    <article className="transition-card overflow-hidden rounded-[var(--radius-card)] bg-[color:var(--surface)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]">
-      <div className="relative aspect-[3/2] bg-[color:var(--line-ivory)]">
+    <article className="group overflow-hidden rounded-[24px] border-[0.5px] border-[#e8e2d8] bg-white transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(20,18,16,0.12)]">
+      {/* ── Image area ─────────────────────────────── */}
+      <div className="relative h-[160px] overflow-hidden">
         {deal.photoUrl ? (
-          <img
-            src={deal.photoUrl}
-            alt=""
-            className="h-full w-full rounded-t-[16px] object-cover"
-            loading="lazy"
-          />
-        ) : null}
-        <div className="absolute left-4 top-4">
+          <>
+            <img
+              src={deal.photoUrl}
+              alt=""
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
+            {/* depth overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[rgba(14,90,84,0.35)] to-transparent" aria-hidden />
+          </>
+        ) : (
+          <div
+            className="flex h-full w-full items-center justify-center"
+            style={{ background: "linear-gradient(150deg,#0E5A54 0%,#0A4440 100%)" }}
+            aria-hidden
+          >
+            {/* Building icon */}
+            <svg
+              width="44"
+              height="44"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#9FE1CB"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M9 22V12h6v10M3 9h18M9 3v6M15 3v6" />
+            </svg>
+          </div>
+        )}
+
+        {/* Discount chip — top left */}
+        <div className="absolute left-3 top-3">
           <DealChip discountPct={deal.discountPct} />
         </div>
-        <span className="absolute right-4 top-4 rounded-[var(--radius-pill)] bg-[rgba(20,18,16,0.75)] px-[10px] py-1 text-[11.5px] font-medium leading-none text-white">
-          Found
+
+        {/* Found pill — top right */}
+        <span className="absolute right-3 top-3 rounded-[999px] bg-[rgba(20,18,16,0.78)] px-[10px] py-[4px] text-[11px] font-medium leading-none text-[#FAF7F2]">
+          found {timeAgo(deal.firstSeen)}
         </span>
       </div>
-      <div className="space-y-4 p-4">
-        <div className="space-y-2">
-          {deal.headline ? (
-            <p className="text-[13px] font-medium leading-snug text-[color:var(--primary)]">{deal.headline}</p>
-          ) : null}
-          <h3 className="line-clamp-2 font-display text-[20px] font-bold leading-tight text-[color:var(--ink)]">
+
+      {/* ── Body ───────────────────────────────────── */}
+      <div className="space-y-3 px-[18px] pb-[18px] pt-[14px]">
+        {/* Headline */}
+        {deal.headline ? (
+          <p className="text-[12px] font-medium leading-snug text-[color:var(--primary)]">
+            {deal.headline}
+          </p>
+        ) : null}
+
+        {/* Hotel name */}
+        <div>
+          <h3 className="line-clamp-2 font-display text-[16px] font-[600] leading-snug text-[#141210]">
             {deal.hotelName}
           </h3>
-          <StarRow stars={deal.stars} />
-          <p className="text-[13px] leading-snug text-[color:var(--ink-faint)]">
-            {deal.city} · {deal.checkInWindow}
+          <p className="mt-[2px] text-[12px] leading-snug text-[#8a857d]">
+            <span aria-label={`${Math.round(deal.stars)} stars`} aria-hidden>
+              {starChars(deal.stars)}
+            </span>
+            {" · "}
+            {deal.city}
+            {" · "}
+            {deal.checkInWindow}
           </p>
         </div>
-        <PriceBlock dealPrice={deal.dealPrice} medianPrice={deal.medianPrice} />
+
+        {/* Price */}
+        <div className="space-y-[2px]">
+          <div className="flex items-baseline gap-2">
+            <span className="font-display text-[26px] font-bold leading-none text-[#0E5A54]">
+              {formatMoney(deal.dealPrice)}
+            </span>
+            <span className="self-end pb-[2px] text-[11px] leading-none text-[#8a857d]">/ night</span>
+            <span className="text-[14px] leading-none text-[#8a857d] line-through">
+              usually {formatMoney(deal.medianPrice)}
+            </span>
+          </div>
+          {showSavings && (
+            <p className="text-[12px] font-medium text-[#0E5A54]">
+              Save {formatMoney({ priceCents: savings, currency: deal.dealPrice.currency })}/night
+            </p>
+          )}
+        </div>
+
+        {/* OTA compare */}
         <CompareRow links={deal.links} />
-        <TrustLine snapshotCount={deal.snapshotCount} />
+
+        {/* Trust line */}
+        <p className="text-[10.5px] leading-snug text-[#8a857d]">
+          Based on {deal.snapshotCount} price checks over 60 days · expaify never adds fees
+        </p>
+
         {deal.isMock ? (
-          <p className="text-[11.5px] leading-snug text-[color:var(--ink-faint)]">Preview deal</p>
+          <p className="text-[10.5px] leading-snug text-[color:var(--ink-faint)]">Preview deal</p>
         ) : null}
       </div>
     </article>
@@ -78,7 +166,7 @@ export function DealCard({ deal, href }: DealCardProps) {
   if (!href) return content;
 
   return (
-    <a href={href} className="block text-inherit no-underline" aria-label={`View ${deal.hotelName}`}>
+    <a href={href} className="block text-inherit no-underline" aria-label={`View deal: ${deal.hotelName}`}>
       {content}
     </a>
   );
