@@ -1,13 +1,20 @@
 'use client'
 
-import { signIn } from 'next-auth/react'
-import { useState } from 'react'
+import { signIn, useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 
 export default function LoginPage() {
+  const { status } = useSession()
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const googleEnabled = Boolean(process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED)
+
+  useEffect(() => {
+    if (status === 'authenticated') router.replace('/deals')
+  }, [status, router])
 
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault()

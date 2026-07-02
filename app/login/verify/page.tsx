@@ -20,12 +20,20 @@ export default function VerifyPage() {
               />
             </svg>
           </div>
-          <h1 className="font-display text-[22px] font-bold text-[color:var(--ink)]">Check your email</h1>
+          <h1 className="font-display text-[22px] font-bold text-[color:var(--ink)]">Check your inbox</h1>
           <p className="mt-3 text-[15px] leading-relaxed text-[color:var(--ink-soft)]">
             A sign-in link is on its way. Click it to access your account — the link expires in 24 hours.
           </p>
-          <p className="mt-4 text-[13px] text-[color:var(--ink-faint)]">
-            Didn&apos;t get it? Check your spam folder or{' '}
+
+          <a
+            href="mailto:"
+            className="btn btn-primary mt-6 w-full justify-center"
+          >
+            Open email app
+          </a>
+
+          <p className="mt-5 text-[13px] text-[color:var(--ink-faint)]">
+            Didn&apos;t get it? Check spam, or{' '}
             <a href="/login" className="text-[color:var(--primary)] no-underline hover:underline">
               try again
             </a>

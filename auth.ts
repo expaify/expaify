@@ -46,6 +46,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
   pages: {
     signIn: '/login',
     verifyRequest: '/login/verify',
+    error: '/auth/error',
   },
   callbacks: {
     session({ session, user }) {
@@ -53,6 +54,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
         session.user.id = user.id
       }
       return session
+    },
+    redirect({ url, baseUrl }) {
+      // Honour same-origin relative and absolute callbackUrls.
+      // Never rely on a cookie — default to /deals so the proxy can't break it.
+      if (url.startsWith('/')) return `${baseUrl}${url}`
+      if (url.startsWith(baseUrl)) return url
+      return `${baseUrl}/deals`
     },
   },
   events: {
