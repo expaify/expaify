@@ -80,6 +80,7 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Number(searchParams.get('limit') ?? '50'), 100)
   const offset = Number(searchParams.get('offset') ?? '0')
   const minDiscount = Number(searchParams.get('min_discount') ?? '20')
+  const maxPriceCents = searchParams.get('max_price_cents') ? Number(searchParams.get('max_price_cents')) : undefined
   let marketId = searchParams.get('market_id') ? Number(searchParams.get('market_id')) : undefined
   const sort = searchParams.get('sort') === 'discount' ? 'discount' as const : 'newest' as const
 
@@ -92,7 +93,7 @@ export async function GET(req: NextRequest) {
   }
 
   const [deals, pwCtx] = await Promise.all([
-    getActiveDeals({ limit, offset, minDiscount, marketId, sort, includeMock: false }),
+    getActiveDeals({ limit, offset, minDiscount, maxPriceCents, marketId, sort, includeMock: false }),
     getPaywallContext(),
   ])
 

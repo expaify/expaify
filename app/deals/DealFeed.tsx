@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { DealCard } from '../components/ui/DealCard'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
+import { SearchBar } from '../components/ui/SearchBar'
 
 const CITIES = [
   'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
@@ -59,13 +60,14 @@ export function DealFeed() {
   const [error, setError] = useState(false)
   const [city, setCity] = useState('')
   const [minDiscount, setMinDiscount] = useState(20)
+  const [maxPriceCents, setMaxPriceCents] = useState<number | null>(null)
   const [sort, setSort] = useState<'newest' | 'discount'>('newest')
   const [offset, setOffset] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [initialised, setInitialised] = useState(false)
 
   const fetchDeals = useCallback(async (
-    opts: { city: string; minDiscount: number; sort: 'newest' | 'discount'; offset: number; append: boolean }
+    opts: { city: string; minDiscount: number; maxPriceCents: number | null; sort: 'newest' | 'discount'; offset: number; append: boolean }
   ) => {
     const { append } = opts
     if (!append) setLoading(true)
@@ -79,6 +81,7 @@ export function DealFeed() {
       sort: opts.sort,
     })
     if (opts.city) params.set('city', opts.city)
+    if (opts.maxPriceCents) params.set('max_price_cents', String(opts.maxPriceCents))
 
     try {
       const res = await fetch(`/api/deals?${params}`)
@@ -97,24 +100,38 @@ export function DealFeed() {
   // Fetch on first render
   if (!initialised) {
     setInitialised(true)
-    fetchDeals({ city, minDiscount, sort, offset: 0, append: false })
+    fetchDeals({ city, minDiscount, maxPriceCents, sort, offset: 0, append: false })
   }
 
-  function applyFilter(next: { city?: string; minDiscount?: number; sort?: 'newest' | 'discount' }) {
+  function applyFilter(next: { city?: string; minDiscount?: number; maxPriceCents?: number | null; sort?: 'newest' | 'discount' }) {
     const nextCity = next.city ?? city
     const nextDiscount = next.minDiscount ?? minDiscount
+    const nextMax = next.maxPriceCents !== undefined ? next.maxPriceCents : maxPriceCents
     const nextSort = next.sort ?? sort
     setCity(nextCity)
     setMinDiscount(nextDiscount)
+    setMaxPriceCents(nextMax)
     setSort(nextSort)
     setOffset(0)
-    fetchDeals({ city: nextCity, minDiscount: nextDiscount, sort: nextSort, offset: 0, append: false })
+    fetchDeals({ city: nextCity, minDiscount: nextDiscount, maxPriceCents: nextMax, sort: nextSort, offset: 0, append: false })
+  }
+
+  function handleSearchResult(result: { city?: string; maxPriceCents?: number; minDiscount?: number }) {
+    applyFilter({
+      city: result.city ?? '',
+      minDiscount: result.minDiscount ?? 0,
+      maxPriceCents: result.maxPriceCents ?? null,
+    })
+  }
+
+  function clearSearch() {
+    applyFilter({ city: '', minDiscount: 20, maxPriceCents: null })
   }
 
   function loadMore() {
     const nextOffset = offset + PAGE_SIZE
     setOffset(nextOffset)
-    fetchDeals({ city, minDiscount, sort, offset: nextOffset, append: true })
+    fetchDeals({ city, minDiscount, maxPriceCents, sort, offset: nextOffset, append: true })
   }
 
   const pillBase = 'rounded-[var(--radius-pill)] px-4 py-2 text-[13px] font-medium transition-colors duration-100 cursor-pointer'
@@ -123,8 +140,13 @@ export function DealFeed() {
 
   return (
     <>
+      {/* Natural language search */}
+      <div className="mt-6">
+        <SearchBar onResult={handleSearchResult} onClear={clearSearch} />
+      </div>
+
       {/* Filter bar */}
-      <div className="mt-6 mb-8 flex flex-wrap gap-2">
+      <div className="mb-8 flex flex-wrap gap-2">
         <select
           aria-label="Filter by destination"
           value={city}
@@ -170,7 +192,7 @@ export function DealFeed() {
           <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">Couldn&apos;t load deals right now.</p>
           <button
             type="button"
-            onClick={() => fetchDeals({ city, minDiscount, sort, offset: 0, append: false })}
+            onClick={() => fetchDeals({ city, minDiscount, maxPriceCents, sort, offset: 0, append: false })}
             className="btn btn-primary mt-4 px-8"
           >
             Retry

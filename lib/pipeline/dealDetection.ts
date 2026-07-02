@@ -144,6 +144,7 @@ export async function getActiveDeals(opts: {
   limit?: number
   offset?: number
   minDiscount?: number
+  maxPriceCents?: number
   marketId?: number
   sort?: 'newest' | 'discount'
   includeMock?: boolean
@@ -152,6 +153,7 @@ export async function getActiveDeals(opts: {
     limit = 50,
     offset = 0,
     minDiscount = 0,
+    maxPriceCents,
     marketId,
     sort = 'newest',
     includeMock = false,
@@ -165,6 +167,12 @@ export async function getActiveDeals(opts: {
   if (marketId) {
     marketFilter = ` AND d.market_id = $${idx++}`
     params.push(marketId)
+  }
+
+  let priceFilter = ''
+  if (maxPriceCents) {
+    priceFilter = ` AND d.deal_price_cents <= $${idx++}`
+    params.push(maxPriceCents)
   }
 
   let mockFilter = ''
@@ -185,6 +193,7 @@ export async function getActiveDeals(opts: {
      WHERE d.status = 'active'
        AND d.discount_pct >= $3
        ${marketFilter}
+       ${priceFilter}
        ${mockFilter}
      ORDER BY ${orderBy}
      LIMIT $1 OFFSET $2`,
