@@ -78,8 +78,16 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Number(searchParams.get('limit') ?? '50'), 100)
   const offset = Number(searchParams.get('offset') ?? '0')
   const minDiscount = Number(searchParams.get('min_discount') ?? '20')
-  const marketId = searchParams.get('market_id') ? Number(searchParams.get('market_id')) : undefined
+  let marketId = searchParams.get('market_id') ? Number(searchParams.get('market_id')) : undefined
   const sort = searchParams.get('sort') === 'discount' ? 'discount' as const : 'newest' as const
+
+  // Support filtering by city name (resolve to market_id)
+  const cityName = searchParams.get('city')
+  if (cityName && !marketId) {
+    const { query: dbQuery } = await import('@/lib/db/client')
+    const res = await dbQuery<{ id: number }>('SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1', [cityName])
+    if (res.rows[0]) marketId = res.rows[0].id
+  }
 
   const [deals, pwCtx] = await Promise.all([
     getActiveDeals({ limit, offset, minDiscount, marketId, sort, includeMock: false }),

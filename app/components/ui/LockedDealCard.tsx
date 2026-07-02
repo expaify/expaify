@@ -5,9 +5,10 @@ type LockedDealCardProps = {
   placeholderCity: string;
   stars: number;
   photoUrl?: string;
+  joinHref?: string;
 };
 
-export function LockedDealCard({ placeholderName, placeholderCity, stars, photoUrl }: LockedDealCardProps) {
+export function LockedDealCard({ placeholderName, placeholderCity, stars, photoUrl, joinHref = '/join' }: LockedDealCardProps) {
   return (
     <article className="transition-card overflow-hidden rounded-[var(--radius-card)] bg-[color:var(--surface)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]">
       <div className="relative aspect-[3/2] bg-[color:var(--line-ivory)]">
@@ -43,9 +44,9 @@ export function LockedDealCard({ placeholderName, placeholderCity, stars, photoU
             <path d="M7 10V8a5 5 0 0 1 10 0v2" fill="none" strokeWidth="2" strokeLinecap="round" />
             <rect x="5" y="10" width="14" height="10" rx="2" fill="none" strokeWidth="2" />
           </svg>
-          <button type="button" className="btn btn-conversion min-h-9 px-4 text-[13px]">
+          <a href={joinHref} className="btn btn-conversion min-h-9 px-4 text-[13px]">
             Unlock with Premium
-          </button>
+          </a>
         </div>
       </div>
     </article>
