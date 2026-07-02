@@ -9,19 +9,19 @@ jobs:
   snapshot:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - run: npm ci
-
-      - name: Run snapshot job
+      - name: Trigger pipeline on prod
         env:
-          TP_TOKEN: ${{ secrets.TP_TOKEN }}
-          TP_AFFILIATE_MARKER: ${{ secrets.TP_AFFILIATE_MARKER }}
-          REDIS_URL: ${{ secrets.REDIS_URL }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: npm run snapshot
+          PIPELINE_SECRET: ${{ secrets.PIPELINE_SECRET }}
+        run: |
+          curl -fsSL --max-time 310 \
+            -X POST https://expaify.com/api/pipeline/run \
+            -H "Authorization: Bearer ${PIPELINE_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{}' | tee /tmp/pipeline-result.json
+          python3 -c "
+          import json, sys
+          d = json.load(open('/tmp/pipeline-result.json'))
+          print(f'Markets: {d[\"markets\"]}')
+          print(f'New deals: {d[\"totalNewDeals\"]}')
+          print(f'Alerts sent: {d[\"alertsSent\"]}')
+          "
