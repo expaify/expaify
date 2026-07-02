@@ -10,17 +10,24 @@ function getPool(): Pool {
   return new Pool({ connectionString: url })
 }
 
+const providers = [
+  Resend({
+    from: process.env.EMAIL_FROM ?? 'noreply@expaify.com',
+  }),
+  // Google OAuth: add GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET to enable
+  ...(process.env.GOOGLE_CLIENT_ID
+    ? [
+        Google({
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+        }),
+      ]
+    : []),
+]
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PostgresAdapter(getPool()),
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-    }),
-    Resend({
-      from: process.env.EMAIL_FROM ?? 'noreply@expaify.com',
-    }),
-  ],
+  providers,
   pages: {
     signIn: '/login',
     verifyRequest: '/login/verify',
