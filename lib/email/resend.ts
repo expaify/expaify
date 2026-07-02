@@ -11,4 +11,4 @@ export function getResend(): Resend {
   return _client
 }
 
-export const FROM = process.env.EMAIL_FROM ?? 'expaify <deals@expaify.com>'
+export const FROM = process.env.EMAIL_FROM ?? 'dev@expaify.com'
