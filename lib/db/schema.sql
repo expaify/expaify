@@ -68,6 +68,88 @@ CREATE TABLE IF NOT EXISTS searched_routes (
 );
 CREATE INDEX IF NOT EXISTS idx_searched_routes_count ON searched_routes(search_count DESC);
 
+-- ── Agent 3: Price Pipeline ───────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS tracked_markets (
+  id          SERIAL      PRIMARY KEY,
+  city        TEXT        NOT NULL,
+  country     TEXT        NOT NULL,
+  iata        CHAR(3)     NOT NULL UNIQUE,
+  active      BOOLEAN     NOT NULL DEFAULT true
+);
+
+INSERT INTO tracked_markets (city, country, iata) VALUES
+  ('Miami',         'US', 'MIA'),
+  ('New York',      'US', 'NYC'),
+  ('Cancún',        'MX', 'CUN'),
+  ('Paris',         'FR', 'PAR'),
+  ('Rome',          'IT', 'ROM'),
+  ('Barcelona',     'ES', 'BCN'),
+  ('Lisbon',        'PT', 'LIS'),
+  ('London',        'GB', 'LON'),
+  ('Tokyo',         'JP', 'TYO'),
+  ('Bangkok',       'TH', 'BKK'),
+  ('Dubai',         'AE', 'DXB'),
+  ('Las Vegas',     'US', 'LAS'),
+  ('Orlando',       'US', 'MCO'),
+  ('San Juan',      'PR', 'SJU'),
+  ('Tulum',         'MX', 'CUN'),
+  ('Amsterdam',     'NL', 'AMS'),
+  ('Athens',        'GR', 'ATH'),
+  ('Punta Cana',    'DO', 'PUJ'),
+  ('Charlotte',     'US', 'CLT'),
+  ('Nashville',     'US', 'BNA')
+ON CONFLICT (iata) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS price_snapshots (
+  id              BIGSERIAL   PRIMARY KEY,
+  hotel_id        TEXT        NOT NULL,
+  hotel_name      TEXT        NOT NULL,
+  stars           NUMERIC(2,1),
+  photo_url       TEXT,
+  market_id       INTEGER     NOT NULL REFERENCES tracked_markets(id),
+  check_in        DATE        NOT NULL,
+  nights          SMALLINT    NOT NULL DEFAULT 2,
+  price_cents     INTEGER     NOT NULL,
+  currency        CHAR(3)     NOT NULL DEFAULT 'USD',
+  is_mock         BOOLEAN     NOT NULL DEFAULT false,
+  captured_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT price_snapshots_unique UNIQUE (hotel_id, market_id, check_in, captured_at::DATE)
+);
+
+CREATE INDEX IF NOT EXISTS idx_price_snapshots_hotel_market
+  ON price_snapshots (hotel_id, market_id, check_in DESC);
+CREATE INDEX IF NOT EXISTS idx_price_snapshots_captured
+  ON price_snapshots (captured_at DESC);
+
+CREATE TABLE IF NOT EXISTS deals (
+  id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  hotel_id            TEXT        NOT NULL,
+  hotel_name          TEXT        NOT NULL,
+  stars               NUMERIC(2,1),
+  photo_url           TEXT,
+  market_id           INTEGER     NOT NULL REFERENCES tracked_markets(id),
+  deal_price_cents    INTEGER     NOT NULL,
+  median_price_cents  INTEGER     NOT NULL,
+  discount_pct        SMALLINT    NOT NULL,
+  check_in_window     TEXT        NOT NULL,
+  check_in_date       DATE        NOT NULL,
+  nights              SMALLINT    NOT NULL DEFAULT 2,
+  snapshot_count      INTEGER     NOT NULL,
+  ota_links           JSONB       NOT NULL DEFAULT '{}',
+  headline            TEXT,
+  description         TEXT,
+  status              TEXT        NOT NULL DEFAULT 'active',  -- active | expired
+  is_mock             BOOLEAN     NOT NULL DEFAULT false,
+  first_seen          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at          TIMESTAMPTZ,
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT deals_hotel_market_checkin UNIQUE (hotel_id, market_id, check_in_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_deals_status ON deals (status, first_seen DESC);
+CREATE INDEX IF NOT EXISTS idx_deals_market  ON deals (market_id, status);
+
 -- ── Auth (NextAuth v5 / Auth.js PG adapter) ───────────────────────────────
 CREATE TABLE IF NOT EXISTS "user" (
   id            TEXT        NOT NULL PRIMARY KEY,
