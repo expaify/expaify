@@ -226,6 +226,7 @@ export function DealFeed() {
             ) : (
               <DealCard
                 key={deal.id}
+                href={deal.isMock ? undefined : `/deals/${deal.id}`}
                 deal={{
                   id: deal.id,
                   hotelName: deal.hotelName,

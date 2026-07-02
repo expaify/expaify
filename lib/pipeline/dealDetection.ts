@@ -140,6 +140,42 @@ export type DealRow = {
   first_seen: string
 }
 
+export type PriceHistoryPoint = {
+  date: string
+  price_cents: number
+}
+
+export async function getDealById(id: string): Promise<DealRow | null> {
+  const res = await query<DealRow>(
+    `SELECT
+       d.id, d.hotel_id, d.hotel_name, d.stars, d.photo_url,
+       m.city,
+       d.deal_price_cents, d.median_price_cents, d.discount_pct,
+       d.check_in_window, d.check_in_date::TEXT, d.nights,
+       d.snapshot_count, d.ota_links, d.headline, d.is_mock,
+       d.first_seen::TEXT
+     FROM deals d
+     JOIN tracked_markets m ON m.id = d.market_id
+     WHERE d.id = $1`,
+    [id]
+  )
+  return res.rows[0] ?? null
+}
+
+export async function getPriceHistory(hotelId: string, marketId?: number): Promise<PriceHistoryPoint[]> {
+  const res = await query<PriceHistoryPoint>(
+    `SELECT snapshot_date::TEXT AS date, AVG(price_cents)::INT AS price_cents
+     FROM price_snapshots
+     WHERE hotel_id = $1
+       AND captured_at >= NOW() - INTERVAL '60 days'
+       ${marketId ? 'AND market_id = $2' : ''}
+     GROUP BY snapshot_date
+     ORDER BY snapshot_date ASC`,
+    marketId ? [hotelId, marketId] : [hotelId]
+  )
+  return res.rows
+}
+
 export async function getActiveDeals(opts: {
   limit?: number
   offset?: number
