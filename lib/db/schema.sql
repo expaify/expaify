@@ -153,7 +153,7 @@ CREATE INDEX IF NOT EXISTS idx_deals_market  ON deals (market_id, status);
 -- ── Auth (NextAuth v5 / Auth.js PG adapter) ───────────────────────────────
 -- Table names are plural to match @auth/pg-adapter v1.x expectations
 CREATE TABLE IF NOT EXISTS users (
-  id            TEXT        NOT NULL PRIMARY KEY,
+  id            TEXT        NOT NULL DEFAULT gen_random_uuid()::TEXT PRIMARY KEY,
   name          TEXT,
   email         TEXT        UNIQUE,
   "emailVerified" TIMESTAMPTZ,
@@ -181,7 +181,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires        TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS verification_tokens (
+CREATE TABLE IF NOT EXISTS verification_token (
   identifier TEXT        NOT NULL,
   token      TEXT        NOT NULL,
   expires    TIMESTAMPTZ NOT NULL,

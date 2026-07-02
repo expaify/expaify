@@ -1,51 +1,54 @@
 /**
- * Renames singular NextAuth tables to plural form expected by @auth/pg-adapter v1.x
- * user → users, account → accounts, session → sessions, verification_token → verification_tokens
- *
- * Safe to run multiple times (IF EXISTS guards).
+ * Fixes NextAuth table names and schema to match @auth/pg-adapter v1.x:
+ *   - users, accounts, sessions  → plural (already done)
+ *   - verification_token          → singular (revert the over-rename)
+ *   - users.id                   → add DEFAULT gen_random_uuid()::TEXT
  */
 import { query } from '../lib/db/client'
 
 async function main(): Promise<void> {
-  // Show row counts before
-  for (const t of ['user', 'account', 'session', 'verification_token']) {
-    const r = await query(`SELECT COUNT(*) AS n FROM "${t}"`)
-    console.log(`  ${t}: ${r.rows[0].n} rows`)
-  }
-
-  // Rename
-  const renames: [string, string][] = [
-    ['user', 'users'],
-    ['account', 'accounts'],
-    ['session', 'sessions'],
-    ['verification_token', 'verification_tokens'],
-  ]
-
-  for (const [from, to] of renames) {
-    // Check if destination already exists
-    const exists = await query(
-      `SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename=$1`, [to]
-    )
-    if (exists.rowCount && exists.rowCount > 0) {
-      console.log(`  ${to} already exists — skipping`)
-      continue
-    }
-    await query(`ALTER TABLE "${from}" RENAME TO "${to}"`)
-    console.log(`  renamed: ${from} → ${to}`)
-  }
-
-  // Fix FK references that used old names (subscriptions.user_id refs "user")
-  // The FK constraint references the table by OID so rename keeps it valid — no action needed
-
-  // Verify
-  const tables = await query(
-    `SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename IN ('users','accounts','sessions','verification_tokens') ORDER BY tablename`
+  // 1. Rename verification_tokens → verification_token (adapter uses singular)
+  const vtExists = await query(
+    `SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename='verification_tokens'`
   )
-  console.log('\nAuth tables now:', tables.rows.map(r => r.tablename).join(', '))
+  if (vtExists.rowCount && vtExists.rowCount > 0) {
+    await query(`ALTER TABLE verification_tokens RENAME TO verification_token`)
+    console.log('renamed: verification_tokens → verification_token')
+  } else {
+    console.log('verification_token: already correct')
+  }
+
+  // 2. Add DEFAULT gen_random_uuid()::TEXT to users.id
+  // Check if default already exists
+  const hasDefault = await query<{ column_default: string | null }>(
+    `SELECT column_default FROM information_schema.columns
+     WHERE table_name='users' AND column_name='id'`
+  )
+  if (!hasDefault.rows[0]?.column_default) {
+    await query(`ALTER TABLE users ALTER COLUMN id SET DEFAULT gen_random_uuid()::TEXT`)
+    console.log('added DEFAULT gen_random_uuid()::TEXT to users.id')
+  } else {
+    console.log('users.id default: already set —', hasDefault.rows[0].column_default)
+  }
+
+  // Verify final state
+  const tables = await query<{ tablename: string }>(
+    `SELECT tablename FROM pg_tables
+     WHERE schemaname='public'
+       AND tablename IN ('users','accounts','sessions','verification_token')
+     ORDER BY tablename`
+  )
+  console.log('\nAuth tables:', tables.rows.map(r => r.tablename).join(', '))
+
+  const idCol = await query<{ column_default: string }>(
+    `SELECT column_default FROM information_schema.columns
+     WHERE table_name='users' AND column_name='id'`
+  )
+  console.log('users.id default:', idCol.rows[0]?.column_default)
   process.exit(0)
 }
 
 main().catch(err => {
-  console.error('fix-auth-tables failed:', err)
+  console.error(err)
   process.exit(1)
 })
