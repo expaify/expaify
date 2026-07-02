@@ -34,6 +34,7 @@ const providers = [
 export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
   adapter: PostgresAdapter(getPool()),
   providers,
+  trustHost: true,
   pages: {
     signIn: '/login',
     verifyRequest: '/login/verify',

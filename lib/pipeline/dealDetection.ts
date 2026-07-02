@@ -3,7 +3,7 @@ import { buildOtaLinks } from './otaLinks'
 
 const DEAL_THRESHOLD = 0.70    // price must be ≤ 70% of median to flag
 const EXPIRE_THRESHOLD = 0.85  // price back above 85% of median → expire
-const MIN_SNAPSHOTS = 8        // never flag with fewer than 8 data points
+const MIN_SNAPSHOTS = 2        // MVP: lower threshold to surface deals faster; raise to 8 once 2+ weeks of data
 
 type Market = { id: number; city: string; country: string; iata: string }
 
