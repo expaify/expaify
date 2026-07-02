@@ -150,7 +150,7 @@ export default async function DealDetailPage({ params }: PageProps) {
         </section>
 
         {/* Price history sparkline */}
-        {history.length >= 2 && (
+        {history.length >= 3 && (
           <section className="mb-8 rounded-[16px] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
             <h2 className="mb-4 font-display text-[18px] font-bold text-[color:var(--ink)]">60-day price history</h2>
             <PriceSparkline
