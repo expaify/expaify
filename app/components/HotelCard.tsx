@@ -54,7 +54,7 @@ function Price({ price }: { price: HotelOffer['pricePerNight'] }) {
       <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
         Nightly rate
       </p>
-      <p className="mt-1 font-display text-3xl font-extrabold leading-none text-[color:var(--text-1)] tabular-nums">
+      <p className="mt-1 font-display text-4xl font-black leading-none text-[color:var(--text-1)] tabular-nums">
         {formatMoney(price)}
       </p>
       <p className="mt-1 text-xs font-medium text-[color:var(--text-3)]">per night before taxes and fees</p>
@@ -189,7 +189,7 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
   return (
     <div className="card flex flex-col overflow-hidden">
       {hotel.photoUrl ? (
-        <div className="relative h-40 w-full shrink-0 overflow-hidden bg-[color:var(--bg-muted)]">
+        <div className="relative h-48 w-full shrink-0 overflow-hidden bg-[color:var(--bg-muted)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={hotel.photoUrl}
@@ -211,30 +211,12 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
               {hotel.name}
             </h3>
 
-            {hotel.area && (
-              <div className="mt-1.5 flex items-center gap-1.5">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" className="shrink-0 text-[color:var(--text-3)]">
-                  <path d="M6 1C4.07 1 2.5 2.57 2.5 4.5c0 2.63 3.5 6.5 3.5 6.5s3.5-3.87 3.5-6.5C9.5 2.57 7.93 1 6 1zm0 4.75a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z" fill="currentColor" />
-                </svg>
-                <p className="truncate text-xs font-medium text-[color:var(--text-2)]">{hotel.area}</p>
-              </div>
-            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-3">
-            <div>
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
-                Hotel class
-              </p>
-              <StarRow stars={hotel.stars} />
-            </div>
+          <div className="flex items-center gap-3">
+            <StarRow stars={hotel.stars} />
             {hasRating && (
-              <div className="border-l border-[color:var(--border)] pl-4">
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
-                  Guest rating
-                </p>
-                <RatingBadge rating={hotel.rating as number} />
-              </div>
+              <span className="text-xs font-semibold text-[color:var(--text-2)]">{(hotel.rating as number).toFixed(1)}</span>
             )}
           </div>
         </div>

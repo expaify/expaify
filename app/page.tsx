@@ -999,42 +999,17 @@ export default function Home() {
 
           <div className="grid flex-1 items-start gap-8 py-8 lg:grid-cols-[minmax(0,0.86fr)_minmax(620px,1.14fr)] lg:items-center lg:py-10">
             <section className="max-w-xl animate-fade-up">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Live fare scoring
-              </div>
-              <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-                Know when a travel price is actually worth booking.
+              <h1 className="font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-950 lg:text-6xl">
+                Find flight deals.
               </h1>
-              <p className="mt-5 max-w-lg text-base font-medium leading-7 text-slate-600 sm:text-lg">
-                Search current fares and hotel options with Deal Score context where route history is available.
+              <p className="mt-4 text-base font-medium text-slate-500">
+                Fares scored against 90-day route history.
               </p>
-
-              <div className="mt-7 grid grid-cols-3 gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                <div className="min-w-0 px-1">
-                  <p className="text-[11px] font-bold uppercase text-slate-400">Verdict</p>
-                  <p className="mt-1 text-sm font-bold text-slate-950">Great, Good, Typical</p>
-                </div>
-                <div className="min-w-0 border-l border-slate-200 px-3">
-                  <p className="text-[11px] font-bold uppercase text-slate-400">Baseline</p>
-                  <p className="mt-1 text-sm font-bold text-slate-950">90-day route history</p>
-                </div>
-                <div className="min-w-0 border-l border-slate-200 px-3">
-                  <p className="text-[11px] font-bold uppercase text-slate-400">Hotels</p>
-                  <p className="mt-1 text-sm font-bold text-slate-950">Checked when dates fit</p>
-                </div>
-              </div>
             </section>
 
             <section className="animate-fade-up delay-75 rounded-[1.75rem] border border-slate-200 bg-white p-3 shadow-[0_24px_70px_rgba(15,23,42,0.13)] sm:p-4">
-              <div className="mb-4 flex items-start justify-between gap-4 px-1 pt-1 sm:px-2">
-                <div>
-                  <h2 className="font-display text-lg font-extrabold tracking-tight text-slate-950 sm:text-xl">Search travel deals</h2>
-                  <p className="mt-1 text-sm font-medium text-slate-500">Choose flights, hotels, or both for this search.</p>
-                </div>
-                <div className="hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 sm:block">
-                  Cash fares first
-                </div>
+              <div className="mb-3 px-1 pt-1 sm:px-2">
+                <h2 className="font-display text-base font-extrabold tracking-tight text-slate-950">Search</h2>
               </div>
 
               <fieldset className="mb-4">
@@ -1063,9 +1038,7 @@ export default function Home() {
 
               <form onSubmit={handleSearch} className="space-y-4">
                 <fieldset>
-                  <legend className="mb-2 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                    Trip type
-                  </legend>
+                  <legend className="sr-only">Trip type</legend>
                   <div className="flex rounded-2xl bg-slate-100 p-1">
                     {(['roundtrip', 'oneway'] as TripType[]).map(type => (
                       <button
@@ -1087,9 +1060,7 @@ export default function Home() {
 
                 <div className="grid grid-cols-1 items-end gap-3 lg:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)]">
                 <div>
-                  <label htmlFor="origin" className="mb-1.5 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                    From
-                  </label>
+                  <label htmlFor="origin" className="sr-only">From</label>
                   <AirportInput
                     id="origin"
                     value={origin}
@@ -1110,9 +1081,7 @@ export default function Home() {
                 </button>
 
                 <div>
-                  <label htmlFor="dest" className="mb-1.5 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                    To
-                  </label>
+                  <label htmlFor="dest" className="sr-only">To</label>
                   <AirportInput
                     id="dest"
                     value={dest}
@@ -1125,9 +1094,7 @@ export default function Home() {
 
                 <div className={`grid gap-3 ${tripType === 'roundtrip' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
                 <div>
-                  <label className="mb-1.5 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                    Depart
-                  </label>
+                  <label className="sr-only">Depart</label>
                   <div className="relative">
                       <IconCalendar className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
@@ -1139,13 +1106,13 @@ export default function Home() {
                       onChange={event => { setDepart(event.target.value); setFormError(null); setDateErrors(prev => ({ ...prev, depart: undefined })) }}
                       className={`min-h-[3.25rem] w-full rounded-[0.875rem] border bg-slate-50 py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-slate-950 transition-[border-color,box-shadow,background] [color-scheme:light] focus:bg-white focus:outline-none focus:ring-4 ${
                         dateErrors.depart
-                          ? 'border-amber-400 focus:border-amber-500 focus:ring-amber-500/10'
+                          ? 'border-slate-300 focus:border-slate-400 focus:ring-slate-400/10'
                           : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'
                       }`}
                     />
                   </div>
                   {dateErrors.depart && (
-                    <p id="depart-error" className="mt-1.5 px-1 text-xs font-semibold leading-5 text-amber-700" role="alert">
+                    <p id="depart-error" className="mt-1.5 px-1 text-xs font-semibold leading-5 text-slate-500" role="alert">
                       {dateErrors.depart}
                     </p>
                   )}
@@ -1153,9 +1120,7 @@ export default function Home() {
 
                 {tripType === 'roundtrip' && (
                   <div>
-                    <label className="mb-1.5 block pl-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                      Return
-                    </label>
+                    <label className="sr-only">Return</label>
                     <div className="relative">
                         <IconCalendar className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
@@ -1167,13 +1132,13 @@ export default function Home() {
                         onChange={event => { setReturnDate(event.target.value); setFormError(null); setDateErrors(prev => ({ ...prev, returnDate: undefined })) }}
                         className={`min-h-[3.25rem] w-full rounded-[0.875rem] border bg-slate-50 py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-slate-950 transition-[border-color,box-shadow,background] [color-scheme:light] focus:bg-white focus:outline-none focus:ring-4 ${
                           dateErrors.returnDate
-                            ? 'border-amber-400 focus:border-amber-500 focus:ring-amber-500/10'
+                            ? 'border-slate-300 focus:border-slate-400 focus:ring-slate-400/10'
                             : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'
                         }`}
                       />
                     </div>
                     {dateErrors.returnDate && (
-                      <p id="return-date-error" className="mt-1.5 px-1 text-xs font-semibold leading-5 text-amber-700" role="alert">
+                      <p id="return-date-error" className="mt-1.5 px-1 text-xs font-semibold leading-5 text-slate-500" role="alert">
                         {dateErrors.returnDate}
                       </p>
                     )}
@@ -1229,7 +1194,7 @@ export default function Home() {
                 </div>
 
                 {formError && (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium leading-6 text-amber-800" role="alert">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-6 text-slate-600" role="alert">
                     {formError}
                   </div>
                 )}

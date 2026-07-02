@@ -115,7 +115,7 @@ function Price({ price, heading, label }: { price: NormalizedFare['price']; head
       <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-2)]">
         {heading}
       </p>
-      <p className="mt-1 font-display text-3xl font-extrabold leading-none text-[var(--text-1)] tabular-nums">
+      <p className="mt-1 font-display text-4xl font-black leading-none text-[var(--text-1)] tabular-nums">
         {formatMoney(price)}
       </p>
       <p className="mt-1 text-[11px] font-semibold leading-4 text-[var(--text-3)]">
@@ -285,11 +285,10 @@ export default function FlightCard({ fare, score, loading }: Props) {
                 {fare.origin} to {fare.destination}
               </h3>
               <p className="truncate text-xs font-medium leading-5 text-[var(--text-2)]">
-                {carrierLabel} • {sourceLabel}
+                {carrierLabel}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 <StopsChip stops={fare.stops} />
-                <CabinBadge cabin={fare.cabin} />
               </div>
             </div>
           </div>
@@ -298,51 +297,6 @@ export default function FlightCard({ fare, score, loading }: Props) {
           ) : (
             <PriceUnavailable reason={unavailableReason} />
           )}
-        </div>
-
-        <div className="rounded-[1rem] border border-[var(--border)] bg-[var(--bg-raised)] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]">
-          <div className="flex items-center gap-3">
-            <div className="w-[4.75rem] shrink-0 text-left">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-2)]">
-                Depart
-              </p>
-              {departTime && (
-                <p className="mt-1 font-display text-base font-bold leading-tight text-[var(--text-1)] tabular-nums">
-                  {departTime}
-                </p>
-              )}
-              <p className="font-display text-lg font-bold leading-tight text-[var(--text-1)]">
-                {fare.origin}
-              </p>
-              <p className="text-[10px] font-medium leading-tight text-[var(--text-3)]">
-                {formatDate(fare.depart)}
-              </p>
-            </div>
-
-            <div className="relative flex h-10 min-w-0 flex-1 items-center justify-center" aria-hidden="true">
-              <div className="h-px w-full bg-[var(--border-strong)]" />
-              <span className="absolute rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--text-2)]">
-                {fare.return ? 'Return' : 'Route'}
-              </span>
-            </div>
-
-            <div className="w-[4.75rem] shrink-0 text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-2)]">
-                {fare.return ? 'Return' : 'To'}
-              </p>
-              {returnTime && (
-                <p className="mt-1 font-display text-base font-bold leading-tight text-[var(--text-1)] tabular-nums">
-                  {returnTime}
-                </p>
-              )}
-              <p className="font-display text-lg font-bold leading-tight text-[var(--text-1)]">
-                {fare.destination}
-              </p>
-              <p className="text-[10px] font-medium leading-tight text-[var(--text-3)]">
-                {formatDate(fare.return ?? fare.depart)}
-              </p>
-            </div>
-          </div>
         </div>
 
         {loading ? (
