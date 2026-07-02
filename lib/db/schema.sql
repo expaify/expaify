@@ -151,7 +151,8 @@ CREATE INDEX IF NOT EXISTS idx_deals_status ON deals (status, first_seen DESC);
 CREATE INDEX IF NOT EXISTS idx_deals_market  ON deals (market_id, status);
 
 -- ── Auth (NextAuth v5 / Auth.js PG adapter) ───────────────────────────────
-CREATE TABLE IF NOT EXISTS "user" (
+-- Table names are plural to match @auth/pg-adapter v1.x expectations
+CREATE TABLE IF NOT EXISTS users (
   id            TEXT        NOT NULL PRIMARY KEY,
   name          TEXT,
   email         TEXT        UNIQUE,
@@ -159,8 +160,8 @@ CREATE TABLE IF NOT EXISTS "user" (
   image         TEXT
 );
 
-CREATE TABLE IF NOT EXISTS account (
-  "userId"            TEXT        NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS accounts (
+  "userId"            TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   type                TEXT        NOT NULL,
   provider            TEXT        NOT NULL,
   "providerAccountId" TEXT        NOT NULL,
@@ -174,13 +175,13 @@ CREATE TABLE IF NOT EXISTS account (
   PRIMARY KEY (provider, "providerAccountId")
 );
 
-CREATE TABLE IF NOT EXISTS session (
+CREATE TABLE IF NOT EXISTS sessions (
   "sessionToken" TEXT        NOT NULL PRIMARY KEY,
-  "userId"       TEXT        NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  "userId"       TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   expires        TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS verification_token (
+CREATE TABLE IF NOT EXISTS verification_tokens (
   identifier TEXT        NOT NULL,
   token      TEXT        NOT NULL,
   expires    TIMESTAMPTZ NOT NULL,
@@ -190,7 +191,7 @@ CREATE TABLE IF NOT EXISTS verification_token (
 -- ── Subscriptions ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS subscriptions (
   id                      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id                 TEXT        NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  user_id                 TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   stripe_customer_id      TEXT        UNIQUE,
   stripe_subscription_id  TEXT        UNIQUE,
   status                  TEXT        NOT NULL DEFAULT 'free',  -- free | trialing | active | canceled
