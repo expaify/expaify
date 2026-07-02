@@ -67,3 +67,60 @@ CREATE TABLE IF NOT EXISTS searched_routes (
   PRIMARY KEY (origin, destination)
 );
 CREATE INDEX IF NOT EXISTS idx_searched_routes_count ON searched_routes(search_count DESC);
+
+-- ── Auth (NextAuth v5 / Auth.js PG adapter) ───────────────────────────────
+CREATE TABLE IF NOT EXISTS "user" (
+  id            TEXT        NOT NULL PRIMARY KEY,
+  name          TEXT,
+  email         TEXT        UNIQUE,
+  "emailVerified" TIMESTAMPTZ,
+  image         TEXT
+);
+
+CREATE TABLE IF NOT EXISTS account (
+  "userId"            TEXT        NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  type                TEXT        NOT NULL,
+  provider            TEXT        NOT NULL,
+  "providerAccountId" TEXT        NOT NULL,
+  refresh_token       TEXT,
+  access_token        TEXT,
+  expires_at          BIGINT,
+  token_type          TEXT,
+  scope               TEXT,
+  id_token            TEXT,
+  session_state       TEXT,
+  PRIMARY KEY (provider, "providerAccountId")
+);
+
+CREATE TABLE IF NOT EXISTS session (
+  "sessionToken" TEXT        NOT NULL PRIMARY KEY,
+  "userId"       TEXT        NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  expires        TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS verification_token (
+  identifier TEXT        NOT NULL,
+  token      TEXT        NOT NULL,
+  expires    TIMESTAMPTZ NOT NULL,
+  PRIMARY KEY (identifier, token)
+);
+
+-- ── Subscriptions ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id                      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id                 TEXT        NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  stripe_customer_id      TEXT        UNIQUE,
+  stripe_subscription_id  TEXT        UNIQUE,
+  status                  TEXT        NOT NULL DEFAULT 'free',  -- free | trialing | active | canceled
+  plan                    TEXT,                                  -- monthly | annual
+  trial_ends_at           TIMESTAMPTZ,
+  current_period_end      TIMESTAMPTZ,
+  alert_preference        TEXT        NOT NULL DEFAULT 'daily', -- instant | daily | off
+  watchlist               TEXT[]      NOT NULL DEFAULT '{}',    -- up to 10 city slugs
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_customer ON subscriptions(stripe_customer_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
