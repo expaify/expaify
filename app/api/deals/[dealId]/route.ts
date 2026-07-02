@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getDealDetail, isValidDealId } from '../../../../lib/deals/dealDetail';
 
 export const runtime = 'nodejs';

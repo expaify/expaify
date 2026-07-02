@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server';
 import { BOOKING_FORM_PASSENGER_LIMIT, isBookingEnabled, validateBookingFareContext } from '@/lib/booking/config';
 

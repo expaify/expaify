@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest } from 'next/server'
 import { AIRPORTS } from '@/lib/airports/data'
 import type { AirportLookupAirport, AirportLookupData, Result } from '@/lib/types'

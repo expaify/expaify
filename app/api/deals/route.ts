@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
 import { getPaywallContext } from '@/lib/paywall'

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { estimateBaggageFees } from '@/lib/baggage/fees';
 import type { BaggageCabinClass, BaggageFeeInput } from '@/lib/baggage/types';
 

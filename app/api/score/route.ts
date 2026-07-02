@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server';
 import { getBaseline } from '../../../lib/db/getBaseline';
 import { query } from '../../../lib/db/client';

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { upsertSubscription, isPremium, getSubscription } from '@/lib/subscription'

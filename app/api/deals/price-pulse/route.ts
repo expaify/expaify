@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { query } from '../../../../lib/db/client';
 import { buildPricePulseDigest } from '../../../../lib/deals/pricePulse';
 import type { PricePulseRouteSample } from '../../../../lib/deals/pricePulseTypes';

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { type NextRequest } from 'next/server';
 import { resolveToIATA } from '../../../lib/airports/resolve';
 import { getNearby } from '../../../lib/airports/nearby';

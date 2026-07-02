@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { type NextRequest, NextResponse } from 'next/server';
 import { query } from '../../../lib/db/client';
 import type { Result } from '../../../lib/types';

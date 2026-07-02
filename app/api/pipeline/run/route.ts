@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getActiveMarkets, runSnapshotsForMarket } from '@/lib/pipeline/snapshot'
 import { detectDealsForMarket } from '@/lib/pipeline/dealDetection'
