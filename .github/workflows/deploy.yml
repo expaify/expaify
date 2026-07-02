@@ -41,6 +41,30 @@ jobs:
         run: |
           EXISTS=$(az containerapp show --name expaify --resource-group expaify-rg --query "name" -o tsv 2>/dev/null || true)
 
+          ENV_VARS="\
+            TP_TOKEN=${{ secrets.TP_TOKEN }} \
+            TP_AFFILIATE_MARKER=${{ secrets.TP_AFFILIATE_MARKER }} \
+            REDIS_URL=${{ secrets.REDIS_URL }} \
+            DATABASE_URL=${{ secrets.DATABASE_URL }} \
+            DUFFEL_KEY=${{ secrets.DUFFEL_KEY }} \
+            AMADEUS_CLIENT_ID=${{ secrets.AMADEUS_CLIENT_ID }} \
+            AMADEUS_CLIENT_SECRET=${{ secrets.AMADEUS_CLIENT_SECRET }} \
+            SERPAPI_KEY=${{ secrets.SERPAPI_KEY }} \
+            BOOKING_ENABLED=${{ secrets.BOOKING_ENABLED }} \
+            AUTH_SECRET=${{ secrets.AUTH_SECRET }} \
+            AUTH_URL=${{ secrets.AUTH_URL }} \
+            NEXTAUTH_URL=${{ secrets.AUTH_URL }} \
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+            NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=${{ secrets.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED }} \
+            STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }} \
+            STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }} \
+            STRIPE_PRICE_MONTHLY=${{ secrets.STRIPE_PRICE_MONTHLY }} \
+            STRIPE_PRICE_ANNUAL=${{ secrets.STRIPE_PRICE_ANNUAL }} \
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }} \
+            EMAIL_FROM=${{ secrets.EMAIL_FROM }} \
+            PIPELINE_SECRET=${{ secrets.PIPELINE_SECRET }}"
+
           if [ -z "$EXISTS" ]; then
             az containerapp create \
               --name expaify \
@@ -53,31 +77,13 @@ jobs:
               --registry-server expaifyacr.azurecr.io \
               --registry-username ${{ secrets.ACR_USERNAME }} \
               --registry-password ${{ secrets.ACR_PASSWORD }} \
-              --env-vars \
-                "TP_TOKEN=${{ secrets.TP_TOKEN }}" \
-                "TP_AFFILIATE_MARKER=${{ secrets.TP_AFFILIATE_MARKER }}" \
-                "REDIS_URL=${{ secrets.REDIS_URL }}" \
-                "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
-                "DUFFEL_KEY=${{ secrets.DUFFEL_KEY }}" \
-                "AMADEUS_CLIENT_ID=${{ secrets.AMADEUS_CLIENT_ID }}" \
-                "AMADEUS_CLIENT_SECRET=${{ secrets.AMADEUS_CLIENT_SECRET }}" \
-                "SERPAPI_KEY=${{ secrets.SERPAPI_KEY }}" \
-                "BOOKING_ENABLED=${{ secrets.BOOKING_ENABLED }}" \
+              --env-vars $ENV_VARS \
               --output none
           else
             az containerapp update \
               --name expaify \
               --resource-group expaify-rg \
               --image ${{ env.IMAGE }} \
-              --set-env-vars \
-                "TP_TOKEN=${{ secrets.TP_TOKEN }}" \
-                "TP_AFFILIATE_MARKER=${{ secrets.TP_AFFILIATE_MARKER }}" \
-                "REDIS_URL=${{ secrets.REDIS_URL }}" \
-                "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
-                "DUFFEL_KEY=${{ secrets.DUFFEL_KEY }}" \
-                "AMADEUS_CLIENT_ID=${{ secrets.AMADEUS_CLIENT_ID }}" \
-                "AMADEUS_CLIENT_SECRET=${{ secrets.AMADEUS_CLIENT_SECRET }}" \
-                "SERPAPI_KEY=${{ secrets.SERPAPI_KEY }}" \
-                "BOOKING_ENABLED=${{ secrets.BOOKING_ENABLED }}" \
+              --set-env-vars $ENV_VARS \
               --output none
           fi

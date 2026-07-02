@@ -112,11 +112,11 @@ CREATE TABLE IF NOT EXISTS price_snapshots (
   nights          SMALLINT    NOT NULL DEFAULT 2,
   price_cents     INTEGER     NOT NULL,
   currency        CHAR(3)     NOT NULL DEFAULT 'USD',
+  snapshot_date   DATE        NOT NULL DEFAULT CURRENT_DATE,
   is_mock         BOOLEAN     NOT NULL DEFAULT false,
   captured_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT price_snapshots_unique UNIQUE (hotel_id, market_id, check_in, captured_at::DATE)
+  CONSTRAINT price_snapshots_unique UNIQUE (hotel_id, market_id, check_in, snapshot_date)
 );
-
 CREATE INDEX IF NOT EXISTS idx_price_snapshots_hotel_market
   ON price_snapshots (hotel_id, market_id, check_in DESC);
 CREATE INDEX IF NOT EXISTS idx_price_snapshots_captured

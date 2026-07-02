@@ -59,9 +59,9 @@ async function storeSnapshot(
 
   await query(
     `INSERT INTO price_snapshots
-       (hotel_id, hotel_name, stars, photo_url, market_id, check_in, nights, price_cents, currency, is_mock)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'USD', $9)
-     ON CONFLICT (hotel_id, market_id, check_in, (captured_at::DATE))
+       (hotel_id, hotel_name, stars, photo_url, market_id, check_in, nights, price_cents, currency, snapshot_date, is_mock)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'USD', CURRENT_DATE, $9)
+     ON CONFLICT ON CONSTRAINT price_snapshots_unique
      DO UPDATE SET price_cents = EXCLUDED.price_cents, photo_url = COALESCE(EXCLUDED.photo_url, price_snapshots.photo_url)`,
     [
       String(entry.hotelId),
