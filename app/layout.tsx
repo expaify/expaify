@@ -19,11 +19,11 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: {
-    default: "expaify -- Never overpay for a hotel again",
+    default: "expaify — Never overpay for a hotel again",
     template: "%s | expaify",
   },
   description:
-    "Search live flight and hotel pricing, compare each option to recent route baselines, and review deal confidence before booking.",
+    "We track 20 destinations daily and alert you the moment a hotel drops 30%+ below its normal price.",
   applicationName: "expaify",
   keywords: ["flights", "hotels", "flight deals", "cheap flights", "hotel deals", "travel deals"],
   authors: [{ name: "expaify" }],
