@@ -1,13 +1,13 @@
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import { query } from '../db/client'
 
-let _client: Anthropic | null = null
+let _client: OpenAI | null = null
 
-function getClient(): Anthropic {
+function getClient(): OpenAI {
   if (!_client) {
-    const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set')
-    _client = new Anthropic({ apiKey })
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) throw new Error('OPENAI_API_KEY is not set')
+    _client = new OpenAI({ apiKey })
   }
   return _client
 }
@@ -22,31 +22,28 @@ type DealInput = {
 
 async function generateOne(deal: DealInput): Promise<string | null> {
   const pricePerNight = `$${Math.round(deal.dealPriceCents / 100)}`
-  const prompt = `You write short hotel deal headlines for a travel deals app.
-Rules:
-- Max 60 characters including spaces
-- Lead with city or hotel name
-- Include "${pricePerNight}/night" using the actual price
-- Include ${deal.discountPct}% discount
-- Factual, no hype words (no "amazing", "incredible", "unbelievable")
-- No punctuation at end
-- Write one headline only, nothing else
-
-Hotel: ${deal.hotelName}, City: ${deal.city}, Price: ${pricePerNight}/night, Discount: ${deal.discountPct}%`
-
-  const msg = await getClient().messages.create({
-    model: 'claude-haiku-4-5-20251001',
+  const res = await getClient().chat.completions.create({
+    model: 'gpt-4o-mini',
     max_tokens: 60,
-    messages: [{ role: 'user', content: prompt }],
+    messages: [
+      {
+        role: 'system',
+        content: 'You write short hotel deal headlines for a travel deals app. Output one headline only, nothing else.',
+      },
+      {
+        role: 'user',
+        content: `Rules: max 60 characters, lead with city or hotel name, include "${pricePerNight}/night", include ${deal.discountPct}% discount, factual, no hype words, no punctuation at end.\n\nHotel: ${deal.hotelName}, City: ${deal.city}, Price: ${pricePerNight}/night, Discount: ${deal.discountPct}%`,
+      },
+    ],
   })
 
-  const text = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : null
+  const text = res.choices[0]?.message?.content?.trim() ?? null
   if (!text || text.length > 70) return null
   return text
 }
 
 export async function generateHeadlines(deals: DealInput[]): Promise<void> {
-  if (!process.env.ANTHROPIC_API_KEY || deals.length === 0) return
+  if (!process.env.OPENAI_API_KEY || deals.length === 0) return
 
   await Promise.allSettled(
     deals.map(async (deal) => {
