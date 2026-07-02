@@ -20,9 +20,10 @@ export async function POST(req: NextRequest) {
   const results: Record<string, unknown> = {}
   let totalNewDeals = 0
 
-  for (const market of markets) {
+  for (let mi = 0; mi < markets.length; mi++) {
+    const market = markets[mi]
     try {
-      const snapshots = await runSnapshotsForMarket(market)
+      const snapshots = await runSnapshotsForMarket(market, mi)
       const dealsFound = await detectDealsForMarket(market)
       results[market.iata] = { snapshots, dealsFound }
       totalNewDeals += dealsFound
