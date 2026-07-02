@@ -1,18 +1,42 @@
 import { query } from '../db/client'
 import { buildOtaLinks } from './otaLinks'
 
-const HOTELLOOK_BASE = 'https://engine.hotellook.com/api/v2/cache.json'
+const BOOKING_BASE = 'https://booking-com15.p.rapidapi.com/api/v1/hotels'
 const NIGHTS = 2
 const CHECK_IN_OFFSETS = [14, 30, 60] // days from today
 
+// Booking.com city dest_ids for our 20 tracked markets
+const DEST_IDS: Record<string, string> = {
+  MIA: '20023182',
+  NYC: '20088325',
+  CUN: '-1655011',
+  PAR: '-1456928',
+  ROM: '-126693',
+  BCN: '-372490',
+  LIS: '-2167973',
+  LON: '-2601889',
+  TYO: '-246227',
+  BKK: '-3414440',
+  DXB: '-782831',
+  LAS: '20079110',
+  MCO: '20023488',
+  SJU: '20154335',
+  TUL: '-1707023',
+  AMS: '-2140479',
+  ATH: '-814876',
+  PUJ: '-3364907',
+  CLT: '20091627',
+  BNA: '20123908',
+}
+
 type Market = { id: number; city: string; country: string; iata: string }
 
-type HotellookEntry = {
-  hotelId: number
+type BookingHotel = {
+  hotelId: string
   hotelName: string
-  stars?: number | string
-  priceFrom?: number | string
-  photoUrl?: string
+  stars: number | null
+  priceCents: number
+  photoUrl: string | null
 }
 
 function addDays(days: number): string {
@@ -27,36 +51,59 @@ function toCheckOut(checkIn: string, nights: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-async function fetchHotellookPrices(iata: string, checkIn: string, checkOut: string): Promise<HotellookEntry[]> {
-  const token = process.env.TP_TOKEN
-  if (!token) return []
+async function fetchBookingPrices(iata: string, checkIn: string, checkOut: string): Promise<BookingHotel[]> {
+  const apiKey = process.env.RAPIDAPI_KEY
+  if (!apiKey) return []
+
+  const destId = DEST_IDS[iata]
+  if (!destId) return []
 
   const url =
-    `${HOTELLOOK_BASE}` +
-    `?location=${encodeURIComponent(iata)}` +
-    `&checkIn=${checkIn}` +
-    `&checkOut=${checkOut}` +
-    `&currency=USD` +
-    `&token=${encodeURIComponent(token)}` +
-    `&limit=50`
+    `${BOOKING_BASE}/searchHotels` +
+    `?dest_id=${encodeURIComponent(destId)}` +
+    `&search_type=city` +
+    `&arrival_date=${checkIn}` +
+    `&departure_date=${checkOut}` +
+    `&adults=2&room_qty=1&page_number=1` +
+    `&currency_code=USD&languagecode=en-us&units=metric&temperature_unit=c`
 
-  const res = await fetch(url, { signal: AbortSignal.timeout(15_000) })
+  const res = await fetch(url, {
+    headers: {
+      'X-RapidAPI-Key': apiKey,
+      'X-RapidAPI-Host': 'booking-com15.p.rapidapi.com',
+    },
+    signal: AbortSignal.timeout(20_000),
+  })
+
   if (!res.ok) return []
 
   const json: unknown = await res.json()
-  if (!Array.isArray(json)) return []
-  return json.filter((e): e is HotellookEntry => typeof e?.hotelId === 'number')
+  const hotels: unknown[] = (json as { data?: { hotels?: unknown[] } })?.data?.hotels ?? []
+
+  return hotels.flatMap((h: unknown) => {
+    const prop = (h as { property?: Record<string, unknown> })?.property
+    if (!prop) return []
+
+    const hotelId = String(prop.id ?? prop.hotelId ?? '')
+    const hotelName = String(prop.name ?? '')
+    const stars = prop.propertyClass ? Number(prop.propertyClass) : null
+    const photo = (prop.photoUrls as string[] | undefined)?.[0] ?? null
+
+    const gross = (prop.priceBreakdown as { grossPrice?: { value?: number } } | undefined)?.grossPrice
+    const pricePerNight = gross?.value ?? 0
+    const priceCents = Math.round(pricePerNight * 100)
+
+    if (!hotelId || !hotelName || priceCents <= 0) return []
+    return [{ hotelId, hotelName, stars, priceCents, photoUrl: photo }]
+  })
 }
 
 async function storeSnapshot(
   market: Market,
-  entry: HotellookEntry,
+  hotel: BookingHotel,
   checkIn: string,
   isMock: boolean
 ): Promise<void> {
-  const priceCents = Math.round(Number(entry.priceFrom ?? 0) * 100)
-  if (!priceCents || priceCents <= 0) return
-
   await query(
     `INSERT INTO price_snapshots
        (hotel_id, hotel_name, stars, photo_url, market_id, check_in, nights, price_cents, currency, snapshot_date, is_mock)
@@ -64,14 +111,14 @@ async function storeSnapshot(
      ON CONFLICT ON CONSTRAINT price_snapshots_unique
      DO UPDATE SET price_cents = EXCLUDED.price_cents, photo_url = COALESCE(EXCLUDED.photo_url, price_snapshots.photo_url)`,
     [
-      String(entry.hotelId),
-      entry.hotelName,
-      entry.stars ? Number(entry.stars) : null,
-      entry.photoUrl ?? null,
+      hotel.hotelId,
+      hotel.hotelName,
+      hotel.stars,
+      hotel.photoUrl,
       market.id,
       checkIn,
       NIGHTS,
-      priceCents,
+      hotel.priceCents,
       isMock,
     ]
   )
@@ -86,22 +133,22 @@ export type SnapshotResult = {
 
 export async function runSnapshotsForMarket(market: Market): Promise<SnapshotResult[]> {
   const results: SnapshotResult[] = []
-  const isMock = !process.env.TP_TOKEN
+  const isMock = !process.env.RAPIDAPI_KEY
 
   for (const offset of CHECK_IN_OFFSETS) {
     const checkIn = addDays(offset)
     const checkOut = toCheckOut(checkIn, NIGHTS)
 
     try {
-      const entries = isMock
-        ? generateMockEntries(market.iata, checkIn)
-        : await fetchHotellookPrices(market.iata, checkIn, checkOut)
+      const hotels = isMock
+        ? generateMockHotels(market.iata, checkIn)
+        : await fetchBookingPrices(market.iata, checkIn, checkOut)
 
-      for (const entry of entries) {
-        await storeSnapshot(market, entry, checkIn, isMock)
+      for (const hotel of hotels) {
+        await storeSnapshot(market, hotel, checkIn, isMock)
       }
 
-      results.push({ market: market.iata, checkIn, hotelsProcessed: entries.length })
+      results.push({ market: market.iata, checkIn, hotelsProcessed: hotels.length })
     } catch (err) {
       results.push({
         market: market.iata,
@@ -120,8 +167,7 @@ export async function getActiveMarkets(): Promise<Market[]> {
   return res.rows
 }
 
-// Deterministic mock price generator — same inputs always give same output
-function generateMockEntries(iata: string, checkIn: string): HotellookEntry[] {
+function generateMockHotels(iata: string, checkIn: string): BookingHotel[] {
   const seed = iata.charCodeAt(0) + new Date(checkIn).getDate()
   const hotels = [
     { id: seed * 10 + 1, name: `The ${iata} Grand`, stars: 4 },
@@ -130,12 +176,12 @@ function generateMockEntries(iata: string, checkIn: string): HotellookEntry[] {
     { id: seed * 10 + 4, name: `City Inn ${iata}`, stars: 3 },
     { id: seed * 10 + 5, name: `The Modern ${iata}`, stars: 4 },
   ]
-  return hotels.map((h) => ({
-    hotelId: h.id,
+  return hotels.map(h => ({
+    hotelId: String(h.id),
     hotelName: h.name,
     stars: h.stars,
-    priceFrom: 60 + ((seed * h.id) % 140), // $60–$200 range
-    photoUrl: undefined,
+    priceCents: Math.round((60 + ((seed * h.id) % 140)) * 100),
+    photoUrl: null,
   }))
 }
 
