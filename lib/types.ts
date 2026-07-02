@@ -9,6 +9,53 @@ export interface FlightSearchRange {
   passengers: number;
 }
 
+export type DateCoverageStatus = 'not_requested' | 'complete' | 'partial' | 'unavailable';
+
+export interface FlightDateCoverage {
+  requested: boolean;
+  status: DateCoverageStatus;
+  selectedDepart: string;
+  windowStart?: string;
+  windowEnd?: string;
+  expectedDates: string[];
+  checkedDates: string[];
+  failedDates: string[];
+  provider: string;
+  message?: string;
+}
+
+export interface FlightDateRelation {
+  selectedDepart: string;
+  fareDepart: string;
+  relation: 'selected' | 'nearby';
+}
+
+export type ItineraryCertainty = 'confirmed' | 'partial' | 'unavailable';
+
+export interface NormalizedFlightSegment {
+  origin: string;
+  destination: string;
+  depart: string;
+  arrive: string;
+  carrier?: string;
+  flightNumber?: string;
+}
+
+export interface NormalizedLayover {
+  airport: string;
+  durationMinutes: number;
+  overnight?: boolean;
+  airportChange?: boolean;
+}
+
+export interface NormalizedItinerary {
+  certainty: ItineraryCertainty;
+  durationMinutes?: number;
+  arrive?: string;
+  segments?: NormalizedFlightSegment[];
+  layovers?: NormalizedLayover[];
+}
+
 export interface NormalizedFare {
   id: string;
   fareType: FareType;
@@ -26,6 +73,8 @@ export interface NormalizedFare {
   deeplink: string;
   source: string;
   fetchedAt: string;
+  dateRelation?: FlightDateRelation;
+  itinerary?: NormalizedItinerary;
 }
 
 export interface PricePoint {
@@ -44,10 +93,52 @@ export interface DealScore {
   explanation: string;
 }
 
+export type HotelQualityKind =
+  | 'hotel_class'
+  | 'guest_review'
+  | 'provider_quality'
+  | 'inferred'
+  | 'unknown';
+
+export type HotelQualityConfidence =
+  | 'verified'
+  | 'provider_only'
+  | 'inferred'
+  | 'unavailable';
+
+export interface HotelRatingEvidence {
+  kind: HotelQualityKind;
+  value?: number;
+  scaleMax?: number;
+  sourceLabel?: string;
+  reviewCount?: number;
+  fetchedAt?: string;
+  confidence: HotelQualityConfidence;
+}
+
+export type HotelLocationPrecision = 'exact' | 'coordinates' | 'area' | 'search_area' | 'missing';
+
+export interface HotelLocationDistance {
+  value: number;
+  unit: 'mi' | 'km';
+  referencePoint: string;
+}
+
+export interface HotelLocation {
+  label?: string;
+  precision?: HotelLocationPrecision;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  distance?: HotelLocationDistance;
+  providerLocationName?: string;
+}
+
 export interface HotelOffer {
   id: string;
   name: string;
   area: string;
+  location?: HotelLocation;
   stars: number;
   pricePerNight: Money;
   priceBasis?: 'per_night_before_taxes_fees';
@@ -55,6 +146,8 @@ export interface HotelOffer {
   photoUrl?: string;
   deeplink: string;
   source: string;
+  hotelClass?: HotelRatingEvidence;
+  guestRating?: HotelRatingEvidence;
 }
 
 export type NormalizedHotelOffer = HotelOffer;

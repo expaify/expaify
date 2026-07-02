@@ -94,6 +94,46 @@ const ROUND_TRIP_FIXTURE = {
   },
 };
 
+const CONFIRMED_SEGMENTS_FIXTURE = {
+  data: {
+    id: 'orq_confirmed_001',
+    offers: [
+      {
+        id: 'off_confirmed_001',
+        owner: { iata_code: 'DL' },
+        total_amount: '310.00',
+        total_currency: 'USD',
+        slices: [
+          {
+            origin: { iata_code: 'JFK' },
+            destination: { iata_code: 'LAX' },
+            departing_at: '2026-09-22T08:00:00Z',
+            arriving_at: '2026-09-22T14:45:00Z',
+            segments: [
+              {
+                origin: { iata_code: 'JFK' },
+                destination: { iata_code: 'ATL' },
+                departing_at: '2026-09-22T08:00:00Z',
+                arriving_at: '2026-09-22T10:30:00Z',
+                marketing_carrier: { iata_code: 'DL' },
+                marketing_carrier_flight_number: '101',
+              },
+              {
+                origin: { iata_code: 'ATL' },
+                destination: { iata_code: 'LAX' },
+                departing_at: '2026-09-22T12:00:00Z',
+                arriving_at: '2026-09-22T14:45:00Z',
+                marketing_carrier: { iata_code: 'DL' },
+                marketing_carrier_flight_number: '202',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function mockFetchOk(body: unknown): void {
@@ -258,6 +298,34 @@ describe('DuffelProvider.searchFares success', () => {
     expect(result.data[0].stops).toBe(0);
     // Second offer: 2 segments → 1 stop
     expect(result.data[1].stops).toBe(1);
+  });
+
+  it('normalizes confirmed itinerary timing from complete segment boundaries', async () => {
+    mockFetchOk(CONFIRMED_SEGMENTS_FIXTURE);
+    const provider = new DuffelProvider();
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.data[0].itinerary).toMatchObject({
+      certainty: 'confirmed',
+      durationMinutes: 405,
+      arrive: '2026-09-22T14:45:00Z',
+      layovers: [{ airport: 'ATL', durationMinutes: 90 }],
+    });
+    expect(result.data[0].itinerary?.segments).toHaveLength(2);
+  });
+
+  it('marks aggregate slice timing as partial when segment boundaries are incomplete', async () => {
+    mockFetchOk(ONE_WAY_FIXTURE);
+    const provider = new DuffelProvider();
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.data[0].itinerary).toMatchObject({
+      certainty: 'partial',
+      durationMinutes: 210,
+      arrive: '2026-09-22T11:30:00Z',
+    });
   });
 
   it('sets depart from first slice departing_at', async () => {

@@ -56,6 +56,12 @@ const fareContext: BookingFareContext = {
   priceScope: 'party_total',
 };
 
+const oneAdultFareContext: BookingFareContext = {
+  ...fareContext,
+  passengerCount: 1,
+  priceScope: 'per_person',
+};
+
 const hotelContext: BookingHotelContext = {
   kind: 'hotel',
   offerId: 'hotel_123',
@@ -77,7 +83,8 @@ describe('BookingFlow fare context review', () => {
     }));
 
     expect(text).toContain("We can't identify this fare");
-    expect(text).toContain('missing required fare details');
+    expect(text).toContain('Selection details are missing');
+    expect(text).toContain('Return to search and choose a current result before reviewing booking options.');
     expect(text).toContain('Back to search');
     expect(text).not.toContain('Confirm booking');
     expect(text).not.toContain('Current fare');
@@ -101,6 +108,26 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('total for 3 adults');
   });
 
+  it('explains the one-adult traveler burden before collecting provider-required details', () => {
+    const text = collectText(BookingFlow({
+      bookingEnabled: true,
+      duffelSandbox: false,
+      fareContext: oneAdultFareContext,
+    }));
+
+    expect(text).toContain('Verify this fare for 1 adult traveler');
+    expect(text).toContain('Before you enter details');
+    expect(text).toContain('Required by Duffel for this booking request');
+    expect(text).toContain('Sent only when you choose verify');
+    expect(text).toContain('No payment details are collected on this page');
+    expect(text).toContain('Provider verification pending');
+    expect(text).toContain('1 adult traveler');
+    expect(text).toContain('Traveler identity');
+    expect(text).toContain('Provider contact');
+    expect(text).toContain('Verify fare with Duffel');
+    expect(text).not.toContain('Confirm booking');
+  });
+
   it('shows selected hotel identity, provider, currency, price basis, and provider confirmation copy', () => {
     const text = collectText(BookingFlow({
       bookingEnabled: false,
@@ -111,12 +138,15 @@ describe('BookingFlow fare context review', () => {
 
     expect(text).toContain('Review selected hotel');
     expect(text).toContain('The Example Hotel');
+    expect(text).toContain('Area');
     expect(text).toContain('Midtown');
+    expect(text).toContain('Provider supplied an area, not a street address.');
+    expect(text).toContain('Location precision');
     expect(text).toContain('hotellook');
     expect(text).toContain('$189.00');
     expect(text).toContain('USD');
     expect(text).toContain('per night before taxes and fees');
-    expect(text).toContain('Taxes, fees, cancellation policy, room details, and live availability still require provider confirmation.');
+    expect(text).toContain('Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.');
     expect(text).toContain('Continue to provider');
     expect(text).not.toContain('Traveler details');
     expect(text).not.toContain('Confirm booking');

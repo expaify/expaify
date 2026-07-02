@@ -1,7 +1,8 @@
-import { FlightProvider, FlightSearchRange, NormalizedFare, PricePoint, Result } from '../types';
+import { FlightProvider, FlightSearchRange, NormalizedFare, NormalizedFlightSegment, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
 import { buildBookingHref } from '../booking/config';
 import { fetchWithProviderTimeout } from './timeout';
+import { buildConfirmedItinerary, buildPartialItinerary, buildPartialOrUnavailable, unavailableItinerary } from './itinerary';
 
 const BASE_URL = 'https://api.duffel.com';
 const CACHE_TTL = 21600; // 6 hours
@@ -14,6 +15,12 @@ interface DuffelPlace {
 }
 
 interface DuffelSegment {
+  origin?: DuffelPlace;
+  destination?: DuffelPlace;
+  departing_at?: string;
+  arriving_at?: string;
+  marketing_carrier?: { iata_code?: string };
+  marketing_carrier_flight_number?: string;
   passengers?: Array<{ cabin_class?: string }>;
   [key: string]: unknown;
 }
@@ -85,6 +92,35 @@ function buildDuffelSearchCacheKey(params: {
     `pax:${params.passengerCount}`,
     `cabin:${params.cabinClass}`,
   ].join(':');
+}
+
+function normalizeDuffelSliceItinerary(slice: DuffelSlice | undefined) {
+  if (!slice) return unavailableItinerary();
+
+  const segments: NormalizedFlightSegment[] = slice.segments.map(segment => ({
+    origin: segment.origin?.iata_code ?? '',
+    destination: segment.destination?.iata_code ?? '',
+    depart: segment.departing_at ?? '',
+    arrive: segment.arriving_at ?? '',
+    carrier: segment.marketing_carrier?.iata_code,
+    flightNumber: segment.marketing_carrier_flight_number,
+  }));
+  const confirmed = buildConfirmedItinerary(segments);
+  if (confirmed) return confirmed;
+
+  const partialDuration = slice.departing_at && slice.arriving_at
+    ? buildPartialItinerary({
+      durationMinutes: Math.round((new Date(slice.arriving_at).getTime() - new Date(slice.departing_at).getTime()) / 60_000),
+      depart: slice.departing_at,
+      arrive: slice.arriving_at,
+    })
+    : null;
+
+  if (partialDuration?.durationMinutes !== undefined || partialDuration?.arrive) {
+    return partialDuration;
+  }
+
+  return unavailableItinerary();
 }
 
 export class DuffelProvider implements FlightProvider {
@@ -208,6 +244,9 @@ export class DuffelProvider implements FlightProvider {
           deeplink: '',
           source: 'duffel',
           fetchedAt,
+          itinerary: offer.slices.length === 1
+            ? normalizeDuffelSliceItinerary(firstSlice)
+            : buildPartialOrUnavailable({ arrive: firstSlice.arriving_at }),
         };
 
         // Only include `return` field for round-trip itineraries

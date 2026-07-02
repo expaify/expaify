@@ -1,34 +1,25 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { Plus_Jakarta_Sans } from "next/font/google";
-import { Geist_Mono } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500"],
 });
 
-const jakarta = Plus_Jakarta_Sans({
-  variable: "--font-jakarta",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
   display: "swap",
-  weight: ["600", "700", "800"],
+  weight: ["500", "700"],
 });
-
-const geistMono = Geist_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t!=='dark')document.documentElement.classList.add('light')}catch(e){document.documentElement.classList.add('light')}})()`;
 
 export const metadata: Metadata = {
   title: {
-    default: "expaify Deal Desk",
+    default: "expaify -- Never overpay for a hotel again",
     template: "%s | expaify",
   },
   description:
@@ -66,21 +57,14 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  colorScheme: "light dark",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f4f6f3" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f1311" },
-  ],
+  colorScheme: "light",
+  themeColor: "#FAF7F2",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${jakarta.variable} ${geistMono.variable} h-full`}
-    >
-      <body className="min-h-full flex flex-col bg-[color:var(--bg-base)] text-[color:var(--text-1)] antialiased">
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} h-full`}>
+      <body className="min-h-full flex flex-col bg-[color:var(--bg)] text-[color:var(--ink)] antialiased">
         {children}
       </body>
     </html>

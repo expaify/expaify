@@ -54,6 +54,18 @@ const fare: NormalizedFare = {
   fetchedAt: '2026-06-30T00:00:00.000Z',
 };
 
+function fareWithDateRelation(input: NormalizedFare, selectedDepart = '2099-09-22'): NormalizedFare {
+  const fareDepart = input.depart.slice(0, 10);
+  return {
+    ...input,
+    dateRelation: {
+      selectedDepart,
+      fareDepart,
+      relation: fareDepart === selectedDepart ? 'selected' : 'nearby',
+    },
+  };
+}
+
 const hotelOffer: HotelOffer = {
   id: 'hotel-1',
   name: 'Contract Hotel',
@@ -133,9 +145,22 @@ describe('GET /api/search guardrails and provider failures', () => {
   it('allows valid one-way searches to reach flight providers without hotels', async () => {
     const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
     const body = await readNdjson(response);
+    const messages = parseNdjson(body);
 
     expect(response.status).toBe(200);
     expect(body).toContain('"type":"hotel-status"');
+    expect(messages).toContainEqual({
+      type: 'flight-date-coverage',
+      data: {
+        requested: false,
+        status: 'not_requested',
+        selectedDepart: '2099-09-22',
+        expectedDates: ['2099-09-22'],
+        checkedDates: [],
+        failedDates: [],
+        provider: 'Flights',
+      },
+    });
     flightProviders.forEach(provider => {
       expect(provider.searchFares).toHaveBeenCalledWith('JFK', 'LAX', {
         depart: '2099-09-22',
@@ -175,7 +200,7 @@ describe('GET /api/search guardrails and provider failures', () => {
     expect(messages).toContainEqual({
       type: 'flights',
       source: 'travelpayouts',
-      data: [fare],
+      data: [fareWithDateRelation(fare)],
     });
     expect(messages).toContainEqual({
       type: 'notice',
@@ -199,7 +224,7 @@ describe('GET /api/search guardrails and provider failures', () => {
     expect(messages).toContainEqual({
       type: 'flights',
       source: 'travelpayouts',
-      data: [fare],
+      data: [fareWithDateRelation(fare)],
     });
     expect(messages).toContainEqual({
       type: 'notice',
@@ -223,7 +248,7 @@ describe('GET /api/search guardrails and provider failures', () => {
     expect(messages).toContainEqual({
       type: 'flights',
       source: 'travelpayouts',
-      data: [fare],
+      data: [fareWithDateRelation(fare)],
     });
     expect(messages).toContainEqual({
       type: 'notice',
@@ -267,10 +292,137 @@ describe('GET /api/search guardrails and provider failures', () => {
       source: 'travelpayouts',
     }));
     expect(messages).toContainEqual({
+      type: 'flight-date-coverage',
+      data: {
+        requested: true,
+        status: 'partial',
+        selectedDepart: '2099-09-22',
+        windowStart: '2099-09-19',
+        windowEnd: '2099-09-25',
+        expectedDates: [
+          '2099-09-19',
+          '2099-09-20',
+          '2099-09-21',
+          '2099-09-22',
+          '2099-09-23',
+          '2099-09-24',
+          '2099-09-25',
+        ],
+        checkedDates: [
+          '2099-09-19',
+          '2099-09-21',
+          '2099-09-22',
+          '2099-09-23',
+          '2099-09-24',
+          '2099-09-25',
+        ],
+        failedDates: ['2099-09-20'],
+        provider: 'Travelpayouts',
+        message: 'Nearby-date comparison was partial.',
+      },
+    });
+    expect(messages).toContainEqual({
       type: 'notice',
       provider: 'Travelpayouts',
       status: 'unavailable',
       message: 'Travelpayouts flexible-date coverage is incomplete for this search.',
+    });
+  });
+
+  it('streams complete flexible-date coverage when all nearby date calls return usable responses', async () => {
+    const nearbyFare: NormalizedFare = {
+      ...fare,
+      id: 'tp-nearby',
+      depart: '2099-09-20',
+    };
+    (travelpayouts.searchFares as jest.Mock)
+      .mockResolvedValueOnce({ ok: true, data: [] })
+      .mockResolvedValueOnce({ ok: true, data: [nearbyFare] })
+      .mockResolvedValueOnce({ ok: true, data: [] })
+      .mockResolvedValueOnce({ ok: true, data: [fare] })
+      .mockResolvedValueOnce({ ok: true, data: [] })
+      .mockResolvedValueOnce({ ok: true, data: [] })
+      .mockResolvedValueOnce({ ok: true, data: [] });
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1&flex=1'));
+    const messages = parseNdjson(await readNdjson(response));
+
+    expect(response.status).toBe(200);
+    expect(messages).toContainEqual({
+      type: 'flight-date-coverage',
+      data: {
+        requested: true,
+        status: 'complete',
+        selectedDepart: '2099-09-22',
+        windowStart: '2099-09-19',
+        windowEnd: '2099-09-25',
+        expectedDates: [
+          '2099-09-19',
+          '2099-09-20',
+          '2099-09-21',
+          '2099-09-22',
+          '2099-09-23',
+          '2099-09-24',
+          '2099-09-25',
+        ],
+        checkedDates: [
+          '2099-09-19',
+          '2099-09-20',
+          '2099-09-21',
+          '2099-09-22',
+          '2099-09-23',
+          '2099-09-24',
+          '2099-09-25',
+        ],
+        failedDates: [],
+        provider: 'Travelpayouts',
+      },
+    });
+    expect(messages).toContainEqual({
+      type: 'flights',
+      source: 'travelpayouts',
+      data: [fareWithDateRelation(nearbyFare), fareWithDateRelation(fare)],
+    });
+  });
+
+  it('streams unavailable flexible-date coverage when no nearby date calls return usable responses', async () => {
+    (travelpayouts.searchFares as jest.Mock).mockReset();
+    (travelpayouts.searchFares as jest.Mock).mockResolvedValue({ ok: false, reason: 'Travelpayouts timed out' });
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1&flex=1'));
+    const messages = parseNdjson(await readNdjson(response));
+
+    expect(response.status).toBe(200);
+    expect(messages).toContainEqual({
+      type: 'flight-date-coverage',
+      data: {
+        requested: true,
+        status: 'unavailable',
+        selectedDepart: '2099-09-22',
+        windowStart: '2099-09-19',
+        windowEnd: '2099-09-25',
+        expectedDates: [
+          '2099-09-19',
+          '2099-09-20',
+          '2099-09-21',
+          '2099-09-22',
+          '2099-09-23',
+          '2099-09-24',
+          '2099-09-25',
+        ],
+        checkedDates: [],
+        failedDates: [
+          '2099-09-19',
+          '2099-09-20',
+          '2099-09-21',
+          '2099-09-22',
+          '2099-09-23',
+          '2099-09-24',
+          '2099-09-25',
+        ],
+        provider: 'Travelpayouts',
+        message: 'Nearby date comparison unavailable.',
+      },
     });
   });
 

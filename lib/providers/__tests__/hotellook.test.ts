@@ -91,7 +91,9 @@ describe('HotellookProvider.searchHotels', () => {
           hotelId: 12345,
           hotelName: 'Hotel Example',
           stars: 4,
-          location: { name: 'New York' },
+          location: { name: 'New York', geo: { lat: '40.7128', lon: '-74.0060' } },
+          address: { en: '123 Example Street, New York' },
+          distance: 1.24,
           priceFrom: 129.99,
           photoUrl: 'https://example.com/hotel.jpg',
           propertyType: 'Hotel',
@@ -116,14 +118,76 @@ describe('HotellookProvider.searchHotels', () => {
         id: '12345',
         name: 'Hotel Example',
         area: 'New York',
+        location: {
+          label: '123 Example Street, New York',
+          precision: 'exact',
+          address: '123 Example Street, New York',
+          lat: 40.7128,
+          lng: -74.006,
+          distance: {
+            value: 1.2,
+            unit: 'km',
+            referencePoint: 'city center',
+          },
+          providerLocationName: 'New York',
+        },
         stars: 4,
-        rating: 4,
         pricePerNight: { priceCents: 12999, currency: 'USD' },
         deeplink: 'https://tp.media/r?marker=hotel-marker42&trs=233847&p=4536&u=https://hotellook.com/hotels/12345',
         photoUrl: 'https://example.com/hotel.jpg',
         source: 'hotellook',
+        hotelClass: {
+          kind: 'hotel_class',
+          value: 4,
+          scaleMax: 5,
+          sourceLabel: 'Hotellook',
+          fetchedAt: expect.any(String),
+          confidence: 'provider_only',
+        },
+        guestRating: {
+          kind: 'unknown',
+          sourceLabel: 'Hotellook',
+          fetchedAt: expect.any(String),
+          confidence: 'unavailable',
+        },
       },
     ]);
+  });
+
+  it('preserves provider coordinates without promoting them to a street address', async () => {
+    const provider = new HotellookProvider();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue([
+        {
+          hotelId: 54321,
+          hotelName: 'Coordinate Hotel',
+          stars: 3,
+          location: { name: 'Boston', geo: { lat: '42.3601', lon: '-71.0589' } },
+          priceFrom: 150,
+        },
+      ]),
+    });
+
+    const result = await provider.searchHotels('bos', {
+      checkin: '2026-09-22',
+      checkout: '2026-09-29',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.data[0]).toMatchObject({
+      id: '54321',
+      area: 'Boston',
+      location: {
+        label: 'Boston',
+        precision: 'coordinates',
+        lat: 42.3601,
+        lng: -71.0589,
+        providerLocationName: 'Boston',
+      },
+    });
   });
 
   it('excludes zero, missing, non-finite, and invalid HotelLook prices', async () => {
@@ -239,6 +303,11 @@ describe('HotellookProvider.searchHotels', () => {
         area: 'Chicago',
         stars: 4,
         rating: 4,
+        location: {
+          label: 'Chicago Loop',
+          precision: 'area',
+          providerLocationName: 'Chicago Loop',
+        },
         pricePerNight: { priceCents: 9999, currency: 'USD' },
         deeplink: 'https://example.com/cached',
         source: 'hotellook',
@@ -262,11 +331,74 @@ describe('HotellookProvider.searchHotels', () => {
           area: 'Chicago',
           stars: 4,
           rating: 4,
+          location: {
+            label: 'Chicago Loop',
+            precision: 'area',
+            providerLocationName: 'Chicago Loop',
+          },
           pricePerNight: { priceCents: 9999, currency: 'USD' },
           deeplink: 'https://example.com/cached',
           source: 'hotellook',
+          hotelClass: {
+            kind: 'hotel_class',
+            value: 4,
+            scaleMax: 5,
+            sourceLabel: 'Hotellook',
+            confidence: 'provider_only',
+          },
+          guestRating: {
+            kind: 'inferred',
+            value: 4,
+            scaleMax: 5,
+            sourceLabel: 'Hotellook',
+            confidence: 'inferred',
+          },
         },
       ],
+    });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('preserves cached verified guest-rating evidence when present', async () => {
+    const cached = [
+      {
+        id: 'cached-verified',
+        name: 'Verified Hotel',
+        area: 'Paris',
+        stars: 5,
+        pricePerNight: { priceCents: 24999, currency: 'USD' },
+        deeplink: 'https://example.com/verified',
+        source: 'hotellook',
+        hotelClass: {
+          kind: 'hotel_class',
+          value: 5,
+          scaleMax: 5,
+          sourceLabel: 'Hotellook',
+          fetchedAt: '2026-07-02T10:00:00.000Z',
+          confidence: 'provider_only',
+        },
+        guestRating: {
+          kind: 'guest_review',
+          value: 8.7,
+          scaleMax: 10,
+          sourceLabel: 'Booking.com',
+          reviewCount: 1248,
+          fetchedAt: '2026-07-02T10:00:00.000Z',
+          confidence: 'verified',
+        },
+      },
+    ];
+    cacheGetMock.mockResolvedValueOnce(cached);
+
+    const provider = new HotellookProvider();
+    const result = await provider.searchHotels('PAR', {
+      checkin: '2026-09-22',
+      checkout: '2026-09-29',
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      data: cached,
     });
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -340,6 +472,17 @@ describe('HotellookProvider.searchHotels', () => {
         expect.objectContaining({
           id: '987',
           pricePerNight: { priceCents: 23002, currency: 'USD' },
+          hotelClass: expect.objectContaining({
+            kind: 'hotel_class',
+            value: 5,
+            scaleMax: 5,
+            sourceLabel: 'Hotellook',
+            confidence: 'provider_only',
+          }),
+          guestRating: expect.objectContaining({
+            kind: 'unknown',
+            confidence: 'unavailable',
+          }),
         }),
       ]),
       21600

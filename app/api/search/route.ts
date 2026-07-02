@@ -8,6 +8,7 @@ import { kiwi } from '../../../lib/providers/kiwi';
 import { hotellook } from '../../../lib/providers/hotellook';
 import { query } from '../../../lib/db/client';
 import {
+  type FlightDateCoverage,
   type HotelOffer,
   type NormalizedFare,
   type ProviderIssueStatus,
@@ -19,6 +20,69 @@ function shiftDate(date: string, days: number): string {
   const shifted = new Date(`${date}T00:00:00.000Z`);
   shifted.setUTCDate(shifted.getUTCDate() + days);
   return shifted.toISOString().slice(0, 10);
+}
+
+const FLEX_DATE_OFFSETS = [-3, -2, -1, 0, 1, 2, 3] as const;
+
+function fareDepartDate(fare: NormalizedFare): string {
+  return fare.depart.slice(0, 10);
+}
+
+function withDateRelation(fares: NormalizedFare[], selectedDepart: string): NormalizedFare[] {
+  return fares.map(fare => {
+    const fareDepart = fareDepartDate(fare);
+    return {
+      ...fare,
+      dateRelation: {
+        selectedDepart,
+        fareDepart,
+        relation: fareDepart === selectedDepart ? 'selected' : 'nearby',
+      },
+    };
+  });
+}
+
+function fixedDateCoverage(selectedDepart: string): FlightDateCoverage {
+  return {
+    requested: false,
+    status: 'not_requested',
+    selectedDepart,
+    expectedDates: [selectedDepart],
+    checkedDates: [],
+    failedDates: [],
+    provider: 'Flights',
+  };
+}
+
+function flexibleDateCoverage(input: {
+  selectedDepart: string;
+  expectedDates: string[];
+  checkedDates: string[];
+  failedDates: string[];
+}): FlightDateCoverage {
+  const status: FlightDateCoverage['status'] =
+    input.checkedDates.length === 0
+      ? 'unavailable'
+      : input.checkedDates.length === input.expectedDates.length && input.failedDates.length === 0
+        ? 'complete'
+        : 'partial';
+
+  return {
+    requested: true,
+    status,
+    selectedDepart: input.selectedDepart,
+    windowStart: input.expectedDates[0],
+    windowEnd: input.expectedDates[input.expectedDates.length - 1],
+    expectedDates: input.expectedDates,
+    checkedDates: input.checkedDates,
+    failedDates: input.failedDates,
+    provider: 'Travelpayouts',
+    message: status === 'partial'
+      ? 'Nearby-date comparison was partial.'
+      : status === 'unavailable'
+        ? 'Nearby date comparison unavailable.'
+        : undefined,
+  };
 }
 
 function dedupFares(fares: NormalizedFare[]): NormalizedFare[] {
@@ -118,7 +182,7 @@ async function searchHotelAvailability(
  * GET /api/search
  *
  * Streams results as newline-delimited JSON (NDJSON).
- * Each line: { type: 'flights'|'hotels'|'hotel-status'|'notice'|'suggestion'|'done', ... }
+ * Each line: { type: 'flights'|'flight-date-coverage'|'hotels'|'hotel-status'|'notice'|'suggestion'|'done', ... }
  * Providers are raced — first to return streams immediately.
  */
 export async function GET(request: NextRequest) {
@@ -191,7 +255,11 @@ export async function GET(request: NextRequest) {
 
       const sendFlights = (source: string, data: NormalizedFare[]) => {
         flightResultCount += data.length;
-        send({ type: 'flights', source, data });
+        send({ type: 'flights', source, data: withDateRelation(data, depart) });
+      };
+
+      const sendFlightDateCoverage = (data: FlightDateCoverage) => {
+        send({ type: 'flight-date-coverage', data });
       };
 
       const sendProviderNotice = (provider: string, reason: string, messageOverride?: string) => {
@@ -235,22 +303,41 @@ export async function GET(request: NextRequest) {
       }
 
       // Race all 4 providers — stream each chunk the moment it resolves
+      if (!flexDates) {
+        sendFlightDateCoverage(fixedDateCoverage(depart));
+      }
+
       await Promise.all([
         (async () => {
           try {
             if (flexDates && depart) {
+              const expectedDates = FLEX_DATE_OFFSETS.map(days => shiftDate(depart, days));
               const settled = await Promise.allSettled(
-                [-3, -2, -1, 0, 1, 2, 3].map(async days =>
+                expectedDates.map(async expectedDepart =>
                   await travelpayouts.searchFares(originIATA, destIATA ?? '', {
                     ...range,
-                    depart: shiftDate(depart, days),
+                    depart: expectedDepart,
                   })
                 )
+              );
+              const checkedDates = settled.flatMap((result, index) =>
+                result.status === 'fulfilled' && result.value.ok ? [expectedDates[index]] : []
+              );
+              const failedDates = settled.flatMap((result, index) =>
+                result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.ok)
+                  ? [expectedDates[index]]
+                  : []
               );
               const fares = settled.flatMap(result =>
                 result.status === 'fulfilled' && result.value.ok ? result.value.data : []
               );
               const dedupedFares = dedupFares(fares);
+              sendFlightDateCoverage(flexibleDateCoverage({
+                selectedDepart: depart,
+                expectedDates,
+                checkedDates,
+                failedDates,
+              }));
               if (dedupedFares.length > 0) sendFlights('travelpayouts', dedupedFares);
 
               const firstFailure = settled.find(result =>

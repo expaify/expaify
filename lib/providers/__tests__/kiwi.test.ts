@@ -155,6 +155,97 @@ describe('KiwiProvider.searchFares active config', () => {
     expect(deeplink.searchParams.get('affilid')).toBe('expaify_test');
   });
 
+  it('keeps offsetless local route timing partial when Kiwi route segments are complete', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: [
+          {
+            id: 'with-route',
+            flyFrom: 'JFK',
+            flyTo: 'LAX',
+            local_departure: '2026-09-22T08:00:00',
+            local_arrival: '2026-09-22T14:45:00',
+            airlines: ['B6'],
+            price: 420,
+            route: [
+              {
+                flyFrom: 'JFK',
+                flyTo: 'ORD',
+                local_departure: '2026-09-22T08:00:00',
+                local_arrival: '2026-09-22T10:30:00',
+                airline: 'B6',
+                flight_no: 100,
+              },
+              {
+                flyFrom: 'ORD',
+                flyTo: 'LAX',
+                local_departure: '2026-09-22T12:00:00',
+                local_arrival: '2026-09-22T14:45:00',
+                airline: 'B6',
+                flight_no: 200,
+              },
+            ],
+            has_stopover: false,
+            transfers: [{}],
+            deep_link: 'https://kiwi.test/deal',
+          },
+        ],
+      }),
+    } as Response);
+
+    const result = await approvedProvider().searchFares('JFK', 'LAX', {
+      depart: '2026-09-22',
+      passengers: 1,
+    });
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.data[0].itinerary).toMatchObject({
+      certainty: 'partial',
+      arrive: '2026-09-22T14:45:00',
+    });
+    expect(result.data[0].itinerary?.layovers).toBeUndefined();
+  });
+
+  it('keeps round-trip Kiwi route timing partial to avoid treating destination stay as a layover', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: [
+          {
+            id: 'roundtrip',
+            flyFrom: 'JFK',
+            flyTo: 'LAX',
+            local_departure: '2026-09-22T08:00:00',
+            local_arrival: '2026-09-22T11:30:00',
+            airlines: ['B6'],
+            price: 500,
+            duration: { departure: 12_600 },
+            route: [{ local_arrival: '2026-09-22T11:30:00' }],
+            has_stopover: false,
+            transfers: [],
+            deep_link: 'https://kiwi.test/deal',
+          },
+        ],
+      }),
+    } as Response);
+
+    const result = await approvedProvider().searchFares('JFK', 'LAX', {
+      depart: '2026-09-22',
+      return: '2026-09-29',
+      passengers: 1,
+    });
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.data[0].itinerary).toMatchObject({
+      certainty: 'partial',
+      durationMinutes: 210,
+      arrive: '2026-09-22T11:30:00',
+    });
+  });
+
   it('caches fares with passenger count and return date in the key', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,

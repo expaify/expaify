@@ -1,6 +1,6 @@
 import type { DealScore, NormalizedFare } from '@/lib/types'
 
-type SortBy = 'price' | 'deal'
+type SortBy = 'price' | 'deal' | 'estimatedTotal' | 'duration'
 type SortOptions = {
   deferDealSort?: boolean
 }
@@ -18,6 +18,24 @@ function compareFallback(a: NormalizedFare, b: NormalizedFare): number {
     a.stops - b.stops ||
     a.depart.localeCompare(b.depart) ||
     a.carrier.localeCompare(b.carrier) ||
+    a.id.localeCompare(b.id)
+  )
+}
+
+function confirmedDuration(fare: NormalizedFare): number {
+  const duration = fare.itinerary?.durationMinutes
+  return fare.itinerary?.certainty === 'confirmed' && Number.isFinite(duration)
+    ? duration as number
+    : Number.POSITIVE_INFINITY
+}
+
+function compareDuration(a: NormalizedFare, b: NormalizedFare): number {
+  return (
+    confirmedDuration(a) - confirmedDuration(b) ||
+    a.price.currency.localeCompare(b.price.currency) ||
+    a.price.priceCents - b.price.priceCents ||
+    a.stops - b.stops ||
+    a.depart.localeCompare(b.depart) ||
     a.id.localeCompare(b.id)
   )
 }
@@ -55,10 +73,12 @@ export function sortFlights(
 ): NormalizedFare[] {
   const shouldUseFallback =
     sortBy === 'price' ||
+    sortBy === 'estimatedTotal' ||
     options.deferDealSort ||
     !fares.every(fare => hasSettledScore(scores, fare.id))
 
   return [...fares].sort((a, b) => {
+    if (sortBy === 'duration') return compareDuration(a, b)
     if (shouldUseFallback) return compareFallback(a, b)
     return compareDealScore(a, b, scores)
   })

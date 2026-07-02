@@ -188,6 +188,39 @@ describe('AmadeusProvider.searchFares success', () => {
     fares.forEach((fare) => expect(fare.deeplink).toBe(''));
   });
 
+  it('keeps offsetless local itinerary timing partial', async () => {
+    mockFetchTokenAndOffers(ONE_WAY_FIXTURE);
+    const provider = new AmadeusProvider();
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.data[0].itinerary).toMatchObject({
+      certainty: 'partial',
+      arrive: '2026-09-22T11:30:00',
+    });
+    expect(result.data[1].itinerary).toMatchObject({
+      certainty: 'partial',
+      arrive: '2026-09-22T20:15:00',
+    });
+    expect(result.data[1].itinerary?.layovers).toBeUndefined();
+  });
+
+  it('does not claim confirmed layovers for round-trip aggregate fare cards', async () => {
+    mockFetchTokenAndOffers(ROUND_TRIP_FIXTURE);
+    const provider = new AmadeusProvider();
+    const result = await provider.searchFares('SFO', 'ORD', {
+      depart: '2026-10-01',
+      return: '2026-10-08',
+      passengers: 1,
+    });
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.data[0].itinerary).toMatchObject({
+      certainty: 'partial',
+      arrive: '2026-10-01T13:00:00',
+    });
+  });
+
   it('sets return from the final return itinerary segment for round trips', async () => {
     mockFetchTokenAndOffers(ROUND_TRIP_FIXTURE);
     const provider = new AmadeusProvider();

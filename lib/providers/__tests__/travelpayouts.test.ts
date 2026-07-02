@@ -274,6 +274,24 @@ describe('TravelpayoutsProvider.searchFares', () => {
     expect(tkFare!.price.priceCents).toBe(18500);
   });
 
+  it('marks aggregate Travelpayouts durations as partial and boundary-free results as unavailable', async () => {
+    mockFetchSearchSequence();
+    const provider = new TravelpayoutsProvider();
+    const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-06', passengers: 1 });
+    if (!result.ok) throw new Error(result.reason);
+
+    const latestFare = result.data.find((f) => f.id.startsWith('tp-v2-'));
+    const cheapFare = result.data.find((f) => f.id.startsWith('tp-v1-SU'));
+
+    expect(latestFare?.itinerary).toEqual({ certainty: 'unavailable' });
+    expect(cheapFare?.itinerary).toMatchObject({
+      certainty: 'partial',
+      durationMinutes: 210,
+    });
+    expect(cheapFare?.itinerary?.segments).toBeUndefined();
+    expect(cheapFare?.itinerary?.layovers).toBeUndefined();
+  });
+
   it('uses stops=0 when transfers field is absent', async () => {
     const cheapFixture = {
       success: true,

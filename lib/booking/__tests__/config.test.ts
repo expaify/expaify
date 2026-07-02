@@ -30,6 +30,19 @@ const hotel: HotelOffer = {
   id: 'hotel_123',
   name: 'The Example Hotel',
   area: 'Midtown',
+  location: {
+    label: '350 5th Ave, New York, NY',
+    precision: 'exact',
+    address: '350 5th Ave, New York, NY',
+    lat: 40.7484,
+    lng: -73.9857,
+    distance: {
+      value: 0.3,
+      unit: 'mi',
+      referencePoint: 'Times Square',
+    },
+    providerLocationName: 'Midtown',
+  },
   stars: 4,
   pricePerNight: { priceCents: 18900, currency: 'USD' },
   priceBasis: 'per_night_before_taxes_fees',
@@ -147,6 +160,14 @@ describe('booking hotel context continuity', () => {
     expect(url.searchParams.get('provider')).toBe(hotel.source);
     expect(url.searchParams.get('name')).toBe(hotel.name);
     expect(url.searchParams.get('area')).toBe(hotel.area);
+    expect(url.searchParams.get('locationPrecision')).toBe('exact');
+    expect(url.searchParams.get('locationAddress')).toBe('350 5th Ave, New York, NY');
+    expect(url.searchParams.get('locationLat')).toBe('40.7484');
+    expect(url.searchParams.get('locationLng')).toBe('-73.9857');
+    expect(url.searchParams.get('locationDistanceValue')).toBe('0.3');
+    expect(url.searchParams.get('locationDistanceUnit')).toBe('mi');
+    expect(url.searchParams.get('locationDistanceReferencePoint')).toBe('Times Square');
+    expect(url.searchParams.get('locationProviderName')).toBe('Midtown');
     expect(url.searchParams.get('priceCents')).toBe(String(hotel.pricePerNight.priceCents));
     expect(url.searchParams.get('currency')).toBe(hotel.pricePerNight.currency);
     expect(url.searchParams.get('priceBasis')).toBe('per_night_before_taxes_fees');
@@ -160,6 +181,15 @@ describe('booking hotel context continuity', () => {
       provider: 'hotellook',
       name: 'The Example Hotel',
       area: 'Midtown',
+      locationPrecision: 'exact',
+      locationLabel: '350 5th Ave, New York, NY',
+      locationAddress: '350 5th Ave, New York, NY',
+      locationLat: '40.7484',
+      locationLng: '-73.9857',
+      locationDistanceValue: '0.3',
+      locationDistanceUnit: 'mi',
+      locationDistanceReferencePoint: 'Times Square',
+      locationProviderName: 'Midtown',
       priceCents: '18900',
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
@@ -172,6 +202,19 @@ describe('booking hotel context continuity', () => {
       provider: 'hotellook',
       name: 'The Example Hotel',
       area: 'Midtown',
+      location: {
+        label: '350 5th Ave, New York, NY',
+        precision: 'exact',
+        address: '350 5th Ave, New York, NY',
+        lat: 40.7484,
+        lng: -73.9857,
+        distance: {
+          value: 0.3,
+          unit: 'mi',
+          referencePoint: 'Times Square',
+        },
+        providerLocationName: 'Midtown',
+      },
       priceCents: 18900,
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
@@ -195,5 +238,10 @@ describe('booking hotel context continuity', () => {
     expect(validateBookingHotelContext({ ...baseContext, currency: 'US Dollars' })).toBeNull();
     expect(validateBookingHotelContext({ ...baseContext, priceBasis: 'total' })).toBeNull();
     expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'javascript:alert(1)' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, locationLat: '91', locationLng: '-73' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, locationLat: 'north', locationLng: '-73' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, locationLat: '40', locationLng: 'west' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, locationDistanceValue: '1', locationDistanceUnit: 'meters', locationDistanceReferencePoint: 'center' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, locationDistanceValue: 'near' })).toBeNull();
   });
 });

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext, type BookingHotelContext } from '@/lib/booking/config'
+import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -14,6 +15,12 @@ const panelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(-
 const insetPanelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)]'
 const secondaryButtonCls = 'inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-semibold text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:border-[color:var(--border-focus)] focus-visible:shadow-[var(--focus-ring)]'
 const actionStackCls = 'mt-5 flex flex-col gap-3'
+const hotelTermsCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
+const trustClaims = [
+  'Required by Duffel for this booking request',
+  'Sent only when you choose verify',
+  'No payment details are collected on this page',
+]
 
 type BookingFlowProps = {
   bookingEnabled: boolean
@@ -76,6 +83,31 @@ function getHotelPriceBasisLabel(priceBasis: BookingHotelContext['priceBasis']) 
   return 'price basis requires provider confirmation'
 }
 
+function isChangedFareReason(reason: string) {
+  return /\b(price|currency|passenger|passenger-count|passenger count|fare changed)\b/i.test(reason)
+}
+
+function getErrorStatus(reason: string) {
+  if (isChangedFareReason(reason)) {
+    return {
+      title: 'This fare changed since search',
+      message: 'Return to search and choose the current fare. expaify did not create an order.',
+    }
+  }
+
+  if (/network/i.test(reason)) {
+    return {
+      title: 'Booking request stopped',
+      message: 'Network error. expaify did not create an order. Check your connection and review the selected fare before trying again.',
+    }
+  }
+
+  return {
+    title: 'Booking request stopped',
+    message: `expaify did not create an order. ${reason}`,
+  }
+}
+
 function FareFact({ label, value }: { label: string; value: string }) {
   return (
     <div className={`min-w-0 px-3.5 py-3 sm:px-4 ${insetPanelCls}`}>
@@ -99,7 +131,7 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
           </p>
         </div>
         <div className="min-w-0 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--bg-raised)] px-4 py-3 md:shrink-0 md:text-right">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]">Current fare</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]">Selected fare</p>
           <p className="mt-1 text-2xl font-bold leading-none text-[color:var(--text-1)]">{formatMoney(fareContext.priceCents, fareContext.currency)}</p>
           <p className="mt-1 text-xs font-medium text-[color:var(--text-2)]">{getPriceBasisLabel(fareContext)}</p>
         </div>
@@ -116,15 +148,17 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
         <FareFact label="Price basis" value={getPriceBasisLabel(fareContext)} />
         <FareFact label="Provider" value={getProviderLabel(fareContext.provider, duffelSandbox)} />
       </div>
-      <details className={`mt-4 px-4 py-3 text-xs text-[color:var(--text-3)] ${insetPanelCls}`}>
-        <summary className="cursor-pointer rounded-sm font-semibold uppercase tracking-wide text-[color:var(--text-2)] focus-visible:shadow-[var(--focus-ring)]">Technical reference</summary>
-        <p className="mt-3 break-all font-mono leading-5">{fareContext.offerId}</p>
-      </details>
+      <div className="mt-4 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 text-xs">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p>
+        <p className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{fareContext.offerId}</p>
+      </div>
     </section>
   )
 }
 
 function HotelSummary({ hotelContext }: { hotelContext: BookingHotelContext }) {
+  const location = getHotelLocationDisplay(hotelContext)
+
   return (
     <section aria-labelledby="hotel-review-title" className={`${panelCls} p-4 sm:p-6`}>
       <div className="flex flex-col gap-4 border-b border-[color:var(--border)] pb-5 md:flex-row md:items-start md:justify-between">
@@ -133,27 +167,31 @@ function HotelSummary({ hotelContext }: { hotelContext: BookingHotelContext }) {
           <h2 id="hotel-review-title" className="mt-2 text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">
             {hotelContext.name}
           </h2>
-          {hotelContext.area && (
-            <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">{hotelContext.area}</p>
-          )}
+          <p className="mt-2 break-words text-sm font-semibold leading-6 text-[color:var(--text-2)]">
+            {location.label}: {location.value}
+          </p>
+          <p className={`mt-1 text-xs leading-5 ${location.isWarning ? 'font-semibold text-[color:var(--warning)]' : 'font-medium text-[color:var(--text-3)]'}`}>
+            {location.note}
+          </p>
         </div>
         <div className="min-w-0 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--bg-raised)] px-4 py-3 md:shrink-0 md:text-right">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]">Selected rate</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]">Selected nightly rate</p>
           <p className="mt-1 text-2xl font-bold leading-none text-[color:var(--text-1)]">{formatMoney(hotelContext.priceCents, hotelContext.currency)}</p>
           <p className="mt-1 text-xs font-medium text-[color:var(--text-2)]">{getHotelPriceBasisLabel(hotelContext.priceBasis)}</p>
         </div>
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <FareFact label="Hotel" value={hotelContext.name} />
-        {hotelContext.area && <FareFact label="Area" value={hotelContext.area} />}
+        <FareFact label="Location" value={location.value} />
+        <FareFact label="Location precision" value={location.label} />
         <FareFact label="Provider" value={getProviderLabel(hotelContext.provider, false)} />
         <FareFact label="Price basis" value={getHotelPriceBasisLabel(hotelContext.priceBasis)} />
         <FareFact label="Currency" value={hotelContext.currency} />
       </div>
-      <details className={`mt-4 px-4 py-3 text-xs text-[color:var(--text-3)] ${insetPanelCls}`}>
-        <summary className="cursor-pointer rounded-sm font-semibold uppercase tracking-wide text-[color:var(--text-2)] focus-visible:shadow-[var(--focus-ring)]">Technical reference</summary>
-        <p className="mt-3 break-all font-mono leading-5">{hotelContext.offerId}</p>
-      </details>
+      <div className="mt-4 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 text-xs">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p>
+        <p className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{hotelContext.offerId}</p>
+      </div>
     </section>
   )
 }
@@ -176,7 +214,7 @@ function StatusPanel({
   }
 
   return (
-    <div role={live === 'assertive' ? 'alert' : 'status'} aria-live={live} className={`rounded-lg border p-4 sm:p-5 ${toneClasses[tone]}`}>
+    <div role={live === 'assertive' ? 'alert' : 'status'} aria-live={live} aria-atomic="true" className={`rounded-lg border p-4 sm:p-5 ${toneClasses[tone]}`}>
       <div className="flex gap-3">
         <span aria-hidden="true" className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-current" />
         <div className="min-w-0">
@@ -188,6 +226,76 @@ function StatusPanel({
   )
 }
 
+function TrustSummary() {
+  return (
+    <section aria-labelledby="traveler-trust-title" className={`p-4 ${insetPanelCls}`}>
+      <h3 id="traveler-trust-title" className="text-sm font-bold text-[color:var(--text-1)]">
+        Before you enter details
+      </h3>
+      <ul className="mt-3 space-y-2">
+        {trustClaims.map((claim) => (
+          <li key={claim} className="flex gap-2 text-sm leading-5 text-[color:var(--text-2)]">
+            <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--brand)]" />
+            <span>{claim}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
+        expaify keeps the selected fare visible so you can compare the itinerary, price basis, and passenger count before submitting.
+      </p>
+    </section>
+  )
+}
+
+function FormStatusPanel({ loading }: { loading: boolean }) {
+  return (
+    <section
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      aria-busy={loading}
+      className={`p-4 ${insetPanelCls}`}
+    >
+      <p className={factLabelCls}>{loading ? 'Verifying with Duffel' : 'Provider verification pending'}</p>
+      <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+        {loading
+          ? 'Do not refresh this page. Duffel is checking the selected fare and traveler details before returning a booking reference.'
+          : 'After you choose verify, expaify sends these traveler details to Duffel. Duffel rechecks price, currency, passenger count, and availability before any order is created.'}
+      </p>
+    </section>
+  )
+}
+
+function TravelerCountContext() {
+  return (
+    <section aria-labelledby="traveler-count-title" className={`p-4 ${insetPanelCls}`}>
+      <p id="traveler-count-title" className={factLabelCls}>Traveler</p>
+      <p className={factValueCls}>1 adult traveler</p>
+      <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+        This review path supports one adult traveler. Multi-passenger fares must be searched again with one passenger.
+      </p>
+    </section>
+  )
+}
+
+function FieldGroup({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description: string
+  children: ReactNode
+}) {
+  return (
+    <fieldset className={`space-y-4 p-4 ${insetPanelCls}`}>
+      <legend className="text-sm font-bold text-[color:var(--text-1)]">{title}</legend>
+      <p className="text-sm leading-6 text-[color:var(--text-2)]">{description}</p>
+      {children}
+    </fieldset>
+  )
+}
+
 function ReviewShell({
   eyebrow = 'Checkout review',
   title,
@@ -195,6 +303,7 @@ function ReviewShell({
   fareContext,
   hotelContext = null,
   duffelSandbox,
+  status,
   children,
 }: {
   eyebrow?: string
@@ -203,6 +312,7 @@ function ReviewShell({
   fareContext: BookingFareContext | null
   hotelContext?: BookingHotelContext | null
   duffelSandbox: boolean
+  status?: ReactNode
   children: ReactNode
 }) {
   return (
@@ -217,6 +327,7 @@ function ReviewShell({
             <h1 className="mt-2 text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-4xl">{title}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--text-2)]">{message}</p>
           </div>
+          {status}
           {fareContext && (
             <FareSummary fareContext={fareContext} duffelSandbox={duffelSandbox} />
           )}
@@ -247,10 +358,18 @@ function RecoveryState({
   fareContext: BookingFareContext | null
   duffelSandbox: boolean
 }) {
+  const statusLive = statusTitle === 'One passenger is supported' ? 'assertive' : 'polite'
+  const statusTone = statusTitle === 'One passenger is supported' ? 'red' : 'amber'
+
   return (
-    <ReviewShell title={title} message={message} fareContext={fareContext} duffelSandbox={duffelSandbox}>
+    <ReviewShell
+      title={title}
+      message={message}
+      fareContext={fareContext}
+      duffelSandbox={duffelSandbox}
+      status={<StatusPanel title={statusTitle} message={message} tone={statusTone} live={statusLive} />}
+    >
       <div className={`${panelCls} p-4 sm:p-6`}>
-        <StatusPanel title={statusTitle} message={message} />
         <div className={`mt-5 p-4 ${insetPanelCls}`}>
           <p className={factLabelCls}>What happens now</p>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
@@ -277,15 +396,19 @@ function InvalidBookingState({ duffelSandbox }: { duffelSandbox: boolean }) {
   return (
     <ReviewShell
       title="We can't identify this fare"
-      message="This booking link is missing required fare details or includes trip details expaify cannot verify. Return to search and choose a current flight result before reviewing booking options."
+      message="Return to search and choose a current result before reviewing booking options."
       fareContext={null}
       duffelSandbox={duffelSandbox}
+      status={
+        <StatusPanel
+          title="Selection details are missing"
+          message="Return to search and choose a current result before reviewing booking options."
+          tone="red"
+          live="assertive"
+        />
+      }
     >
       <div className={`${panelCls} p-4 sm:p-6`}>
-        <StatusPanel
-          title="Fare context is missing"
-          message="No passenger details, payment details, or provider order can be submitted from this page."
-        />
         <h2
           ref={headingRef}
           tabIndex={-1}
@@ -319,15 +442,19 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
   return (
     <ReviewShell
       title="We can't identify this hotel"
-      message="This hotel handoff link is missing required offer details or includes a price, currency, provider, or handoff URL expaify cannot verify. Return to search and choose a current hotel result."
+      message="Return to search and choose a current hotel result before reviewing provider handoff options."
       fareContext={null}
       duffelSandbox={duffelSandbox}
+      status={
+        <StatusPanel
+          title="Selection details are missing"
+          message="Return to search and choose a current hotel result before reviewing provider handoff options."
+          tone="red"
+          live="assertive"
+        />
+      }
     >
       <div className={`${panelCls} p-4 sm:p-6`}>
-        <StatusPanel
-          title="Hotel context is missing"
-          message="No reservation, payment details, or provider booking request can be submitted from this page."
-        />
         <h2
           ref={headingRef}
           tabIndex={-1}
@@ -356,24 +483,33 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
     <ReviewShell
       eyebrow="Hotel handoff"
       title="Review selected hotel"
-      message="The selected hotel offer is preserved for provider handoff. Taxes, fees, cancellation policy, room details, and live availability still require provider confirmation."
+      message="The selected hotel offer is preserved for provider handoff. Confirm the location, taxes, fees, cancellation policy, room details, and live availability with the provider before payment."
       fareContext={null}
       hotelContext={hotelContext}
       duffelSandbox={duffelSandbox}
-    >
-      <div className={`${panelCls} p-4 sm:p-6`}>
+      status={
         <StatusPanel
           title="Provider confirmation required"
-          message="expaify is not creating a hotel reservation. The provider sets the final taxes, fees, policies, room availability, and total due."
+          message={hotelTermsCopy}
         />
+      }
+    >
+      <div className={`${panelCls} p-4 sm:p-6`}>
         <div className={`mt-5 p-4 ${insetPanelCls}`}>
           <p className={factLabelCls}>Before you continue</p>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            Compare the hotel name, provider, selected rate, currency, and price basis on the provider page before entering payment details.
+            Compare the hotel name, location, provider, selected rate, currency, and price basis on the provider page before entering payment details.
           </p>
         </div>
+        <p className="mt-4 text-sm leading-6 text-[color:var(--text-2)]">{hotelTermsCopy}</p>
         <div className={actionStackCls}>
-          <a href={hotelContext.providerUrl} target="_blank" rel="noopener noreferrer sponsored" className="btn-primary">
+          <a
+            href={hotelContext.providerUrl}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            aria-label={`Continue to provider for ${hotelContext.name}. Selected nightly rate ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. Opens provider site in a new tab. ${hotelTermsCopy}`}
+            className="btn-primary"
+          >
             Continue to provider
           </a>
           <a href="/" className={secondaryButtonCls}>
@@ -443,12 +579,18 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
       <ReviewShell
         eyebrow="Confirmation"
         title="Booking confirmed"
-        message="The provider returned a reference for this sandbox-capable booking path. Review the fare details below before taking any follow-up action."
+        message="Duffel returned a booking reference for the selected fare."
         fareContext={fareContext}
         duffelSandbox={duffelSandbox}
+        status={
+          <StatusPanel
+            title="Provider confirmed this fare"
+            message="Duffel returned a booking reference for the selected fare."
+            tone="green"
+          />
+        }
       >
         <div className={`${panelCls} p-4 sm:p-6`}>
-          <StatusPanel title="Order confirmed" message="The provider returned a booking reference for this fare." tone="green" />
           <div className={`mt-5 p-4 ${insetPanelCls}`}>
             <p className={factLabelCls}>Booking reference</p>
             <p className="mt-2 break-all font-mono text-xl font-bold text-[color:var(--brand)] sm:text-2xl">{bookingRef}</p>
@@ -469,7 +611,7 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
     return (
       <RecoveryState
         title="In-app booking is paused"
-        message="This fare is preserved for review. expaify is intentionally not collecting passenger details, payment information, or creating provider orders while in-app booking is paused."
+        message="This fare is preserved for review only. expaify is not collecting traveler details or creating a provider order."
         statusTitle="Booking remains paused"
         fareContext={fareContext}
         duffelSandbox={duffelSandbox}
@@ -491,15 +633,24 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
   }
 
   if (state === 'error') {
+    const errorStatus = getErrorStatus(errorMsg)
+
     return (
       <ReviewShell
         title="Review selected fare"
-        message="The fare details are still available, but the provider stopped the booking request before an order was created."
+        message="The selected fare is still visible, but the provider stopped the booking request before an order was created."
         fareContext={fareContext}
         duffelSandbox={duffelSandbox}
+        status={
+          <StatusPanel
+            title={errorStatus.title}
+            message={errorStatus.message}
+            tone="red"
+            live="assertive"
+          />
+        }
       >
         <div className={`${panelCls} p-4 sm:p-6`}>
-          <StatusPanel title="Booking request stopped" message={errorMsg} tone="red" live="assertive" />
           <div className={actionStackCls}>
             <button onClick={() => setState('idle')} className="btn-primary">
               Review details again
@@ -516,41 +667,60 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
   return (
     <ReviewShell
       title="Review selected fare"
-      message={duffelSandbox ? 'Review this fare in sandbox mode. Submitting will not create a live airline ticket.' : 'Confirm the fare details before expaify sends traveler information to the provider.'}
+      message="Confirm the itinerary and price basis before expaify sends traveler details to Duffel for provider verification."
       fareContext={fareContext}
       duffelSandbox={duffelSandbox}
+      status={
+        <StatusPanel
+          title="Selected fare preserved from search"
+          message={state === 'loading'
+            ? 'Keeping the selected fare visible while Duffel checks price, currency, passenger count, and availability.'
+            : 'This is the price and itinerary you chose in results. Duffel has not verified it again yet.'}
+        />
+      }
     >
       <form onSubmit={handleSubmit} aria-busy={state === 'loading'} className={`${panelCls} p-4 sm:p-6`}>
         <div className="mb-5">
           <p className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand)]">Traveler details</p>
-          <h2 className="mt-2 text-xl font-bold leading-tight text-[color:var(--text-1)]">Continue with this fare</h2>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">Enter the passenger details required by the provider for this review path.</p>
-        </div>
-        <div className={`mb-5 p-4 ${insetPanelCls}`}>
-          <p className={factLabelCls}>Booking status</p>
+          <h2 className="mt-2 text-xl font-bold leading-tight text-[color:var(--text-1)]">Verify this fare for 1 adult traveler</h2>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            {duffelSandbox ? 'Duffel sandbox mode is active. This is a test provider path and does not create a live airline ticket.' : 'Review fare context before creating the order.'}
+            These details are required by Duffel for this booking request. They are not used to create an expaify profile.
           </p>
         </div>
-        {state === 'loading' && (
-          <div role="status" aria-live="polite" className={`mb-5 p-4 ${insetPanelCls}`}>
-            <p className={factLabelCls}>Submitting request</p>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-              Keeping the selected fare visible while the provider responds.
-            </p>
-          </div>
-        )}
         <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="title" className={labelCls}>Title</label>
-              <select id="title" value={title} onChange={e => setTitle(e.target.value as Title)} className={inputCls} required>
-                <option value="mr">Mr</option>
-                <option value="ms">Ms</option>
-                <option value="mrs">Mrs</option>
-                <option value="miss">Miss</option>
-                <option value="dr">Dr</option>
-              </select>
+          <TrustSummary />
+          <FormStatusPanel loading={state === 'loading'} />
+          <TravelerCountContext />
+
+          <FieldGroup
+            title="Traveler identity"
+            description="Duffel requires the traveler name, title, date of birth, and gender to match the airline booking record."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="title" className={labelCls}>Title</label>
+                <select id="title" value={title} onChange={e => setTitle(e.target.value as Title)} className={inputCls} required>
+                  <option value="mr">Mr</option>
+                  <option value="ms">Ms</option>
+                  <option value="mrs">Mrs</option>
+                  <option value="miss">Miss</option>
+                  <option value="dr">Dr</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="firstName" className={labelCls}>First name</label>
+                <input id="firstName" type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className={inputCls} placeholder="Jane" required />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="lastName" className={labelCls}>Last name</label>
+                <input id="lastName" type="text" value={lastName} onChange={e => setLastName(e.target.value)} className={inputCls} placeholder="Smith" required />
+              </div>
+              <div>
+                <label htmlFor="dob" className={labelCls}>Date of birth</label>
+                <input id="dob" type="date" value={dob} onChange={e => setDob(e.target.value)} max={maxDobStr} className={inputCls} required />
+              </div>
             </div>
             <div>
               <label htmlFor="gender" className={labelCls}>Gender</label>
@@ -559,44 +729,37 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
                 <option value="f">Female</option>
               </select>
             </div>
-          </div>
+          </FieldGroup>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <FieldGroup
+            title="Provider contact"
+            description="Duffel requires contact details for booking communication and provider follow-up for this order request."
+          >
             <div>
-              <label htmlFor="firstName" className={labelCls}>First name</label>
-              <input id="firstName" type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className={inputCls} placeholder="Jane" required />
+              <label htmlFor="email" className={labelCls}>Email</label>
+              <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="jane@example.com" required />
             </div>
             <div>
-              <label htmlFor="lastName" className={labelCls}>Last name</label>
-              <input id="lastName" type="text" value={lastName} onChange={e => setLastName(e.target.value)} className={inputCls} placeholder="Smith" required />
+              <label htmlFor="phone" className={labelCls}>Phone with country code</label>
+              <input id="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inputCls} placeholder="+1 212 555 1234" required />
             </div>
-          </div>
-
-          <div>
-            <label htmlFor="dob" className={labelCls}>Date of birth</label>
-            <input id="dob" type="date" value={dob} onChange={e => setDob(e.target.value)} max={maxDobStr} className={inputCls} required />
-          </div>
-
-          <div>
-            <label htmlFor="email" className={labelCls}>Email</label>
-            <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="jane@example.com" required />
-          </div>
-
-          <div>
-            <label htmlFor="phone" className={labelCls}>Phone (with country code)</label>
-            <input id="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inputCls} placeholder="+1 212 555 1234" required />
-          </div>
+          </FieldGroup>
 
           <div className="sticky bottom-0 -mx-4 mt-2 border-t border-[color:var(--border)] bg-[color:var(--bg-overlay)] p-4 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
             <button
               type="submit"
               disabled={state === 'loading'}
+              aria-label={`Verify selected fare for 1 adult traveler from ${fareContext.origin} to ${fareContext.destination}. Selected fare ${formatMoney(fareContext.priceCents, fareContext.currency)}, ${getPriceBasisLabel(fareContext)}.`}
               className="btn-primary"
             >
-              {state === 'loading' ? 'Confirming request...' : duffelSandbox ? 'Confirm sandbox booking' : 'Confirm booking'}
+              {state === 'loading'
+                ? duffelSandbox ? 'Verifying sandbox fare...' : 'Verifying with Duffel...'
+                : duffelSandbox ? 'Verify sandbox fare with Duffel' : 'Verify fare with Duffel'}
             </button>
             <p className="mt-3 text-center text-xs leading-5 text-[color:var(--text-3)]">
-              {duffelSandbox ? 'Sandbox submission only. No live ticket is issued.' : 'expaify sends these details only after you confirm.'}
+              {duffelSandbox
+                ? 'Sandbox submission only. No live ticket is issued, and no payment details are collected here.'
+                : 'expaify sends traveler details to Duffel after you choose verify. No payment details are collected here. No order is created if price, currency, or passenger count changed.'}
             </p>
           </div>
         </div>

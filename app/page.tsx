@@ -1,22 +1,35 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 import type { DealScore, HotelOffer, NormalizedFare, ProviderIssueStatus, ProviderNotice } from '@/lib/types'
 import { resolveToIATA } from '@/lib/airports/resolve'
+import { getNearby } from '@/lib/airports/nearby'
 import AirportInput from './components/AirportInput'
 import HotelCard from './components/HotelCard'
 import FlightResults from '@/components/flights/FlightResults'
 import { sortFlights } from '@/lib/search/sortFlights'
+import { getTripInspiration, type TripInspirationItem } from '@/lib/search/tripInspiration'
 
 type View = 'form' | 'results'
 type TripType = 'roundtrip' | 'oneway'
 type SearchIntent = 'flights' | 'hotels' | 'trip'
-type SortBy = 'price' | 'deal'
+type SortBy = 'price' | 'deal' | 'estimatedTotal' | 'duration'
 type ActiveTab = 'flights' | 'hotels'
 type HotelAvailability = 'idle' | 'loading' | 'available' | 'empty' | 'unavailable' | 'skipped'
+type InventoryStatus = 'checking' | 'available' | 'empty' | 'unavailable' | 'not_checked'
+type InventoryKind = 'Flights' | 'Hotels'
+type AirportSelectionSource = 'selected' | 'resolved'
 type RecentSearch = { origin: string; dest: string; originDisplay: string; destDisplay: string }
 type DateFieldErrors = { depart?: string; returnDate?: string }
+type SelectedInspiration = {
+  item: TripInspirationItem
+  origin: string
+  originDisplay: string
+  depart: string
+  returnDate: string
+  fallbackOrigin: boolean
+}
 type SearchCriteria = {
   origin: string
   dest: string
@@ -31,14 +44,6 @@ type SearchCriteria = {
 type AlertSignupResponse =
   | { ok: true; data: { message: string } }
   | { ok: false; reason: string }
-
-const destinations = [
-  { label: 'New York to London', origin: 'JFK', dest: 'LHR', originDisplay: 'New York (JFK)', destDisplay: 'London (LHR)', tag: 'Transatlantic', meta: 'Deal history ready' },
-  { label: 'Los Angeles to Tokyo', origin: 'LAX', dest: 'NRT', originDisplay: 'Los Angeles (LAX)', destDisplay: 'Tokyo (NRT)', tag: 'Long haul', meta: 'Flexible date friendly' },
-  { label: 'New York to Paris', origin: 'JFK', dest: 'CDG', originDisplay: 'New York (JFK)', destDisplay: 'Paris (CDG)', tag: 'Europe', meta: 'Popular route' },
-  { label: 'New York to Dubai', origin: 'JFK', dest: 'DXB', originDisplay: 'New York (JFK)', destDisplay: 'Dubai (DXB)', tag: 'Premium cabins', meta: 'Price swings often' },
-  { label: 'New York to Miami', origin: 'JFK', dest: 'MIA', originDisplay: 'New York (JFK)', destDisplay: 'Miami (MIA)', tag: 'Domestic', meta: 'Frequent fare drops' },
-]
 
 const delays = ['', 'delay-75', 'delay-150', 'delay-225', 'delay-300']
 const searchIntentOptions: Array<{ value: SearchIntent; label: string; description: string }> = [
@@ -173,6 +178,69 @@ function parsePositivePassengerCount(value: string | null): number | null {
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= 9 ? parsed : null
 }
 
+function themeLabel(theme: TripInspirationItem['theme']): string {
+  return theme
+    .split('_')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function formatSuggestedMonth(value: string): string {
+  const [year, month] = value.split('-').map(Number)
+  if (!year || !month) return value
+  return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(year, month - 1, 1)))
+}
+
+function shortDateRange(depart: string, returnDate: string): string {
+  const departDate = new Date(`${depart}T00:00:00.000Z`)
+  const returnValue = new Date(`${returnDate}T00:00:00.000Z`)
+  if (Number.isNaN(departDate.getTime()) || Number.isNaN(returnValue.getTime())) {
+    return [depart, returnDate].filter(Boolean).join(' - ')
+  }
+  const month = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' }).format(departDate)
+  const startDay = departDate.getUTCDate()
+  const endDay = returnValue.getUTCDate()
+  const year = returnValue.getUTCFullYear()
+  return `${month} ${startDay}-${endDay}, ${year}`
+}
+
+function addDaysIso(date: string, days: number): string {
+  const next = new Date(`${date}T00:00:00.000Z`)
+  next.setUTCDate(next.getUTCDate() + days)
+  return next.toISOString().slice(0, 10)
+}
+
+function firstValidFridayForMonth(monthValue: string, minimumDate = todayIso()): string {
+  const [year, month] = monthValue.split('-').map(Number)
+  const safeYear = year || new Date(`${minimumDate}T00:00:00.000Z`).getUTCFullYear()
+  const safeMonth = month && month >= 1 && month <= 12 ? month - 1 : new Date(`${minimumDate}T00:00:00.000Z`).getUTCMonth()
+  const candidate = new Date(Date.UTC(safeYear, safeMonth, 1))
+
+  while (candidate.getUTCDay() !== 5) {
+    candidate.setUTCDate(candidate.getUTCDate() + 1)
+  }
+
+  while (candidate.toISOString().slice(0, 10) < minimumDate && candidate.getUTCMonth() === safeMonth) {
+    candidate.setUTCDate(candidate.getUTCDate() + 7)
+  }
+
+  if (candidate.getUTCMonth() !== safeMonth) {
+    const nextMonth = new Date(Date.UTC(safeYear, safeMonth + 1, 1))
+    while (nextMonth.getUTCDay() !== 5) {
+      nextMonth.setUTCDate(nextMonth.getUTCDate() + 1)
+    }
+    return nextMonth.toISOString().slice(0, 10)
+  }
+
+  return candidate.toISOString().slice(0, 10)
+}
+
+function originDisplayForInspiration(originIata: string): string {
+  if (originIata === 'NYC') return 'New York area'
+  return originIata
+}
+
 function buildSearchParams(criteria: SearchCriteria, state: { activeTab?: ActiveTab; sortBy?: SortBy; filterStops?: number | null } = {}) {
   const params = new URLSearchParams()
   params.set('origin', criteria.origin.trim())
@@ -194,7 +262,7 @@ function parseCriteriaFromUrl(params: URLSearchParams): { criteria: SearchCriter
   const sortParam = params.get('sort')
   const stopsParam = params.get('stops')
   const activeTab: ActiveTab = activeTabParam === 'hotels' ? 'hotels' : 'flights'
-  const sortBy: SortBy = sortParam === 'price' ? 'price' : 'deal'
+  const sortBy: SortBy = sortParam === 'price' || sortParam === 'estimatedTotal' || sortParam === 'duration' ? sortParam : 'deal'
   const filterStops = stopsParam === '0' || stopsParam === '1' ? Number(stopsParam) : null
 
   if (!hasSearchState) {
@@ -204,8 +272,8 @@ function parseCriteriaFromUrl(params: URLSearchParams): { criteria: SearchCriter
   if (activeTabParam && activeTabParam !== 'flights' && activeTabParam !== 'hotels') {
     return { criteria: null, error: 'The results tab in this link is not valid. Choose flights or hotels.', activeTab, sortBy, filterStops }
   }
-  if (sortParam && sortParam !== 'deal' && sortParam !== 'price') {
-    return { criteria: null, error: 'The sort option in this link is not valid. Choose best deal or lowest price.', activeTab, sortBy, filterStops }
+  if (sortParam && sortParam !== 'deal' && sortParam !== 'price' && sortParam !== 'estimatedTotal' && sortParam !== 'duration') {
+    return { criteria: null, error: 'The sort option in this link is not valid. Choose best deal, lowest price, shortest duration, or lowest estimated total.', activeTab, sortBy, filterStops }
   }
   if (stopsParam && stopsParam !== '0' && stopsParam !== '1') {
     return { criteria: null, error: 'The stops filter in this link is not valid. Choose all, nonstop, or one stop.', activeTab, sortBy, filterStops }
@@ -280,24 +348,19 @@ function parseCriteriaFromUrl(params: URLSearchParams): { criteria: SearchCriter
 
 function HotelSkeleton() {
   return (
-    <div className="card overflow-hidden">
-      <div className="h-36 shimmer sm:h-40" />
-      <div className="space-y-3 p-5">
-        <div className="flex flex-wrap gap-2">
-          <div className="h-7 w-32 rounded-full shimmer" />
-          <div className="h-5 w-24 rounded-lg shimmer" />
+    <div className="card overflow-hidden rounded-[var(--radius-card)] p-3">
+      <div className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] gap-3">
+        <div className="h-16 w-16 rounded-[var(--radius-control)] shimmer" />
+        <div className="min-w-0 space-y-2">
+          <div className="h-4 w-4/5 rounded-[var(--radius-control)] shimmer" />
+          <div className="h-4 w-2/3 rounded-[var(--radius-control)] shimmer" />
+          <div className="h-3 w-24 rounded-[var(--radius-control)] shimmer" />
         </div>
-        <div className="h-5 w-4/5 rounded-lg shimmer" />
-        <div className="h-4 w-2/3 rounded-lg shimmer" />
-        <div className="h-16 rounded-lg shimmer" />
-        <div className="flex flex-col gap-4 border-t border-white/5 pt-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-2">
-            <div className="h-4 w-20 rounded-lg shimmer" />
-            <div className="h-8 w-28 rounded-lg shimmer" />
-            <div className="h-3 w-36 rounded-lg shimmer" />
-          </div>
-          <div className="h-12 w-full rounded-lg shimmer sm:w-40" />
-        </div>
+        <div className="h-12 w-24 rounded-[var(--radius-control)] shimmer" />
+      </div>
+      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+        <div className="h-7 w-32 rounded-full shimmer" />
+        <div className="h-10 w-28 rounded-[var(--radius-control)] shimmer" />
       </div>
     </div>
   )
@@ -369,8 +432,8 @@ function SiteFooter({
             </a>
           )}
           {showRoutesLink && (
-            <a className={`rounded-md underline-offset-4 hover:underline ${linkClass}`} href="#route-suggestions">
-              Routes
+            <a className={`rounded-md underline-offset-4 hover:underline ${linkClass}`} href="#trip-inspiration">
+              Inspiration
             </a>
           )}
         </nav>
@@ -433,6 +496,130 @@ function ResultsStatePanel({
   )
 }
 
+function isHotelNotice(notice: ProviderNotice): boolean {
+  return notice.provider.toLowerCase().includes('hotel')
+}
+
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
+function inventoryBadge(status: InventoryStatus, count: number): string {
+  if (status === 'available') return String(count)
+  if (status === 'checking') return 'Checking'
+  if (status === 'empty') return 'None'
+  if (status === 'unavailable') return 'Issue'
+  return 'Not checked'
+}
+
+function inventorySummary(kind: InventoryKind, status: InventoryStatus, count: number): string {
+  const lower = kind.toLowerCase().slice(0, -1)
+  if (status === 'available') return pluralize(count, lower)
+  if (status === 'checking') return `${kind} checking`
+  if (status === 'empty') return `No ${kind.toLowerCase()} returned`
+  if (status === 'unavailable') return `${kind} unavailable`
+  return `${kind} not checked`
+}
+
+function inventoryAriaLabel(kind: InventoryKind, status: InventoryStatus, count: number, notCheckedReason?: string): string {
+  const summary = status === 'available'
+    ? `${pluralize(count, kind.toLowerCase().slice(0, -1))} available`
+    : status === 'empty'
+      ? `no ${kind.toLowerCase()} returned`
+      : status === 'unavailable'
+        ? `${kind.toLowerCase()} unavailable`
+        : status === 'checking'
+          ? `${kind.toLowerCase()} checking`
+          : `${kind.toLowerCase()} not checked${notCheckedReason ? `, ${notCheckedReason}` : ''}`
+
+  return `${kind} tab, ${summary}`
+}
+
+function liveInventoryLabel(kind: InventoryKind, status: InventoryStatus, count: number): string {
+  if (status === 'available') return `${pluralize(count, kind.toLowerCase().slice(0, -1))} available`
+  return inventorySummary(kind, status, count)
+}
+
+function statusBadgeClass(status: InventoryStatus, active: boolean): string {
+  if (status === 'checking') return 'bg-[var(--brand-soft)] text-indigo-300'
+  if (status === 'available') return active ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/5 text-gray-500'
+  if (status === 'empty') return 'bg-white/5 text-gray-400'
+  if (status === 'unavailable') return 'bg-[var(--warning-soft)] text-amber-300'
+  return 'bg-white/[0.03] text-gray-600'
+}
+
+function hotelNotCheckedCopy(criteria: Pick<SearchCriteria, 'dest' | 'depart' | 'returnDate' | 'tripType'>, intent: SearchIntent): string {
+  if (!criteria.dest.trim()) return 'Add a destination to check hotel availability.'
+  if (!criteria.depart || !criteria.returnDate || criteria.tripType !== 'roundtrip') {
+    return 'Add departure and return dates to check hotel availability.'
+  }
+  if (intent === 'flights') return 'Choose a hotel or flight + hotel search to check hotel availability.'
+  return 'Hotel availability was not checked for this search.'
+}
+
+function inventoryHelperCopy(
+  kind: InventoryKind,
+  status: InventoryStatus,
+  criteria: SearchCriteria,
+  intent: SearchIntent
+): { title: string; body: string; action: 'none' | 'edit' | 'retry-edit' | 'change-dates-hotels' } {
+  if (kind === 'Flights') {
+    if (status === 'checking') {
+      return {
+        title: 'Flights are still checking',
+        body: 'You can keep reviewing hotels while flight availability finishes.',
+        action: 'none',
+      }
+    }
+    if (status === 'empty') {
+      return {
+        title: 'No flights returned',
+        body: 'No flights were returned for this route. Edit the route, dates, or flexibility options.',
+        action: 'edit',
+      }
+    }
+    if (status === 'unavailable') {
+      return {
+        title: 'Flights unavailable',
+        body: 'Flight inventory was not confirmed because a provider is unavailable. Retry this search or edit trip details.',
+        action: 'retry-edit',
+      }
+    }
+    return {
+      title: 'Flights not checked',
+      body: 'Choose a flight or flight + hotel search to check flight availability.',
+      action: 'edit',
+    }
+  }
+
+  if (status === 'checking') {
+    return {
+      title: 'Hotels are still checking',
+      body: 'You can keep reviewing flights while hotel availability finishes.',
+      action: 'none',
+    }
+  }
+  if (status === 'empty') {
+    return {
+      title: 'No hotels returned',
+      body: 'No hotels were returned for these dates. Change dates or broaden the stay area.',
+      action: 'change-dates-hotels',
+    }
+  }
+  if (status === 'unavailable') {
+    return {
+      title: 'Hotels unavailable',
+      body: 'Hotel inventory was not confirmed because the provider is unavailable. Retry this search or edit trip details.',
+      action: 'retry-edit',
+    }
+  }
+  return {
+    title: 'Hotels not checked',
+    body: hotelNotCheckedCopy(criteria, intent),
+    action: 'edit',
+  }
+}
+
 function PriceCalendar({
   prices,
   selected,
@@ -456,13 +643,13 @@ function PriceCalendar({
   const range = max - min || 1
 
   return (
-    <div className="mt-3 rounded-xl border border-white/8 bg-white/2 p-3">
-      <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-gray-600">
+    <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-3">
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[var(--text-3)]">
         Cheapest days - {new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' })}
       </p>
       <div className="grid grid-cols-7 gap-1">
         {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-          <div key={day} className="py-0.5 text-center text-[9px] font-bold text-gray-700">
+          <div key={day} className="py-0.5 text-center text-[9px] font-bold text-[var(--text-3)]">
             {day}
           </div>
         ))}
@@ -486,29 +673,206 @@ function PriceCalendar({
               key={date}
               type="button"
               onClick={() => onSelect(date)}
-              className={`rounded-lg py-1.5 text-center transition-all ${bg} ${
-                isSelected ? 'ring-1 ring-indigo-400' : 'hover:ring-1 hover:ring-white/20'
+              className={`rounded-[var(--radius-control)] py-1.5 text-center transition-all ${bg} ${
+                isSelected ? 'ring-2 ring-[var(--brand)]' : 'hover:ring-1 hover:ring-[var(--border-strong)]'
               }`}
             >
-              <div className="text-[11px] font-medium text-gray-300">
+              <div className="text-[11px] font-bold text-[var(--text-1)]">
                 {new Date(`${date}T12:00`).getDate()}
               </div>
-              {price && <div className="text-[9px] text-gray-500">${Math.round(price / 100)}</div>}
+              {price && <div className="text-[9px] font-semibold text-[var(--text-2)]">${Math.round(price / 100)}</div>}
             </button>
           )
         })}
       </div>
       <div className="mt-2 flex items-center justify-end gap-3">
-        <span className="flex items-center gap-1 text-[9px] text-gray-600">
+        <span className="flex items-center gap-1 text-[9px] font-semibold text-[var(--text-3)]">
           <span className="inline-block h-2 w-2 rounded-sm bg-emerald-500/40" />
           Cheap
         </span>
-        <span className="flex items-center gap-1 text-[9px] text-gray-600">
+        <span className="flex items-center gap-1 text-[9px] font-semibold text-[var(--text-3)]">
           <span className="inline-block h-2 w-2 rounded-sm bg-red-500/30" />
           Expensive
         </span>
       </div>
     </div>
+  )
+}
+
+function SelectedInspirationSummary({
+  selected,
+  passengers,
+}: {
+  selected: SelectedInspiration
+  passengers: number
+}) {
+  const details = [
+    `${selected.originDisplay} to ${selected.item.destinationCity} (${selected.item.destinationIata})`,
+    shortDateRange(selected.depart, selected.returnDate),
+    'Flexible dates',
+    passengers === 1 ? '1 traveler' : `${passengers} travelers`,
+  ].join(' · ')
+
+  return (
+    <div
+      className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--brand-soft)] px-4 py-3 text-sm leading-6 text-[var(--text-2)]"
+      aria-live="polite"
+    >
+      <p className="font-bold text-[var(--text-1)]">Ready to check live fares and hotels for this trip.</p>
+      <p className="mt-1 font-semibold">{details}</p>
+      {selected.fallbackOrigin && (
+        <p className="mt-1 text-xs font-semibold text-[var(--text-3)]">
+          Using New York area as the origin for this idea.
+        </p>
+      )}
+      <p className="mt-1 text-xs font-medium leading-5 text-[var(--text-3)]">
+        The price hint is historical. expaify checks current fares, hotels, and Deal Score after you search.
+      </p>
+    </div>
+  )
+}
+
+function TripInspirationHomeRail({
+  items,
+  hasResolvedOrigin,
+  selected,
+  recentSearches,
+  passengers,
+  error,
+  onSelect,
+  onRecentSearch,
+}: {
+  items: TripInspirationItem[]
+  hasResolvedOrigin: boolean
+  selected: SelectedInspiration | null
+  recentSearches: RecentSearch[]
+  passengers: number
+  error: string | null
+  onSelect: (item: TripInspirationItem) => void
+  onRecentSearch: (recent: RecentSearch) => void
+}) {
+  const heading = hasResolvedOrigin ? 'Trip inspiration' : 'Trip inspiration from major hubs'
+  const body = hasResolvedOrigin
+    ? 'Pick an idea to prefill a live search. Prices are historical hints until you search.'
+    : 'Add your origin for more relevant ideas. These are examples that become live searches after you choose dates.'
+
+  return (
+    <section
+      id="trip-inspiration"
+      aria-labelledby="trip-inspiration-heading"
+      className="mx-auto w-full max-w-7xl px-4 pb-7 sm:px-6 lg:px-8"
+    >
+      <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 id="trip-inspiration-heading" className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--text-3)]">
+            {heading}
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm font-medium leading-6 text-[var(--text-2)]">
+            {body}
+          </p>
+        </div>
+        <p className="text-xs font-semibold text-[var(--text-3)]">Live fares checked after search.</p>
+      </div>
+
+      {error ? (
+        <div
+          className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm font-medium leading-6 text-[var(--text-2)]"
+          role="status"
+        >
+          {error}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm font-medium leading-6 text-[var(--text-2)]">
+          No trip ideas are available for this origin yet. Enter a destination or search anywhere to check live options.
+        </div>
+      ) : (
+        <div className="flex snap-x gap-3 overflow-x-auto pb-2 scrollbar-hide lg:grid lg:grid-cols-4 lg:overflow-visible">
+          {items.map(item => {
+            const isSelected = selected?.item.id === item.id
+            const month = formatSuggestedMonth(item.suggestedMonth)
+            const nightRange = `${item.minNights}-${item.maxNights} nights`
+            const priceLabel = item.priceHintUsd
+              ? `Past low hint: about $${item.priceHintUsd}`
+              : null
+            const accessiblePrice = item.priceHintUsd
+              ? ` Past low hint about ${item.priceHintUsd} dollars, not a live fare.`
+              : ''
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSelect(item)}
+                aria-pressed={isSelected}
+                aria-label={`Use ${item.label} trip to ${item.destinationCity}, ${item.destinationCountry} in ${month} for ${item.minNights} to ${item.maxNights} nights.${accessiblePrice} Checks flights and hotels after search.`}
+                className={`flex min-h-[10.5rem] w-[17rem] max-w-[calc(100vw-2rem)] shrink-0 snap-start flex-col items-start justify-between rounded-[var(--radius-card)] border bg-[var(--bg-raised)] p-4 text-left shadow-[var(--shadow-card)] transition-colors hover:border-[var(--border-hover)] focus-visible:outline-none lg:w-auto lg:min-h-[11rem] ${
+                  isSelected
+                    ? 'border-[var(--brand)] bg-[var(--brand-soft)] shadow-[var(--shadow-lift)]'
+                    : 'border-[var(--border)]'
+                }`}
+              >
+                <span className="flex w-full items-start justify-between gap-2">
+                  <span className="rounded-full bg-[var(--bg-muted)] px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-[var(--text-2)]">
+                    {themeLabel(item.theme)}
+                  </span>
+                  {isSelected && (
+                    <span className="rounded-full bg-[var(--brand)] px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-[var(--text-inverse)]">
+                      Selected
+                    </span>
+                  )}
+                </span>
+                <span className="mt-3 block w-full">
+                  <span className="block font-display text-base font-extrabold leading-tight text-[var(--text-1)]">
+                    {item.label}
+                  </span>
+                  <span className="mt-1 block text-sm font-bold leading-5 text-[var(--text-1)]">
+                    {item.destinationCity}, {item.destinationCountry}
+                  </span>
+                  <span className="mt-1 block text-xs font-semibold leading-5 text-[var(--text-2)]">
+                    {month} · {nightRange}
+                  </span>
+                  {priceLabel && (
+                    <span className="mt-1 block text-xs font-bold leading-5 text-[var(--warning)]">
+                      {priceLabel}
+                    </span>
+                  )}
+                  <span className="mt-1 block text-xs font-semibold leading-5 text-[var(--text-2)]">
+                    Checks flights and hotels
+                  </span>
+                </span>
+                <span className="mt-3 text-xs font-extrabold text-[var(--brand)]">
+                  Use this trip
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {selected && (
+        <div className="mt-4">
+          <SelectedInspirationSummary selected={selected} passengers={passengers} />
+        </div>
+      )}
+
+      {recentSearches.length > 0 && (
+        <div className="mt-5">
+          <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--text-3)]">Recent searches</h3>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {recentSearches.map(recent => (
+              <button
+                key={recent.origin + recent.dest}
+                type="button"
+                onClick={() => onRecentSearch(recent)}
+                className="inline-flex min-h-9 max-w-full items-center rounded-full border border-[var(--border)] bg-[var(--bg-raised)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-2)] transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--brand-soft)] hover:text-[var(--text-1)]"
+              >
+                {recent.originDisplay || recent.origin} → {recent.destDisplay || recent.dest}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -520,11 +884,14 @@ export default function Home() {
   const [dest, setDest] = useState('')
   const [originDisplay, setOriginDisplay] = useState('')
   const [destDisplay, setDestDisplay] = useState('')
+  const [originSelectionSource, setOriginSelectionSource] = useState<AirportSelectionSource | null>(null)
+  const [destSelectionSource, setDestSelectionSource] = useState<AirportSelectionSource | null>(null)
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([])
   const [depart, setDepart] = useState('')
   const [returnDate, setReturnDate] = useState('')
   const [passengers, setPassengers] = useState(1)
   const [flexDates, setFlexDates] = useState(false)
+  const [selectedInspiration, setSelectedInspiration] = useState<SelectedInspiration | null>(null)
   const [flights, setFlights] = useState<NormalizedFare[]>([])
   const [hotels, setHotels] = useState<HotelOffer[]>([])
   const [scores, setScores] = useState<Record<string, DealScore | null>>({})
@@ -549,6 +916,8 @@ export default function Home() {
   const [alertError, setAlertError] = useState<string | null>(null)
   const [calendarPrices, setCalendarPrices] = useState<Record<string, number>>({})
   const progressKey = useRef<number>(0)
+  const previousInventoryAnnouncement = useRef('')
+  const [inventoryAnnouncement, setInventoryAnnouncement] = useState('')
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -569,6 +938,8 @@ export default function Home() {
       setOriginDisplay(rawOrigin)
       setDest('')
       setDestDisplay(rawDest)
+      setOriginSelectionSource(null)
+      setDestSelectionSource(null)
       if (!rawDepart || isValidDateParam(rawDepart)) setDepart(rawDepart)
       if (!rawReturn || isValidDateParam(rawReturn)) setReturnDate(rawReturn)
       if (rawPassengers !== null) setPassengers(rawPassengers)
@@ -589,12 +960,14 @@ export default function Home() {
       setOriginDisplay(parsed.criteria.originDisplay)
       setDest(parsed.criteria.dest)
       setDestDisplay(parsed.criteria.destDisplay)
+      setOriginSelectionSource('resolved')
+      setDestSelectionSource(parsed.criteria.dest ? 'resolved' : null)
       setDepart(parsed.criteria.depart)
       setReturnDate(parsed.criteria.returnDate)
       setPassengers(parsed.criteria.passengers)
       setTripType(parsed.criteria.tripType)
       setFlexDates(parsed.criteria.flexDates)
-      void runSearch(parsed.criteria, { activeTab: parsed.activeTab })
+      setView('form')
     }
   }, [])
 
@@ -700,13 +1073,13 @@ export default function Home() {
       returnDate: searchCriteria.tripType === 'roundtrip' ? searchCriteria.returnDate : '',
     }
     if (!normalized.origin) {
-      setFormError(normalized.originDisplay.trim() ? 'Choose a valid origin airport from the list before searching.' : 'Add an origin to search.')
+      setFormError(normalized.originDisplay.trim() ? 'Choose a valid origin airport from the list.' : 'Add an origin to search.')
       setDateErrors({})
       setView('form')
       return
     }
     if (!normalized.dest && normalized.destDisplay.trim()) {
-      setFormError('Choose a valid destination airport from the list, or clear the destination field to search everywhere.')
+      setFormError('Choose a valid destination airport from the list.')
       setDateErrors({})
       setView('form')
       return
@@ -722,6 +1095,8 @@ export default function Home() {
     setIsSearching(true)
     setFormError(null)
     setDateErrors({})
+    setOriginSelectionSource('selected')
+    if (normalized.dest) setDestSelectionSource('selected')
     const entry = {
       origin: normalized.origin,
       dest: normalized.dest,
@@ -738,7 +1113,7 @@ export default function Home() {
     setError(null)
     setSuggestion(null)
     setProviderNotices([])
-    setHotelAvailability(normalized.dest && normalized.depart && normalized.returnDate && normalized.tripType === 'roundtrip' ? 'loading' : 'skipped')
+    setHotelAvailability(searchIntent !== 'flights' && normalized.dest && normalized.depart && normalized.returnDate && normalized.tripType === 'roundtrip' ? 'loading' : 'skipped')
     setHotelAvailabilityMessage(null)
     setFlights([])
     setHotels([])
@@ -874,10 +1249,10 @@ export default function Home() {
       if (response.ok && data.ok) {
         setAlertSent(true)
       } else {
-        setAlertError(data.ok ? 'Price alert signup is unavailable right now.' : data.reason)
+        setAlertError(data.ok ? 'Price alert signup is unavailable right now. Please try again.' : data.reason || 'Price alert signup is unavailable right now. Please try again.')
       }
     } catch {
-      setAlertError('Network error. Please try again.')
+      setAlertError('Price alert signup is unavailable right now. Please try again.')
     } finally {
       setAlertLoading(false)
     }
@@ -897,7 +1272,65 @@ export default function Home() {
     syncUrl(currentCriteria(), { activeTab: tab })
   }
 
+  function focusDepartField() {
+    window.setTimeout(() => {
+      document.getElementById('depart')?.focus()
+    }, 0)
+  }
+
+  function handleEditSearch(nextIntent?: SearchIntent, focusDates = false) {
+    if (nextIntent) setSearchIntent(nextIntent)
+    setView('form')
+    if (focusDates) focusDepartField()
+  }
+
+  function handleTryFlexibleDates() {
+    const criteria = { ...currentCriteria(), flexDates: true }
+    if (!criteria.depart || (criteria.tripType === 'roundtrip' && !criteria.returnDate)) {
+      handleEditSearch(undefined, true)
+      return
+    }
+
+    setFlexDates(true)
+    void runSearch(criteria, { updateUrl: true, activeTab: 'flights' })
+  }
+
+  function handleSearchAnywhere() {
+    const criteria = {
+      ...currentCriteria(),
+      dest: '',
+      destDisplay: '',
+    }
+    setSelectedInspiration(null)
+    setDest('')
+    setDestDisplay('')
+    setDestSelectionSource(null)
+    void runSearch(criteria, { updateUrl: true, activeTab: 'flights' })
+  }
+
+  function handleTryNearbyOrigin(iata: string) {
+    const criteria = {
+      ...currentCriteria(),
+      origin: iata,
+      originDisplay: iata,
+    }
+    setSelectedInspiration(null)
+    setOrigin(iata)
+    setOriginDisplay(iata)
+    setOriginSelectionSource('selected')
+    void runSearch(criteria, { updateUrl: true, activeTab: 'flights' })
+  }
+
+  function handleHotelChangeDates() {
+    handleEditSearch(activeTab === 'hotels' ? 'hotels' : searchIntent, true)
+  }
+
+  function handleSearchHotelsNearby() {
+    handleEditSearch(searchIntent === 'flights' ? 'hotels' : searchIntent, false)
+  }
+
   function handleSearchIntentChange(intent: SearchIntent) {
+    setSelectedInspiration(null)
     setSearchIntent(intent)
     setFormError(null)
     if (intent !== 'hotels') return
@@ -923,10 +1356,58 @@ export default function Home() {
   function handleSwap() {
     const tmpIata = origin
     const tmpDisplay = originDisplay
+    const tmpSource = originSelectionSource
+    setSelectedInspiration(null)
     setOrigin(dest)
     setOriginDisplay(destDisplay)
+    setOriginSelectionSource(dest ? destSelectionSource : null)
     setDest(tmpIata)
     setDestDisplay(tmpDisplay)
+    setDestSelectionSource(tmpIata ? tmpSource : null)
+  }
+
+  function handleTripInspirationSelect(item: TripInspirationItem) {
+    const fallbackOrigin = !origin.trim()
+    const nextOrigin = fallbackOrigin ? item.originIata : origin
+    const nextOriginDisplay = fallbackOrigin
+      ? originDisplayForInspiration(item.originIata)
+      : originDisplay || originDisplayForInspiration(origin)
+    const nextDepart = firstValidFridayForMonth(item.suggestedMonth)
+    const nextReturnDate = addDaysIso(nextDepart, item.minNights)
+    const nextDestDisplay = `${item.destinationCity} (${item.destinationIata})`
+
+    setOrigin(nextOrigin)
+    setOriginDisplay(nextOriginDisplay)
+    setOriginSelectionSource(nextOrigin ? 'selected' : null)
+    setDest(item.destinationIata)
+    setDestDisplay(nextDestDisplay)
+    setDestSelectionSource('selected')
+    setDepart(nextDepart)
+    setReturnDate(nextReturnDate)
+    setTripType('roundtrip')
+    setFlexDates(true)
+    setSearchIntent('trip')
+    setFormError(null)
+    setDateErrors({})
+    setSelectedInspiration({
+      item,
+      origin: nextOrigin,
+      originDisplay: nextOriginDisplay,
+      depart: nextDepart,
+      returnDate: nextReturnDate,
+      fallbackOrigin,
+    })
+  }
+
+  function handleRecentSearchSelect(recent: RecentSearch) {
+    setSelectedInspiration(null)
+    setOrigin(recent.origin)
+    setDest(recent.dest)
+    setOriginDisplay(recent.originDisplay)
+    setDestDisplay(recent.destDisplay)
+    setOriginSelectionSource(recent.origin ? 'selected' : null)
+    setDestSelectionSource(recent.dest ? 'selected' : null)
+    setFormError(null)
   }
 
   const filteredFlights = useMemo(() => {
@@ -950,6 +1431,10 @@ export default function Home() {
   }, [filteredFlights, sortBy, scores, rankingUpdating])
 
   const routeLabel = [originDisplay || origin, destDisplay || dest].filter(Boolean).join(' → ')
+  const originError = formError === 'Choose a valid origin airport from the list.' ? formError : null
+  const destError = formError === 'Choose a valid destination airport from the list.' ? formError : null
+  const originNearbyAvailable = Boolean(origin && getNearby(origin).length > 0)
+  const destNearbyAvailable = Boolean(dest && getNearby(dest).length > 0)
   const visibleReturnDate = tripType === 'roundtrip' ? returnDate : ''
   const searchSummaryLabel = labelForIntent(searchIntent)
   const resultContext = [
@@ -959,25 +1444,108 @@ export default function Home() {
     passengers === 1 ? '1 traveler' : `${passengers} travelers`,
   ].filter(Boolean).join(' · ')
   const greatCount = Object.values(scores).filter(score => score?.verdict === 'Great').length
-  const hotelsTabDisabled = hotels.length === 0 && ['idle', 'skipped'].includes(hotelAvailability)
+  const submittedCriteria = currentCriteria()
+  const flightProviderIssue = providerNotices.some(notice =>
+    !isHotelNotice(notice) && (notice.status === 'unavailable' || notice.status === 'malformed_response')
+  )
+  const flightStatus: InventoryStatus = flights.length > 0
+    ? 'available'
+    : searchIntent === 'hotels'
+      ? 'not_checked'
+      : isSearching
+        ? 'checking'
+        : flightProviderIssue
+          ? 'unavailable'
+          : 'empty'
+  const hotelDetailsMissing = !dest.trim() || !depart || !returnDate || tripType !== 'roundtrip'
+  const hotelStatus: InventoryStatus = hotels.length > 0
+    ? 'available'
+    : searchIntent === 'flights' || hotelAvailability === 'skipped' || hotelDetailsMissing
+      ? 'not_checked'
+      : isSearching && hotelAvailability === 'loading'
+        ? 'checking'
+        : hotelAvailability === 'unavailable'
+          ? 'unavailable'
+          : hotelAvailability === 'empty'
+            ? 'empty'
+            : 'not_checked'
+  const inventoryStatuses: Record<ActiveTab, InventoryStatus> = {
+    flights: flightStatus,
+    hotels: hotelStatus,
+  }
+  const inventoryCounts: Record<ActiveTab, number> = {
+    flights: flights.length,
+    hotels: hotels.length,
+  }
+  const inventoryKinds: Record<ActiveTab, InventoryKind> = {
+    flights: 'Flights',
+    hotels: 'Hotels',
+  }
+  const flightSummary = inventorySummary('Flights', flightStatus, flights.length)
+  const hotelSummary = inventorySummary('Hotels', hotelStatus, hotels.length)
+  const travelerSummary = passengers === 1 ? '1 traveler' : `${passengers} travelers`
+  const resultInventorySummary = `${flightSummary} · ${hotelSummary} · ${travelerSummary}`
+  const inactiveTab: ActiveTab = activeTab === 'flights' ? 'hotels' : 'flights'
+  const inactiveStatus = inventoryStatuses[inactiveTab]
+  const inactiveHelper = inactiveStatus === 'available'
+    ? null
+    : inventoryHelperCopy(inventoryKinds[inactiveTab], inactiveStatus, submittedCriteria, searchIntent)
   const hotelUnavailableCopy =
-    hotelAvailability === 'unavailable'
-      ? hotelAvailabilityMessage ?? 'The hotel provider is unavailable right now.'
-      : hotelAvailability === 'skipped'
-        ? !dest.trim()
-          ? 'Add a destination to check hotel availability.'
-          : !depart || !returnDate || tripType !== 'roundtrip'
-            ? 'Add departure and return dates to check hotel availability.'
-            : hotelAvailabilityMessage ?? 'Hotel availability was not checked for this search.'
-        : hotelAvailability === 'empty'
-          ? hotelAvailabilityMessage ?? 'No hotels were returned for these dates.'
+    hotelStatus === 'unavailable'
+      ? 'Hotel inventory was not confirmed because the provider is unavailable. Retry this search or edit trip details.'
+      : hotelStatus === 'not_checked'
+        ? hotelNotCheckedCopy(submittedCriteria, searchIntent)
+        : hotelStatus === 'empty'
+          ? hotelAvailabilityMessage ?? 'No hotels were returned for these dates. Change dates or broaden the stay area.'
           : 'Hotel availability is still loading.'
   const hotelEmptyTitle =
-    hotelAvailability === 'empty'
-      ? 'No hotel inventory found'
-      : hotelAvailability === 'unavailable'
+    hotelStatus === 'empty'
+      ? 'No hotels returned'
+      : hotelStatus === 'unavailable'
         ? 'Hotels unavailable'
-        : 'Hotel dates needed'
+        : !dest.trim()
+          ? 'Hotel destination needed'
+          : (!depart || !returnDate || tripType !== 'roundtrip')
+            ? 'Hotel dates needed'
+            : 'Hotels not checked'
+  const inspirationOrigin = selectedInspiration?.fallbackOrigin ? '' : origin
+  const inspirationState = useMemo(() => {
+    try {
+      return { items: getTripInspiration(inspirationOrigin), error: null as string | null }
+    } catch {
+      return { items: [] as TripInspirationItem[], error: 'Trip ideas are unavailable right now. You can still search live fares and hotels.' }
+    }
+  }, [inspirationOrigin])
+
+  useEffect(() => {
+    if (view !== 'results' || error) return
+
+    const nextAnnouncement = [
+      liveInventoryLabel('Flights', flightStatus, flights.length),
+      liveInventoryLabel('Hotels', hotelStatus, hotels.length),
+    ].join('. ')
+
+    if (previousInventoryAnnouncement.current && previousInventoryAnnouncement.current !== nextAnnouncement) {
+      setInventoryAnnouncement(nextAnnouncement)
+    }
+    previousInventoryAnnouncement.current = nextAnnouncement
+  }, [error, flightStatus, flights.length, hotelStatus, hotels.length, view])
+
+  function handleInventoryTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, tab: ActiveTab) {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+
+    event.preventDefault()
+    const tabs: ActiveTab[] = ['flights', 'hotels']
+    const direction = event.key === 'ArrowRight' ? 1 : -1
+    const currentIndex = tabs.indexOf(tab)
+    const nextTab = tabs[(currentIndex + direction + tabs.length) % tabs.length]
+    const nextDisabled = inventoryStatuses[nextTab] === 'not_checked' && activeTab !== nextTab
+
+    if (!nextDisabled) {
+      handleActiveTabChange(nextTab)
+      window.setTimeout(() => document.getElementById(`${nextTab}-results-tab`)?.focus(), 0)
+    }
+  }
 
   if (view === 'form') {
     return (
@@ -997,8 +1565,8 @@ export default function Home() {
             </div>
           </header>
 
-          <div className="grid flex-1 items-start gap-8 py-8 lg:grid-cols-[minmax(0,0.86fr)_minmax(620px,1.14fr)] lg:items-center lg:py-10">
-            <section className="max-w-xl animate-fade-up">
+          <div className="grid flex-1 items-start gap-4 py-4 sm:gap-8 sm:py-8 lg:grid-cols-[minmax(0,0.86fr)_minmax(620px,1.14fr)] lg:items-center lg:py-10">
+            <section className="hidden max-w-xl animate-fade-up lg:block">
               <h1 className="font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-950 lg:text-6xl">
                 Find flight deals.
               </h1>
@@ -1007,28 +1575,28 @@ export default function Home() {
               </p>
             </section>
 
-            <section className="animate-fade-up delay-75 rounded-[1.75rem] border border-slate-200 bg-white p-3 shadow-[0_24px_70px_rgba(15,23,42,0.13)] sm:p-4">
+            <section className="animate-fade-up delay-75 rounded-[1rem] border border-[var(--border)] bg-[var(--bg-raised)] p-3 shadow-[var(--shadow-card)] sm:rounded-[1.75rem] sm:p-4 sm:shadow-[0_24px_70px_rgba(15,23,42,0.13)]">
               <div className="mb-3 px-1 pt-1 sm:px-2">
-                <h2 className="font-display text-base font-extrabold tracking-tight text-slate-950">Search</h2>
+                <h1 className="font-display text-base font-extrabold tracking-tight text-[var(--text-1)] lg:text-lg">Search</h1>
               </div>
 
-              <fieldset className="mb-4">
+              <fieldset className="mb-3 sm:mb-4">
                 <legend className="sr-only">Search intent</legend>
-                <div className="grid grid-cols-1 gap-2 rounded-2xl bg-slate-100 p-1 sm:grid-cols-3">
+                <div className="grid grid-cols-3 gap-1 rounded-[var(--radius-control)] bg-[var(--bg-muted)] p-1">
                   {searchIntentOptions.map(option => (
                     <button
                       key={option.value}
                       type="button"
                       onClick={() => handleSearchIntentChange(option.value)}
                       aria-pressed={searchIntent === option.value}
-                      className={`min-h-[4.25rem] rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none ${
+                      className={`min-h-10 rounded-[var(--radius-control)] border px-2 py-2 text-center text-[0.8125rem] font-bold leading-4 transition-colors focus-visible:outline-none sm:min-h-[4.25rem] sm:px-3 sm:py-2.5 sm:text-left sm:text-sm ${
                         searchIntent === option.value
-                          ? 'border-white bg-white text-slate-950 shadow-sm'
-                          : 'border-transparent text-slate-500 hover:text-slate-800'
+                          ? 'border-[var(--border)] bg-[var(--bg-raised)] text-[var(--text-1)] shadow-sm'
+                          : 'border-transparent text-[var(--text-2)] hover:text-[var(--text-1)]'
                       }`}
                     >
-                      <span className="block text-sm font-extrabold">{option.label}</span>
-                      <span className="mt-0.5 block text-xs font-semibold leading-4 text-slate-500">
+                      <span className="block">{option.label}</span>
+                      <span className="mt-0.5 hidden text-xs font-semibold leading-4 text-[var(--text-3)] sm:block">
                         {option.description}
                       </span>
                     </button>
@@ -1036,20 +1604,20 @@ export default function Home() {
                 </div>
               </fieldset>
 
-              <form onSubmit={handleSearch} className="space-y-4">
+              <form onSubmit={handleSearch} className="space-y-3 sm:space-y-4">
                 <fieldset>
                   <legend className="sr-only">Trip type</legend>
-                  <div className="flex rounded-2xl bg-slate-100 p-1">
+                  <div className="flex rounded-[var(--radius-control)] bg-[var(--bg-muted)] p-1">
                     {(['roundtrip', 'oneway'] as TripType[]).map(type => (
                       <button
                         key={type}
                         type="button"
-                        onClick={() => { setTripType(type); setFormError(null) }}
+                        onClick={() => { setTripType(type); setSelectedInspiration(null); setFormError(null) }}
                         aria-pressed={tripType === type}
-                        className={`min-h-11 flex-1 rounded-xl border px-3 py-2 text-sm font-bold transition-colors ${
+                        className={`min-h-10 flex-1 rounded-[var(--radius-control)] border px-3 py-2 text-sm font-bold transition-colors sm:min-h-11 ${
                           tripType === type
-                            ? 'border-white bg-white text-slate-950 shadow-sm'
-                            : 'border-transparent text-slate-500 hover:text-slate-800'
+                            ? 'border-[var(--border)] bg-[var(--bg-raised)] text-[var(--text-1)] shadow-sm'
+                            : 'border-transparent text-[var(--text-2)] hover:text-[var(--text-1)]'
                         }`}
                       >
                         {type === 'roundtrip' ? 'Round trip' : 'One way'}
@@ -1058,16 +1626,19 @@ export default function Home() {
                   </div>
                 </fieldset>
 
-                <div className="grid grid-cols-1 items-end gap-3 lg:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)]">
+                <div className="grid grid-cols-1 items-end gap-2 sm:gap-3 lg:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)]">
                 <div>
-                  <label htmlFor="origin" className="sr-only">From</label>
+                  <label htmlFor="origin" className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">From</label>
                   <AirportInput
                     id="origin"
                     value={origin}
                     displayValue={originDisplay}
-                    onChange={(iata, display) => { setOrigin(iata); setOriginDisplay(display); setFormError(null); setDateErrors({}) }}
-                    placeholder="City or airport code"
+                    onChange={(iata, display) => { setSelectedInspiration(null); setOrigin(iata); setOriginDisplay(display); setOriginSelectionSource(iata ? 'selected' : null); setFormError(null); setDateErrors({}) }}
+                    placeholder="City or airport"
                     required
+                    selectionKind={originSelectionSource}
+                    error={originError}
+                    nearbyAvailable={originNearbyAvailable}
                   />
                 </div>
 
@@ -1075,44 +1646,48 @@ export default function Home() {
                   type="button"
                   onClick={handleSwap}
                   aria-label="Swap origin and destination"
-                    className="mx-auto flex h-11 w-11 rotate-90 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 lg:rotate-0"
+                    className="mx-auto flex h-10 w-10 rotate-90 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-2)] transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--brand-soft)] hover:text-[var(--brand)] sm:h-11 sm:w-11 lg:rotate-0"
                 >
                   <IconSwap />
                 </button>
 
                 <div>
-                  <label htmlFor="dest" className="sr-only">To</label>
+                  <label htmlFor="dest" className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">To</label>
                   <AirportInput
                     id="dest"
                     value={dest}
                     displayValue={destDisplay}
-                    onChange={(iata, display) => { setDest(iata); setDestDisplay(display); setFormError(null); setDateErrors({}) }}
-                    placeholder="Anywhere"
+                    onChange={(iata, display) => { setSelectedInspiration(null); setDest(iata); setDestDisplay(display); setDestSelectionSource(iata ? 'selected' : null); setFormError(null); setDateErrors({}) }}
+                    placeholder="City or airport"
+                    selectionKind={destSelectionSource}
+                    error={destError}
+                    nearbyAvailable={destNearbyAvailable}
                   />
                 </div>
               </div>
 
-                <div className={`grid gap-3 ${tripType === 'roundtrip' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                <div className={`grid gap-2 sm:gap-3 ${tripType === 'roundtrip' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
                 <div>
-                  <label className="sr-only">Depart</label>
+                  <label htmlFor="depart" className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">Depart</label>
                   <div className="relative">
-                      <IconCalendar className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <IconCalendar className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-3)]" />
                     <input
+                      id="depart"
                       type="date"
                       value={depart}
                       min={todayIso()}
                       aria-invalid={dateErrors.depart ? 'true' : 'false'}
                       aria-describedby={dateErrors.depart ? 'depart-error' : undefined}
-                      onChange={event => { setDepart(event.target.value); setFormError(null); setDateErrors(prev => ({ ...prev, depart: undefined })) }}
-                      className={`min-h-[3.25rem] w-full rounded-[0.875rem] border bg-slate-50 py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-slate-950 transition-[border-color,box-shadow,background] [color-scheme:light] focus:bg-white focus:outline-none focus:ring-4 ${
+                      onChange={event => { setSelectedInspiration(null); setDepart(event.target.value); setFormError(null); setDateErrors(prev => ({ ...prev, depart: undefined })) }}
+                      className={`min-h-[3.25rem] w-full rounded-[var(--radius-control)] border bg-[var(--bg-surface)] py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-[var(--text-1)] transition-[border-color,box-shadow,background] [color-scheme:light] focus:bg-[var(--bg-raised)] focus:outline-none focus:ring-4 ${
                         dateErrors.depart
-                          ? 'border-slate-300 focus:border-slate-400 focus:ring-slate-400/10'
-                          : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'
+                          ? 'border-[var(--border-strong)] focus:border-[var(--border-strong)] focus:ring-[var(--error-soft)]'
+                          : 'border-[var(--border)] focus:border-[var(--border-focus)] focus:ring-indigo-500/10'
                       }`}
                     />
                   </div>
                   {dateErrors.depart && (
-                    <p id="depart-error" className="mt-1.5 px-1 text-xs font-semibold leading-5 text-slate-500" role="alert">
+                    <p id="depart-error" className="mt-1.5 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--error-soft)] px-3 py-2 text-sm font-semibold leading-5 text-[var(--error)]" role="alert">
                       {dateErrors.depart}
                     </p>
                   )}
@@ -1120,25 +1695,26 @@ export default function Home() {
 
                 {tripType === 'roundtrip' && (
                   <div>
-                    <label className="sr-only">Return</label>
+                    <label htmlFor="return-date" className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">Return</label>
                     <div className="relative">
-                        <IconCalendar className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <IconCalendar className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-3)]" />
                       <input
+                        id="return-date"
                         type="date"
                         value={returnDate}
                         min={depart || todayIso()}
                         aria-invalid={dateErrors.returnDate ? 'true' : 'false'}
                         aria-describedby={dateErrors.returnDate ? 'return-date-error' : undefined}
-                        onChange={event => { setReturnDate(event.target.value); setFormError(null); setDateErrors(prev => ({ ...prev, returnDate: undefined })) }}
-                        className={`min-h-[3.25rem] w-full rounded-[0.875rem] border bg-slate-50 py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-slate-950 transition-[border-color,box-shadow,background] [color-scheme:light] focus:bg-white focus:outline-none focus:ring-4 ${
+                        onChange={event => { setSelectedInspiration(null); setReturnDate(event.target.value); setFormError(null); setDateErrors(prev => ({ ...prev, returnDate: undefined })) }}
+                        className={`min-h-[3.25rem] w-full rounded-[var(--radius-control)] border bg-[var(--bg-surface)] py-3.5 pl-11 pr-4 text-[0.9375rem] font-semibold text-[var(--text-1)] transition-[border-color,box-shadow,background] [color-scheme:light] focus:bg-[var(--bg-raised)] focus:outline-none focus:ring-4 ${
                           dateErrors.returnDate
-                            ? 'border-slate-300 focus:border-slate-400 focus:ring-slate-400/10'
-                            : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'
+                            ? 'border-[var(--border-strong)] focus:border-[var(--border-strong)] focus:ring-[var(--error-soft)]'
+                            : 'border-[var(--border)] focus:border-[var(--border-focus)] focus:ring-indigo-500/10'
                         }`}
                       />
                     </div>
                     {dateErrors.returnDate && (
-                      <p id="return-date-error" className="mt-1.5 px-1 text-xs font-semibold leading-5 text-slate-500" role="alert">
+                      <p id="return-date-error" className="mt-1.5 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--error-soft)] px-3 py-2 text-sm font-semibold leading-5 text-[var(--error)]" role="alert">
                         {dateErrors.returnDate}
                       </p>
                     )}
@@ -1146,44 +1722,41 @@ export default function Home() {
                 )}
               </div>
 
-              {Object.keys(calendarPrices).length > 0 && (
-                <PriceCalendar prices={calendarPrices} selected={depart} onSelect={setDepart} />
-              )}
-
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.7fr)]">
-                  <label className="flex min-h-14 cursor-pointer select-none items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4">
-                    <span>
-                      <span className="block text-sm font-bold text-slate-900">Flexible dates</span>
-                      <span className="block text-xs font-medium text-slate-500">Search nearby dates when possible</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex min-h-11 cursor-pointer select-none items-center justify-between gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-left text-sm font-semibold text-[var(--text-1)] sm:min-h-14 sm:px-4">
+                    <span className="min-w-0">
+                      <span className="block text-xs leading-4 sm:text-sm sm:leading-5">{flexDates ? 'Flexible dates on' : 'Flexible dates off'}</span>
+                      <span className="hidden text-xs font-medium text-[var(--text-3)] sm:block">Search nearby dates when possible</span>
                     </span>
                     <input
                       type="checkbox"
+                      aria-label="Flexible dates"
                       checked={flexDates}
-                      onChange={e => setFlexDates(e.target.checked)}
+                      onChange={e => { setSelectedInspiration(null); setFlexDates(e.target.checked) }}
                       className="h-5 w-5 rounded border-slate-300 bg-white accent-indigo-600"
                     />
                   </label>
 
-                  <div className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4">
-                    <span>
-                      <span className="block text-sm font-bold text-slate-900">Passengers</span>
-                      <span className="block text-xs font-medium text-slate-500">{passengers === 1 ? '1 traveler' : `${passengers} travelers`}</span>
+                  <div className="flex min-h-11 items-center justify-between gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm font-semibold text-[var(--text-1)] sm:min-h-14 sm:px-4">
+                    <span className="min-w-0">
+                      <span className="block text-xs leading-4 sm:text-sm sm:leading-5">{passengers === 1 ? '1 traveler' : `${passengers} travelers`}</span>
+                      <span className="hidden text-xs font-medium text-[var(--text-3)] sm:block">Passengers</span>
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-1 sm:gap-2">
                       <button
                         type="button"
                         onClick={() => { setPassengers(p => Math.max(1, p - 1)); setFormError(null) }}
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-bold text-slate-700 transition-colors hover:border-slate-300 disabled:opacity-35"
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-raised)] text-base font-bold text-[var(--text-2)] transition-colors hover:border-[var(--border-strong)] disabled:opacity-35 sm:h-9 sm:w-9"
                         disabled={passengers <= 1}
                         aria-label="Remove passenger"
                       >
                         -
                       </button>
-                      <span className="w-5 text-center text-sm font-extrabold tabular-nums text-slate-950">{passengers}</span>
+                      <span className="w-4 text-center text-sm font-extrabold tabular-nums text-[var(--text-1)] sm:w-5">{passengers}</span>
                       <button
                         type="button"
                         onClick={() => { setPassengers(p => Math.min(9, p + 1)); setFormError(null) }}
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-bold text-slate-700 transition-colors hover:border-slate-300 disabled:opacity-35"
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-raised)] text-base font-bold text-[var(--text-2)] transition-colors hover:border-[var(--border-strong)] disabled:opacity-35 sm:h-9 sm:w-9"
                         disabled={passengers >= 9}
                         aria-label="Add passenger"
                       >
@@ -1194,7 +1767,7 @@ export default function Home() {
                 </div>
 
                 {formError && (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-6 text-slate-600" role="alert">
+                  <div className="rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--error-soft)] px-3 py-2 text-sm font-semibold leading-5 text-[var(--error)]" role="alert">
                     {formError}
                   </div>
                 )}
@@ -1216,60 +1789,28 @@ export default function Home() {
                   </>
                 )}
               </button>
+              {Object.keys(calendarPrices).length > 0 && (
+                <section className="space-y-2" aria-labelledby="fare-calendar-heading">
+                  <h2 id="fare-calendar-heading" className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-3)]">
+                    Fare calendar
+                  </h2>
+                  <PriceCalendar prices={calendarPrices} selected={depart} onSelect={setDepart} />
+                </section>
+              )}
             </form>
           </section>
           </div>
 
-          <section id="route-suggestions" className="pb-7 animate-fade-up delay-150">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">Route suggestions</h2>
-              {recentSearches.length > 0 && (
-                <span className="text-xs font-semibold text-slate-400">Recent searches saved locally</span>
-              )}
-            </div>
-            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-            {destinations.map(destination => (
-              <button
-                key={destination.label}
-                type="button"
-                onClick={() => {
-                  setOrigin(destination.origin)
-                  setOriginDisplay(destination.originDisplay)
-                  setDest(destination.dest)
-                  setDestDisplay(destination.destDisplay)
-                  setFormError(null)
-                }}
-                  className="group flex min-h-[5.5rem] w-[15.5rem] flex-shrink-0 flex-col items-start justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50/50"
-              >
-                  <span className="text-sm font-extrabold text-slate-950 transition-colors group-hover:text-indigo-800">{destination.label}</span>
-                  <span className="text-xs font-medium text-slate-500">{destination.meta}</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">{destination.tag}</span>
-              </button>
-            ))}
-            </div>
-
-          {recentSearches.length > 0 && (
-              <div className="mt-4 flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Recent</span>
-              {recentSearches.map(r => (
-                <button
-                  key={r.origin + r.dest}
-                  type="button"
-                  onClick={() => {
-                    setOrigin(r.origin)
-                    setDest(r.dest)
-                    setOriginDisplay(r.originDisplay)
-                    setDestDisplay(r.destDisplay)
-                    setFormError(null)
-                  }}
-                    className="inline-flex min-h-9 max-w-full items-center rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-900"
-                >
-                  {r.originDisplay || r.origin} → {r.destDisplay || r.dest}
-                </button>
-              ))}
-            </div>
-          )}
-          </section>
+          <TripInspirationHomeRail
+            items={inspirationState.items}
+            hasResolvedOrigin={Boolean(origin.trim()) && !selectedInspiration?.fallbackOrigin}
+            selected={selectedInspiration}
+            recentSearches={recentSearches}
+            passengers={passengers}
+            error={inspirationState.error}
+            onSelect={handleTripInspirationSelect}
+            onRecentSearch={handleRecentSearchSelect}
+          />
           <SiteFooter variant="light" />
         </div>
       </main>
@@ -1337,7 +1878,7 @@ export default function Home() {
                 {searchSummaryLabel} · {routeLabel || 'Anywhere'}
               </p>
               <p className="mt-0.5 text-xs font-medium text-gray-500">
-                {flights.length} flight{flights.length === 1 ? '' : 's'} · {hotels.length} hotel{hotels.length === 1 ? '' : 's'} · {passengers === 1 ? '1 traveler' : `${passengers} travelers`}
+                {resultInventorySummary}
               </p>
               {greatCount > 0 && (
                 <p className="mt-0.5 text-xs font-semibold text-emerald-400">
@@ -1403,33 +1944,49 @@ export default function Home() {
 
         {!error && (
           <>
-            <div className="mb-6 flex overflow-x-auto border-b border-white/8 scrollbar-hide">
+            <div className="sr-only" aria-live="polite" aria-atomic="true">
+              {inventoryAnnouncement}
+            </div>
+
+            <div
+              className="mb-6 grid grid-cols-2 border-b border-white/8 sm:flex sm:overflow-x-auto scrollbar-hide"
+              role="tablist"
+              aria-label="Search result inventory"
+            >
               {(['flights', 'hotels'] as ActiveTab[]).map(tab => {
-                const count = tab === 'flights' ? flights.length : hotels.length
                 const active = activeTab === tab
-                const disabled = tab === 'hotels' && hotelsTabDisabled && activeTab !== 'hotels'
+                const status = inventoryStatuses[tab]
+                const count = inventoryCounts[tab]
+                const kind = inventoryKinds[tab]
+                const disabled = status === 'not_checked' && !active
+                const notCheckedReason = tab === 'hotels'
+                  ? hotelNotCheckedCopy(submittedCriteria, searchIntent).replace(/\.$/, '').toLowerCase()
+                  : 'choose a flight or flight + hotel search'
                 return (
                   <button
                     key={tab}
+                    id={`${tab}-results-tab`}
                     type="button"
+                    role="tab"
+                    aria-selected={active}
+                    aria-controls={`${tab}-results-panel`}
+                    aria-label={inventoryAriaLabel(kind, status, count, status === 'not_checked' ? notCheckedReason : undefined)}
+                    tabIndex={active ? 0 : -1}
                     onClick={() => {
                       if (!disabled) handleActiveTabChange(tab)
                     }}
+                    onKeyDown={event => handleInventoryTabKeyDown(event, tab)}
                     disabled={disabled}
                     aria-disabled={disabled}
-                    className={`relative min-h-11 flex-shrink-0 px-4 py-3 text-sm font-bold capitalize transition-colors sm:px-5 ${
+                    className={`relative min-h-14 px-3 py-3 text-left text-sm font-bold transition-colors focus-visible:outline-none sm:min-h-11 sm:px-5 ${
                       disabled
                         ? 'cursor-not-allowed text-gray-700'
                         : active ? 'text-gray-100' : 'text-gray-600 hover:text-gray-300'
                     }`}
                   >
-                    {tab}
-                    <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
-                      disabled
-                        ? 'bg-white/[0.03] text-gray-700'
-                        : active ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/5 text-gray-600'
-                    }`}>
-                      {disabled ? 'Unavailable' : count}
+                    <span className="block sm:inline">{kind}</span>
+                    <span className={`mt-1 inline-flex w-fit items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold sm:ml-2 sm:mt-0 ${statusBadgeClass(status, active)}`}>
+                      {inventoryBadge(status, count)}
                     </span>
                     {active && (
                       <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-t-full bg-indigo-400" />
@@ -1439,44 +1996,84 @@ export default function Home() {
               })}
             </div>
 
-            {hotelsTabDisabled && activeTab !== 'hotels' && !isSearching && (
-              <div className="mb-6 rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-gray-500">
-                <p className="font-semibold text-gray-300">Hotel results need more trip details.</p>
-                <p className="mt-0.5">{hotelUnavailableCopy}</p>
+            {inactiveHelper && (
+              <div className="mb-6 rounded-[var(--radius-card)] border border-white/8 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-gray-500">
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-300">{inactiveHelper.title}</p>
+                    <p className="mt-0.5">{inactiveHelper.body}</p>
+                  </div>
+                  {inactiveHelper.action !== 'none' && (
+                    <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
+                      {(inactiveHelper.action === 'retry-edit') && (
+                        <button
+                          type="button"
+                          onClick={() => void runSearch()}
+                          className="btn-primary min-h-11 justify-center px-4 py-2.5 text-sm"
+                        >
+                          Retry search
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={inactiveHelper.action === 'change-dates-hotels' ? handleHotelChangeDates : () => handleEditSearch()}
+                        className={`${inactiveHelper.action === 'retry-edit' ? 'btn-pill' : 'btn-primary'} min-h-11 justify-center px-4 py-2.5 text-sm`}
+                      >
+                        {inactiveHelper.action === 'change-dates-hotels' ? 'Change dates' : inactiveHelper.action === 'retry-edit' ? 'Edit search' : 'Edit search'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
             {activeTab === 'flights' && (
-              <FlightResults
-                flights={flights}
-                displayFlights={displayFlights}
-                isSearching={isSearching}
-                sortBy={sortBy}
-                setSortBy={setSortByAndUrl}
-                filterStops={filterStops}
-                setFilterStops={setFilterStopsAndUrl}
-                scores={scores}
-                scoreLoading={scoreLoading}
-                rankingUpdating={rankingUpdating}
-                suggestion={suggestion}
-                providerNotices={providerNotices}
-                dest={dest}
-                depart={depart}
-                returnDate={returnDate}
-                tripType={tripType}
-                alertEmail={alertEmail}
-                setAlertEmail={setAlertEmail}
-                alertSent={alertSent}
-                alertLoading={alertLoading}
-                alertError={alertError}
-                handleAlertSubmit={handleAlertSubmit}
-                onEditSearch={() => setView('form')}
-                onRetrySearch={() => void runSearch()}
-              />
+              <section
+                id="flights-results-panel"
+                role="tabpanel"
+                aria-labelledby="flights-results-tab"
+              >
+                <FlightResults
+                  flights={flights}
+                  displayFlights={displayFlights}
+                  isSearching={isSearching}
+                  sortBy={sortBy}
+                  setSortBy={setSortByAndUrl}
+                  filterStops={filterStops}
+                  setFilterStops={setFilterStopsAndUrl}
+                  scores={scores}
+                  scoreLoading={scoreLoading}
+                  rankingUpdating={rankingUpdating}
+                  suggestion={suggestion}
+                  providerNotices={providerNotices}
+                  origin={origin}
+                  dest={dest}
+                  depart={depart}
+                  returnDate={returnDate}
+                  tripType={tripType}
+                  flexDates={flexDates}
+                  searchContext={resultContext}
+                  alertEmail={alertEmail}
+                  setAlertEmail={setAlertEmail}
+                  alertSent={alertSent}
+                  alertLoading={alertLoading}
+                  alertError={alertError}
+                  handleAlertSubmit={handleAlertSubmit}
+                  onEditSearch={() => handleEditSearch()}
+                  onRetrySearch={() => void runSearch()}
+                  onTryFlexibleDates={handleTryFlexibleDates}
+                  onSearchAnywhere={handleSearchAnywhere}
+                  onTryNearbyOrigin={handleTryNearbyOrigin}
+                />
+              </section>
             )}
 
             {activeTab === 'hotels' && (
-              <>
+              <section
+                id="hotels-results-panel"
+                role="tabpanel"
+                aria-labelledby="hotels-results-tab"
+              >
                 {isSearching ? (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {hotels.map((hotel, index) => (
@@ -1496,21 +2093,67 @@ export default function Home() {
                   <ResultsStatePanel
                     eyebrow="Hotel results"
                     title={hotelEmptyTitle}
-                    tone={hotelAvailability === 'unavailable' ? 'warning' : 'default'}
+                    tone={hotelStatus === 'unavailable' ? 'warning' : 'default'}
                     action={(
                       <button
                         type="button"
-                        onClick={() => setView('form')}
+                        onClick={
+                          hotelStatus === 'unavailable'
+                            ? () => void runSearch()
+                            : hotelStatus === 'empty'
+                              ? handleHotelChangeDates
+                              : () => handleEditSearch()
+                        }
                         className="btn-primary min-h-11 px-4 py-2.5 text-sm"
+                      >
+                        {hotelStatus === 'unavailable'
+                          ? 'Retry search'
+                          : hotelStatus === 'empty'
+                            ? 'Change dates'
+                            : 'Edit search'}
+                      </button>
+                    )}
+                    secondaryAction={hotelStatus === 'empty' ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleSearchHotelsNearby}
+                          className="btn-pill min-h-11 w-full justify-center px-4 py-2.5 text-sm"
+                        >
+                          Search hotels nearby
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEditSearch()}
+                          className="btn-pill min-h-11 w-full justify-center px-4 py-2.5 text-sm"
+                        >
+                          Edit search
+                        </button>
+                      </>
+                    ) : hotelStatus === 'unavailable' ? (
+                      <button
+                        type="button"
+                        onClick={() => handleEditSearch()}
+                        className="btn-pill min-h-11 w-full justify-center px-4 py-2.5 text-sm"
                       >
                         Edit search
                       </button>
-                    )}
+                    ) : null}
                   >
                     <p>{hotelUnavailableCopy}</p>
                     <p className="mt-2 text-xs font-medium leading-5 text-[var(--text-3)]">
                       {resultContext}
                     </p>
+                    {hotelStatus === 'empty' && (
+                      <p className="mt-3 text-xs font-medium leading-5 text-[var(--text-3)]">
+                        Search hotels nearby keeps your destination and dates ready to broaden the stay area from the form.
+                      </p>
+                    )}
+                    {hotelStatus === 'unavailable' && hotelAvailabilityMessage && (
+                      <p className="mt-3 text-xs font-medium leading-5 text-[var(--text-3)]">
+                        {hotelAvailabilityMessage}
+                      </p>
+                    )}
                   </ResultsStatePanel>
                 ) : (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1525,7 +2168,7 @@ export default function Home() {
                     ))}
                   </div>
                 )}
-              </>
+              </section>
             )}
           </>
         )}

@@ -1,4 +1,4 @@
-import type { HotelOffer, NormalizedFare } from '../types';
+import type { HotelLocation, HotelLocationPrecision, HotelOffer, NormalizedFare } from '../types';
 
 export type BookingFareContext = {
   offerId: string;
@@ -21,6 +21,7 @@ export type BookingHotelContext = {
   provider: string;
   name: string;
   area?: string;
+  location?: HotelLocation;
   priceCents: number;
   currency: string;
   priceBasis: 'per_night_before_taxes_fees';
@@ -31,7 +32,17 @@ export const BOOKING_FORM_PASSENGER_LIMIT = 1;
 
 type SearchParams = Record<string, string | string[] | undefined>;
 type FareContextInput = Partial<Record<keyof BookingFareContext, unknown>>;
-type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>>;
+type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
+  locationPrecision?: unknown;
+  locationLabel?: unknown;
+  locationAddress?: unknown;
+  locationLat?: unknown;
+  locationLng?: unknown;
+  locationDistanceValue?: unknown;
+  locationDistanceUnit?: unknown;
+  locationDistanceReferencePoint?: unknown;
+  locationProviderName?: unknown;
+};
 
 export function isBookingEnabled(): boolean {
   return process.env.BOOKING_ENABLED === 'true';
@@ -69,6 +80,27 @@ function parseInteger(value: unknown): number | null {
   return null;
 }
 
+function parseNumber(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function parseOptionalNumber(value: unknown): number | undefined | null {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'string' && value.trim() === '') return undefined;
+
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function isAirportCode(value: string): boolean {
   return /^[A-Z]{3}$/.test(value);
 }
@@ -88,6 +120,88 @@ function isSafeProviderUrl(value: string): boolean {
 
 function isValidDateInput(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}(T.+)?$/.test(value) && !Number.isNaN(new Date(value).getTime());
+}
+
+function isLocationPrecision(value: string): value is HotelLocationPrecision {
+  return value === 'exact' ||
+    value === 'coordinates' ||
+    value === 'area' ||
+    value === 'search_area' ||
+    value === 'missing';
+}
+
+function parseLatitude(value: unknown): number | undefined | null {
+  const parsed = parseOptionalNumber(value);
+  if (parsed === undefined || parsed === null) return parsed;
+  return parsed >= -90 && parsed <= 90 ? parsed : null;
+}
+
+function parseLongitude(value: unknown): number | undefined | null {
+  const parsed = parseOptionalNumber(value);
+  if (parsed === undefined || parsed === null) return parsed;
+  return parsed >= -180 && parsed <= 180 ? parsed : null;
+}
+
+function validateHotelLocation(input: HotelContextInput): HotelLocation | undefined | null {
+  const precisionValue = cleanOptional(input.locationPrecision);
+  const label = cleanOptional(input.locationLabel);
+  const address = cleanOptional(input.locationAddress);
+  const providerLocationName = cleanOptional(input.locationProviderName);
+  const lat = parseLatitude(input.locationLat);
+  const lng = parseLongitude(input.locationLng);
+  const distanceValue = parseOptionalNumber(input.locationDistanceValue);
+  const distanceUnit = cleanOptional(input.locationDistanceUnit);
+  const distanceReferencePoint = cleanOptional(input.locationDistanceReferencePoint);
+
+  if (lat === null || lng === null) return null;
+  if ((lat === undefined) !== (lng === undefined)) return null;
+
+  const precision = precisionValue === undefined
+    ? undefined
+    : isLocationPrecision(precisionValue)
+      ? precisionValue
+      : null;
+  if (precision === null) return null;
+
+  let distance: HotelLocation['distance'];
+  if (distanceValue !== undefined || distanceUnit !== undefined || distanceReferencePoint !== undefined) {
+    if (
+      distanceValue === undefined ||
+      distanceValue === null ||
+      distanceValue < 0 ||
+      (distanceUnit !== 'mi' && distanceUnit !== 'km') ||
+      distanceReferencePoint === undefined
+    ) {
+      return null;
+    }
+    distance = {
+      value: distanceValue,
+      unit: distanceUnit,
+      referencePoint: distanceReferencePoint,
+    };
+  }
+
+  if (
+    precision === undefined &&
+    label === undefined &&
+    address === undefined &&
+    lat === undefined &&
+    lng === undefined &&
+    distance === undefined &&
+    providerLocationName === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    label,
+    precision,
+    address,
+    lat,
+    lng,
+    distance,
+    providerLocationName,
+  };
 }
 
 export function validateBookingFareContext(input: FareContextInput): BookingFareContext | null {
@@ -169,6 +283,7 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const priceCents = parseInteger(input.priceCents);
   const priceBasis = cleanRequired(input.priceBasis);
   const providerUrl = cleanRequired(input.providerUrl);
+  const location = validateHotelLocation(input);
 
   if (
     kind !== 'hotel' ||
@@ -179,7 +294,8 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     priceCents === null ||
     priceCents <= 0 ||
     priceBasis !== 'per_night_before_taxes_fees' ||
-    !isSafeProviderUrl(providerUrl)
+    !isSafeProviderUrl(providerUrl) ||
+    location === null
   ) {
     return null;
   }
@@ -190,6 +306,7 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     provider,
     name,
     area,
+    location,
     priceCents,
     currency,
     priceBasis,
@@ -204,6 +321,15 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     provider: firstParam(params.provider),
     name: firstParam(params.name),
     area: firstParam(params.area),
+    locationPrecision: firstParam(params.locationPrecision),
+    locationLabel: firstParam(params.locationLabel),
+    locationAddress: firstParam(params.locationAddress),
+    locationLat: firstParam(params.locationLat),
+    locationLng: firstParam(params.locationLng),
+    locationDistanceValue: firstParam(params.locationDistanceValue),
+    locationDistanceUnit: firstParam(params.locationDistanceUnit),
+    locationDistanceReferencePoint: firstParam(params.locationDistanceReferencePoint),
+    locationProviderName: firstParam(params.locationProviderName),
     priceCents: firstParam(params.priceCents),
     currency: firstParam(params.currency),
     priceBasis: firstParam(params.priceBasis),
@@ -244,6 +370,17 @@ export function buildHotelBookingHref(hotel: HotelOffer): string {
   });
 
   if (hotel.area) params.set('area', hotel.area);
+  if (hotel.location?.precision) params.set('locationPrecision', hotel.location.precision);
+  if (hotel.location?.label) params.set('locationLabel', hotel.location.label);
+  if (hotel.location?.address) params.set('locationAddress', hotel.location.address);
+  if (typeof hotel.location?.lat === 'number') params.set('locationLat', String(hotel.location.lat));
+  if (typeof hotel.location?.lng === 'number') params.set('locationLng', String(hotel.location.lng));
+  if (hotel.location?.distance) {
+    params.set('locationDistanceValue', String(hotel.location.distance.value));
+    params.set('locationDistanceUnit', hotel.location.distance.unit);
+    params.set('locationDistanceReferencePoint', hotel.location.distance.referencePoint);
+  }
+  if (hotel.location?.providerLocationName) params.set('locationProviderName', hotel.location.providerLocationName);
 
   return `/book?${params.toString()}`;
 }

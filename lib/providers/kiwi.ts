@@ -1,6 +1,7 @@
-import { FlightProvider, FlightSearchRange, NormalizedFare, PricePoint, Result } from '../types';
+import { FlightProvider, FlightSearchRange, NormalizedFare, NormalizedFlightSegment, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
 import { fetchWithProviderTimeout } from './timeout';
+import { buildConfirmedItinerary, buildPartialOrUnavailable, unavailableItinerary } from './itinerary';
 
 const BASE_URL = 'https://api.tequila.kiwi.com';
 const CACHE_TTL = 21600; // 6 hours
@@ -15,7 +16,12 @@ interface KiwiProviderConfig {
 // ─── Kiwi Tequila API response shapes ────────────────────────────────────────
 
 interface KiwiRoute {
+  flyFrom?: string;
+  flyTo?: string;
+  local_departure?: string;
   local_arrival: string;
+  airline?: string;
+  flight_no?: number;
   [key: string]: unknown;
 }
 
@@ -28,6 +34,7 @@ interface KiwiOffer {
   airlines: string[];
   price: number;
   route: KiwiRoute[];
+  duration?: { departure?: number; return?: number; total?: number };
   has_stopover: boolean;
   transfers: unknown[];
   deep_link: string;
@@ -60,6 +67,38 @@ function toPriceCents(price: number): number | null {
 
   const [whole, cents = ''] = priceText.split('.');
   return Number(whole) * 100 + Number(cents.padEnd(2, '0'));
+}
+
+function secondsToMinutes(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null;
+  return Math.round(value / 60);
+}
+
+function normalizeKiwiItinerary(offer: KiwiOffer, includeReturn: boolean) {
+  if (includeReturn) {
+    return buildPartialOrUnavailable({
+      durationMinutes: secondsToMinutes(offer.duration?.departure ?? offer.duration?.total),
+      depart: offer.local_departure,
+      arrive: offer.local_arrival,
+    });
+  }
+
+  const segments: NormalizedFlightSegment[] = offer.route.map(segment => ({
+    origin: segment.flyFrom ?? '',
+    destination: segment.flyTo ?? '',
+    depart: segment.local_departure ?? '',
+    arrive: segment.local_arrival,
+    carrier: segment.airline,
+    flightNumber: typeof segment.flight_no === 'number' ? String(segment.flight_no) : undefined,
+  }));
+  const confirmed = buildConfirmedItinerary(segments);
+  if (confirmed) return confirmed;
+
+  return buildPartialOrUnavailable({
+    durationMinutes: secondsToMinutes(offer.duration?.departure ?? offer.duration?.total),
+    depart: offer.local_departure,
+    arrive: offer.local_arrival,
+  });
 }
 
 export class KiwiProvider implements FlightProvider {
@@ -205,6 +244,7 @@ export class KiwiProvider implements FlightProvider {
           deeplink: deeplink.data,
           source: 'kiwi',
           fetchedAt,
+          itinerary: normalizeKiwiItinerary(offer, Boolean(range.return)),
         };
 
         // Include `return` when there are multiple route segments (round trip)

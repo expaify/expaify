@@ -1,6 +1,7 @@
-import { FlightProvider, FlightSearchRange, NormalizedFare, PricePoint, Result } from '../types';
+import { FlightProvider, FlightSearchRange, NormalizedFare, NormalizedFlightSegment, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
 import { fetchWithProviderTimeout } from './timeout';
+import { buildConfirmedItinerary, buildPartialOrUnavailable, unavailableItinerary } from './itinerary';
 
 const TOKEN_URL = 'https://test.api.amadeus.com/v1/security/oauth2/token';
 const FLIGHT_OFFERS_URL = 'https://test.api.amadeus.com/v2/shopping/flight-offers';
@@ -17,11 +18,13 @@ interface AmadeusSegment {
   departure: { iataCode: string; at?: string };
   arrival: { iataCode: string; at?: string };
   carrierCode?: string;
+  number?: string;
   numberOfStops?: number;
 }
 
 interface AmadeusItinerary {
   segments: AmadeusSegment[];
+  duration?: string;
 }
 
 interface AmadeusOffer {
@@ -55,6 +58,39 @@ function decimalStringToCents(value: string): number | null {
 
   const total = whole * 100 + cents;
   return Number.isSafeInteger(total) ? total : null;
+}
+
+function parseIsoDurationMinutes(value: string | undefined): number | null {
+  if (!value) return null;
+  const match = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?$/.exec(value);
+  if (!match) return null;
+
+  const days = Number(match[1] ?? 0);
+  const hours = Number(match[2] ?? 0);
+  const minutes = Number(match[3] ?? 0);
+  const total = days * 1440 + hours * 60 + minutes;
+  return Number.isFinite(total) && total >= 0 ? total : null;
+}
+
+function normalizeAmadeusItinerary(itinerary: AmadeusItinerary | undefined) {
+  if (!itinerary || !Array.isArray(itinerary.segments)) return unavailableItinerary();
+
+  const segments: NormalizedFlightSegment[] = itinerary.segments.map(segment => ({
+    origin: segment.departure?.iataCode ?? '',
+    destination: segment.arrival?.iataCode ?? '',
+    depart: segment.departure?.at ?? '',
+    arrive: segment.arrival?.at ?? '',
+    carrier: segment.carrierCode,
+    flightNumber: segment.number,
+  }));
+  const confirmed = buildConfirmedItinerary(segments);
+  if (confirmed) return confirmed;
+
+  const lastSegment = itinerary.segments[itinerary.segments.length - 1];
+  return buildPartialOrUnavailable({
+    durationMinutes: parseIsoDurationMinutes(itinerary.duration),
+    arrive: lastSegment?.arrival?.at,
+  });
 }
 
 export class AmadeusProvider implements FlightProvider {
@@ -227,6 +263,12 @@ export class AmadeusProvider implements FlightProvider {
           deeplink: '',
           source: 'amadeus',
           fetchedAt,
+          itinerary: offer.itineraries.length === 1
+            ? normalizeAmadeusItinerary(firstItinerary)
+            : buildPartialOrUnavailable({
+              durationMinutes: parseIsoDurationMinutes(firstItinerary.duration),
+              arrive: lastSegmentOfFirstItin.arrival?.at,
+            }),
         };
 
         // Only include `return` for round-trip itineraries (>1 itinerary)

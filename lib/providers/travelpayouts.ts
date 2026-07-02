@@ -1,6 +1,7 @@
 import { FlightProvider, FlightSearchRange, NormalizedFare, PricePoint, Result } from '../types';
 import { cache } from '../cache/redis';
 import { fetchWithProviderTimeout } from './timeout';
+import { buildPartialItinerary, unavailableItinerary } from './itinerary';
 
 const BASE_V1 = 'https://api.travelpayouts.com/v1';
 const BASE_V2 = 'https://api.travelpayouts.com/v2';
@@ -194,6 +195,7 @@ export class TravelpayoutsProvider implements FlightProvider {
             deeplink: this.buildDeeplink(entry.origin, entry.destination, departAt),
             source: 'travelpayouts',
             fetchedAt,
+            itinerary: unavailableItinerary(),
           });
         }
       }
@@ -246,6 +248,7 @@ export class TravelpayoutsProvider implements FlightProvider {
               deeplink: this.buildDeeplink(entry.origin, entry.destination, entry.departure_at),
               source: 'travelpayouts',
               fetchedAt,
+              itinerary: unavailableItinerary(),
             });
           }
         }
@@ -296,6 +299,12 @@ export class TravelpayoutsProvider implements FlightProvider {
                 deeplink: this.buildDeeplink(origin, dest, departAt),
                 source: 'travelpayouts',
                 fetchedAt,
+                itinerary: typeof fareData.duration === 'number'
+                  ? buildPartialItinerary({
+                    durationMinutes: fareData.duration,
+                    depart: departAt,
+                  })
+                  : unavailableItinerary(),
               });
             }
           }
