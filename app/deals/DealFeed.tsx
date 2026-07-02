@@ -18,6 +18,13 @@ const DISCOUNT_OPTIONS = [
   { label: '40%+ off', value: 40 },
 ]
 
+const STARS_OPTIONS = [
+  { label: 'Any stars', value: 0 },
+  { label: '3★ & up', value: 3 },
+  { label: '4★ & up', value: 4 },
+  { label: '5★ only', value: 5 },
+]
+
 type ApiDeal = {
   id: string
   hotelId: string
@@ -59,16 +66,18 @@ export function DealFeed() {
   const [total, setTotal] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [activeTab, setActiveTab] = useState<'hotels' | 'flights'>('hotels')
   const [city, setCity] = useState('')
   const [minDiscount, setMinDiscount] = useState(20)
   const [maxPriceCents, setMaxPriceCents] = useState<number | null>(null)
+  const [minStars, setMinStars] = useState(0)
   const [sort, setSort] = useState<'newest' | 'discount'>('newest')
   const [offset, setOffset] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [initialised, setInitialised] = useState(false)
 
   const fetchDeals = useCallback(async (
-    opts: { city: string; minDiscount: number; maxPriceCents: number | null; sort: 'newest' | 'discount'; offset: number; append: boolean }
+    opts: { city: string; minDiscount: number; maxPriceCents: number | null; minStars: number; sort: 'newest' | 'discount'; offset: number; append: boolean }
   ) => {
     const { append } = opts
     if (!append) setLoading(true)
@@ -83,6 +92,7 @@ export function DealFeed() {
     })
     if (opts.city) params.set('city', opts.city)
     if (opts.maxPriceCents) params.set('max_price_cents', String(opts.maxPriceCents))
+    if (opts.minStars > 0) params.set('min_stars', String(opts.minStars))
 
     try {
       const res = await fetch(`/api/deals?${params}`)
@@ -101,20 +111,22 @@ export function DealFeed() {
   // Fetch on first render
   if (!initialised) {
     setInitialised(true)
-    fetchDeals({ city, minDiscount, maxPriceCents, sort, offset: 0, append: false })
+    fetchDeals({ city, minDiscount, maxPriceCents, minStars, sort, offset: 0, append: false })
   }
 
-  function applyFilter(next: { city?: string; minDiscount?: number; maxPriceCents?: number | null; sort?: 'newest' | 'discount' }) {
+  function applyFilter(next: { city?: string; minDiscount?: number; maxPriceCents?: number | null; minStars?: number; sort?: 'newest' | 'discount' }) {
     const nextCity = next.city ?? city
     const nextDiscount = next.minDiscount ?? minDiscount
     const nextMax = next.maxPriceCents !== undefined ? next.maxPriceCents : maxPriceCents
+    const nextStars = next.minStars !== undefined ? next.minStars : minStars
     const nextSort = next.sort ?? sort
     setCity(nextCity)
     setMinDiscount(nextDiscount)
     setMaxPriceCents(nextMax)
+    setMinStars(nextStars)
     setSort(nextSort)
     setOffset(0)
-    fetchDeals({ city: nextCity, minDiscount: nextDiscount, maxPriceCents: nextMax, sort: nextSort, offset: 0, append: false })
+    fetchDeals({ city: nextCity, minDiscount: nextDiscount, maxPriceCents: nextMax, minStars: nextStars, sort: nextSort, offset: 0, append: false })
   }
 
   function handleSearchResult(result: { city?: string; maxPriceCents?: number; minDiscount?: number }) {
@@ -132,7 +144,7 @@ export function DealFeed() {
   function loadMore() {
     const nextOffset = offset + PAGE_SIZE
     setOffset(nextOffset)
-    fetchDeals({ city, minDiscount, maxPriceCents, sort, offset: nextOffset, append: true })
+    fetchDeals({ city, minDiscount, maxPriceCents, minStars, sort, offset: nextOffset, append: true })
   }
 
   const pillBase = 'rounded-[var(--radius-pill)] px-4 py-2 text-[13px] font-medium transition-colors duration-100 cursor-pointer'
@@ -141,47 +153,89 @@ export function DealFeed() {
 
   return (
     <>
-      {/* Natural language search */}
-      <div className="mt-6">
-        <SearchBar onResult={handleSearchResult} onClear={clearSearch} />
+      {/* Tab bar */}
+      <div className="mt-4 mb-6 flex gap-2">
+        {(['hotels', 'flights'] as const).map(tab => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={
+              activeTab === tab
+                ? 'rounded-[var(--radius-pill)] bg-[color:var(--primary)] px-5 py-2 text-[13px] font-medium text-white'
+                : 'rounded-[var(--radius-pill)] border border-[color:var(--line-ivory)] bg-white px-5 py-2 text-[13px] font-medium text-[color:var(--ink)] hover:border-[color:var(--primary-soft)]'
+            }
+          >
+            {tab === 'hotels' ? 'Hotels' : 'Flights'}
+          </button>
+        ))}
       </div>
 
-      {/* Filter bar */}
-      <div className="mb-8 flex flex-wrap gap-2">
-        <select
-          aria-label="Filter by destination"
-          value={city}
-          onChange={e => applyFilter({ city: e.target.value })}
-          className="appearance-none rounded-[var(--radius-pill)] border border-[color:var(--line-ivory)] bg-white px-4 py-2 text-[13px] font-medium text-[color:var(--ink)] cursor-pointer"
-        >
-          <option value="">All destinations</option>
-          {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
+      {activeTab === 'flights' ? (
+        <div className="py-24 text-center">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0E5A54" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto">
+            <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" />
+          </svg>
+          <h2 className="mt-4 font-display text-[24px] font-bold text-[color:var(--ink)]">Coming soon</h2>
+          <p className="mx-auto mt-2 max-w-[340px] text-[14px] text-[color:var(--ink-soft)]">
+            We&apos;re working on flight deals across our 20 destinations. Sign up for alerts and we&apos;ll let you know when they&apos;re live.
+          </p>
+          <a href="/account" className="btn btn-primary mt-6 inline-block px-8">
+            Get notified
+          </a>
+        </div>
+      ) : (
+        <>
+          {/* Natural language search */}
+          <div className="mb-4">
+            <SearchBar onResult={handleSearchResult} onClear={clearSearch} />
+          </div>
 
-        <select
-          aria-label="Minimum discount"
-          value={minDiscount}
-          onChange={e => applyFilter({ minDiscount: Number(e.target.value) })}
-          className="appearance-none rounded-[var(--radius-pill)] border border-[color:var(--line-ivory)] bg-white px-4 py-2 text-[13px] font-medium text-[color:var(--ink)] cursor-pointer"
-        >
-          {DISCOUNT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+          {/* Filter bar */}
+          <div className="mb-8 flex flex-wrap gap-2">
+            <select
+              aria-label="Filter by destination"
+              value={city}
+              onChange={e => applyFilter({ city: e.target.value })}
+              className="appearance-none rounded-[var(--radius-pill)] border border-[color:var(--line-ivory)] bg-white px-4 py-2 text-[13px] font-medium text-[color:var(--ink)] cursor-pointer"
+            >
+              <option value="">All destinations</option>
+              {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
 
-        <button
-          type="button"
-          onClick={() => applyFilter({ sort: 'newest' })}
-          className={sort === 'newest' ? pillActive : pillInactive}
-        >
-          Newest
-        </button>
-        <button
-          type="button"
-          onClick={() => applyFilter({ sort: 'discount' })}
-          className={sort === 'discount' ? pillActive : pillInactive}
-        >
-          Biggest discount
-        </button>
-      </div>
+            <select
+              aria-label="Minimum discount"
+              value={minDiscount}
+              onChange={e => applyFilter({ minDiscount: Number(e.target.value) })}
+              className="appearance-none rounded-[var(--radius-pill)] border border-[color:var(--line-ivory)] bg-white px-4 py-2 text-[13px] font-medium text-[color:var(--ink)] cursor-pointer"
+            >
+              {DISCOUNT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+
+            <select
+              aria-label="Minimum star rating"
+              value={minStars}
+              onChange={e => applyFilter({ minStars: Number(e.target.value) })}
+              className="appearance-none rounded-[var(--radius-pill)] border border-[color:var(--line-ivory)] bg-white px-4 py-2 text-[13px] font-medium text-[color:var(--ink)] cursor-pointer"
+            >
+              {STARS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+
+            <button
+              type="button"
+              onClick={() => applyFilter({ sort: 'newest' })}
+              className={sort === 'newest' ? pillActive : pillInactive}
+            >
+              Newest
+            </button>
+            <button
+              type="button"
+              onClick={() => applyFilter({ sort: 'discount' })}
+              className={sort === 'discount' ? pillActive : pillInactive}
+            >
+              Biggest discount
+            </button>
+          </div>
 
       {/* Grid */}
       {loading ? (
@@ -193,7 +247,7 @@ export function DealFeed() {
           <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">Couldn&apos;t load deals right now.</p>
           <button
             type="button"
-            onClick={() => fetchDeals({ city, minDiscount, maxPriceCents, sort, offset: 0, append: false })}
+            onClick={() => fetchDeals({ city, minDiscount, maxPriceCents, minStars, sort, offset: 0, append: false })}
             className="btn btn-primary mt-4 px-8"
           >
             Retry
@@ -249,18 +303,20 @@ export function DealFeed() {
         </div>
       )}
 
-      {/* Load more */}
-      {!loading && !error && total !== null && deals.length < total && (
-        <div className="mt-10 flex justify-center">
-          <button
-            type="button"
-            onClick={loadMore}
-            disabled={loadingMore}
-            className="btn btn-primary px-8 disabled:opacity-60"
-          >
-            {loadingMore ? 'Loading…' : 'Load 12 more deals'}
-          </button>
-        </div>
+          {/* Load more */}
+          {!loading && !error && total !== null && deals.length < total && (
+            <div className="mt-10 flex justify-center">
+              <button
+                type="button"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="btn btn-primary px-8 disabled:opacity-60"
+              >
+                {loadingMore ? 'Loading…' : 'Load 12 more deals'}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </>
   )

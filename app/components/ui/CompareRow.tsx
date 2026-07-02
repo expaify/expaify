@@ -20,7 +20,7 @@ export function CompareRow({ links }: CompareRowProps) {
   return (
     <div className="space-y-[6px]">
       <p className="text-[11px] leading-none text-[color:var(--ink-faint)]">Compare and book on:</p>
-      <div className="grid grid-cols-4 gap-[6px]">
+      <div className="grid grid-cols-2 gap-[6px] min-[420px]:grid-cols-4">
         {PROVIDERS.map(({ key, label }) => {
           const href = links[key];
           const base =

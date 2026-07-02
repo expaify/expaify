@@ -37,6 +37,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       metadata: { user_id: session.user.id, plan },
     },
     customer_email: session.user.email ?? undefined,
+    consent_collection: { terms_of_service: 'required' },
     success_url: `${origin}/account?checkout=success`,
     cancel_url: `${origin}/#pricing`,
     metadata: { user_id: session.user.id, plan },

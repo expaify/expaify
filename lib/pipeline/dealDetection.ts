@@ -182,6 +182,7 @@ export async function getActiveDeals(opts: {
   minDiscount?: number
   maxPriceCents?: number
   marketId?: number
+  minStars?: number
   sort?: 'newest' | 'discount'
   includeMock?: boolean
 }): Promise<DealRow[]> {
@@ -191,6 +192,7 @@ export async function getActiveDeals(opts: {
     minDiscount = 0,
     maxPriceCents,
     marketId,
+    minStars,
     sort = 'newest',
     includeMock = false,
   } = opts
@@ -209,6 +211,12 @@ export async function getActiveDeals(opts: {
   if (maxPriceCents) {
     priceFilter = ` AND d.deal_price_cents <= $${idx++}`
     params.push(maxPriceCents)
+  }
+
+  let starsFilter = ''
+  if (minStars && minStars > 0) {
+    starsFilter = ` AND (d.stars IS NULL OR d.stars >= $${idx++})`
+    params.push(minStars)
   }
 
   let mockFilter = ''
@@ -230,6 +238,7 @@ export async function getActiveDeals(opts: {
        AND d.discount_pct >= $3
        ${marketFilter}
        ${priceFilter}
+       ${starsFilter}
        ${mockFilter}
      ORDER BY ${orderBy}
      LIMIT $1 OFFSET $2`,
