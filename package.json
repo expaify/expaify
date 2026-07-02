@@ -14,6 +14,7 @@
     "snapshot": "tsx scripts/snapshot-job.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.109.1",
     "@auth/pg-adapter": "^1.11.2",
     "@react-email/components": "^1.0.12",
     "@types/pg": "^8.20.0",

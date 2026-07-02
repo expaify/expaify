@@ -76,6 +76,7 @@ jobs:
                 "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" \
                 "EMAIL_FROM=${{ secrets.EMAIL_FROM }}" \
                 "PIPELINE_SECRET=${{ secrets.PIPELINE_SECRET }}" \
+                "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" \
               --output none
           else
             az containerapp update \
@@ -105,5 +106,6 @@ jobs:
                 "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" \
                 "EMAIL_FROM=${{ secrets.EMAIL_FROM }}" \
                 "PIPELINE_SECRET=${{ secrets.PIPELINE_SECRET }}" \
+                "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" \
               --output none
           fi

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getActiveMarkets, runSnapshotsForMarket } from '@/lib/pipeline/snapshot'
 import { detectDealsForMarket, getActiveDeals } from '@/lib/pipeline/dealDetection'
 import { sendInstantAlerts } from '@/lib/email/sendDealAlert'
+import { generateHeadlines } from '@/lib/ai/generateHeadline'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -29,6 +30,20 @@ export async function POST(req: NextRequest) {
       results[market.iata] = { error: err instanceof Error ? err.message : String(err) }
     }
   }
+
+  // Generate AI headlines for deals missing one
+  const headlineCandidates = await getActiveDeals({ limit: 20, sort: 'newest', includeMock: false })
+    .then(rows => rows.filter(r => !r.headline))
+    .catch(() => [])
+  await generateHeadlines(
+    headlineCandidates.map(d => ({
+      id: d.id,
+      hotelName: d.hotel_name,
+      city: d.city,
+      discountPct: d.discount_pct,
+      dealPriceCents: d.deal_price_cents,
+    }))
+  )
 
   // Send instant alerts for the top new deal (if any)
   let alertsSent = 0
