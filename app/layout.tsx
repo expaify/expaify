@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Space_Grotesk } from "next/font/google";
+import { Providers } from "./Providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -65,7 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-[color:var(--bg)] text-[color:var(--ink)] antialiased">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
