@@ -18,6 +18,7 @@ function getPool(): Pool {
 
 const providers = [
   Resend({
+    apiKey: process.env.RESEND_API_KEY,
     from: process.env.EMAIL_FROM ?? 'noreply@expaify.com',
   }),
   ...(process.env.GOOGLE_CLIENT_ID
