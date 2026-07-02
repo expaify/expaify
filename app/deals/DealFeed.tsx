@@ -34,6 +34,7 @@ type ApiDeal = {
   otaLinks: Record<string, string>
   headline: string | null
   isMock: boolean
+  firstSeen: string | null
   locked: boolean
 }
 
@@ -239,6 +240,7 @@ export function DealFeed() {
                   links: deal.otaLinks,
                   headline: deal.headline ?? undefined,
                   isMock: deal.isMock,
+                  firstSeen: deal.firstSeen ?? undefined,
                 }}
               />
             )
