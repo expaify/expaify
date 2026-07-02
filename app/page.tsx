@@ -60,7 +60,7 @@ export default function LandingPage() {
           <div className="flex flex-col items-center gap-12 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-16">
             {/* Left */}
             <div className="flex max-w-[440px] flex-col items-start gap-6">
-              <h1 className="font-display text-[44px] font-bold leading-[1.05] tracking-tight text-[color:var(--ink)] min-[480px]:text-[52px]">
+              <h1 className="font-display text-[36px] font-bold leading-[1.05] tracking-tight text-[color:var(--ink)] min-[400px]:text-[44px] min-[480px]:text-[52px]">
                 Never overpay for a hotel again.
               </h1>
               <p className="text-[17px] leading-relaxed text-[color:var(--ink-soft)]">
@@ -78,16 +78,16 @@ export default function LandingPage() {
                 </a>
               </div>
               <p className="flex items-center gap-1.5 text-[13px] text-[color:var(--ink-faint)]">
-                <span className="text-[color:var(--gold)]">★★★★★</span>
+                <span aria-hidden className="text-[color:var(--primary-soft)]">★★★★★</span>
                 Trusted by 2,400+ deal hunters
               </p>
             </div>
 
             {/* Right — deal cards stack */}
             <div className="relative flex w-full max-w-[360px] flex-shrink-0 justify-center min-[900px]:justify-end">
-              {/* Peeking card behind */}
+              {/* Peeking card behind — hidden on very small screens */}
               <div
-                className="absolute inset-0 top-3 mx-auto w-[calc(100%-32px)] opacity-60 min-[900px]:rotate-[3deg]"
+                className="absolute inset-0 top-3 mx-auto hidden w-[calc(100%-32px)] opacity-60 min-[380px]:block min-[900px]:rotate-[3deg]"
                 aria-hidden
               >
                 <LockedDealCard
@@ -150,7 +150,7 @@ export default function LandingPage() {
         </section>
 
         {/* ── How it works ────────────────────────────── */}
-        <section className="bg-[color:var(--surface)] py-20">
+        <section id="how-it-works" className="bg-[color:var(--surface)] py-20">
           <div className="mx-auto max-w-[1140px] px-5">
             <h2 className="mb-12 text-center font-display text-[30px] font-bold text-[color:var(--ink)]">
               How it works
