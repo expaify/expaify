@@ -3,6 +3,7 @@ import Google from 'next-auth/providers/google'
 import Resend from 'next-auth/providers/resend'
 import PostgresAdapter from '@auth/pg-adapter'
 import { Pool } from 'pg'
+import { sendWelcomeEmail } from './lib/email/sendWelcome'
 
 // Singleton pool — only created when first request arrives (not at build time)
 let _pool: Pool | null = null
@@ -43,6 +44,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
         session.user.id = user.id
       }
       return session
+    },
+  },
+  events: {
+    async createUser({ user }) {
+      if (user.email) {
+        await sendWelcomeEmail(user.email)
+      }
     },
   },
 }))
