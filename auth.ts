@@ -4,6 +4,7 @@ import Resend from 'next-auth/providers/resend'
 import PostgresAdapter from '@auth/pg-adapter'
 import { Pool } from 'pg'
 import { sendWelcomeEmail } from './lib/email/sendWelcome'
+import { sendMagicLink } from './lib/email/sendMagicLink'
 
 // Singleton pool — only created when first request arrives (not at build time)
 let _pool: Pool | null = null
@@ -19,7 +20,10 @@ function getPool(): Pool {
 const providers = [
   Resend({
     apiKey: process.env.RESEND_API_KEY,
-    from: process.env.EMAIL_FROM ?? 'noreply@expaify.com',
+    from: 'expaify <dev@expaify.com>',
+    async sendVerificationRequest({ identifier: to, url }) {
+      await sendMagicLink({ to, url })
+    },
   }),
   ...(process.env.GOOGLE_CLIENT_ID
     ? [

@@ -9,6 +9,9 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# NEXT_PUBLIC_* vars must be available at build time to be embedded in client bundles
+ARG NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true
+ENV NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=$NEXT_PUBLIC_GOOGLE_AUTH_ENABLED
 RUN npm run build
 
 FROM base AS runner
