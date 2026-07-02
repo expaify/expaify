@@ -2,10 +2,11 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getActiveMarkets, runSnapshotsForMarket } from '@/lib/pipeline/snapshot'
-import { detectDealsForMarket } from '@/lib/pipeline/dealDetection'
+import { detectDealsForMarket, getActiveDeals } from '@/lib/pipeline/dealDetection'
+import { sendInstantAlerts } from '@/lib/email/sendDealAlert'
 
 export const runtime = 'nodejs'
-export const maxDuration = 300 // 5 min — Vercel Pro limit
+export const maxDuration = 300
 
 export async function POST(req: NextRequest) {
   const auth = req.headers.get('authorization') ?? ''
@@ -16,16 +17,38 @@ export async function POST(req: NextRequest) {
 
   const markets = await getActiveMarkets()
   const results: Record<string, unknown> = {}
+  let totalNewDeals = 0
 
   for (const market of markets) {
     try {
       const snapshots = await runSnapshotsForMarket(market)
       const dealsFound = await detectDealsForMarket(market)
       results[market.iata] = { snapshots, dealsFound }
+      totalNewDeals += dealsFound
     } catch (err) {
       results[market.iata] = { error: err instanceof Error ? err.message : String(err) }
     }
   }
 
-  return NextResponse.json({ ok: true, markets: markets.length, results })
+  // Send instant alerts for the top new deal (if any)
+  let alertsSent = 0
+  if (totalNewDeals > 0) {
+    const topDeals = await getActiveDeals({ limit: 1, sort: 'newest', includeMock: false })
+    if (topDeals[0]) {
+      const d = topDeals[0]
+      alertsSent = await sendInstantAlerts({
+        id: d.id,
+        hotelName: d.hotel_name,
+        city: d.city,
+        stars: d.stars,
+        checkInWindow: d.check_in_window,
+        discountPct: d.discount_pct,
+        dealPriceCents: d.deal_price_cents,
+        medianPriceCents: d.median_price_cents,
+        snapshotCount: d.snapshot_count,
+      })
+    }
+  }
+
+  return NextResponse.json({ ok: true, markets: markets.length, totalNewDeals, alertsSent, results })
 }

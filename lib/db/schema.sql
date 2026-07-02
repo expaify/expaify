@@ -199,6 +199,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   current_period_end      TIMESTAMPTZ,
   alert_preference        TEXT        NOT NULL DEFAULT 'daily', -- instant | daily | off
   watchlist               TEXT[]      NOT NULL DEFAULT '{}',    -- up to 10 city slugs
+  last_alerted_at         TIMESTAMPTZ,
   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

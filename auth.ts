@@ -4,17 +4,21 @@ import Resend from 'next-auth/providers/resend'
 import PostgresAdapter from '@auth/pg-adapter'
 import { Pool } from 'pg'
 
+// Singleton pool — only created when first request arrives (not at build time)
+let _pool: Pool | null = null
 function getPool(): Pool {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL is not set')
-  return new Pool({ connectionString: url })
+  if (!_pool) {
+    const url = process.env.DATABASE_URL
+    if (!url) throw new Error('DATABASE_URL is not set')
+    _pool = new Pool({ connectionString: url })
+  }
+  return _pool
 }
 
 const providers = [
   Resend({
     from: process.env.EMAIL_FROM ?? 'noreply@expaify.com',
   }),
-  // Google OAuth: add GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET to enable
   ...(process.env.GOOGLE_CLIENT_ID
     ? [
         Google({
@@ -25,7 +29,8 @@ const providers = [
     : []),
 ]
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+// Pass a factory function so the pool is constructed lazily on first request
+export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
   adapter: PostgresAdapter(getPool()),
   providers,
   pages: {
@@ -40,4 +45,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session
     },
   },
-})
+}))
