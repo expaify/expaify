@@ -11,7 +11,7 @@
     "test:watch": "jest --watch",
     "db:seed": "tsx --env-file .env.local scripts/seed.ts",
     "check-alerts": "tsx --env-file .env.local scripts/check-alerts.ts",
-    "snapshot": "tsx --env-file .env.local scripts/snapshot-job.ts"
+    "snapshot": "tsx scripts/snapshot-job.ts"
   },
   "dependencies": {
     "@auth/pg-adapter": "^1.11.2",
