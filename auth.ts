@@ -30,9 +30,11 @@ const providers = [
         Google({
           clientId: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-          // Azure proxy loses the PKCE cookie between redirect and callback;
-          // fall back to state-only check which survives cross-origin redirects.
+          // Azure proxy loses the PKCE cookie; use state-only check instead.
           checks: ['state'],
+          // Google verifies email ownership, so linking an existing magic-link
+          // account to Google is safe — avoids OAuthAccountNotLinked error.
+          allowDangerousEmailAccountLinking: true,
         }),
       ]
     : []),
