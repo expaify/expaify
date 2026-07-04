@@ -1,43 +1,62 @@
 'use client'
 
-import { useState, useRef } from 'react'
-
-type ParseResult = {
-  city?: string
-  maxPriceCents?: number
-  minDiscount?: number
-}
+import { useEffect, useState, useRef } from 'react'
+import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
 
 type Props = {
-  onResult: (result: ParseResult, rawQuery: string) => void
+  premium: boolean
+  onResult: (filters: DealSearchFilters, rawQuery: string) => void
   onClear: () => void
 }
 
-export function SearchBar({ onResult, onClear }: Props) {
+export function SearchBar({ premium, onResult, onClear }: Props) {
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
-  const [parsed, setParsed] = useState<ParseResult | null>(null)
+  const [parsed, setParsed] = useState<DealSearchFilters | null>(null)
+  const [message, setMessage] = useState<string | null>(premium ? null : 'Natural-language search is included with Premium.')
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (premium && message === 'Natural-language search is included with Premium.') {
+      setMessage(null)
+    }
+    if (!premium) {
+      setParsed(null)
+      setMessage('Natural-language search is included with Premium.')
+    }
+  }, [premium, message])
 
   async function handleSearch(q: string) {
     const trimmed = q.trim()
+    if (!premium) {
+      setMessage('Natural-language search is included with Premium.')
+      return
+    }
     if (!trimmed) {
       setParsed(null)
+      setMessage(null)
       onClear()
       return
     }
     setLoading(true)
+    setMessage(null)
     try {
       const res = await fetch('/api/search/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: trimmed }),
       })
-      const data = (await res.json()) as ParseResult
-      setParsed(data)
-      onResult(data, trimmed)
+      const data = (await res.json()) as { filters?: DealSearchFilters; error?: string }
+      if (!res.ok || data.error || !data.filters) {
+        setParsed(null)
+        setMessage(data.error || "Couldn't parse that — try the filters instead")
+        return
+      }
+      setParsed(data.filters)
+      onResult(data.filters, trimmed)
     } catch {
-      onClear()
+      setParsed(null)
+      setMessage("Couldn't parse that — try the filters instead")
     } finally {
       setLoading(false)
     }
@@ -46,15 +65,20 @@ export function SearchBar({ onResult, onClear }: Props) {
   function clear() {
     setQuery('')
     setParsed(null)
+    setMessage(premium ? null : 'Natural-language search is included with Premium.')
     onClear()
     inputRef.current?.focus()
   }
 
   const chips = parsed
     ? [
+        parsed.destination_type ? 'Hotels' : null,
         parsed.city ? `City: ${parsed.city}` : null,
-        parsed.maxPriceCents ? `≤$${Math.round(parsed.maxPriceCents / 100)}/night` : null,
-        parsed.minDiscount ? `${parsed.minDiscount}%+ off` : null,
+        parsed.max_price ? `≤$${parsed.max_price}/night` : null,
+        parsed.min_stars ? `${parsed.min_stars}★ & up` : null,
+        parsed.min_discount ? `${parsed.min_discount}%+ off` : null,
+        parsed.date_from ? `From ${parsed.date_from}` : null,
+        parsed.date_to ? `To ${parsed.date_to}` : null,
       ].filter(Boolean)
     : []
 
@@ -67,16 +91,16 @@ export function SearchBar({ onResult, onClear }: Props) {
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleSearch(query) }}
-          placeholder="Search e.g. 'beach hotels in Miami under $150'"
-          disabled={loading}
-          className="w-full rounded-[12px] border border-[color:var(--line-ivory)] bg-white px-4 py-3 text-[14px] text-[color:var(--ink)] outline-none transition-colors focus:border-[color:var(--primary)] placeholder:text-[color:var(--ink-faint)] disabled:opacity-60"
+          placeholder={premium ? "Search e.g. '4 star hotels in Miami under $150'" : 'Upgrade to search deals in plain English'}
+          disabled={loading || !premium}
+          className="w-full rounded-[12px] border border-[color:var(--line-ivory)] bg-white px-4 py-3 text-[14px] text-[color:var(--ink)] outline-none transition-colors focus:border-[color:var(--primary)] placeholder:text-[color:var(--ink-faint)] disabled:bg-[color:var(--surface)] disabled:opacity-75"
         />
         <button
           type="button"
           onClick={() => handleSearch(query)}
-          disabled={loading}
-          aria-label="Search"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[color:var(--primary)] text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+          disabled={loading || !premium}
+          aria-label="Search deals"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[color:var(--primary)] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {loading ? (
             <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -89,7 +113,7 @@ export function SearchBar({ onResult, onClear }: Props) {
             </svg>
           )}
         </button>
-        {parsed && (
+        {(parsed || query) && (
           <button
             type="button"
             onClick={clear}
@@ -100,6 +124,12 @@ export function SearchBar({ onResult, onClear }: Props) {
           </button>
         )}
       </div>
+
+      {message && (
+        <p className="mt-2 text-[12px] font-medium text-[color:var(--ink-soft)]">
+          {message}
+        </p>
+      )}
 
       {chips.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">

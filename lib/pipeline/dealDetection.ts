@@ -1,4 +1,5 @@
 import { query } from '../db/client'
+import { generateHeadlines } from '../ai/generateHeadline'
 import { buildOtaLinks } from './otaLinks'
 
 const DEAL_THRESHOLD = 0.70    // price must be ≤ 70% of median to flag
@@ -18,6 +19,17 @@ type SnapshotRow = {
   latest_price_cents: number
   snapshot_count: number
   is_mock: boolean
+}
+
+type CopyCandidate = {
+  id: string
+  hotelName: string
+  city: string
+  stars: number | null
+  discountPct: number
+  dealPriceCents: number
+  medianPriceCents: number
+  checkInWindow: string
 }
 
 function formatWindow(checkIn: Date, nights: number): string {
@@ -53,6 +65,7 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
   )
 
   let dealsUpserted = 0
+  const copyCandidates: CopyCandidate[] = []
 
   for (const row of snaps.rows) {
     const { hotel_id, hotel_name, stars, photo_url, check_in, median_price_cents, latest_price_cents, snapshot_count, is_mock } = row
@@ -76,7 +89,8 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
         checkOut: checkOutStr,
       })
 
-      await query(
+      const checkInWindow = formatWindow(check_in, 2)
+      const upserted = await query<{ id: string; headline: string | null; description: string | null }>(
         `INSERT INTO deals
            (hotel_id, hotel_name, stars, photo_url, market_id, deal_price_cents,
             median_price_cents, discount_pct, check_in_window, check_in_date, nights,
@@ -91,14 +105,28 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
            ota_links          = EXCLUDED.ota_links,
            status             = 'active',
            is_mock            = EXCLUDED.is_mock,
-           updated_at         = NOW()`,
+           updated_at         = NOW()
+         RETURNING id, headline, description`,
         [
           hotel_id, hotel_name, stars, photo_url, market.id,
           latest_price_cents, median_price_cents, discountPct,
-          formatWindow(check_in, 2), checkInStr,
+          checkInWindow, checkInStr,
           snapshot_count, JSON.stringify(links), is_mock,
         ]
       )
+      const dealId = upserted.rows[0]?.id
+      if (dealId && (!upserted.rows[0].headline || !upserted.rows[0].description)) {
+        copyCandidates.push({
+          id: dealId,
+          hotelName: hotel_name,
+          city: market.city,
+          stars,
+          discountPct,
+          dealPriceCents: latest_price_cents,
+          medianPriceCents: median_price_cents,
+          checkInWindow,
+        })
+      }
       dealsUpserted++
     } else if (ratio > EXPIRE_THRESHOLD) {
       // Price recovered — expire any active deal for this hotel+checkin
@@ -116,6 +144,10 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
      WHERE market_id = $1 AND status = 'active' AND check_in_date < CURRENT_DATE`,
     [market.id]
   )
+
+  if (copyCandidates.length > 0) {
+    void generateHeadlines(copyCandidates).catch(() => undefined)
+  }
 
   return dealsUpserted
 }
@@ -136,6 +168,7 @@ export type DealRow = {
   snapshot_count: number
   ota_links: Record<string, string>
   headline: string | null
+  description: string | null
   is_mock: boolean
   first_seen: string
 }
@@ -152,7 +185,7 @@ export async function getDealById(id: string): Promise<DealRow | null> {
        m.city,
        d.deal_price_cents, d.median_price_cents, d.discount_pct,
        d.check_in_window, d.check_in_date::TEXT, d.nights,
-       d.snapshot_count, d.ota_links, d.headline, d.is_mock,
+       d.snapshot_count, d.ota_links, d.headline, d.description, d.is_mock,
        d.first_seen::TEXT
      FROM deals d
      JOIN tracked_markets m ON m.id = d.market_id
@@ -183,6 +216,8 @@ export async function getActiveDeals(opts: {
   maxPriceCents?: number
   marketId?: number
   minStars?: number
+  dateFrom?: string
+  dateTo?: string
   sort?: 'newest' | 'discount'
   includeMock?: boolean
 }): Promise<DealRow[]> {
@@ -193,6 +228,8 @@ export async function getActiveDeals(opts: {
     maxPriceCents,
     marketId,
     minStars,
+    dateFrom,
+    dateTo,
     sort = 'newest',
     includeMock = false,
   } = opts
@@ -215,8 +252,20 @@ export async function getActiveDeals(opts: {
 
   let starsFilter = ''
   if (minStars && minStars > 0) {
-    starsFilter = ` AND (d.stars IS NULL OR d.stars >= $${idx++})`
+    starsFilter = ` AND d.stars >= $${idx++}`
     params.push(minStars)
+  }
+
+  let dateFromFilter = ''
+  if (dateFrom) {
+    dateFromFilter = ` AND d.check_in_date >= $${idx++}`
+    params.push(dateFrom)
+  }
+
+  let dateToFilter = ''
+  if (dateTo) {
+    dateToFilter = ` AND d.check_in_date <= $${idx++}`
+    params.push(dateTo)
   }
 
   let mockFilter = ''
@@ -230,7 +279,7 @@ export async function getActiveDeals(opts: {
        m.city,
        d.deal_price_cents, d.median_price_cents, d.discount_pct,
        d.check_in_window, d.check_in_date::TEXT, d.nights,
-       d.snapshot_count, d.ota_links, d.headline, d.is_mock,
+       d.snapshot_count, d.ota_links, d.headline, d.description, d.is_mock,
        d.first_seen::TEXT
      FROM deals d
      JOIN tracked_markets m ON m.id = d.market_id
@@ -239,6 +288,8 @@ export async function getActiveDeals(opts: {
        ${marketFilter}
        ${priceFilter}
        ${starsFilter}
+       ${dateFromFilter}
+       ${dateToFilter}
        ${mockFilter}
      ORDER BY ${orderBy}
      LIMIT $1 OFFSET $2`,

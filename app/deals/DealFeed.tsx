@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { DealCard } from '../components/ui/DealCard'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
 import { SearchBar } from '../components/ui/SearchBar'
+import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
 
 const CITIES = [
   'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
@@ -45,6 +46,18 @@ type ApiDeal = {
   locked: boolean
 }
 
+type DealFetchOpts = {
+  city: string
+  minDiscount: number
+  maxPriceCents: number | null
+  minStars: number
+  dateFrom: string
+  dateTo: string
+  sort: 'newest' | 'discount'
+  offset: number
+  append: boolean
+}
+
 function SkeletonCard() {
   return (
     <div className="overflow-hidden rounded-[var(--radius-card)] bg-[color:var(--surface)]">
@@ -71,14 +84,14 @@ export function DealFeed() {
   const [minDiscount, setMinDiscount] = useState(20)
   const [maxPriceCents, setMaxPriceCents] = useState<number | null>(null)
   const [minStars, setMinStars] = useState(0)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [sort, setSort] = useState<'newest' | 'discount'>('newest')
   const [offset, setOffset] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [initialised, setInitialised] = useState(false)
+  const [premium, setPremium] = useState(false)
 
-  const fetchDeals = useCallback(async (
-    opts: { city: string; minDiscount: number; maxPriceCents: number | null; minStars: number; sort: 'newest' | 'discount'; offset: number; append: boolean }
-  ) => {
+  const fetchDeals = useCallback(async (opts: DealFetchOpts) => {
     const { append } = opts
     if (!append) setLoading(true)
     else setLoadingMore(true)
@@ -93,13 +106,16 @@ export function DealFeed() {
     if (opts.city) params.set('city', opts.city)
     if (opts.maxPriceCents) params.set('max_price_cents', String(opts.maxPriceCents))
     if (opts.minStars > 0) params.set('min_stars', String(opts.minStars))
+    if (opts.dateFrom) params.set('date_from', opts.dateFrom)
+    if (opts.dateTo) params.set('date_to', opts.dateTo)
 
     try {
       const res = await fetch(`/api/deals?${params}`)
       if (!res.ok) throw new Error('fetch failed')
-      const data: { deals: ApiDeal[]; total: number } = await res.json()
+      const data: { deals: ApiDeal[]; total: number; premium?: boolean } = await res.json()
       setDeals(prev => append ? [...prev, ...data.deals] : data.deals)
       setTotal(data.total)
+      setPremium(Boolean(data.premium))
     } catch {
       setError(true)
     } finally {
@@ -108,48 +124,74 @@ export function DealFeed() {
     }
   }, [])
 
-  // Fetch on first render
-  if (!initialised) {
-    setInitialised(true)
-    fetchDeals({ city, minDiscount, maxPriceCents, minStars, sort, offset: 0, append: false })
-  }
+  useEffect(() => {
+    fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort, offset: 0, append: false })
+    // Initial feed load only; filter changes call fetchDeals through applyFilter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  function applyFilter(next: { city?: string; minDiscount?: number; maxPriceCents?: number | null; minStars?: number; sort?: 'newest' | 'discount' }) {
+  function applyFilter(next: {
+    city?: string
+    minDiscount?: number
+    maxPriceCents?: number | null
+    minStars?: number
+    dateFrom?: string
+    dateTo?: string
+    sort?: 'newest' | 'discount'
+  }) {
     const nextCity = next.city ?? city
     const nextDiscount = next.minDiscount ?? minDiscount
     const nextMax = next.maxPriceCents !== undefined ? next.maxPriceCents : maxPriceCents
     const nextStars = next.minStars !== undefined ? next.minStars : minStars
+    const nextDateFrom = next.dateFrom !== undefined ? next.dateFrom : dateFrom
+    const nextDateTo = next.dateTo !== undefined ? next.dateTo : dateTo
     const nextSort = next.sort ?? sort
     setCity(nextCity)
     setMinDiscount(nextDiscount)
     setMaxPriceCents(nextMax)
     setMinStars(nextStars)
+    setDateFrom(nextDateFrom)
+    setDateTo(nextDateTo)
     setSort(nextSort)
     setOffset(0)
-    fetchDeals({ city: nextCity, minDiscount: nextDiscount, maxPriceCents: nextMax, minStars: nextStars, sort: nextSort, offset: 0, append: false })
+    fetchDeals({
+      city: nextCity,
+      minDiscount: nextDiscount,
+      maxPriceCents: nextMax,
+      minStars: nextStars,
+      dateFrom: nextDateFrom,
+      dateTo: nextDateTo,
+      sort: nextSort,
+      offset: 0,
+      append: false,
+    })
   }
 
-  function handleSearchResult(result: { city?: string; maxPriceCents?: number; minDiscount?: number }) {
+  function handleSearchResult(result: DealSearchFilters) {
     applyFilter({
       city: result.city ?? '',
-      minDiscount: result.minDiscount ?? 0,
-      maxPriceCents: result.maxPriceCents ?? null,
+      minDiscount: result.min_discount ?? 0,
+      maxPriceCents: result.max_price ? result.max_price * 100 : null,
+      minStars: result.min_stars ?? 0,
+      dateFrom: result.date_from ?? '',
+      dateTo: result.date_to ?? '',
     })
   }
 
   function clearSearch() {
-    applyFilter({ city: '', minDiscount: 20, maxPriceCents: null })
+    applyFilter({ city: '', minDiscount: 20, maxPriceCents: null, minStars: 0, dateFrom: '', dateTo: '' })
   }
 
   function loadMore() {
     const nextOffset = offset + PAGE_SIZE
     setOffset(nextOffset)
-    fetchDeals({ city, minDiscount, maxPriceCents, minStars, sort, offset: nextOffset, append: true })
+    fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort, offset: nextOffset, append: true })
   }
 
   const pillBase = 'rounded-[var(--radius-pill)] px-4 py-2 text-[13px] font-medium transition-colors duration-100 cursor-pointer'
   const pillActive = `${pillBase} bg-[color:var(--primary)] text-white`
   const pillInactive = `${pillBase} bg-white border border-[color:var(--line-ivory)] text-[color:var(--ink)] hover:border-[color:var(--primary-soft)]`
+  const hasActiveFilters = Boolean(city || minDiscount !== 20 || maxPriceCents || minStars || dateFrom || dateTo)
 
   return (
     <>
@@ -188,7 +230,7 @@ export function DealFeed() {
         <>
           {/* Natural language search */}
           <div className="mb-4">
-            <SearchBar onResult={handleSearchResult} onClear={clearSearch} />
+            <SearchBar premium={premium} onResult={handleSearchResult} onClear={clearSearch} />
           </div>
 
           {/* Filter bar */}
@@ -247,7 +289,7 @@ export function DealFeed() {
           <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">Couldn&apos;t load deals right now.</p>
           <button
             type="button"
-            onClick={() => fetchDeals({ city, minDiscount, maxPriceCents, minStars, sort, offset: 0, append: false })}
+            onClick={() => fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort, offset: 0, append: false })}
             className="btn btn-primary mt-4 px-8"
           >
             Retry
@@ -259,9 +301,13 @@ export function DealFeed() {
             {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
           <div className="mt-10 text-center">
-            <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">We&apos;re building your feed.</p>
+            <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">
+              {hasActiveFilters ? 'No deals match those filters.' : 'We&apos;re building your feed.'}
+            </p>
             <p className="mt-2 text-[14px] text-[color:var(--ink-soft)]">
-              Check back in a few hours — our pipeline runs daily across 20 destinations.
+              {hasActiveFilters
+                ? 'Try widening your filters or clearing the search.'
+                : 'Check back in a few hours — our pipeline runs daily across 20 destinations.'}
             </p>
           </div>
         </>

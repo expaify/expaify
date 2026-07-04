@@ -82,8 +82,19 @@ export async function GET(req: NextRequest) {
   const minDiscount = Number(searchParams.get('min_discount') ?? '20')
   const maxPriceCents = searchParams.get('max_price_cents') ? Number(searchParams.get('max_price_cents')) : undefined
   const minStars = searchParams.get('min_stars') ? Number(searchParams.get('min_stars')) : undefined
+  const dateFrom = searchParams.get('date_from') || undefined
+  const dateTo = searchParams.get('date_to') || undefined
   let marketId = searchParams.get('market_id') ? Number(searchParams.get('market_id')) : undefined
   const sort = searchParams.get('sort') === 'discount' ? 'discount' as const : 'newest' as const
+  const hasFilters = Boolean(
+    searchParams.get('city') ||
+    searchParams.get('market_id') ||
+    searchParams.get('max_price_cents') ||
+    searchParams.get('min_stars') ||
+    searchParams.get('date_from') ||
+    searchParams.get('date_to') ||
+    minDiscount !== 20
+  )
 
   // Support filtering by city name (resolve to market_id)
   const cityName = searchParams.get('city')
@@ -94,14 +105,14 @@ export async function GET(req: NextRequest) {
   }
 
   const [deals, pwCtx] = await Promise.all([
-    getActiveDeals({ limit, offset, minDiscount, maxPriceCents, minStars, marketId, sort, includeMock: false }),
+    getActiveDeals({ limit, offset, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, marketId, sort, includeMock: false }),
     getPaywallContext(),
   ])
 
   // Fall back to mock deals when DB has no real data yet
   const source = deals.length > 0 ? deals : null
 
-  if (!source) {
+  if (!source && !hasFilters) {
     const mocks = generateMockDeals(5)
     // Mock deals have camelCase-adjacent structure — apply paywall mask inline
     const paywalled = mocks.map((d, i) => {
@@ -110,6 +121,10 @@ export async function GET(req: NextRequest) {
       return { ...d, locked: false }
     })
     return NextResponse.json({ deals: paywalled, total: mocks.length, premium: pwCtx.premium })
+  }
+
+  if (!source) {
+    return NextResponse.json({ deals: [], total: 0, premium: pwCtx.premium })
   }
 
   const paywalled = source.map((row, i) => {
