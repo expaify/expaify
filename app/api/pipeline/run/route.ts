@@ -16,7 +16,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  const markets = await getActiveMarkets()
+  let markets: Awaited<ReturnType<typeof getActiveMarkets>>
+  try {
+    markets = await getActiveMarkets()
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ ok: false, error: `DB unavailable: ${msg}` }, { status: 503 })
+  }
+
   const results: Record<string, unknown> = {}
   let totalNewDeals = 0
 
@@ -44,26 +51,30 @@ export async function POST(req: NextRequest) {
       discountPct: d.discount_pct,
       dealPriceCents: d.deal_price_cents,
     }))
-  )
+  ).catch(() => { /* non-fatal — headlines are cosmetic */ })
 
   // Send instant alerts for the top new deal (if any)
   let alertsSent = 0
-  if (totalNewDeals > 0) {
-    const topDeals = await getActiveDeals({ limit: 1, sort: 'newest', includeMock: false })
-    if (topDeals[0]) {
-      const d = topDeals[0]
-      alertsSent = await sendInstantAlerts({
-        id: d.id,
-        hotelName: d.hotel_name,
-        city: d.city,
-        stars: d.stars,
-        checkInWindow: d.check_in_window,
-        discountPct: d.discount_pct,
-        dealPriceCents: d.deal_price_cents,
-        medianPriceCents: d.median_price_cents,
-        snapshotCount: d.snapshot_count,
-      })
+  try {
+    if (totalNewDeals > 0) {
+      const topDeals = await getActiveDeals({ limit: 1, sort: 'newest', includeMock: false })
+      if (topDeals[0]) {
+        const d = topDeals[0]
+        alertsSent = await sendInstantAlerts({
+          id: d.id,
+          hotelName: d.hotel_name,
+          city: d.city,
+          stars: d.stars,
+          checkInWindow: d.check_in_window,
+          discountPct: d.discount_pct,
+          dealPriceCents: d.deal_price_cents,
+          medianPriceCents: d.median_price_cents,
+          snapshotCount: d.snapshot_count,
+        })
+      }
     }
+  } catch (err) {
+    results['_alerts'] = { error: err instanceof Error ? err.message : String(err) }
   }
 
   return NextResponse.json({ ok: true, markets: markets.length, totalNewDeals, alertsSent, results })

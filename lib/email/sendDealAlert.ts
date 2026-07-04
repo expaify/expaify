@@ -32,11 +32,11 @@ export async function sendInstantAlerts(deal: Deal): Promise<number> {
   const res = await query<AlertRecipient>(
     `SELECT s.user_id AS "userId", u.email, s.last_alerted_at AS "lastAlertedAt"
      FROM subscriptions s
-     JOIN "user" u ON u.id = s.user_id
+     JOIN users u ON u.id = s.user_id
      WHERE s.alert_preference = 'instant'
        AND u.email IS NOT NULL
        AND s.status IN ('trialing', 'active')
-       AND (s.last_alerted_at IS NULL OR s.last_alerted_at < NOW() - INTERVAL '${INSTANT_COOLDOWN_HOURS} hours')`,
+       AND (s.last_alerted_at IS NULL OR s.last_alerted_at < NOW() - INTERVAL '4 hours')`,
     []
   )
 
