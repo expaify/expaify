@@ -2,27 +2,28 @@
 
 import { useState } from 'react'
 import { signOut } from 'next-auth/react'
+import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 
-const CITIES = [
-  'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
-  'London', 'Tokyo', 'Bangkok', 'Dubai', 'Las Vegas', 'Orlando', 'San Juan',
-  'Tulum', 'Amsterdam', 'Athens', 'Punta Cana', 'Charlotte', 'Nashville',
-]
+type AlertPreference = 'instant' | 'daily' | 'off'
+type MinDiscountPct = 30 | 40 | 50
 
 type Props = {
   stripeCustomerId?: string | null
-  alertPreference?: string
+  alertPreference?: AlertPreference
   watchlist?: string[]
+  minDiscountPct?: MinDiscountPct
   userId?: string
   showAlerts?: boolean
 }
 
-export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [], userId, showAlerts }: Props) {
+export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [], minDiscountPct = 40, userId, showAlerts }: Props) {
   const [portalLoading, setPortalLoading] = useState(false)
-  const [pref, setPref] = useState<string>(alertPreference ?? 'daily')
+  const [pref, setPref] = useState<AlertPreference>(alertPreference ?? 'daily')
+  const [discountPct, setDiscountPct] = useState<MinDiscountPct>(minDiscountPct)
   const [cities, setCities] = useState<string[]>(watchlist)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState(false)
 
   async function openPortal() {
     if (!stripeCustomerId) return
@@ -44,19 +45,22 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
   async function savePreferences() {
     if (!userId) return
     setSaving(true)
-    await Promise.all([
-      fetch('/api/account/alerts', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ alertPreference: pref }),
+    setError(false)
+    const res = await fetch('/api/onboarding', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        alertPreference: pref,
+        minDiscountPct: discountPct,
+        watchlist: cities,
+        everywhere: cities.length === 0,
       }),
-      fetch('/api/account/watchlist', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ watchlist: cities }),
-      }),
-    ])
+    })
     setSaving(false)
+    if (!res.ok) {
+      setError(true)
+      return
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -85,13 +89,34 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
           </div>
         </div>
 
+        {/* Deal threshold */}
+        <div>
+          <p className="mb-2 text-[12px] font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Minimum deal size</p>
+          <div className="flex flex-wrap gap-2">
+            {([50, 40, 30] as const).map((pct) => (
+              <button
+                key={pct}
+                type="button"
+                onClick={() => setDiscountPct(pct)}
+                className={`rounded-[var(--radius-pill)] px-4 py-2 text-[13px] font-medium transition-colors duration-100 ${
+                  discountPct === pct
+                    ? 'bg-[color:var(--primary)] text-white'
+                    : 'border border-[color:var(--line-ivory)] bg-white text-[color:var(--ink)] hover:border-[color:var(--primary-soft)]'
+                }`}
+              >
+                {pct}%+
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Watchlist */}
         <div>
           <p className="mb-2 text-[12px] font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">
             Cities I&apos;m watching ({cities.length}/10)
           </p>
           <div className="flex flex-wrap gap-2">
-            {CITIES.map(city => {
+            {TRACKED_MARKET_NAMES.map(city => {
               const selected = cities.includes(city)
               const disabled = !selected && cities.length >= 10
               return (
@@ -111,7 +136,16 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
               )
             })}
           </div>
+          <p className="mt-2 text-[12px] text-[color:var(--ink-faint)]">
+            Select none to watch every destination.
+          </p>
         </div>
+
+        {error ? (
+          <p className="text-[13px] font-medium text-[color:var(--accent)]" role="alert">
+            Could not save preferences. Try again.
+          </p>
+        ) : null}
 
         <button
           type="button"
