@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
           hotelName: d.hotel_name,
           city: d.city,
           stars: d.stars,
+          photoUrl: d.photo_url,
           checkInWindow: d.check_in_window,
           discountPct: d.discount_pct,
           dealPriceCents: d.deal_price_cents,

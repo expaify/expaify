@@ -18,12 +18,31 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Premium required' }, { status: 403 })
   }
 
-  const body = (await req.json()) as { alertPreference?: string }
+  const body = (await req.json()) as {
+    alertPreference?: string
+    alertMinDiscount?: unknown
+    alertTimezone?: unknown
+  }
   const pref = body.alertPreference as AlertPref | undefined
   if (!pref || !VALID_PREFS.includes(pref)) {
     return NextResponse.json({ error: 'Invalid alertPreference' }, { status: 400 })
   }
 
-  await upsertSubscription(session.user.id, { alertPreference: pref })
+  const patch: Parameters<typeof upsertSubscription>[1] = { alertPreference: pref }
+  if (body.alertMinDiscount !== undefined) {
+    const min = Number(body.alertMinDiscount)
+    if (!Number.isInteger(min) || min < 0 || min > 90) {
+      return NextResponse.json({ error: 'Invalid alertMinDiscount' }, { status: 400 })
+    }
+    patch.alertMinDiscount = min
+  }
+  if (body.alertTimezone !== undefined) {
+    if (typeof body.alertTimezone !== 'string' || body.alertTimezone.length > 64) {
+      return NextResponse.json({ error: 'Invalid alertTimezone' }, { status: 400 })
+    }
+    patch.alertTimezone = body.alertTimezone
+  }
+
+  await upsertSubscription(session.user.id, patch)
   return NextResponse.json({ ok: true })
 }

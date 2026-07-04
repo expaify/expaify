@@ -200,16 +200,59 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   current_period_end      TIMESTAMPTZ,
   alert_preference        TEXT        NOT NULL DEFAULT 'daily', -- instant | daily | off
   watchlist               TEXT[]      NOT NULL DEFAULT '{}',    -- up to 10 city slugs
-  min_discount_pct        SMALLINT    NOT NULL DEFAULT 40,
-  onboarding_done         BOOLEAN     NOT NULL DEFAULT false,
+  alert_min_discount      SMALLINT    NOT NULL DEFAULT 40,
+  alert_timezone          TEXT        NOT NULL DEFAULT 'America/New_York',
+  alert_unsubscribe_token UUID        NOT NULL DEFAULT gen_random_uuid(),
   last_alerted_at         TIMESTAMPTZ,
   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS min_discount_pct SMALLINT NOT NULL DEFAULT 40;
-ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS onboarding_done BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS alert_min_discount SMALLINT NOT NULL DEFAULT 40;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS alert_timezone TEXT NOT NULL DEFAULT 'America/New_York';
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS alert_unsubscribe_token UUID NOT NULL DEFAULT gen_random_uuid();
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS last_alerted_at TIMESTAMPTZ;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_alert_preference_check'
+  ) THEN
+    ALTER TABLE subscriptions
+      ADD CONSTRAINT subscriptions_alert_preference_check
+      CHECK (alert_preference IN ('instant', 'daily', 'off'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_watchlist_limit_check'
+  ) THEN
+    ALTER TABLE subscriptions
+      ADD CONSTRAINT subscriptions_watchlist_limit_check
+      CHECK (COALESCE(array_length(watchlist, 1), 0) <= 10);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_alert_min_discount_check'
+  ) THEN
+    ALTER TABLE subscriptions
+      ADD CONSTRAINT subscriptions_alert_min_discount_check
+      CHECK (alert_min_discount BETWEEN 0 AND 90);
+  END IF;
+END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_customer ON subscriptions(stripe_customer_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_unsubscribe_token ON subscriptions(alert_unsubscribe_token);
+
+CREATE TABLE IF NOT EXISTS deal_alert_deliveries (
+  id              BIGSERIAL   PRIMARY KEY,
+  user_id         TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  deal_id         UUID        NOT NULL REFERENCES deals(id) ON DELETE CASCADE,
+  delivery_type   TEXT        NOT NULL, -- instant | digest
+  delivered_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT deal_alert_deliveries_unique UNIQUE (user_id, deal_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_deal_alert_deliveries_user_day
+  ON deal_alert_deliveries (user_id, delivered_at DESC);

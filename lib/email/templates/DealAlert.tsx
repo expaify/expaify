@@ -1,18 +1,20 @@
 import {
   Body, Button, Container, Head, Heading, Hr, Html,
-  Preview, Section, Text, Row, Column,
+  Img, Preview, Section, Text, Row, Column,
 } from '@react-email/components'
 
 export type DealAlertProps = {
   hotelName: string
   city: string
   stars: number
+  photoUrl?: string | null
   checkInWindow: string
   discountPct: number
   dealPriceCents: number
   medianPriceCents: number
   snapshotCount: number
   dealUrl: string
+  manageUrl: string
   unsubscribeUrl: string
 }
 
@@ -28,12 +30,14 @@ export function DealAlert({
   hotelName,
   city,
   stars: starCount,
+  photoUrl,
   checkInWindow,
   discountPct,
   dealPriceCents,
   medianPriceCents,
   snapshotCount,
   dealUrl,
+  manageUrl,
   unsubscribeUrl,
 }: DealAlertProps) {
   return (
@@ -48,12 +52,22 @@ export function DealAlert({
             expaify<span style={{ color: '#FF6B4A' }}>.</span>
           </Text>
 
-          <Text style={{ fontSize: '13px', color: '#5C5852', margin: '0 0 4px' }}>
+          <Text style={{ fontSize: '13px', color: '#5C5852', margin: '0 0 4px', lineHeight: '20px' }}>
             We found a deal for you
           </Text>
 
           {/* Deal card */}
-          <Section style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', border: '0.5px solid #E8E2D8', padding: '20px', margin: '0 0 20px' }}>
+          <Section style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', border: '0.5px solid #E8E2D8', overflow: 'hidden', margin: '0 0 20px' }}>
+            {photoUrl ? (
+              <Img
+                src={photoUrl}
+                alt=""
+                width="540"
+                height="216"
+                style={{ display: 'block', width: '100%', maxWidth: '540px', height: 'auto' }}
+              />
+            ) : null}
+            <Section style={{ padding: '20px' }}>
             <Row>
               <Column>
                 <Heading as="h2" style={{ fontFamily: 'Georgia, serif', fontSize: '18px', fontWeight: 700, color: '#141210', margin: '0 0 4px' }}>
@@ -83,6 +97,10 @@ export function DealAlert({
               </Column>
             </Row>
 
+            <Text style={{ fontSize: '13px', color: '#5C5852', lineHeight: '20px', margin: '0 0 14px' }}>
+              This is {fmt(dealPriceCents)} vs a usual {fmt(medianPriceCents)} median for comparable dates.
+            </Text>
+
             <Button
               href={dealUrl}
               style={{
@@ -99,8 +117,9 @@ export function DealAlert({
                 boxSizing: 'border-box',
               }}
             >
-              See this deal
+              See the deal
             </Button>
+            </Section>
           </Section>
 
           <Text style={{ fontSize: '11px', color: '#8A857D', margin: '0 0 20px' }}>
@@ -110,7 +129,7 @@ export function DealAlert({
           <Hr style={{ border: 'none', borderTop: '1px solid #E8E2D8', margin: '0 0 16px' }} />
 
           <Text style={{ fontSize: '11px', color: '#8A857D', margin: 0 }}>
-            <a href={unsubscribeUrl} style={{ color: '#8A857D' }}>Manage alerts</a>
+            <a href={manageUrl} style={{ color: '#8A857D' }}>Manage prefs</a>
             {' · '}
             <a href={unsubscribeUrl} style={{ color: '#8A857D' }}>Unsubscribe</a>
             {' · '}
