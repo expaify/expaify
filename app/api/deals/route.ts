@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
-import { getPaywallContext } from '@/lib/paywall'
+import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { generateMockDeals } from '@/lib/pipeline/mock'
 
 export const runtime = 'nodejs'
@@ -77,16 +77,20 @@ const FREE_LIMIT = 3
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
+  const pwCtx = await getPaywallContext()
+
   const limit = Math.min(Number(searchParams.get('limit') ?? '50'), 100)
   const offset = Number(searchParams.get('offset') ?? '0')
-  const minDiscount = Number(searchParams.get('min_discount') ?? '20')
-  const maxPriceCents = searchParams.get('max_price_cents') ? Number(searchParams.get('max_price_cents')) : undefined
-  const minStars = searchParams.get('min_stars') ? Number(searchParams.get('min_stars')) : undefined
-  const dateFrom = searchParams.get('date_from') || undefined
-  const dateTo = searchParams.get('date_to') || undefined
-  let marketId = searchParams.get('market_id') ? Number(searchParams.get('market_id')) : undefined
-  const sort = searchParams.get('sort') === 'discount' ? 'discount' as const : 'newest' as const
-  const hasFilters = Boolean(
+  // Filters and sort are a Premium feature: for free users every filter param is
+  // ignored server-side so the plain newest-first feed is the only view.
+  const minDiscount = pwCtx.premium ? Number(searchParams.get('min_discount') ?? '20') : 20
+  const maxPriceCents = pwCtx.premium && searchParams.get('max_price_cents') ? Number(searchParams.get('max_price_cents')) : undefined
+  const minStars = pwCtx.premium && searchParams.get('min_stars') ? Number(searchParams.get('min_stars')) : undefined
+  const dateFrom = (pwCtx.premium && searchParams.get('date_from')) || undefined
+  const dateTo = (pwCtx.premium && searchParams.get('date_to')) || undefined
+  let marketId = pwCtx.premium && searchParams.get('market_id') ? Number(searchParams.get('market_id')) : undefined
+  const sort = pwCtx.premium && searchParams.get('sort') === 'discount' ? 'discount' as const : 'newest' as const
+  const hasFilters = pwCtx.premium && Boolean(
     searchParams.get('city') ||
     searchParams.get('market_id') ||
     searchParams.get('max_price_cents') ||
@@ -97,16 +101,16 @@ export async function GET(req: NextRequest) {
   )
 
   // Support filtering by city name (resolve to market_id)
-  const cityName = searchParams.get('city')
+  const cityName = pwCtx.premium ? searchParams.get('city') : null
   if (cityName && !marketId) {
     const { query: dbQuery } = await import('@/lib/db/client')
     const res = await dbQuery<{ id: number }>('SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1', [cityName])
     if (res.rows[0]) marketId = res.rows[0].id
   }
 
-  const [deals, pwCtx] = await Promise.all([
+  const [deals, unlockedIds] = await Promise.all([
     getActiveDeals({ limit, offset, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, marketId, sort, includeMock: false }),
-    getPaywallContext(),
+    pwCtx.premium ? Promise.resolve(new Set<string>()) : getFreeUnlockedDealIds(),
   ])
 
   // Fall back to mock deals when DB has no real data yet
@@ -127,8 +131,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ deals: [], total: 0, premium: pwCtx.premium })
   }
 
-  const paywalled = source.map((row, i) => {
-    const locked = !pwCtx.premium && i >= FREE_LIMIT
+  // Lock by membership in the weekly unlock set — never by position in the page,
+  // which would let offset/sort variations expose every price.
+  const paywalled = source.map((row) => {
+    const locked = !pwCtx.premium && !unlockedIds.has(row.id)
     return toApiDeal(row, locked)
   })
 

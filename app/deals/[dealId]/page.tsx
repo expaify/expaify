@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getDealById, getPriceHistory } from '@/lib/pipeline/dealDetection'
+import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { query } from '@/lib/db/client'
 import { formatMoney } from '@/lib/money'
 import { DealChip } from '@/app/components/ui/DealChip'
@@ -41,11 +42,79 @@ function Fact({ label, value, muted }: { label: string; value: string; muted?: b
   )
 }
 
+function LockedDealDetail({ city, checkInWindow }: { city: string; checkInWindow: string }) {
+  return (
+    <div className="min-h-screen bg-[color:var(--bg)]">
+      <nav className="border-b border-[color:var(--line-ivory)] bg-[color:var(--bg)]">
+        <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">
+          <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
+            expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
+          </a>
+          <a href="/deals" className="text-[14px] font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
+            ← Back to deals
+          </a>
+        </div>
+      </nav>
+
+      <main className="mx-auto max-w-[560px] px-5 py-14">
+        <section className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-8 text-center">
+          <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
+            <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-3 py-1 font-display text-[12px] font-bold leading-none text-[color:var(--gold-text)]">
+              Members
+            </span>
+            <span className="inline-flex items-center rounded-full border border-[color:var(--primary)] bg-[color:var(--primary-soft)] px-3 py-1 text-[11px] font-medium text-[color:var(--primary)]">
+              {city}
+            </span>
+          </div>
+
+          {/* Blurred stand-in for the hotel name and price — no real data behind it */}
+          <div className="pointer-events-none mx-auto mt-4 max-w-[320px] select-none space-y-3 blur-[5px]" aria-hidden>
+            <div className="mx-auto h-6 w-3/4 rounded bg-[color:var(--line-ivory)]" />
+            <div className="mx-auto flex items-baseline justify-center gap-2">
+              <div className="h-9 w-24 rounded-full bg-[color:var(--primary)]" />
+              <div className="h-4 w-16 rounded-full bg-[color:var(--line-ivory)]" />
+            </div>
+          </div>
+
+          <div className="mx-auto mt-6 flex max-w-[340px] flex-col items-center gap-3">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            </svg>
+            <h1 className="font-display text-[22px] font-bold leading-snug text-[color:var(--ink)]">
+              Members-only deal
+            </h1>
+            <p className="text-[14px] leading-6 text-[color:var(--ink-soft)]">
+              This {city} deal ({checkInWindow}) is locked on the free plan. Premium unlocks the full feed, filters, watchlists, and email alerts — free for 7 days.
+            </p>
+            <a href="/join" className="btn btn-conversion min-h-[44px] px-6">
+              Unlock with Premium
+            </a>
+            <a href="/deals" className="text-[13px] font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]">
+              See this week&apos;s free deals
+            </a>
+          </div>
+        </section>
+      </main>
+    </div>
+  )
+}
+
 export default async function DealDetailPage({ params }: PageProps) {
   const { dealId } = await params
 
   const deal = await getDealById(dealId).catch(() => null)
   if (!deal) notFound()
+
+  // Server-side paywall: render the locked state instead of the deal for
+  // free/anonymous visitors when this deal is outside the weekly unlock set.
+  const pwCtx = await getPaywallContext()
+  if (!pwCtx.premium) {
+    const unlockedIds = await getFreeUnlockedDealIds()
+    if (!unlockedIds.has(deal.id)) {
+      return <LockedDealDetail city={deal.city} checkInWindow={deal.check_in_window} />
+    }
+  }
 
   const mktRes = await query<{ id: number }>(
     'SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1',
