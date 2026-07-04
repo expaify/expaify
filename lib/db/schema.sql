@@ -211,6 +211,34 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS alert_min_discount SMALLINT NOT NULL DEFAULT 40;
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS alert_timezone TEXT NOT NULL DEFAULT 'America/New_York';
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS alert_unsubscribe_token UUID NOT NULL DEFAULT gen_random_uuid();
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS last_alerted_at TIMESTAMPTZ;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_alert_preference_check'
+  ) THEN
+    ALTER TABLE subscriptions
+      ADD CONSTRAINT subscriptions_alert_preference_check
+      CHECK (alert_preference IN ('instant', 'daily', 'off'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_watchlist_limit_check'
+  ) THEN
+    ALTER TABLE subscriptions
+      ADD CONSTRAINT subscriptions_watchlist_limit_check
+      CHECK (COALESCE(array_length(watchlist, 1), 0) <= 10);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_alert_min_discount_check'
+  ) THEN
+    ALTER TABLE subscriptions
+      ADD CONSTRAINT subscriptions_alert_min_discount_check
+      CHECK (alert_min_discount BETWEEN 0 AND 90);
+  END IF;
+END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_customer ON subscriptions(stripe_customer_id);

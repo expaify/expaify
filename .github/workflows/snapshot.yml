@@ -3,10 +3,12 @@ name: Nightly Snapshot
 on:
   schedule:
     - cron: '0 4 * * *'  # 4am UTC daily
+    - cron: '5 * * * *'  # hourly digest check for 9am member-local sends
   workflow_dispatch:       # allow manual trigger
 
 jobs:
   snapshot:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 4 * * *'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger pipeline on prod
@@ -24,4 +26,23 @@ jobs:
           print(f'Markets: {d[\"markets\"]}')
           print(f'New deals: {d[\"totalNewDeals\"]}')
           print(f'Alerts sent: {d[\"alertsSent\"]}')
+          "
+  digest:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '5 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger daily alert digest on prod
+        env:
+          PIPELINE_SECRET: ${{ secrets.PIPELINE_SECRET }}
+        run: |
+          curl -fsSL --max-time 310 \
+            -X POST https://expaify.com/api/alerts/digest \
+            -H "Authorization: Bearer ${PIPELINE_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{}' | tee /tmp/digest-result.json
+          python3 -c "
+          import json
+          d = json.load(open('/tmp/digest-result.json'))
+          print(f'Digests sent: {d[\"recipients\"]}')
+          print(f'Digests skipped: {d[\"skipped\"]}')
           "
