@@ -13,6 +13,9 @@ export type Subscription = {
   currentPeriodEnd: Date | null
   alertPreference: 'instant' | 'daily' | 'off'
   watchlist: string[]
+  alertMinDiscount: number
+  alertTimezone: string
+  alertUnsubscribeToken: string
 }
 
 export function isPremium(status: SubscriptionStatus): boolean {
@@ -31,6 +34,9 @@ export async function getSubscription(userId: string): Promise<Subscription | nu
     current_period_end: Date | null
     alert_preference: string
     watchlist: string[]
+    alert_min_discount: number
+    alert_timezone: string
+    alert_unsubscribe_token: string
   }>(
     `SELECT * FROM subscriptions WHERE user_id = $1 LIMIT 1`,
     [userId]
@@ -48,6 +54,9 @@ export async function getSubscription(userId: string): Promise<Subscription | nu
     currentPeriodEnd: row.current_period_end,
     alertPreference: row.alert_preference as 'instant' | 'daily' | 'off',
     watchlist: row.watchlist ?? [],
+    alertMinDiscount: row.alert_min_discount ?? 40,
+    alertTimezone: row.alert_timezone ?? 'America/New_York',
+    alertUnsubscribeToken: String(row.alert_unsubscribe_token),
   }
 }
 
@@ -56,8 +65,8 @@ export async function upsertSubscription(
   patch: Partial<Omit<Subscription, 'id' | 'userId'>>
 ): Promise<void> {
   await query(
-    `INSERT INTO subscriptions (user_id, stripe_customer_id, stripe_subscription_id, status, plan, trial_ends_at, current_period_end, alert_preference, watchlist, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+    `INSERT INTO subscriptions (user_id, stripe_customer_id, stripe_subscription_id, status, plan, trial_ends_at, current_period_end, alert_preference, watchlist, alert_min_discount, alert_timezone, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10::SMALLINT, 40), COALESCE($11::TEXT, 'America/New_York'), NOW())
      ON CONFLICT (user_id) DO UPDATE SET
        stripe_customer_id     = COALESCE(EXCLUDED.stripe_customer_id, subscriptions.stripe_customer_id),
        stripe_subscription_id = COALESCE(EXCLUDED.stripe_subscription_id, subscriptions.stripe_subscription_id),
@@ -67,6 +76,8 @@ export async function upsertSubscription(
        current_period_end     = COALESCE(EXCLUDED.current_period_end, subscriptions.current_period_end),
        alert_preference       = COALESCE(EXCLUDED.alert_preference, subscriptions.alert_preference),
        watchlist              = COALESCE(EXCLUDED.watchlist, subscriptions.watchlist),
+       alert_min_discount     = COALESCE($10::SMALLINT, subscriptions.alert_min_discount),
+       alert_timezone         = COALESCE($11::TEXT, subscriptions.alert_timezone),
        updated_at             = NOW()`,
     [
       userId,
@@ -78,6 +89,8 @@ export async function upsertSubscription(
       patch.currentPeriodEnd ?? null,
       patch.alertPreference ?? 'daily',
       patch.watchlist ?? [],
+      patch.alertMinDiscount ?? null,
+      patch.alertTimezone ?? null,
     ]
   )
 }
