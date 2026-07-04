@@ -26,7 +26,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
       <nav className="border-b border-[color:var(--line-ivory)] bg-[color:var(--bg)]">
         <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">
           <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
-            expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" />
+            expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
           </a>
           <a href="/deals" className="text-[14px] font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">Deals</a>
         </div>

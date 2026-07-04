@@ -32,7 +32,7 @@ export function CompareRow({ links }: CompareRowProps) {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
-                className={`${base} hover:border-[color:var(--primary)] hover:bg-[rgba(14,90,84,0.04)]`}
+                className={`${base} hover:border-[color:var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_4%,transparent)]`}
               >
                 {label}
               </a>

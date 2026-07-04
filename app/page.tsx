@@ -64,7 +64,7 @@ export default function LandingPage() {
           <div className="flex flex-col items-center gap-12 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-16">
             {/* Left */}
             <div className="flex max-w-[440px] flex-col items-start gap-6">
-              <h1 className="font-display text-[36px] font-bold leading-[1.05] tracking-tight text-[color:var(--ink)] min-[400px]:text-[44px] min-[480px]:text-[52px]">
+              <h1 className="font-display text-[36px] font-bold leading-[1.1] text-[color:var(--ink)] min-[480px]:text-[44px]">
                 Never overpay for a hotel again.
               </h1>
               <p className="text-[17px] leading-relaxed text-[color:var(--ink-soft)]">
@@ -179,7 +179,7 @@ export default function LandingPage() {
               ].map(({ n, title, body }) => (
                 <div key={n} className="flex flex-col gap-4">
                   <span
-                    className="font-display text-[56px] font-bold leading-none"
+                    className="font-display text-[44px] font-bold leading-none"
                     style={{ color: 'var(--line-ivory)' }}
                     aria-hidden
                   >
@@ -347,11 +347,11 @@ export default function LandingPage() {
             <div className="flex flex-col gap-3">
               <a
                 href="/"
-                className="flex items-center gap-0.5 font-display text-[18px] font-bold leading-none text-white no-underline"
+                className="flex items-center gap-0.5 font-display text-[20px] font-bold leading-none text-white no-underline"
                 aria-label="expaify home"
               >
                 expaify
-                <span className="h-[6px] w-[6px] rounded-full bg-[color:var(--accent)]" aria-hidden />
+                <span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
               </a>
               <p className="max-w-[180px] text-[13px] leading-relaxed text-[color:var(--ink-faint-on-dark)]">
                 Never overpay for a hotel again.
@@ -418,7 +418,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[rgba(255,255,255,0.08)] pt-8 min-[640px]:flex-row min-[640px]:items-center">
+          <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[color:color-mix(in_srgb,var(--surface)_8%,transparent)] pt-8 min-[640px]:flex-row min-[640px]:items-center">
             <p className="text-[13px] text-[color:var(--ink-faint-on-dark)]">
               © 2026 expaify. All rights reserved.
             </p>

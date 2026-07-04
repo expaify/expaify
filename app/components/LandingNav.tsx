@@ -26,7 +26,7 @@ export function LandingNav() {
       <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">
         <a
           href="/"
-          className="flex items-center gap-0.5 font-display text-[20px] font-bold leading-none tracking-tight text-[color:var(--ink)] no-underline"
+          className="flex items-center gap-0.5 font-display text-[20px] font-bold leading-none text-[color:var(--ink)] no-underline"
           aria-label="expaify home"
         >
           expaify

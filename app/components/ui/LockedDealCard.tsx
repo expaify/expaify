@@ -25,7 +25,7 @@ export function LockedDealCard({
         {photoUrl ? (
           <>
             <img src={photoUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[rgba(14,90,84,0.35)] to-transparent" aria-hidden />
+            <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--primary)_35%,transparent)] to-transparent" aria-hidden />
           </>
         ) : (
           <div

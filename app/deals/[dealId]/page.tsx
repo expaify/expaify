@@ -78,7 +78,7 @@ export default async function DealDetailPage({ params }: PageProps) {
       <nav className="border-b border-[color:var(--line-ivory)] bg-[color:var(--bg)]">
         <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">
           <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
-            expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" />
+            expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
           </a>
           <a href="/deals" className="text-[14px] font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
             ← Back to deals
@@ -119,7 +119,7 @@ export default async function DealDetailPage({ params }: PageProps) {
                   Updated {fmtDate(deal.updated_at)}
                 </span>
                 {isExpired && deal.expires_at && (
-                  <span className="text-[11px] font-medium text-[color:var(--error,#c00)]">
+                  <span className="text-[11px] font-medium text-[color:var(--error)]">
                     Expired {fmtDate(deal.expires_at)}
                   </span>
                 )}
@@ -131,9 +131,9 @@ export default async function DealDetailPage({ params }: PageProps) {
               </div>
 
               {deal.headline && (
-                <p className="mb-1 text-[13px] font-medium italic text-[color:var(--primary)]">{deal.headline}</p>
+                <p className="mb-1 text-[13px] font-medium text-[color:var(--primary)]">{deal.headline}</p>
               )}
-              <h1 className="font-display text-[28px] font-extrabold leading-tight tracking-normal text-[color:var(--ink)] sm:text-[32px]">
+              <h1 className="font-display text-[28px] font-bold leading-tight text-[color:var(--ink)] sm:text-[32px]">
                 {deal.hotel_name}
               </h1>
               <p className="mt-1 text-[14px] font-medium leading-6 text-[color:var(--ink-soft)]">
@@ -151,7 +151,7 @@ export default async function DealDetailPage({ params }: PageProps) {
                 Nightly rate before taxes and fees
               </p>
               <div className="mt-1 flex flex-wrap items-baseline gap-3">
-                <span className="font-display text-[40px] font-extrabold leading-none text-[color:var(--primary)]">
+                <span className="font-display text-[40px] font-bold leading-none text-[color:var(--primary)]">
                   {formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}
                 </span>
                 <span className="self-end pb-[2px] text-[12px] leading-none text-[color:var(--ink-faint)]">/ night</span>
@@ -223,7 +223,7 @@ export default async function DealDetailPage({ params }: PageProps) {
               {deal.photo_url ? (
                 <>
                   <img src={deal.photo_url} alt="" className="h-full w-full object-cover" loading="lazy" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[rgba(14,90,84,0.4)] to-transparent" aria-hidden />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--primary)_40%,transparent)] to-transparent" aria-hidden />
                 </>
               ) : (
                 <div
@@ -283,20 +283,20 @@ export default async function DealDetailPage({ params }: PageProps) {
             {!isExpired && Object.keys(deal.ota_links ?? {}).length > 0 && (
               <div className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-4">
                 <p className="mb-2 text-[11px] text-[color:var(--ink-faint)]">Compare and book on:</p>
-                <div className="grid grid-cols-4 gap-[6px]">
+                <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
                   {(['booking', 'expedia', 'trip', 'kiwi'] as const).map((key) => {
                     const href = deal.ota_links?.[key]
                     const label = key === 'booking' ? 'Booking' : key === 'expedia' ? 'Expedia' : key === 'trip' ? 'Trip.com' : 'Kiwi'
                     if (href) {
                       return (
                         <a key={key} href={href} target="_blank" rel="noopener noreferrer sponsored"
-                          className="block rounded-[10px] border-[0.5px] border-[color:var(--line-ivory)] py-2 text-center text-[11px] font-medium text-[color:var(--ink)] no-underline transition-colors duration-100 hover:border-[color:var(--primary)] hover:bg-[rgba(14,90,84,0.04)]">
+                          className="block rounded-[var(--radius-input)] border-[0.5px] border-[color:var(--line-ivory)] py-2 text-center text-[11px] font-medium text-[color:var(--ink)] no-underline transition-colors duration-100 hover:border-[color:var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_4%,transparent)]">
                           {label}
                         </a>
                       )
                     }
                     return (
-                      <span key={key} className="block rounded-[10px] border-[0.5px] border-[color:var(--line-ivory)] py-2 text-center text-[11px] font-medium text-[color:var(--ink-faint)] opacity-40">
+                      <span key={key} className="block rounded-[var(--radius-input)] border-[0.5px] border-[color:var(--line-ivory)] py-2 text-center text-[11px] font-medium text-[color:var(--ink-faint)] opacity-40">
                         {label}
                       </span>
                     )
