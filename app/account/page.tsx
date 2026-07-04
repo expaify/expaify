@@ -94,7 +94,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
           )}
           {!sub || sub.status === 'free' ? (
             <p className="text-[14px] text-[color:var(--ink-soft)]">
-              You see 3 unlocked deals per week. Upgrade to get unlimited deals + email alerts.
+              You see 3 unlocked deals per week. Upgrade to get unlimited deals.
             </p>
           ) : null}
 
@@ -115,22 +115,21 @@ export default async function AccountPage({ searchParams }: PageProps) {
           <p className="text-[14px] text-[color:var(--ink-soft)]">{session.user.email}</p>
         </section>
 
-        {/* Alerts + Watchlist (premium only) */}
-        {premium && (
-          <section className="rounded-[16px] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
-            <h2 className="mb-1 font-display text-[15px] font-bold text-[color:var(--ink)]">Email alerts</h2>
-            <p className="mb-5 text-[13px] text-[color:var(--ink-faint)]">
-              Choose how often we email you when a deal appears.
-            </p>
-            <AccountClient
-              stripeCustomerId={sub?.stripeCustomerId}
-              userId={session.user.id}
-              alertPreference={sub?.alertPreference}
-              watchlist={sub?.watchlist}
-              showAlerts
-            />
-          </section>
-        )}
+        {/* Alerts + Watchlist */}
+        <section className="rounded-[16px] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
+          <h2 className="mb-1 font-display text-[15px] font-bold text-[color:var(--ink)]">Deal preferences</h2>
+          <p className="mb-5 text-[13px] text-[color:var(--ink-faint)]">
+            Choose the destinations, deal size, and alert cadence you want.
+          </p>
+          <AccountClient
+            stripeCustomerId={sub?.stripeCustomerId}
+            userId={session.user.id}
+            alertPreference={sub?.alertPreference}
+            watchlist={sub?.watchlist}
+            minDiscountPct={sub?.minDiscountPct}
+            showAlerts
+          />
+        </section>
       </main>
     </div>
   )

@@ -1,4 +1,7 @@
 import type { Metadata } from 'next'
+import { auth } from '@/auth'
+import { getSubscription } from '@/lib/subscription'
+import { redirect } from 'next/navigation'
 import { LandingNav } from '../components/LandingNav'
 import { DealFeed } from './DealFeed'
 
@@ -7,7 +10,13 @@ export const metadata: Metadata = {
   description: 'We track 20 destinations daily and surface hotel deals 30–50% below their 60-day average price.',
 }
 
-export default function DealsPage() {
+export default async function DealsPage() {
+  const session = await auth()
+  if (session?.user?.id) {
+    const sub = await getSubscription(session.user.id).catch(() => null)
+    if (!sub?.onboardingDone) redirect('/onboarding')
+  }
+
   return (
     <>
       <LandingNav />

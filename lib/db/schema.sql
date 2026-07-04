@@ -200,10 +200,15 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   current_period_end      TIMESTAMPTZ,
   alert_preference        TEXT        NOT NULL DEFAULT 'daily', -- instant | daily | off
   watchlist               TEXT[]      NOT NULL DEFAULT '{}',    -- up to 10 city slugs
+  min_discount_pct        SMALLINT    NOT NULL DEFAULT 40,
+  onboarding_done         BOOLEAN     NOT NULL DEFAULT false,
   last_alerted_at         TIMESTAMPTZ,
   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS min_discount_pct SMALLINT NOT NULL DEFAULT 40;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS onboarding_done BOOLEAN NOT NULL DEFAULT false;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_customer ON subscriptions(stripe_customer_id);

@@ -13,7 +13,7 @@ export default function LoginPage() {
   const googleEnabled = Boolean(process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED)
 
   useEffect(() => {
-    if (status === 'authenticated') router.replace('/deals')
+    if (status === 'authenticated') router.replace('/onboarding')
   }, [status, router])
 
   async function handleEmail(e: React.FormEvent) {
@@ -82,7 +82,7 @@ export default function LoginPage() {
             </div>
             <button
               type="button"
-              onClick={() => signIn('google', { callbackUrl: '/deals' })}
+              onClick={() => signIn('google', { callbackUrl: '/onboarding' })}
               className="btn btn-outline w-full justify-center gap-2"
             >
               <GoogleIcon />
