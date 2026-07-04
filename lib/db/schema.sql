@@ -93,7 +93,7 @@ INSERT INTO tracked_markets (city, country, iata) VALUES
   ('Las Vegas',     'US', 'LAS'),
   ('Orlando',       'US', 'MCO'),
   ('San Juan',      'PR', 'SJU'),
-  ('Tulum',         'MX', 'CUN'),
+  ('Tulum',         'MX', 'TUL'),
   ('Amsterdam',     'NL', 'AMS'),
   ('Athens',        'GR', 'ATH'),
   ('Punta Cana',    'DO', 'PUJ'),

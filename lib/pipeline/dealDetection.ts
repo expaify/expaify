@@ -1,10 +1,7 @@
 import { query } from '../db/client'
 import { generateHeadlines } from '../ai/generateHeadline'
 import { buildOtaLinks } from './otaLinks'
-
-const DEAL_THRESHOLD = 0.70    // price must be ≤ 70% of median to flag
-const EXPIRE_THRESHOLD = 0.85  // price back above 85% of median → expire
-const MIN_SNAPSHOTS = 2        // MVP: lower threshold to surface deals faster; raise to 8 once 2+ weeks of data
+import { evaluateDeal } from './dealRules'
 
 type Market = { id: number; city: string; country: string; iata: string }
 
@@ -70,14 +67,15 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
   for (const row of snaps.rows) {
     const { hotel_id, hotel_name, stars, photo_url, check_in, median_price_cents, latest_price_cents, snapshot_count, is_mock } = row
 
-    // Never flag below minimum snapshot count
-    if (snapshot_count < MIN_SNAPSHOTS) continue
-
-    const ratio = latest_price_cents / median_price_cents
+    const decision = evaluateDeal({
+      latestPriceCents: latest_price_cents,
+      medianPriceCents: median_price_cents,
+      snapshotCount: snapshot_count,
+    })
     const checkInStr = check_in instanceof Date ? check_in.toISOString().slice(0, 10) : String(check_in)
 
-    if (ratio <= DEAL_THRESHOLD) {
-      const discountPct = Math.round((1 - ratio) * 100)
+    if (decision.action === 'flag') {
+      const { discountPct } = decision
       const checkOut = new Date(check_in)
       checkOut.setDate(checkOut.getDate() + 2)
       const checkOutStr = checkOut.toISOString().slice(0, 10)
@@ -128,8 +126,9 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
         })
       }
       dealsUpserted++
-    } else if (ratio > EXPIRE_THRESHOLD) {
-      // Price recovered — expire any active deal for this hotel+checkin
+    } else if (decision.action === 'expire') {
+      // Price recovered above the expiry threshold, or the snapshot history is
+      // too thin to support a flag — expire any active deal for this hotel+checkin
       await query(
         `UPDATE deals SET status = 'expired', updated_at = NOW()
          WHERE hotel_id = $1 AND market_id = $2 AND check_in_date = $3 AND status = 'active'`,
