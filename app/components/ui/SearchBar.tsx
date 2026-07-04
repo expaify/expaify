@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
 
 type Props = {
@@ -15,6 +15,16 @@ export function SearchBar({ premium, onResult, onClear }: Props) {
   const [parsed, setParsed] = useState<DealSearchFilters | null>(null)
   const [message, setMessage] = useState<string | null>(premium ? null : 'Natural-language search is included with Premium.')
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (premium && message === 'Natural-language search is included with Premium.') {
+      setMessage(null)
+    }
+    if (!premium) {
+      setParsed(null)
+      setMessage('Natural-language search is included with Premium.')
+    }
+  }, [premium, message])
 
   async function handleSearch(q: string) {
     const trimmed = q.trim()

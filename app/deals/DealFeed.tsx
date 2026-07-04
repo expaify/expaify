@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { DealCard } from '../components/ui/DealCard'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
 import { SearchBar } from '../components/ui/SearchBar'
@@ -89,7 +89,6 @@ export function DealFeed() {
   const [sort, setSort] = useState<'newest' | 'discount'>('newest')
   const [offset, setOffset] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [initialised, setInitialised] = useState(false)
   const [premium, setPremium] = useState(false)
 
   const fetchDeals = useCallback(async (opts: DealFetchOpts) => {
@@ -125,11 +124,11 @@ export function DealFeed() {
     }
   }, [])
 
-  // Fetch on first render
-  if (!initialised) {
-    setInitialised(true)
+  useEffect(() => {
     fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort, offset: 0, append: false })
-  }
+    // Initial feed load only; filter changes call fetchDeals through applyFilter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function applyFilter(next: {
     city?: string

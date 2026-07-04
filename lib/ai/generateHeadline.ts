@@ -26,6 +26,16 @@ type DealCopy = {
   description: string
 }
 
+const DEAL_COPY_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    headline: { type: 'string', maxLength: 70 },
+    description: { type: 'string' },
+  },
+  required: ['headline', 'description'],
+} as const
+
 function sentenceCount(text: string): number {
   return text.split(/[.!?]+/).map(part => part.trim()).filter(Boolean).length
 }
@@ -90,7 +100,14 @@ async function generateOne(deal: DealInput): Promise<DealCopy | null> {
 
   const res = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
-    response_format: { type: 'json_object' },
+    response_format: {
+      type: 'json_schema',
+      json_schema: {
+        name: 'deal_copy',
+        strict: true,
+        schema: DEAL_COPY_SCHEMA,
+      },
+    },
     max_tokens: 160,
     messages: [
       {

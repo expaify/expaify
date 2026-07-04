@@ -20,6 +20,22 @@ export const DEAL_SEARCH_CITIES = [
 
 const citySet = new Set<string>(DEAL_SEARCH_CITIES)
 const datePattern = /^\d{4}-\d{2}-\d{2}$/
+const allowedKeys = ['destination_type', 'city', 'max_price', 'min_stars', 'min_discount', 'date_from', 'date_to'] as const
+
+export const DEAL_SEARCH_FILTER_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    destination_type: { type: ['string', 'null'], enum: ['hotel', null] },
+    city: { type: ['string', 'null'], enum: [...DEAL_SEARCH_CITIES, null] },
+    max_price: { type: ['integer', 'null'], minimum: 1, maximum: 100000 },
+    min_stars: { type: ['integer', 'null'], minimum: 1, maximum: 5 },
+    min_discount: { type: ['integer', 'null'], minimum: 0, maximum: 99 },
+    date_from: { type: ['string', 'null'], pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+    date_to: { type: ['string', 'null'], pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+  },
+  required: allowedKeys,
+} as const
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -38,7 +54,7 @@ function validInteger(value: unknown, min: number, max: number): value is number
 export function validateDealSearchFilters(input: unknown): DealSearchParseResult {
   if (!isPlainObject(input)) return { ok: false, reason: 'not an object' }
 
-  const allowed = new Set(['destination_type', 'city', 'max_price', 'min_stars', 'min_discount', 'date_from', 'date_to'])
+  const allowed = new Set<string>(allowedKeys)
   for (const key of Object.keys(input)) {
     if (!allowed.has(key)) return { ok: false, reason: `unknown key: ${key}` }
   }
@@ -85,6 +101,19 @@ export function validateDealSearchFilters(input: unknown): DealSearchParseResult
   }
 
   return { ok: true, filters }
+}
+
+export function normalizeDealSearchFilterInput(input: unknown): Record<string, unknown> | null {
+  if (!isPlainObject(input)) return null
+
+  const normalized: Record<string, unknown> = {}
+  for (const key of allowedKeys) {
+    const value = input[key]
+    if (value !== undefined && value !== null && value !== '') {
+      normalized[key] = value
+    }
+  }
+  return normalized
 }
 
 export function hasDealSearchFilters(filters: DealSearchFilters): boolean {

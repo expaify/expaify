@@ -3,7 +3,12 @@ export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import { DEAL_SEARCH_CITIES, validateDealSearchFilters } from '@/lib/ai/dealSearchFilters'
+import {
+  DEAL_SEARCH_CITIES,
+  DEAL_SEARCH_FILTER_SCHEMA,
+  normalizeDealSearchFilterInput,
+  validateDealSearchFilters,
+} from '@/lib/ai/dealSearchFilters'
 import { getPaywallContext } from '@/lib/paywall'
 
 let client: OpenAI | null = null
@@ -15,13 +20,20 @@ function getClient(): OpenAI | null {
   return client
 }
 
-async function parseWithOpenAI(query: string): Promise<unknown> {
+async function parseWithOpenAI(query: string, previousError?: string): Promise<unknown> {
   const openai = getClient()
   if (!openai) return null
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
-    response_format: { type: 'json_object' },
+    response_format: {
+      type: 'json_schema',
+      json_schema: {
+        name: 'deal_search_filters',
+        strict: true,
+        schema: DEAL_SEARCH_FILTER_SCHEMA,
+      },
+    },
     max_tokens: 120,
     messages: [
       {
@@ -35,8 +47,15 @@ async function parseWithOpenAI(query: string): Promise<unknown> {
           'max_price is an integer dollar amount per night, not cents.',
           'min_stars is an integer 1-5. min_discount is an integer 0-99.',
           'date_from and date_to must be YYYY-MM-DD. Omit unknown filters.',
+          'Use null for filters that are not present.',
         ].join(' '),
       },
+      ...(previousError
+        ? [{
+            role: 'user' as const,
+            content: `Previous output failed validation: ${previousError}. Return corrected JSON for the same query.`,
+          }]
+        : []),
       { role: 'user', content: query },
     ],
   })
@@ -62,8 +81,8 @@ export async function POST(req: NextRequest) {
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const parsed = await parseWithOpenAI(naturalQuery)
-      const validation = validateDealSearchFilters(parsed)
+      const parsed = await parseWithOpenAI(naturalQuery, attempt > 0 ? 'schema validation failed' : undefined)
+      const validation = validateDealSearchFilters(normalizeDealSearchFilterInput(parsed))
       if (validation.ok) return NextResponse.json({ filters: validation.filters })
     } catch {
       // Retry once, then return the product copy below.
