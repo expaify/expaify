@@ -21,7 +21,7 @@ export const TRACKED_MARKETS: TrackedMarket[] = [
   { city: 'Las Vegas', country: 'US', iata: 'LAS', photoUrl: 'https://images.unsplash.com/photo-1605833556294-ea5c7a74f57d?auto=format&fit=crop&w=640&q=80', photoAlt: 'Las Vegas strip at night' },
   { city: 'Orlando', country: 'US', iata: 'MCO', photoUrl: 'https://images.unsplash.com/photo-1597466599360-3b9775841aec?auto=format&fit=crop&w=640&q=80', photoAlt: 'Orlando lake and skyline' },
   { city: 'San Juan', country: 'PR', iata: 'SJU', photoUrl: 'https://images.unsplash.com/photo-1613059486358-54280773092c?auto=format&fit=crop&w=640&q=80', photoAlt: 'Colorful Old San Juan street' },
-  { city: 'Tulum', country: 'MX', iata: 'CUN', photoUrl: 'https://images.unsplash.com/photo-1590508723743-6435a6ed6cd5?auto=format&fit=crop&w=640&q=80', photoAlt: 'Tulum coastline' },
+  { city: 'Tulum', country: 'MX', iata: 'TUL', photoUrl: 'https://images.unsplash.com/photo-1590508723743-6435a6ed6cd5?auto=format&fit=crop&w=640&q=80', photoAlt: 'Tulum coastline' },
   { city: 'Amsterdam', country: 'NL', iata: 'AMS', photoUrl: 'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=640&q=80', photoAlt: 'Amsterdam canal houses' },
   { city: 'Athens', country: 'GR', iata: 'ATH', photoUrl: 'https://images.unsplash.com/photo-1555993539-1732b0258235?auto=format&fit=crop&w=640&q=80', photoAlt: 'Athens Acropolis' },
   { city: 'Punta Cana', country: 'DO', iata: 'PUJ', photoUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=640&q=80', photoAlt: 'Caribbean beach with palm trees' },
