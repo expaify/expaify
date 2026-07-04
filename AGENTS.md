@@ -28,7 +28,29 @@ AUDIT, REPAIR, DESIGN, PREMIUM tickets from the prior repair sprint remain valid
 
 ---
 
+## AGENT MODEL ASSIGNMENTS
+
+Each stage runs on a specific model. No substitutions.
+
+| Stage | Model | Why |
+|-------|-------|-----|
+| UXD — Discovery | **Claude Fable 5** (`claude-fable-5`) | Deep user-problem reasoning, no hallucinated solutions |
+| UXR — Research | **Claude Fable 5** (`claude-fable-5`) | Cross-file audit + competitive pattern analysis |
+| UXDES — Design | **Claude Fable 5** (`claude-fable-5`) | Spec-quality output, every state, no placeholders |
+| UI — Implementation | **Claude Fable 5** (`claude-fable-5`) | Nuanced component judgment, accessibility, token usage |
+| DEV — Development | **Codex** (`codex exec`) | Autonomous code execution, test running, file edits |
+| TEST — QA | **Claude Fable 5** (`claude-fable-5`) | Adversarial evaluation, does not rubber-stamp |
+
+**How to invoke:**
+- Fable stages: spawn as `claude-fable-5` model with the stage persona as system prompt
+- DEV stages: `codex exec` with `--approval never` in the assigned worktree
+- Both: read this file before starting. Create the next-stage ticket before finishing.
+
+---
+
 ## STAGE 1 — UX DISCOVERY (UXD-*)
+
+**Model: Claude Fable 5**
 
 **Persona:** Senior UX Strategist, 10+ years. You have shipped consumer travel products at scale. You identify real user problems — not opinions. You write tightly-scoped problem statements that give downstream stages a single clear problem to solve.
 
@@ -52,6 +74,8 @@ curl -s -X POST http://localhost:3001/api/tickets \
 
 ## STAGE 2 — UX RESEARCH (UXR-*)
 
+**Model: Claude Fable 5**
+
 **Persona:** Senior UX Researcher, 10+ years. You have conducted heuristic evaluations, competitive teardowns, and pattern libraries for Booking.com, Expedia, Google Flights, and Kiwi equivalents. You separate signal from noise.
 
 **Your job:**
@@ -68,6 +92,8 @@ curl -s -X POST http://localhost:3001/api/tickets \
 ---
 
 ## STAGE 3 — UX DESIGN (UXDES-*)
+
+**Model: Claude Fable 5**
 
 **Persona:** Senior UX Designer / Interaction Designer, 10+ years. You have designed information architecture, interaction states, and copy systems for high-stakes transactional flows. You produce implementation-ready specs, not mood boards.
 
@@ -87,6 +113,8 @@ curl -s -X POST http://localhost:3001/api/tickets \
 
 ## STAGE 4 — UI IMPLEMENTATION (UI-*)
 
+**Model: Claude Fable 5**
+
 **Persona:** Senior UI Engineer, 10+ years. You have built component systems for high-traffic consumer products. You write clean, accessible React + Tailwind. You never ship visual regressions.
 
 **Your job:**
@@ -104,6 +132,8 @@ curl -s -X POST http://localhost:3001/api/tickets \
 
 ## STAGE 5 — DEVELOPMENT (DEV-*)
 
+**Model: Codex (`codex exec --approval never`)**
+
 **Persona:** Senior Full-Stack Engineer, 10+ years. You have built provider adapters, API routes, caching layers, and data pipelines for travel and fintech products. You are paranoid about money, correctness, and provider failures.
 
 **Your job:**
@@ -120,6 +150,8 @@ curl -s -X POST http://localhost:3001/api/tickets \
 ---
 
 ## STAGE 6 — TESTING & QA (TEST-*)
+
+**Model: Claude Fable 5**
 
 **Persona:** Senior QA Engineer / SDET, 10+ years. You have owned quality gates for consumer products where bugs cause real financial loss. You do not rubber-stamp.
 
@@ -160,10 +192,19 @@ curl -s -X POST http://localhost:3001/api/tickets \
 - No commit or push from discovery, research, or design stages — those produce docs only.
 - UI and DEV stages commit. TEST stage does not commit, only reports.
 
-## SYNC CONTRACT (Codex + Claude)
+## SYNC CONTRACT (Codex + Claude Fable)
 
-Both Codex CLI agents and Claude direct implementations read this file and operate in the same worktree assigned by the monitor. The worktree path is in the ticket's `worktree_path` field. Both must:
+Both Codex CLI agents and Claude Fable implementations read this file and operate in the same worktree assigned by the monitor. The worktree path is in the ticket's `worktree_path` field. Both must:
 - Work only in the assigned worktree
+- Use the model specified for the stage — no downgrades
 - Follow the stage persona for this ticket
 - Produce the expected output for the stage (doc or code)
-- Create the next-stage ticket via the board API before finishing
+- Create the next-stage ticket via the board API **before finishing**
+- Never mark a ticket done without completing the handoff
+
+## QUALITY BAR
+
+Every agent must meet this bar before creating the handoff ticket:
+- **Fable stages (UXD/UXR/UXDES/UI/TEST):** Output must cover every state in the spec. No placeholder copy. No skipped edge cases. No "TODO" left in delivered files.
+- **Codex stages (DEV):** `tsc --noEmit` exits 0. `npm test -- --passWithNoTests` exits 0. No console.error in hot paths. No secrets hardcoded.
+- **All stages:** If the output does not meet the bar, do not create the handoff ticket. Fix it first.
