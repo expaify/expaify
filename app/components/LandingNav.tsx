@@ -38,7 +38,7 @@ export function LandingNav() {
             <>
               <a
                 href="/deals"
-                className="rounded-lg px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
+                className="rounded-[var(--radius-input)] px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
               >
                 Deals
               </a>
@@ -46,14 +46,14 @@ export function LandingNav() {
                 href="/account"
                 aria-label="Your account"
                 title={session.user?.email ?? 'Account'}
-                className="ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--primary)] text-[13px] font-bold uppercase text-white no-underline transition-opacity hover:opacity-80"
+                className="ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--primary)] text-[13px] font-medium uppercase text-white no-underline transition-opacity hover:opacity-80"
               >
                 {initial.toUpperCase()}
               </a>
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: '/' })}
-                className="rounded-lg px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] transition-colors hover:text-[color:var(--ink)]"
+                className="rounded-[var(--radius-input)] px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] transition-colors hover:text-[color:var(--ink)]"
               >
                 Sign out
               </button>
@@ -64,13 +64,13 @@ export function LandingNav() {
                 <>
                   <a
                     href="#pricing"
-                    className="hidden rounded-lg px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block"
+                    className="hidden rounded-[var(--radius-input)] px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block"
                   >
                     Pricing
                   </a>
                   <a
                     href="#faq"
-                    className="hidden rounded-lg px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block"
+                    className="hidden rounded-[var(--radius-input)] px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block"
                   >
                     FAQ
                   </a>
@@ -78,7 +78,7 @@ export function LandingNav() {
               )}
               <a
                 href="/login"
-                className="rounded-lg px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
+                className="rounded-[var(--radius-input)] px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
               >
                 Login
               </a>

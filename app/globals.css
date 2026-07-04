@@ -11,8 +11,10 @@
   --surface: #FFFFFF;
   --ink: #141210;
   --ink-soft: #5C5852;
-  --ink-faint: #8A857D;
+  --ink-faint: #767168; /* AA 4.5:1 on --bg and --surface at caption sizes */
+  --ink-faint-on-dark: #8A857D; /* tertiary text on --ink surfaces; AA 5.1:1 on --ink */
   --primary: #0E5A54;
+  --primary-deep: #0A4440;
   --primary-soft: #9FE1CB;
   --accent: #FF6B4A;
   --gold: #D9A441;
@@ -192,7 +194,7 @@ button:disabled,
 
 .btn-conversion {
   background: var(--accent);
-  color: var(--surface);
+  color: var(--ink); /* white on coral is 2.8:1; ink on coral is 6.6:1 (AA) */
 }
 
 .btn-outline {

@@ -57,7 +57,7 @@ export function DealCard({ deal, href }: DealCardProps) {
   const showSavings = savings >= 2000; // ≥ $20/night
 
   const content = (
-    <article className="group overflow-hidden rounded-[24px] border-[0.5px] border-[#e8e2d8] bg-white transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(20,18,16,0.12)]">
+    <article className="group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]">
       {/* ── Image area ─────────────────────────────── */}
       <div className="relative h-[160px] overflow-hidden">
         {deal.photoUrl ? (
@@ -74,7 +74,7 @@ export function DealCard({ deal, href }: DealCardProps) {
         ) : (
           <div
             className="flex h-full w-full items-center justify-center"
-            style={{ background: "linear-gradient(150deg,#0E5A54 0%,#0A4440 100%)" }}
+            style={{ background: "linear-gradient(150deg,var(--primary) 0%,var(--primary-deep) 100%)" }}
             aria-hidden
           >
             {/* Building icon */}
@@ -83,7 +83,7 @@ export function DealCard({ deal, href }: DealCardProps) {
               height="44"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#9FE1CB"
+              stroke="var(--primary-soft)"
               strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -100,13 +100,13 @@ export function DealCard({ deal, href }: DealCardProps) {
         </div>
 
         {/* Found pill — top right */}
-        <span className="absolute right-3 top-3 rounded-[999px] bg-[rgba(20,18,16,0.78)] px-[10px] py-[4px] text-[11px] font-medium leading-none text-[#FAF7F2]">
+        <span className="absolute right-3 top-3 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--bg)]">
           found {timeAgo(deal.firstSeen)}
         </span>
       </div>
 
       {/* ── Body ───────────────────────────────────── */}
-      <div className="space-y-3 px-[18px] pb-[18px] pt-[14px]">
+      <div className="space-y-3 px-4 pb-4 pt-3">
         {/* Headline */}
         {deal.headline ? (
           <p className="text-[12px] font-medium leading-snug text-[color:var(--primary)]">
@@ -116,10 +116,10 @@ export function DealCard({ deal, href }: DealCardProps) {
 
         {/* Hotel name */}
         <div>
-          <h3 className="line-clamp-2 font-display text-[16px] font-[600] leading-snug text-[#141210]">
+          <h3 className="line-clamp-2 font-display text-[16px] font-bold leading-snug text-[color:var(--ink)]">
             {deal.hotelName}
           </h3>
-          <p className="mt-[2px] text-[12px] leading-snug text-[#8a857d]">
+          <p className="mt-[2px] text-[12px] leading-snug text-[color:var(--ink-faint)]">
             <span aria-label={`${Math.round(deal.stars)} stars`} aria-hidden>
               {starChars(deal.stars)}
             </span>
@@ -132,17 +132,17 @@ export function DealCard({ deal, href }: DealCardProps) {
 
         {/* Price */}
         <div className="space-y-[2px]">
-          <div className="flex items-baseline gap-2">
-            <span className="font-display text-[26px] font-bold leading-none text-[#0E5A54]">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="font-display text-[26px] font-bold leading-none text-[color:var(--primary)]">
               {formatMoney(deal.dealPrice)}
             </span>
-            <span className="self-end pb-[2px] text-[11px] leading-none text-[#8a857d]">/ night</span>
-            <span className="text-[14px] leading-none text-[#8a857d] line-through">
+            <span className="self-end pb-[2px] text-[11px] leading-none text-[color:var(--ink-faint)]">/ night</span>
+            <span className="text-[14px] leading-none text-[color:var(--ink-faint)] line-through">
               usually {formatMoney(deal.medianPrice)}
             </span>
           </div>
           {showSavings && (
-            <p className="text-[12px] font-medium text-[#0E5A54]">
+            <p className="text-[12px] font-medium text-[color:var(--primary)]">
               Save {formatMoney({ priceCents: savings, currency: deal.dealPrice.currency })}/night
             </p>
           )}
@@ -152,12 +152,12 @@ export function DealCard({ deal, href }: DealCardProps) {
         <CompareRow links={deal.links} />
 
         {/* Trust line */}
-        <p className="text-[10.5px] leading-snug text-[#8a857d]">
+        <p className="text-caption leading-snug text-[color:var(--ink-faint)]">
           Based on {deal.snapshotCount} price checks over 60 days · expaify never adds fees
         </p>
 
         {deal.isMock ? (
-          <p className="text-[10.5px] leading-snug text-[color:var(--ink-faint)]">Preview deal</p>
+          <p className="text-caption leading-snug text-[color:var(--ink-faint)]">Preview deal</p>
         ) : null}
       </div>
     </article>

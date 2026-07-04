@@ -7,13 +7,13 @@ import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
 
-const labelCls = 'mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[color:var(--text-2)]'
+const labelCls = 'mb-1.5 block text-xs font-medium uppercase tracking-wide text-[color:var(--text-2)]'
 const inputCls = 'field-input !px-4'
-const factLabelCls = 'text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]'
-const factValueCls = 'mt-1 text-sm font-semibold leading-5 text-[color:var(--text-1)]'
+const factLabelCls = 'text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-3)]'
+const factValueCls = 'mt-1 text-sm font-medium leading-5 text-[color:var(--text-1)]'
 const panelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] shadow-[var(--shadow-card)]'
 const insetPanelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)]'
-const secondaryButtonCls = 'inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-semibold text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:border-[color:var(--border-focus)] focus-visible:shadow-[var(--focus-ring)]'
+const secondaryButtonCls = 'inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-medium text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:border-[color:var(--border-focus)] focus-visible:shadow-[var(--focus-ring)]'
 const actionStackCls = 'mt-5 flex flex-col gap-3'
 const hotelTermsCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
 const trustClaims = [
@@ -131,7 +131,7 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
           </p>
         </div>
         <div className="min-w-0 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--bg-raised)] px-4 py-3 md:shrink-0 md:text-right">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]">Selected fare</p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-3)]">Selected fare</p>
           <p className="mt-1 text-2xl font-bold leading-none text-[color:var(--text-1)]">{formatMoney(fareContext.priceCents, fareContext.currency)}</p>
           <p className="mt-1 text-xs font-medium text-[color:var(--text-2)]">{getPriceBasisLabel(fareContext)}</p>
         </div>
@@ -149,7 +149,7 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
         <FareFact label="Provider" value={getProviderLabel(fareContext.provider, duffelSandbox)} />
       </div>
       <div className="mt-4 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 text-xs">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p>
         <p className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{fareContext.offerId}</p>
       </div>
     </section>
@@ -167,15 +167,15 @@ function HotelSummary({ hotelContext }: { hotelContext: BookingHotelContext }) {
           <h2 id="hotel-review-title" className="mt-2 text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">
             {hotelContext.name}
           </h2>
-          <p className="mt-2 break-words text-sm font-semibold leading-6 text-[color:var(--text-2)]">
+          <p className="mt-2 break-words text-sm font-medium leading-6 text-[color:var(--text-2)]">
             {location.label}: {location.value}
           </p>
-          <p className={`mt-1 text-xs leading-5 ${location.isWarning ? 'font-semibold text-[color:var(--warning)]' : 'font-medium text-[color:var(--text-3)]'}`}>
+          <p className={`mt-1 text-xs leading-5 ${location.isWarning ? 'font-medium text-[color:var(--warning)]' : 'font-medium text-[color:var(--text-3)]'}`}>
             {location.note}
           </p>
         </div>
         <div className="min-w-0 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--bg-raised)] px-4 py-3 md:shrink-0 md:text-right">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]">Selected nightly rate</p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-3)]">Selected nightly rate</p>
           <p className="mt-1 text-2xl font-bold leading-none text-[color:var(--text-1)]">{formatMoney(hotelContext.priceCents, hotelContext.currency)}</p>
           <p className="mt-1 text-xs font-medium text-[color:var(--text-2)]">{getHotelPriceBasisLabel(hotelContext.priceBasis)}</p>
         </div>
@@ -189,7 +189,7 @@ function HotelSummary({ hotelContext }: { hotelContext: BookingHotelContext }) {
         <FareFact label="Currency" value={hotelContext.currency} />
       </div>
       <div className="mt-4 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 text-xs">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p>
         <p className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{hotelContext.offerId}</p>
       </div>
     </section>

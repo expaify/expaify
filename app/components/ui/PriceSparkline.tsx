@@ -59,8 +59,8 @@ export function PriceSparkline({ history, dealPriceCents, medianPriceCents }: Pr
       >
         <defs>
           <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0E5A54" stopOpacity="0.12" />
-            <stop offset="100%" stopColor="#0E5A54" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -71,20 +71,24 @@ export function PriceSparkline({ history, dealPriceCents, medianPriceCents }: Pr
         <line
           x1={PAD.left} y1={medianY}
           x2={W - PAD.right} y2={medianY}
-          stroke="#D9A441" strokeWidth="1" strokeDasharray="4 3" opacity="0.7"
+          stroke="var(--gold)" strokeWidth="1" strokeDasharray="4 3" opacity="0.7"
         />
 
         {/* Price line */}
-        <path d={linePath} fill="none" stroke="#0E5A54" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={linePath} fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
 
         {/* Deal price dot */}
-        <circle cx={dotX} cy={dotY} r="5" fill="#D9A441" stroke="white" strokeWidth="2" />
+        <circle cx={dotX} cy={dotY} r="5" fill="var(--gold)" stroke="var(--surface)" strokeWidth="2" />
       </svg>
 
-      <div className="mt-1 flex justify-between text-[11px] text-[color:var(--ink-faint)]">
+      <div className="mt-1 flex flex-wrap justify-between gap-x-3 text-[11px] text-[color:var(--ink-faint)]">
         <span>{startDate}</span>
-        <span className="text-[color:var(--gold)] font-medium">● deal price</span>
-        <span className="text-[#D9A441] opacity-70">– – usual price</span>
+        <span className="font-medium text-[color:var(--ink-soft)]">
+          <span aria-hidden className="text-[color:var(--gold)]">●</span> deal price
+        </span>
+        <span className="text-[color:var(--ink-soft)]">
+          <span aria-hidden className="text-[color:var(--gold)]">– –</span> usual price
+        </span>
         <span>{endDate}</span>
       </div>
     </div>

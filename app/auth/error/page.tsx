@@ -24,10 +24,10 @@ export default async function AuthErrorPage({
         </a>
 
         <div className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-8">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--error-soft)]">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <circle cx="12" cy="12" r="9" stroke="#EF4444" strokeWidth="2" />
-              <path d="M12 8v4M12 16h.01" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" />
+              <circle cx="12" cy="12" r="9" stroke="var(--error)" strokeWidth="2" />
+              <path d="M12 8v4M12 16h.01" stroke="var(--error)" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </div>
 

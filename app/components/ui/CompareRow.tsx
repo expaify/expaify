@@ -18,13 +18,13 @@ const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
 
 export function CompareRow({ links }: CompareRowProps) {
   return (
-    <div className="space-y-[6px]">
+    <div className="space-y-2">
       <p className="text-[11px] leading-none text-[color:var(--ink-faint)]">Compare and book on:</p>
-      <div className="grid grid-cols-2 gap-[6px] min-[420px]:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
         {PROVIDERS.map(({ key, label }) => {
           const href = links[key];
           const base =
-            "block rounded-[10px] border-[0.5px] border-[color:var(--line-white)] py-2 text-center text-[11px] font-medium leading-none text-[color:var(--ink)] no-underline transition-colors duration-100";
+            "block rounded-[var(--radius-input)] border-[0.5px] border-[color:var(--line-white)] py-2 text-center text-[11px] font-medium leading-none text-[color:var(--ink)] no-underline transition-colors duration-100";
           if (href) {
             return (
               <a
