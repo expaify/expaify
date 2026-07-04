@@ -90,6 +90,14 @@ const hotel: HotelOffer = {
 }
 
 describe('Deal score presentation', () => {
+  beforeAll(() => {
+    jest.useFakeTimers({ now: new Date('2026-07-02T12:00:00.000Z') })
+  })
+
+  afterAll(() => {
+    jest.useRealTimers()
+  })
+
   it('shows Typical score chips on collapsed flight cards', () => {
     const score: DealScore = {
       percentile: 58,

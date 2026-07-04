@@ -98,6 +98,9 @@ export default async function DealDetailPage({ params }: PageProps) {
             <span aria-label={`${deal.stars ?? 0} stars`}>{starChars(deal.stars ?? 0)}</span>
             {' · '}{deal.city}{' · '}{deal.check_in_window}
           </p>
+          {deal.description && (
+            <p className="mt-3 text-[14px] leading-6 text-[color:var(--ink-soft)]">{deal.description}</p>
+          )}
         </div>
 
         {/* Price block */}

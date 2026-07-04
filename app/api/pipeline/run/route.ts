@@ -43,13 +43,16 @@ export async function POST(req: NextRequest) {
   const headlineCandidates = await getActiveDeals({ limit: 20, sort: 'newest', includeMock: false })
     .then(rows => rows.filter(r => !r.headline))
     .catch(() => [])
-  await generateHeadlines(
+  void generateHeadlines(
     headlineCandidates.map(d => ({
       id: d.id,
       hotelName: d.hotel_name,
       city: d.city,
+      stars: d.stars,
       discountPct: d.discount_pct,
       dealPriceCents: d.deal_price_cents,
+      medianPriceCents: d.median_price_cents,
+      checkInWindow: d.check_in_window,
     }))
   ).catch(() => { /* non-fatal — headlines are cosmetic */ })
 
