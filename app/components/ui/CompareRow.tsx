@@ -7,6 +7,8 @@ type CompareLinks = {
 
 type CompareRowProps = {
   links: CompareLinks;
+  /** compact: inside cards (default). primary: full-width action zone on the deal detail page. */
+  size?: "compact" | "primary";
 };
 
 const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
@@ -16,15 +18,19 @@ const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
   { key: "trip", label: "Trip.com" },
 ];
 
-export function CompareRow({ links }: CompareRowProps) {
+export function CompareRow({ links, size = "compact" }: CompareRowProps) {
+  const primary = size === "primary";
+
+  const base = primary
+    ? "flex min-h-[52px] items-center justify-center rounded-[var(--radius-input)] border-[1.5px] border-[color:var(--line-white)] bg-[color:var(--surface)] px-3 text-center text-[14px] font-semibold leading-none text-[color:var(--ink)] no-underline transition-colors duration-100"
+    : "block rounded-[var(--radius-input)] border-[0.5px] border-[color:var(--line-white)] py-2 text-center text-[11px] font-medium leading-none text-[color:var(--ink)] no-underline transition-colors duration-100";
+
   return (
-    <div className="space-y-2">
+    <div className={primary ? "w-full space-y-2" : "space-y-2"}>
       <p className="text-[11px] leading-none text-[color:var(--ink-faint)]">Compare and book on:</p>
-      <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
+      <div className={primary ? "grid grid-cols-2 gap-2 min-[480px]:grid-cols-4" : "grid grid-cols-2 gap-2 min-[420px]:grid-cols-4"}>
         {PROVIDERS.map(({ key, label }) => {
           const href = links[key];
-          const base =
-            "block rounded-[var(--radius-input)] border-[0.5px] border-[color:var(--line-white)] py-2 text-center text-[11px] font-medium leading-none text-[color:var(--ink)] no-underline transition-colors duration-100";
           if (href) {
             return (
               <a

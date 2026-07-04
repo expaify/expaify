@@ -8,8 +8,8 @@ export default function LoadingDealDetail() {
         </div>
       </nav>
 
-      <main className="mx-auto max-w-[760px] px-5 py-10">
-        <div className="skeleton mb-6 h-[320px] rounded-[var(--radius-card)]" />
+      <main className="mx-auto max-w-[760px] px-5 py-8">
+        <div className="skeleton mb-6 h-[220px] rounded-[var(--radius-card)] min-[680px]:h-[320px]" />
 
         <div className="mb-6 space-y-2">
           <div className="skeleton h-4 w-40 rounded-full" />
@@ -24,9 +24,9 @@ export default function LoadingDealDetail() {
 
         <div className="mb-8">
           <div className="skeleton mb-2 h-3 w-32 rounded-full" />
-          <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 min-[480px]:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="skeleton h-10 rounded-[var(--radius-input)]" />
+              <div key={i} className="skeleton h-[52px] rounded-[var(--radius-input)]" />
             ))}
           </div>
         </div>
