@@ -173,7 +173,7 @@ export function DealFeed() {
 
       {activeTab === 'flights' ? (
         <div className="py-24 text-center">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0E5A54" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto">
             <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" />
           </svg>
           <h2 className="mt-4 font-display text-[24px] font-bold text-[color:var(--ink)]">Coming soon</h2>

@@ -206,7 +206,7 @@ export default function LandingPage() {
                   <span className="text-[color:var(--primary-soft)]">Four marketplaces.</span>{' '}
                   Zero tabs.
                 </h2>
-                <p className="mt-6 text-[15px] leading-relaxed text-[color:var(--ink-faint)]">
+                <p className="mt-6 text-[15px] leading-relaxed text-[color:var(--ink-faint-on-dark)]">
                   You always book directly with the marketplace — we just find the moment to strike.
                 </p>
               </div>
@@ -353,14 +353,14 @@ export default function LandingPage() {
                 expaify
                 <span className="h-[6px] w-[6px] rounded-full bg-[color:var(--accent)]" aria-hidden />
               </a>
-              <p className="max-w-[180px] text-[13px] leading-relaxed text-[color:var(--ink-faint)]">
+              <p className="max-w-[180px] text-[13px] leading-relaxed text-[color:var(--ink-faint-on-dark)]">
                 Never overpay for a hotel again.
               </p>
             </div>
 
             {/* Product */}
             <div>
-              <p className="mb-3 text-[11.5px] font-medium uppercase tracking-wider text-[color:var(--ink-soft)]">
+              <p className="mb-3 text-[11.5px] font-medium uppercase tracking-wider text-[color:var(--ink-faint-on-dark)]">
                 Product
               </p>
               <ul className="flex flex-col gap-2">
@@ -370,7 +370,7 @@ export default function LandingPage() {
                   { label: 'How it works', href: '#how-it-works' },
                 ].map(({ label, href }) => (
                   <li key={label}>
-                    <a href={href} className="text-[14px] text-[color:var(--ink-faint)] no-underline hover:text-white">
+                    <a href={href} className="text-[14px] text-[color:var(--ink-faint-on-dark)] no-underline hover:text-white">
                       {label}
                     </a>
                   </li>
@@ -380,7 +380,7 @@ export default function LandingPage() {
 
             {/* Account */}
             <div>
-              <p className="mb-3 text-[11.5px] font-medium uppercase tracking-wider text-[color:var(--ink-soft)]">
+              <p className="mb-3 text-[11.5px] font-medium uppercase tracking-wider text-[color:var(--ink-faint-on-dark)]">
                 Account
               </p>
               <ul className="flex flex-col gap-2">
@@ -390,7 +390,7 @@ export default function LandingPage() {
                   { label: 'FAQ', href: '#faq' },
                 ].map(({ label, href }) => (
                   <li key={label}>
-                    <a href={href} className="text-[14px] text-[color:var(--ink-faint)] no-underline hover:text-white">
+                    <a href={href} className="text-[14px] text-[color:var(--ink-faint-on-dark)] no-underline hover:text-white">
                       {label}
                     </a>
                   </li>
@@ -400,7 +400,7 @@ export default function LandingPage() {
 
             {/* Legal */}
             <div>
-              <p className="mb-3 text-[11.5px] font-medium uppercase tracking-wider text-[color:var(--ink-soft)]">
+              <p className="mb-3 text-[11.5px] font-medium uppercase tracking-wider text-[color:var(--ink-faint-on-dark)]">
                 Legal
               </p>
               <ul className="flex flex-col gap-2">
@@ -409,7 +409,7 @@ export default function LandingPage() {
                   { label: 'Terms', href: '/terms' },
                 ].map(({ label, href }) => (
                   <li key={label}>
-                    <a href={href} className="text-[14px] text-[color:var(--ink-faint)] no-underline hover:text-white">
+                    <a href={href} className="text-[14px] text-[color:var(--ink-faint-on-dark)] no-underline hover:text-white">
                       {label}
                     </a>
                   </li>
@@ -419,10 +419,10 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[rgba(255,255,255,0.08)] pt-8 min-[640px]:flex-row min-[640px]:items-center">
-            <p className="text-[13px] text-[color:var(--ink-faint)]">
+            <p className="text-[13px] text-[color:var(--ink-faint-on-dark)]">
               © 2026 expaify. All rights reserved.
             </p>
-            <p className="text-[12px] text-[color:var(--ink-faint)]">
+            <p className="text-[12px] text-[color:var(--ink-faint-on-dark)]">
               Prices change fast — always confirm at checkout.
             </p>
           </div>

@@ -113,12 +113,12 @@ export default function AlertSignup({ origin, destination }: Props) {
   }
 
   return (
-    <div className={`bg-gray-900 border rounded-2xl p-5 ${isDone ? 'border-green-500/20' : 'border-white/8'}`}>
+    <div className={`rounded-[var(--radius-card)] border bg-[color:var(--surface)] p-4 ${isDone ? 'border-[color:var(--primary)]' : 'border-[color:var(--line-ivory)]'}`}>
       <div className="flex items-center gap-2 mb-1">
         <span aria-hidden="true">🔔</span>
-        <h3 className="text-sm font-semibold text-gray-200">Price alert</h3>
+        <h3 className="text-sm font-medium text-[color:var(--ink)]">Price alert</h3>
       </div>
-      <p className="text-xs text-gray-500 mb-4">
+      <p className="text-xs text-[color:var(--ink-faint)] mb-4">
         {origin && destination ? `${origin} → ${destination} - ` : ''}We&apos;ll send best-effort email notifications when prices drop below your target.
       </p>
       <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2" aria-describedby={statusId}>
@@ -130,7 +130,7 @@ export default function AlertSignup({ origin, destination }: Props) {
           required
           disabled={isLoading}
           aria-invalid={state === 'error' && message.toLowerCase().includes('email')}
-          className="flex-1 rounded-xl bg-[#0a0f1e] border border-white/10 px-4 py-2.5 text-sm text-gray-100 placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+          className="field-input flex-1"
         />
         <input
           type="number"
@@ -142,13 +142,13 @@ export default function AlertSignup({ origin, destination }: Props) {
           required
           disabled={isLoading}
           aria-invalid={state === 'error' && (message.toLowerCase().includes('price') || message.toLowerCase().includes('target'))}
-          className="w-full sm:w-32 rounded-xl bg-[#0a0f1e] border border-white/10 px-4 py-2.5 text-sm text-gray-100 placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+          className="field-input w-full sm:w-32"
         />
         <button
           type="submit"
           disabled={isLoading || isDone}
           aria-disabled={isLoading || isDone}
-          className="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-60 whitespace-nowrap"
+          className="btn btn-primary whitespace-nowrap"
         >
           {isLoading ? 'Setting...' : isDone ? 'Alert set' : 'Set alert'}
         </button>
@@ -157,7 +157,7 @@ export default function AlertSignup({ origin, destination }: Props) {
         id={statusId}
         role={statusRole}
         aria-live={state === 'error' ? 'assertive' : 'polite'}
-        className={`min-h-8 text-xs mt-2 ${state === 'error' ? 'text-red-400' : isDone ? 'text-green-400' : 'text-gray-500'}`}
+        className={`min-h-8 text-xs mt-2 ${state === 'error' ? 'font-medium text-[color:var(--ink)]' : isDone ? 'font-medium text-[color:var(--primary)]' : 'text-[color:var(--ink-faint)]'}`}
       >
         {message || 'Price alerts are notifications only; fares can change before booking.'}
       </p>

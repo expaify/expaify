@@ -59,7 +59,7 @@ export default async function DealDetailPage({ params }: PageProps) {
       <main className="mx-auto max-w-[760px] px-5 py-10">
 
         {/* Hero image */}
-        <div className="relative mb-6 h-[320px] overflow-hidden rounded-[24px]">
+        <div className="relative mb-6 h-[320px] overflow-hidden rounded-[var(--radius-card)]">
           {deal.photo_url ? (
             <>
               <img src={deal.photo_url} alt="" className="h-full w-full object-cover" />
@@ -68,9 +68,9 @@ export default async function DealDetailPage({ params }: PageProps) {
           ) : (
             <div
               className="flex h-full w-full items-center justify-center"
-              style={{ background: 'linear-gradient(150deg,#0E5A54 0%,#0A4440 100%)' }}
+              style={{ background: 'linear-gradient(150deg,var(--primary) 0%,var(--primary-deep) 100%)' }}
             >
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#9FE1CB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--primary-soft)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" />
                 <path d="M9 22V12h6v10M3 9h18M9 3v6M15 3v6" />
               </svg>
@@ -81,7 +81,7 @@ export default async function DealDetailPage({ params }: PageProps) {
           <div className="absolute left-4 top-4">
             <DealChip discountPct={deal.discount_pct} />
           </div>
-          <span className="absolute right-4 top-4 rounded-[999px] bg-[rgba(20,18,16,0.78)] px-[10px] py-[4px] text-[11px] font-medium text-[#FAF7F2]">
+          <span className="absolute right-4 top-4 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium text-[color:var(--bg)]">
             found {timeAgo(deal.first_seen)}
           </span>
         </div>
@@ -101,8 +101,8 @@ export default async function DealDetailPage({ params }: PageProps) {
         </div>
 
         {/* Price block */}
-        <div className="mb-6 rounded-[16px] bg-[color:var(--surface)] p-6 shadow-[0_2px_12px_rgba(20,18,16,0.06)]">
-          <div className="flex items-baseline gap-3">
+        <div className="mb-6 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
+          <div className="flex flex-wrap items-baseline gap-3">
             <span className="font-display text-[44px] font-bold leading-none text-[color:var(--primary)]">
               {formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}
             </span>
@@ -120,29 +120,28 @@ export default async function DealDetailPage({ params }: PageProps) {
 
         {/* Compare row */}
         <div className="mb-8">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Compare and book on</p>
           <CompareRow links={deal.ota_links} />
         </div>
 
         {/* Why this is a deal */}
-        <section className="mb-8 rounded-[16px] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
+        <section className="mb-8 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
           <h2 className="mb-4 font-display text-[18px] font-bold text-[color:var(--ink)]">Why this is a deal</h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 min-[480px]:gap-4">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Usual price</p>
-              <p className="mt-1 font-display text-[22px] font-bold text-[color:var(--ink-soft)] line-through">
+              <p className="mt-1 font-display text-[18px] font-bold text-[color:var(--ink-soft)] line-through min-[480px]:text-[22px]">
                 {formatMoney({ priceCents: deal.median_price_cents, currency: 'USD' })}
               </p>
             </div>
             <div>
               <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Today's price</p>
-              <p className="mt-1 font-display text-[22px] font-bold text-[color:var(--primary)]">
+              <p className="mt-1 font-display text-[18px] font-bold text-[color:var(--primary)] min-[480px]:text-[22px]">
                 {formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}
               </p>
             </div>
             <div>
               <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Price checks</p>
-              <p className="mt-1 font-display text-[22px] font-bold text-[color:var(--ink)]">
+              <p className="mt-1 font-display text-[18px] font-bold text-[color:var(--ink)] min-[480px]:text-[22px]">
                 {deal.snapshot_count}
               </p>
             </div>
@@ -151,7 +150,7 @@ export default async function DealDetailPage({ params }: PageProps) {
 
         {/* Price history sparkline */}
         {history.length >= 3 && (
-          <section className="mb-8 rounded-[16px] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
+          <section className="mb-8 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
             <h2 className="mb-4 font-display text-[18px] font-bold text-[color:var(--ink)]">60-day price history</h2>
             <PriceSparkline
               history={history}

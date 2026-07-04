@@ -37,10 +37,10 @@ function Price({ price, providerName }: { price: HotelOffer['pricePerNight']; pr
       <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
         Nightly rate
       </p>
-      <p className="mt-1 font-display text-xl font-black leading-none text-[color:var(--text-1)] tabular-nums sm:text-4xl">
+      <p className="mt-1 font-display text-xl font-bold leading-none text-[color:var(--text-1)] tabular-nums sm:text-4xl">
         {formatMoney(price)}
       </p>
-      <div className="mt-1 space-y-0.5 text-[11px] font-semibold leading-4">
+      <div className="mt-1 space-y-0.5 text-[11px] font-medium leading-4">
         <p className="text-[color:var(--text-3)]">per night before taxes and fees</p>
         <p className="text-[color:var(--text-2)]">Rate from {providerName}</p>
         <p className="text-[color:var(--warning)]">Last-checked time unavailable</p>
@@ -55,10 +55,10 @@ function PriceUnavailable({ reason, providerName, showProvider }: { reason: stri
       <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
         Nightly rate
       </p>
-      <p className="mt-1 font-display text-lg font-extrabold leading-none text-[color:var(--text-1)]">
+      <p className="mt-1 font-display text-lg font-bold leading-none text-[color:var(--text-1)]">
         Price unavailable
       </p>
-      <div className="mt-1 space-y-0.5 text-[11px] font-semibold leading-4">
+      <div className="mt-1 space-y-0.5 text-[11px] font-medium leading-4">
         <p className="text-[color:var(--text-3)]">{reason}</p>
         {showProvider ? <p className="text-[color:var(--text-2)]">Rate from {providerName}</p> : null}
         <p className="text-[color:var(--warning)]">Last-checked time unavailable</p>
@@ -315,7 +315,7 @@ function QualityEvidencePanel({ hotelClass, guestRating, legacyRatingPresent, so
   const updatedDate = guestRating?.fetchedAt ? formatUpdatedDate(guestRating.fetchedAt) : null
   const helperText = getQualityHelperText(guestRating, Boolean(hotelClass), legacyRatingPresent)
   const helperClasses = guestRating?.confidence === 'inferred' || legacyRatingPresent
-    ? 'mt-3 rounded-[var(--radius-control)] bg-[color:var(--warning-soft)] px-3 py-2 text-xs font-semibold leading-5 text-[color:var(--warning)]'
+    ? 'mt-3 rounded-[var(--radius-control)] bg-[color:var(--warning-soft)] px-3 py-2 text-xs font-medium leading-5 text-[color:var(--warning)]'
     : 'mt-3 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-3 py-2 text-xs font-medium leading-5 text-[color:var(--text-3)]'
 
   return (
@@ -365,7 +365,7 @@ function ScoreChip({ score, loading }: { score: DealScore | null; loading: boole
   if (loading) {
     return (
       <span
-        className="inline-flex min-h-7 items-center rounded-full border border-[color:var(--border)] bg-[color:var(--bg-muted)] px-3 py-1 text-xs font-semibold text-[color:var(--text-2)]"
+        className="inline-flex min-h-7 items-center rounded-full border border-[color:var(--border)] bg-[color:var(--bg-muted)] px-3 py-1 text-xs font-medium text-[color:var(--text-2)]"
         aria-live="polite"
       >
         Score pending
@@ -375,7 +375,7 @@ function ScoreChip({ score, loading }: { score: DealScore | null; loading: boole
 
   if (!score) {
     return (
-      <span className="inline-flex min-h-7 items-center rounded-full border border-[color:var(--border)] bg-[color:var(--bg-muted)] px-3 py-1 text-xs font-semibold text-[color:var(--text-2)]">
+      <span className="inline-flex min-h-7 items-center rounded-full border border-[color:var(--border)] bg-[color:var(--bg-muted)] px-3 py-1 text-xs font-medium text-[color:var(--text-2)]">
         Score unavailable
       </span>
     )
@@ -391,7 +391,7 @@ function ScoreChip({ score, loading }: { score: DealScore | null; loading: boole
         : 'border-[color:var(--border)] bg-[color:var(--bg-muted)] text-[color:var(--text-2)]'
 
   return (
-    <span className={`inline-flex min-h-7 items-center rounded-full border px-3 py-1 text-xs font-semibold ${classes}`}>
+    <span className={`inline-flex min-h-7 items-center rounded-full border px-3 py-1 text-xs font-medium ${classes}`}>
       {label}
     </span>
   )
@@ -438,7 +438,7 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
             </div>
           ) : (
             <div className="flex h-16 w-16 items-center justify-center rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-2 text-center">
-              <p className="text-[10px] font-semibold leading-3 text-[color:var(--text-3)]">Photo unavailable</p>
+              <p className="text-[10px] font-medium leading-3 text-[color:var(--text-3)]">Photo unavailable</p>
             </div>
           )}
 
@@ -448,11 +448,11 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
             </h3>
             {hotelClass || collapsedGuestRating ? (
               <div
-                className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-xs font-semibold leading-4 text-[color:var(--text-2)]"
+                className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-xs font-medium leading-4 text-[color:var(--text-2)]"
                 aria-label={qualityAriaLabel}
               >
                 {hotelClass ? (
-                  <span className="inline-flex max-w-full items-center gap-1 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-2 py-1 text-xs font-semibold leading-4 text-[color:var(--text-2)]">
+                  <span className="inline-flex max-w-full items-center gap-1 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-2 py-1 text-xs font-medium leading-4 text-[color:var(--text-2)]">
                     <StarRow stars={hotelClass.value ?? 0} />
                     <span className="truncate">{getHotelClassCollapsedText(hotelClass)}</span>
                   </span>
@@ -461,7 +461,7 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
                   <span className={`inline-flex max-w-full items-center gap-1 rounded-[var(--radius-control)] border px-2 py-1 text-xs leading-4 ${
                     isVerifiedGuestRating(hotel.guestRating)
                       ? 'border-[color:var(--border-strong)] bg-[color:var(--success-soft)] font-bold text-[color:var(--success)]'
-                      : 'border-[color:var(--border)] bg-[color:var(--bg-muted)] font-semibold text-[color:var(--text-2)]'
+                      : 'border-[color:var(--border)] bg-[color:var(--bg-muted)] font-medium text-[color:var(--text-2)]'
                   }`}>
                     <span className="truncate">{collapsedGuestRating}</span>
                   </span>
@@ -549,7 +549,7 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
               source={hotel.source}
             />
             {score?.confidence === 'low' ? (
-              <p className="text-xs font-semibold leading-5 text-[color:var(--warning)]">
+              <p className="text-xs font-medium leading-5 text-[color:var(--warning)]">
                 Limited hotel history. Treat this as a rough comparison, not a confirmed deal.
               </p>
             ) : null}
@@ -557,10 +557,10 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
             <div className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[color:var(--text-2)]">
               <p className="font-bold text-[color:var(--text-1)]">Location</p>
               <p className="mt-1 break-words">
-                <span className="font-semibold text-[color:var(--text-2)]">{location.label}: </span>
+                <span className="font-medium text-[color:var(--text-2)]">{location.label}: </span>
                 {location.value}
               </p>
-              <p className={`mt-2 ${location.isWarning ? 'font-semibold text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
+              <p className={`mt-2 ${location.isWarning ? 'font-medium text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
                 {location.note}
               </p>
               {location.distanceText ? (

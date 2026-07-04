@@ -36,7 +36,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
 
         {/* Welcome banner */}
         {showWelcome && (
-          <div className="mb-6 flex items-start justify-between gap-4 rounded-[16px] bg-[color:var(--primary)] px-5 py-4 text-white">
+          <div className="mb-6 flex items-start justify-between gap-4 rounded-[var(--radius-card)] bg-[color:var(--primary)] px-5 py-4 text-white">
             <p className="text-[14px] leading-relaxed">
               <span className="font-display font-bold">You&apos;re in.</span>
               {' '}Your first deal alert arrives by email — usually within 24 hours.
@@ -48,7 +48,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
         <h1 className="mb-6 font-display text-[28px] font-bold text-[color:var(--ink)]">Account</h1>
 
         {/* Plan status */}
-        <section className={`mb-5 rounded-[16px] p-6 ${
+        <section className={`mb-5 rounded-[var(--radius-card)] p-6 ${
           premium
             ? 'border-2 border-[color:var(--primary)] bg-[color:var(--surface)]'
             : 'border-[1.5px] border-dashed border-[color:var(--line-ivory)] bg-[color:var(--surface)]'
@@ -67,7 +67,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
                 )}
               </>
             ) : sub?.status === 'canceled' ? (
-              <span className="rounded-[var(--radius-pill)] bg-[color:var(--accent)] bg-opacity-10 px-3 py-1 font-display text-[12px] font-bold text-[color:var(--accent)]">
+              <span className="rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)] px-3 py-1 font-display text-[12px] font-bold text-[color:var(--ink-soft)]">
                 Canceled
               </span>
             ) : (
@@ -110,14 +110,14 @@ export default async function AccountPage({ searchParams }: PageProps) {
         </section>
 
         {/* Profile */}
-        <section className="mb-5 rounded-[16px] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
+        <section className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
           <h2 className="mb-3 font-display text-[15px] font-bold text-[color:var(--ink)]">Profile</h2>
-          <p className="text-[14px] text-[color:var(--ink-soft)]">{session.user.email}</p>
+          <p className="text-[14px] text-[color:var(--ink-soft)] [overflow-wrap:anywhere]">{session.user.email}</p>
         </section>
 
         {/* Alerts + Watchlist (premium only) */}
         {premium && (
-          <section className="rounded-[16px] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
+          <section className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
             <h2 className="mb-1 font-display text-[15px] font-bold text-[color:var(--ink)]">Email alerts</h2>
             <p className="mb-5 text-[13px] text-[color:var(--ink-faint)]">
               Choose how often we email you when a deal appears.

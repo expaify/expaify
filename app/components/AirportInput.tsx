@@ -171,7 +171,7 @@ export default function AirportInput({
 
   return (
     <div ref={rootRef} className="relative space-y-2">
-      <div className="pointer-events-none absolute left-3.5 top-[1.625rem] -translate-y-1/2 text-slate-400">
+      <div className="pointer-events-none absolute left-3.5 top-[1.625rem] -translate-y-1/2 text-[color:var(--text-3)]">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 2C8.69 2 6 4.69 6 8c0 5.25 6 14 6 14s6-8.75 6-14c0-3.31-2.69-6-6-6zm0 8.5A2.5 2.5 0 1112 5.5a2.5 2.5 0 010 5z" fill="currentColor" />
         </svg>
@@ -194,7 +194,7 @@ export default function AirportInput({
         aria-activedescendant={activeOptionId}
         aria-describedby={describedBy}
         aria-invalid={error ? 'true' : 'false'}
-        className={`min-h-[3.25rem] w-full rounded-[var(--radius-control)] border bg-[var(--bg-raised)] px-4 py-3.5 pl-11 text-[0.9375rem] font-semibold text-[var(--text-1)] transition-[border-color,background] placeholder:text-[var(--text-3)] focus:outline-none focus:ring-0 ${
+        className={`min-h-[3.25rem] w-full rounded-[var(--radius-control)] border bg-[var(--bg-raised)] px-4 py-3.5 pl-11 text-[0.9375rem] font-medium text-[var(--text-1)] transition-[border-color,background] placeholder:text-[var(--text-3)] focus:outline-none focus:ring-0 ${
           error
             ? 'border-[var(--error)] bg-[var(--error-soft)] focus:border-[var(--error)]'
             : 'border-[var(--border)] focus:border-[var(--border-focus)]'
@@ -211,7 +211,7 @@ export default function AirportInput({
             groupedResults(results).map(group => (
               <div key={group.key}>
                 {group.grouped && (
-                  <div className="px-3 pb-1 pt-3 text-[11px] font-extrabold uppercase tracking-wide text-[var(--text-3)]">
+                  <div className="px-3 pb-1 pt-3 text-[11px] font-medium uppercase tracking-wide text-[var(--text-3)]">
                     {group.city} airports
                   </div>
                 )}
@@ -229,10 +229,10 @@ export default function AirportInput({
                       }}
                       className={`grid min-h-[4.25rem] cursor-pointer grid-cols-[3.25rem_minmax(0,1fr)] gap-3 rounded-[var(--radius-control)] px-3 py-3 text-left transition-colors hover:bg-[var(--bg-muted)] ${i === highlighted ? 'bg-[var(--brand-soft)] shadow-[inset_0_0_0_1px_var(--border-hover)]' : ''}`}
                     >
-                      <span className="inline-flex h-8 min-w-12 items-center justify-center rounded-[var(--radius-control)] bg-[var(--bg-muted)] px-2 text-xs font-extrabold text-[var(--brand)]">{airport.iata}</span>
+                      <span className="inline-flex h-8 min-w-12 items-center justify-center rounded-[var(--radius-control)] bg-[var(--bg-muted)] px-2 text-xs font-medium text-[var(--brand)]">{airport.iata}</span>
                       <span className="min-w-0">
                         <span className="block min-w-0 break-words text-sm font-bold leading-5 text-[var(--text-1)]">{airport.name}</span>
-                        <span className="mt-0.5 block min-w-0 break-words text-xs font-semibold leading-5 text-[var(--text-2)]">{airport.city}, {airport.country}</span>
+                        <span className="mt-0.5 block min-w-0 break-words text-xs font-medium leading-5 text-[var(--text-2)]">{airport.city}, {airport.country}</span>
                       </span>
                     </div>
                   )
@@ -262,7 +262,7 @@ export default function AirportInput({
           id={nearbyId}
           type="button"
           onClick={() => window.alert(`Search still uses ${selectedIata} only. Nearby-airport search needs a separate provider update.`)}
-          className="inline-flex min-h-6 items-center text-xs font-extrabold text-[var(--brand)] underline-offset-4 hover:underline focus-visible:outline-none"
+          className="inline-flex min-h-6 items-center text-xs font-medium text-[var(--brand)] underline-offset-4 hover:underline focus-visible:outline-none"
         >
           Nearby airports available
         </button>

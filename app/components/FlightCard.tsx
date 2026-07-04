@@ -150,12 +150,12 @@ function ItineraryTiming({ fare, score }: { fare: NormalizedFare; score: DealSco
         <p className="mt-1 text-[var(--text-2)]">{layoverCopy}</p>
       ) : null}
       {showTimingWarning ? (
-        <p className="mt-2 rounded-[var(--radius-control)] border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-3 py-2 text-xs font-semibold leading-5 text-[var(--warning)]">
+        <p className="mt-2 rounded-[var(--radius-control)] border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-3 py-2 text-xs font-medium leading-5 text-[var(--warning)]">
           {certainty === 'partial' ? 'Some itinerary timing is provider-confirmed, but layover details are incomplete.' : 'Duration unavailable from provider.'}
         </p>
       ) : null}
       {showScoreCaution ? (
-        <p className="mt-2 rounded-[var(--radius-control)] border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-3 py-2 text-xs font-semibold leading-5 text-[var(--warning)]">
+        <p className="mt-2 rounded-[var(--radius-control)] border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-3 py-2 text-xs font-medium leading-5 text-[var(--warning)]">
           Deal Score is based on price history; itinerary duration was not confirmed by the provider.
         </p>
       ) : null}
@@ -179,7 +179,7 @@ function ScheduleItem({ label, value }: { label: 'Depart' | 'Return'; value: str
         {schedule.primary}
       </p>
       {schedule.secondary ? (
-        <p className="text-[11px] font-semibold leading-4 text-[var(--text-3)]">
+        <p className="text-[11px] font-medium leading-4 text-[var(--text-3)]">
           {schedule.secondary}
         </p>
       ) : null}
@@ -190,7 +190,7 @@ function ScheduleItem({ label, value }: { label: 'Depart' | 'Return'; value: str
 function StopsChip({ stops }: { stops: number }) {
   if (stops === 0) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--success)]/25 bg-[var(--success-soft)] px-2 py-1 text-[11px] font-semibold text-[var(--success)]">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--success)]/25 bg-[var(--success-soft)] px-2 py-1 text-[11px] font-medium text-[var(--success)]">
         <span className="h-1.5 w-1.5 rounded-full bg-[var(--success)]" />
         Nonstop
       </span>
@@ -199,7 +199,7 @@ function StopsChip({ stops }: { stops: number }) {
 
   if (stops === 1) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-2 py-1 text-[11px] font-semibold text-[var(--warning)]">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-2 py-1 text-[11px] font-medium text-[var(--warning)]">
         <span className="h-1.5 w-1.5 rounded-full bg-[var(--warning)]" />
         1 stop
       </span>
@@ -207,7 +207,7 @@ function StopsChip({ stops }: { stops: number }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-2 py-1 text-[11px] font-semibold text-[var(--warning)]">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-2 py-1 text-[11px] font-medium text-[var(--warning)]">
       <span className="h-1.5 w-1.5 rounded-full bg-[var(--warning)]" />
       {stops} stops
     </span>
@@ -230,7 +230,7 @@ function CabinBadge({ cabin }: { cabin?: NormalizedFare['cabin'] }) {
   const normalizedCabin = cabin ?? 'economy'
 
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] font-semibold ${colors[normalizedCabin]}`}>
+    <span className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] font-medium ${colors[normalizedCabin]}`}>
       {labels[normalizedCabin]}
     </span>
   )
@@ -256,7 +256,7 @@ function AirlineLogo({ carrier }: { carrier: string }) {
           onError={() => setFailed(true)}
         />
       ) : (
-        <span className="font-display text-xs font-extrabold text-[var(--brand)]">
+        <span className="font-display text-xs font-bold text-[var(--brand)]">
           {initials}
         </span>
       )}
@@ -270,10 +270,10 @@ function Price({ price, heading, label, freshnessLabel }: { price: NormalizedFar
       <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-2)]">
         {heading}
       </p>
-      <p className="mt-1 font-display text-xl font-black leading-none text-[var(--text-1)] tabular-nums sm:text-4xl">
+      <p className="mt-1 font-display text-xl font-bold leading-none text-[var(--text-1)] tabular-nums sm:text-4xl">
         {formatMoney(price)}
       </p>
-      <div className="mt-1 space-y-0.5 text-[11px] font-semibold leading-4 text-[var(--text-3)]">
+      <div className="mt-1 space-y-0.5 text-[11px] font-medium leading-4 text-[var(--text-3)]">
         <p>{label}</p>
         <p className="text-[var(--text-2)]">{freshnessLabel}</p>
       </div>
@@ -287,10 +287,10 @@ function PriceUnavailable({ reason, freshnessLabel }: { reason: string; freshnes
       <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-2)]">
         Current fare
       </p>
-      <p className="mt-1 font-display text-lg font-extrabold leading-tight text-[var(--text-1)]">
+      <p className="mt-1 font-display text-lg font-bold leading-tight text-[var(--text-1)]">
         Price unavailable
       </p>
-      <div className="mt-1 space-y-0.5 text-[11px] font-semibold leading-4 text-[var(--text-3)]">
+      <div className="mt-1 space-y-0.5 text-[11px] font-medium leading-4 text-[var(--text-3)]">
         <p>{reason}</p>
         {freshnessLabel ? <p className="text-[var(--text-2)]">{freshnessLabel}</p> : null}
       </div>
@@ -361,7 +361,7 @@ function ScoreChip({ score, loading }: { score: DealScore | null; loading: boole
   if (loading) {
     return (
       <span
-        className="inline-flex min-h-7 items-center rounded-full border border-[var(--border)] bg-[var(--bg-muted)] px-3 py-1 text-xs font-semibold text-[var(--text-2)]"
+        className="inline-flex min-h-7 items-center rounded-full border border-[var(--border)] bg-[var(--bg-muted)] px-3 py-1 text-xs font-medium text-[var(--text-2)]"
         aria-live="polite"
       >
         Score pending
@@ -371,7 +371,7 @@ function ScoreChip({ score, loading }: { score: DealScore | null; loading: boole
 
   if (!score) {
     return (
-      <span className="inline-flex min-h-7 items-center rounded-full border border-[var(--border)] bg-[var(--bg-muted)] px-3 py-1 text-xs font-semibold text-[var(--text-2)]">
+      <span className="inline-flex min-h-7 items-center rounded-full border border-[var(--border)] bg-[var(--bg-muted)] px-3 py-1 text-xs font-medium text-[var(--text-2)]">
         Score unavailable
       </span>
     )
@@ -387,7 +387,7 @@ function ScoreChip({ score, loading }: { score: DealScore | null; loading: boole
         : 'border-[color:var(--border)] bg-[color:var(--bg-muted)] text-[color:var(--text-2)]'
 
   return (
-    <span className={`inline-flex min-h-7 items-center rounded-full border px-3 py-1 text-xs font-semibold ${classes}`}>
+    <span className={`inline-flex min-h-7 items-center rounded-full border px-3 py-1 text-xs font-medium ${classes}`}>
       {label}
     </span>
   )
@@ -491,14 +491,14 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
                   <span className={`text-xs leading-5 tabular-nums ${
                     itineraryCertainty === 'confirmed'
                       ? 'font-bold text-[var(--text-1)]'
-                      : 'font-semibold text-[var(--text-2)]'
+                      : 'font-medium text-[var(--text-2)]'
                   }`}>
                     Total {durationLabel}
                   </span>
                 ) : null}
                 <StopsChip stops={fare.stops} />
                 {departContext.time ? (
-                  <span className="truncate text-xs font-semibold leading-5 text-[var(--text-2)]">
+                  <span className="truncate text-xs font-medium leading-5 text-[var(--text-2)]">
                     Departs {departContext.time}
                   </span>
                 ) : null}
@@ -569,7 +569,7 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
               unavailableCopy="We could not compare this fare against route history yet. The live price is still shown when available."
             />
             {score?.confidence === 'low' ? (
-              <p className="text-xs font-semibold leading-5 text-[var(--warning)]">
+              <p className="text-xs font-medium leading-5 text-[var(--warning)]">
                 Limited route history. Treat this as a rough comparison, not a confirmed deal.
               </p>
             ) : null}

@@ -70,7 +70,7 @@ function Fact({ label, value }: { label: string; value: string }) {
       <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
         {label}
       </p>
-      <p className="mt-0.5 [overflow-wrap:anywhere] font-semibold leading-5 text-[color:var(--text-1)]">
+      <p className="mt-0.5 [overflow-wrap:anywhere] font-medium leading-5 text-[color:var(--text-1)]">
         {value}
       </p>
     </div>
@@ -132,7 +132,7 @@ export default function DealScorePanel({
         <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
           Deal Score
         </p>
-        <p className="mt-0.5 text-sm font-semibold leading-5 text-[color:var(--text-1)]">
+        <p className="mt-0.5 text-sm font-medium leading-5 text-[color:var(--text-1)]">
           Unavailable right now
         </p>
         <p className="mt-1 text-xs font-medium leading-5 text-[color:var(--text-2)]">
