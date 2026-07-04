@@ -233,13 +233,15 @@ export function DealFeed() {
             <SearchBar premium={premium} onResult={handleSearchResult} onClear={clearSearch} />
           </div>
 
-          {/* Filter bar */}
-          <div className="mb-8 flex flex-wrap gap-2">
+          {/* Filter bar — filters are a Premium feature; the API ignores filter
+              params for free users, so the controls are disabled rather than dead */}
+          <div className={`flex flex-wrap gap-2 ${!premium && !loading ? 'mb-2' : 'mb-8'}`}>
             <select
               aria-label="Filter by destination"
               value={city}
+              disabled={!premium}
               onChange={e => applyFilter({ city: e.target.value })}
-              className="appearance-none rounded-[var(--radius-pill)] border border-[color:var(--line-ivory)] bg-white px-4 py-2 text-[13px] font-medium text-[color:var(--ink)] cursor-pointer"
+              className="appearance-none rounded-[var(--radius-pill)] border border-[color:var(--line-ivory)] bg-white px-4 py-2 text-[13px] font-medium text-[color:var(--ink)] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="">All destinations</option>
               {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -248,8 +250,9 @@ export function DealFeed() {
             <select
               aria-label="Minimum discount"
               value={minDiscount}
+              disabled={!premium}
               onChange={e => applyFilter({ minDiscount: Number(e.target.value) })}
-              className="appearance-none rounded-[var(--radius-pill)] border border-[color:var(--line-ivory)] bg-white px-4 py-2 text-[13px] font-medium text-[color:var(--ink)] cursor-pointer"
+              className="appearance-none rounded-[var(--radius-pill)] border border-[color:var(--line-ivory)] bg-white px-4 py-2 text-[13px] font-medium text-[color:var(--ink)] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             >
               {DISCOUNT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
@@ -257,27 +260,43 @@ export function DealFeed() {
             <select
               aria-label="Minimum star rating"
               value={minStars}
+              disabled={!premium}
               onChange={e => applyFilter({ minStars: Number(e.target.value) })}
-              className="appearance-none rounded-[var(--radius-pill)] border border-[color:var(--line-ivory)] bg-white px-4 py-2 text-[13px] font-medium text-[color:var(--ink)] cursor-pointer"
+              className="appearance-none rounded-[var(--radius-pill)] border border-[color:var(--line-ivory)] bg-white px-4 py-2 text-[13px] font-medium text-[color:var(--ink)] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             >
               {STARS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
 
             <button
               type="button"
+              disabled={!premium}
               onClick={() => applyFilter({ sort: 'newest' })}
-              className={sort === 'newest' ? pillActive : pillInactive}
+              className={`${sort === 'newest' ? pillActive : pillInactive} disabled:cursor-not-allowed disabled:opacity-50`}
             >
               Newest
             </button>
             <button
               type="button"
+              disabled={!premium}
               onClick={() => applyFilter({ sort: 'discount' })}
-              className={sort === 'discount' ? pillActive : pillInactive}
+              className={`${sort === 'discount' ? pillActive : pillInactive} disabled:cursor-not-allowed disabled:opacity-50`}
             >
               Biggest discount
             </button>
           </div>
+
+          {!premium && !loading && (
+            <p className="mb-8 flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--ink-soft)]">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <rect x="5" y="11" width="14" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+              </svg>
+              Filters and sorting are included with Premium.{' '}
+              <a href="/join" className="font-bold text-[color:var(--primary)] no-underline hover:underline">
+                Unlock with Premium
+              </a>
+            </p>
+          )}
 
       {/* Grid */}
       {loading ? (
