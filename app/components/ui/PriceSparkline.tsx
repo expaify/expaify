@@ -11,7 +11,7 @@ type Props = {
 export function PriceSparkline({ history, dealPriceCents, medianPriceCents }: Props) {
   if (history.length < 2) {
     return (
-      <div className="flex h-[80px] items-center justify-center rounded-[12px] bg-[color:var(--surface)] text-[12px] text-[color:var(--ink-faint)]">
+      <div className="flex h-[80px] items-center justify-center rounded-[var(--radius-input)] bg-[color:var(--surface)] text-[12px] text-[color:var(--ink-faint)]">
         Not enough history to show chart
       </div>
     )

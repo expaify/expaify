@@ -142,7 +142,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
         </div>
 
         {error ? (
-          <p className="text-[13px] font-medium text-[color:var(--accent)]" role="alert">
+          <p className="text-[13px] font-medium text-[color:var(--error)]" role="alert">
             Could not save preferences. Try again.
           </p>
         ) : null}

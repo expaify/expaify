@@ -93,14 +93,14 @@ export function SearchBar({ premium, onResult, onClear }: Props) {
           onKeyDown={e => { if (e.key === 'Enter') handleSearch(query) }}
           placeholder={premium ? "Search e.g. '4 star hotels in Miami under $150'" : 'Upgrade to search deals in plain English'}
           disabled={loading || !premium}
-          className="w-full rounded-[12px] border border-[color:var(--line-ivory)] bg-white px-4 py-3 text-[14px] text-[color:var(--ink)] outline-none transition-colors focus:border-[color:var(--primary)] placeholder:text-[color:var(--ink-faint)] disabled:bg-[color:var(--surface)] disabled:opacity-75"
+          className="w-full rounded-[var(--radius-input)] border border-[color:var(--line-ivory)] bg-white px-4 py-3 text-[14px] text-[color:var(--ink)] outline-none transition-colors focus:border-[color:var(--primary)] placeholder:text-[color:var(--ink-faint)] disabled:bg-[color:var(--surface)] disabled:opacity-75"
         />
         <button
           type="button"
           onClick={() => handleSearch(query)}
           disabled={loading || !premium}
           aria-label="Search deals"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[color:var(--primary)] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[color:var(--primary)] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {loading ? (
             <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -136,7 +136,7 @@ export function SearchBar({ premium, onResult, onClear }: Props) {
           {chips.map(chip => (
             <span
               key={chip!}
-              className="inline-flex items-center rounded-[999px] bg-[color:var(--primary-soft)] px-3 py-1 text-[12px] font-medium text-[color:var(--primary)]"
+              className="inline-flex items-center rounded-[var(--radius-pill)] bg-[color:var(--primary-soft)] px-3 py-1 text-[12px] font-medium text-[color:var(--primary)]"
             >
               {chip}
             </span>

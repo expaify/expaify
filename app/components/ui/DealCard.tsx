@@ -69,7 +69,7 @@ export function DealCard({ deal, href }: DealCardProps) {
               loading="lazy"
             />
             {/* depth overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[rgba(14,90,84,0.35)] to-transparent" aria-hidden />
+            <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--primary)_35%,transparent)] to-transparent" aria-hidden />
           </>
         ) : (
           <div

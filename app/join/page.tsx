@@ -33,7 +33,7 @@ function JoinForm() {
           href="/"
           className="mb-10 flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline"
         >
-          expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" />
+          expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
         </a>
 
         <h1 className="mb-2 font-display text-[28px] font-bold text-[color:var(--ink)]">

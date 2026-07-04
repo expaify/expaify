@@ -20,7 +20,7 @@ export default async function AuthErrorPage({
           href="/"
           className="mb-10 flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline"
         >
-          expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" />
+          expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
         </a>
 
         <div className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-8">

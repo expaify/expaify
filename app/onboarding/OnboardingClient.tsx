@@ -71,7 +71,7 @@ export function OnboardingClient() {
     <div className="mx-auto flex min-h-screen w-full max-w-[1120px] flex-col px-5 py-6 sm:py-8">
       <header className="flex items-center justify-between gap-4">
         <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
-          expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" />
+          expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
         </a>
         <button
           type="button"
@@ -124,7 +124,7 @@ export function OnboardingClient() {
                     }`}
                   >
                     <img src={market.photoUrl} alt={market.photoAlt} className="absolute inset-0 h-full w-full object-cover" />
-                    <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,18,16,0.04)_0%,rgba(20,18,16,0.68)_100%)]" aria-hidden />
+                    <span className="absolute inset-0 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--ink)_4%,transparent)_0%,color-mix(in_srgb,var(--ink)_68%,transparent)_100%)]" aria-hidden />
                     <span className="absolute inset-x-0 bottom-0 p-3 text-white">
                       <span className="block font-display text-[17px] font-bold leading-tight">{market.city}</span>
                       <span className="text-[12px] font-medium opacity-85">{market.iata} · {market.country}</span>
@@ -162,7 +162,7 @@ export function OnboardingClient() {
         ) : null}
 
         {error ? (
-          <p className="mt-5 rounded-[16px] border border-[color:var(--accent)] bg-[color:var(--error-soft)] px-4 py-3 text-[14px] font-medium text-[color:var(--ink)]" role="alert">
+          <p className="mt-5 rounded-[var(--radius-input)] border border-[color:var(--error)] bg-[color:var(--error-soft)] px-4 py-3 text-[14px] font-medium text-[color:var(--ink)]" role="alert">
             {error}
           </p>
         ) : null}
