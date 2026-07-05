@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { getActiveDeals } from '@/lib/pipeline/dealDetection'
+import { CITY_SLUGS } from '@/lib/cities'
 
 const BASE = 'https://expaify.com'
 
@@ -12,6 +13,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/privacy`, changeFrequency: 'monthly', priority: 0.2 },
     { url: `${BASE}/terms`, changeFrequency: 'monthly', priority: 0.2 },
   ]
+
+  const city_routes: MetadataRoute.Sitemap = Object.keys(CITY_SLUGS).map(slug => ({
+    url: `${BASE}/destinations/${slug}`,
+    changeFrequency: 'hourly' as const,
+    priority: 0.85,
+  }))
 
   let dealRoutes: MetadataRoute.Sitemap = []
   try {
@@ -26,5 +33,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // DB unavailable at build time — skip deal routes
   }
 
-  return [...static_routes, ...dealRoutes]
+  return [...static_routes, ...city_routes, ...dealRoutes]
 }

@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { DealCard } from '../components/ui/DealCard'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
 import { SearchBar } from '../components/ui/SearchBar'
 import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
+import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 
 const CITIES = [
   'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
@@ -36,7 +38,7 @@ const MAX_PRICE_OPTIONS: Array<{ label: string; value: number | null }> = [
   { label: 'Under $300', value: 300_00 },
 ]
 
-type ApiDeal = {
+export type ApiDeal = {
   id: string
   hotelId: string
   hotelName: string
@@ -197,13 +199,19 @@ function FilterPill({ label, activeLabel, disabled, options, onClear }: FilterPi
 
 const PAGE_SIZE = 12
 
-export function DealFeed() {
-  const [deals, setDeals] = useState<ApiDeal[]>([])
+type DealFeedProps = {
+  initialDeals?: ApiDeal[]
+  defaultCity?: string
+}
+
+export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
+  const router = useRouter()
+  const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
   const [hasMore, setHasMore] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialDeals)
   const [error, setError] = useState(false)
   const [activeTab, setActiveTab] = useState<'hotels' | 'flights'>('hotels')
-  const [city, setCity] = useState('')
+  const [city, setCity] = useState(defaultCity ?? '')
   const [minDiscount, setMinDiscount] = useState(DEFAULT_MIN_DISCOUNT)
   const [maxPriceCents, setMaxPriceCents] = useState<number | null>(null)
   const [minStars, setMinStars] = useState(0)
@@ -250,6 +258,8 @@ export function DealFeed() {
   }, [])
 
   useEffect(() => {
+    // Skip initial fetch when deals were pre-fetched server-side
+    if (initialDeals) return
     fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort, offset: 0, append: false })
     // Initial feed load only; filter changes call fetchDeals through applyFilter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -358,16 +368,26 @@ export function DealFeed() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <FilterPill
-            label="Destination"
-            activeLabel={city || null}
-            disabled={!premium}
-            onClear={() => applyFilter({ city: '' })}
-            options={[
-              { label: 'All destinations', selected: !city, onSelect: () => applyFilter({ city: '' }) },
-              ...CITIES.map(c => ({ label: c, selected: city === c, onSelect: () => applyFilter({ city: c }) })),
-            ]}
-          />
+          {!defaultCity && (
+            <FilterPill
+              label="Destination"
+              activeLabel={city || null}
+              disabled={!premium}
+              onClear={() => applyFilter({ city: '' })}
+              options={[
+                { label: 'All destinations', selected: !city, onSelect: () => applyFilter({ city: '' }) },
+                ...CITIES.map(c => ({
+                  label: c,
+                  selected: city === c,
+                  onSelect: () => {
+                    const slug = CITY_DISPLAY_TO_SLUG[c]
+                    if (slug) router.push(`/destinations/${slug}`)
+                    else applyFilter({ city: c })
+                  },
+                })),
+              ]}
+            />
+          )}
           <FilterPill
             label="Min discount"
             activeLabel={minDiscount !== DEFAULT_MIN_DISCOUNT ? (activeDiscount?.label ?? `${minDiscount}%+ off`) : null}
