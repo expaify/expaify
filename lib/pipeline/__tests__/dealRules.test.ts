@@ -1,23 +1,23 @@
 import { evaluateDeal, DEAL_THRESHOLD, EXPIRE_THRESHOLD, MIN_SNAPSHOTS } from '../dealRules'
 
 describe('evaluateDeal', () => {
-  describe('minimum snapshot floor (below 8 never flags)', () => {
-    it('never flags with 7 snapshots, even at a huge discount', () => {
-      const decision = evaluateDeal({ latestPriceCents: 5000, medianPriceCents: 20000, snapshotCount: 7 })
+  describe('minimum snapshot floor (below 3 never flags)', () => {
+    it('never flags with 2 snapshots, even at a huge discount', () => {
+      const decision = evaluateDeal({ latestPriceCents: 5000, medianPriceCents: 20000, snapshotCount: 2 })
       expect(decision.action).not.toBe('flag')
     })
 
     it('expires an active deal when history is below the floor', () => {
-      const decision = evaluateDeal({ latestPriceCents: 5000, medianPriceCents: 20000, snapshotCount: 7 })
+      const decision = evaluateDeal({ latestPriceCents: 5000, medianPriceCents: 20000, snapshotCount: 2 })
       expect(decision.action).toBe('expire')
     })
 
-    it.each([0, 1, 2, 7])('never flags with %i snapshots', (snapshotCount) => {
+    it.each([0, 1, 2])('never flags with %i snapshots', (snapshotCount) => {
       const decision = evaluateDeal({ latestPriceCents: 1000, medianPriceCents: 100000, snapshotCount })
       expect(decision.action).not.toBe('flag')
     })
 
-    it('flags with exactly 8 snapshots when the price qualifies', () => {
+    it('flags with exactly 3 snapshots when the price qualifies', () => {
       const decision = evaluateDeal({ latestPriceCents: 5000, medianPriceCents: 20000, snapshotCount: MIN_SNAPSHOTS })
       expect(decision).toEqual({ action: 'flag', discountPct: 75 })
     })
@@ -72,6 +72,6 @@ describe('evaluateDeal', () => {
   it('exposes the contract constants from the ticket', () => {
     expect(DEAL_THRESHOLD).toBe(0.70)
     expect(EXPIRE_THRESHOLD).toBe(0.85)
-    expect(MIN_SNAPSHOTS).toBe(8)
+    expect(MIN_SNAPSHOTS).toBe(3)
   })
 })

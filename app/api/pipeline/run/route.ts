@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getActiveMarkets, runSnapshotsForMarket } from '@/lib/pipeline/snapshot'
+import { getActiveMarkets, runSnapshotsForMarket, RateLimitError } from '@/lib/pipeline/snapshot'
 import { detectDealsForMarket, getActiveDeals } from '@/lib/pipeline/dealDetection'
 import { sendInstantAlerts } from '@/lib/email/sendDealAlert'
 import { generateHeadlines } from '@/lib/ai/generateHeadline'
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
 
   const results: Record<string, unknown> = {}
   let totalNewDeals = 0
+  let rateLimited = false
 
   for (let mi = 0; mi < markets.length; mi++) {
     const market = markets[mi]
@@ -36,6 +37,10 @@ export async function POST(req: NextRequest) {
       totalNewDeals += dealsFound
     } catch (err) {
       results[market.iata] = { error: err instanceof Error ? err.message : String(err) }
+      if (err instanceof RateLimitError) {
+        rateLimited = true
+        break
+      }
     }
   }
 
@@ -81,5 +86,5 @@ export async function POST(req: NextRequest) {
     results['_alerts'] = { error: err instanceof Error ? err.message : String(err) }
   }
 
-  return NextResponse.json({ ok: true, markets: markets.length, totalNewDeals, alertsSent, results })
+  return NextResponse.json({ ok: true, markets: markets.length, totalNewDeals, alertsSent, rateLimited, results })
 }

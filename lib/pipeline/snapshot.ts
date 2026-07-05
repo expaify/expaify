@@ -46,6 +46,10 @@ type HotelEntry = {
   photoUrl: string | null
 }
 
+export class RateLimitError extends Error {
+  constructor() { super('RAPIDAPI quota exhausted (429)'); this.name = 'RateLimitError' }
+}
+
 // ── Provider 1: booking-com15 (dest_id city search) ─────────────────────────
 
 async function fetchBookingCom15(iata: string, checkIn: string, checkOut: string, key: string): Promise<HotelEntry[]> {
@@ -62,6 +66,7 @@ async function fetchBookingCom15(iata: string, checkIn: string, checkOut: string
     headers: { 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': 'booking-com15.p.rapidapi.com' },
     signal: AbortSignal.timeout(18_000),
   })
+  if (res.status === 429) throw new RateLimitError()
   if (!res.ok) return []
 
   const json = await res.json() as { data?: { hotels?: unknown[] } }
@@ -96,6 +101,7 @@ async function fetchBookingComCoords(iata: string, checkIn: string, checkOut: st
     headers: { 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': 'booking-com.p.rapidapi.com' },
     signal: AbortSignal.timeout(18_000),
   })
+  if (res.status === 429) throw new RateLimitError()
   if (!res.ok) return []
 
   const json = await res.json() as { result?: unknown[] }
@@ -133,6 +139,7 @@ async function fetchTripAdvisor(iata: string, checkIn: string, checkOut: string,
     headers: { 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': 'tripadvisor16.p.rapidapi.com' },
     signal: AbortSignal.timeout(18_000),
   })
+  if (res.status === 429) throw new RateLimitError()
   if (!res.ok) return []
 
   const json = await res.json() as { data?: { data?: unknown[] } }
@@ -166,7 +173,10 @@ async function fetchWithRotation(
     try {
       const results = await provider(iata, checkIn, checkOut, key)
       if (results.length > 0) return results
-    } catch { /* try next */ }
+    } catch (err) {
+      // Rate limit is shared across all providers (same key) — stop immediately
+      if (err instanceof RateLimitError) throw err
+    }
   }
   return []
 }
@@ -195,6 +205,9 @@ export async function runSnapshotsForMarket(market: Market, marketIndex = 0): Pr
   const results: SnapshotResult[] = []
 
   for (let oi = 0; oi < CHECK_IN_OFFSETS.length; oi++) {
+    // Space out API calls to reduce per-second rate limit pressure
+    if (!isMock && oi > 0) await new Promise(r => setTimeout(r, 1500))
+
     const checkIn = addDays(CHECK_IN_OFFSETS[oi])
     const checkOut = toCheckOut(checkIn, NIGHTS)
 
@@ -210,6 +223,8 @@ export async function runSnapshotsForMarket(market: Market, marketIndex = 0): Pr
       results.push({ market: market.iata, checkIn, hotelsProcessed: hotels.length })
     } catch (err) {
       results.push({ market: market.iata, checkIn, hotelsProcessed: 0, error: err instanceof Error ? err.message : String(err) })
+      // Quota exhausted — propagate so the pipeline route stops processing more markets
+      if (err instanceof RateLimitError) throw err
     }
   }
 
