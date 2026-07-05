@@ -11,6 +11,9 @@ import { PriceBlock } from '@/app/components/ui/PriceBlock'
 import { CompareRow } from '@/app/components/ui/CompareRow'
 import { StarRow } from '@/app/components/ui/StarRow'
 import { ShareButton } from '@/app/components/ui/ShareButton'
+import DealScorePanel from '@/app/components/DealScorePanel'
+import { scoreDeal } from '@/lib/scoring/scoreDeal'
+import type { DealScore } from '@/lib/types'
 
 type PageProps = { params: Promise<{ dealId: string }> }
 
@@ -152,6 +155,43 @@ function PriceHistorySkeleton() {
       <div className="skeleton h-6 w-44 rounded-[var(--radius-input)]" />
       <div className="skeleton mt-4 h-[80px] w-full rounded-[var(--radius-input)]" />
       <div className="skeleton mt-3 h-3 w-64 rounded-full" />
+    </section>
+  )
+}
+
+async function DealScoreSection({ deal }: { deal: DealRow }) {
+  const mktRes = await query<{ id: number }>(
+    'SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1',
+    [deal.city]
+  ).catch(() => ({ rows: [] as { id: number }[] }))
+  const marketId = mktRes.rows[0]?.id
+
+  const rawHistory = await getPriceHistory(deal.hotel_id, marketId).catch(() => [])
+  const pricePoints = rawHistory.map((h) => ({ date: h.date, priceCents: h.price_cents, currency: 'USD' as const }))
+
+  let score: DealScore | null = null
+  if (pricePoints.length > 0) {
+    const offer = {
+      id: deal.id,
+      name: deal.hotel_name,
+      area: deal.city,
+      stars: deal.stars ?? 0,
+      pricePerNight: { priceCents: deal.deal_price_cents, currency: 'USD' as const },
+      deeplink: '',
+      source: 'expaify',
+    }
+    score = scoreDeal(offer, pricePoints)
+  }
+
+  return (
+    <section className="mt-8">
+      <DealScorePanel
+        score={score}
+        loading={false}
+        scope="hotel"
+        priceNoun="nightly rate"
+        unavailableCopy="Not enough price history to score this deal yet."
+      />
     </section>
   )
 }
@@ -309,6 +349,11 @@ export default async function DealDetailPage({ params }: PageProps) {
         {/* Price history — streams in after the content above renders */}
         <Suspense fallback={<PriceHistorySkeleton />}>
           <PriceHistorySection deal={deal} />
+        </Suspense>
+
+        {/* Deal score — computed from price history */}
+        <Suspense fallback={null}>
+          <DealScoreSection deal={deal} />
         </Suspense>
 
         {/* Why this is a deal */}
