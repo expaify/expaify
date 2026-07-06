@@ -161,6 +161,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS accounts (
+  id                  TEXT        NOT NULL DEFAULT gen_random_uuid()::TEXT,
   "userId"            TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   type                TEXT        NOT NULL,
   provider            TEXT        NOT NULL,
@@ -174,12 +175,15 @@ CREATE TABLE IF NOT EXISTS accounts (
   session_state       TEXT,
   PRIMARY KEY (provider, "providerAccountId")
 );
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS id TEXT DEFAULT gen_random_uuid()::TEXT;
 
 CREATE TABLE IF NOT EXISTS sessions (
+  id             TEXT        NOT NULL DEFAULT gen_random_uuid()::TEXT,
   "sessionToken" TEXT        NOT NULL PRIMARY KEY,
   "userId"       TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   expires        TIMESTAMPTZ NOT NULL
 );
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS id TEXT DEFAULT gen_random_uuid()::TEXT;
 
 CREATE TABLE IF NOT EXISTS verification_token (
   identifier TEXT        NOT NULL,
