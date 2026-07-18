@@ -13,7 +13,9 @@ export default function LoginPage() {
   const googleEnabled = Boolean(process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED)
 
   useEffect(() => {
-    if (status === 'authenticated') router.replace('/onboarding')
+    // /deals is the correct landing point — it server-redirects to /onboarding
+    // for users who haven't set preferences yet, and to /deals for everyone else.
+    if (status === 'authenticated') router.replace('/deals')
   }, [status, router])
 
   async function handleEmail(e: React.FormEvent) {

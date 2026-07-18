@@ -2,7 +2,24 @@ import { query } from '../db/client'
 import { buildOtaLinks } from './otaLinks'
 
 const NIGHTS = 2
-const CHECK_IN_OFFSETS = [14, 30, 60]
+
+// Instead of relative offsets (which shift every day, preventing snapshot accumulation),
+// we use two fixed calendar anchors per month so the same hotel+date gets re-scanned
+// and builds up MIN_SNAPSHOTS=3 within days rather than never.
+// Alternating between 2 anchors keeps the daily API call count at 19 (1 per market),
+// well within the RapidAPI quota that previously exhausted after ~7 markets.
+function getAnchorCheckInDate(): string {
+  const today = new Date()
+  const nm1 = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+  const nm15 = new Date(today.getFullYear(), today.getMonth() + 1, 15)
+  // If next-month's 1st is already within 7 days, roll to month+2
+  const daysToNm1 = Math.ceil((nm1.getTime() - today.getTime()) / 86400000)
+  const anchors = daysToNm1 < 7
+    ? [nm15, new Date(today.getFullYear(), today.getMonth() + 2, 1)]
+    : [nm1, nm15]
+  // Alternate anchors each day so both accumulate snapshots every ~2 days
+  return anchors[today.getDate() % anchors.length].toISOString().slice(0, 10)
+}
 
 // ── Market metadata ──────────────────────────────────────────────────────────
 
@@ -202,33 +219,25 @@ export async function runSnapshotsForMarket(market: Market, marketIndex = 0): Pr
   const key = process.env.RAPIDAPI_KEY ?? ''
   const isMock = !key
 
-  const results: SnapshotResult[] = []
+  // Single anchor date per run — keeps total calls at 19/day (1 per market) vs 57 before
+  const checkIn = getAnchorCheckInDate()
+  const checkOut = toCheckOut(checkIn, NIGHTS)
 
-  for (let oi = 0; oi < CHECK_IN_OFFSETS.length; oi++) {
-    // Space out API calls to reduce per-second rate limit pressure
-    if (!isMock && oi > 0) await new Promise(r => setTimeout(r, 1500))
+  try {
+    const hotels = isMock
+      ? generateMockHotels(market.iata, checkIn)
+      : await fetchWithRotation(market.iata, checkIn, checkOut, key, 0, marketIndex)
 
-    const checkIn = addDays(CHECK_IN_OFFSETS[oi])
-    const checkOut = toCheckOut(checkIn, NIGHTS)
-
-    try {
-      const hotels = isMock
-        ? generateMockHotels(market.iata, checkIn)
-        : await fetchWithRotation(market.iata, checkIn, checkOut, key, oi, marketIndex)
-
-      for (const hotel of hotels) {
-        await storeSnapshot(market, hotel, checkIn, isMock)
-      }
-
-      results.push({ market: market.iata, checkIn, hotelsProcessed: hotels.length })
-    } catch (err) {
-      results.push({ market: market.iata, checkIn, hotelsProcessed: 0, error: err instanceof Error ? err.message : String(err) })
-      // Quota exhausted — propagate so the pipeline route stops processing more markets
-      if (err instanceof RateLimitError) throw err
+    for (const hotel of hotels) {
+      await storeSnapshot(market, hotel, checkIn, isMock)
     }
-  }
 
-  return results
+    return [{ market: market.iata, checkIn, hotelsProcessed: hotels.length }]
+  } catch (err) {
+    const result = { market: market.iata, checkIn, hotelsProcessed: 0, error: err instanceof Error ? err.message : String(err) }
+    if (err instanceof RateLimitError) throw err
+    return [result]
+  }
 }
 
 export async function getActiveMarkets(): Promise<Market[]> {
@@ -237,12 +246,6 @@ export async function getActiveMarkets(): Promise<Market[]> {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function addDays(days: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
-}
 
 function toCheckOut(checkIn: string, nights: number): string {
   const d = new Date(checkIn)

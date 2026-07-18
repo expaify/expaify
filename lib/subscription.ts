@@ -71,32 +71,48 @@ export async function upsertSubscription(
   patch: Partial<Omit<Subscription, 'id' | 'userId'>>
 ): Promise<void> {
   const minDiscount = patch.minDiscountPct ?? patch.alertMinDiscount ?? null
+  // Sentinel: undefined means "caller didn't set this field — keep DB value".
+  // null/[] means caller explicitly wants that value. We pass JS undefined as SQL
+  // NULL so CASE WHEN ... IS NOT NULL THEN ... ELSE existing END preserves the row.
+  const watchlistParam = patch.watchlist !== undefined ? patch.watchlist : null
   await query(
-    `INSERT INTO subscriptions (user_id, stripe_customer_id, stripe_subscription_id, status, plan, trial_ends_at, current_period_end, alert_preference, watchlist, alert_min_discount, alert_timezone, onboarding_done, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10::SMALLINT, 40), COALESCE($11::TEXT, 'America/New_York'), COALESCE($12::BOOLEAN, false), NOW())
+    `INSERT INTO subscriptions
+       (user_id, stripe_customer_id, stripe_subscription_id, status, plan,
+        trial_ends_at, current_period_end, alert_preference, watchlist,
+        alert_min_discount, alert_timezone, onboarding_done, updated_at)
+     VALUES
+       ($1, $2, $3,
+        COALESCE($4, 'free'),
+        $5, $6, $7,
+        COALESCE($8, 'daily'),
+        COALESCE($9::text[], '{}'::text[]),
+        COALESCE($10::SMALLINT, 40),
+        COALESCE($11::TEXT, 'America/New_York'),
+        COALESCE($12::BOOLEAN, false),
+        NOW())
      ON CONFLICT (user_id) DO UPDATE SET
        stripe_customer_id     = COALESCE(EXCLUDED.stripe_customer_id, subscriptions.stripe_customer_id),
        stripe_subscription_id = COALESCE(EXCLUDED.stripe_subscription_id, subscriptions.stripe_subscription_id),
-       status                 = COALESCE(EXCLUDED.status, subscriptions.status),
+       status                 = CASE WHEN $4 IS NOT NULL THEN $4 ELSE subscriptions.status END,
        plan                   = COALESCE(EXCLUDED.plan, subscriptions.plan),
        trial_ends_at          = COALESCE(EXCLUDED.trial_ends_at, subscriptions.trial_ends_at),
        current_period_end     = COALESCE(EXCLUDED.current_period_end, subscriptions.current_period_end),
-       alert_preference       = COALESCE(EXCLUDED.alert_preference, subscriptions.alert_preference),
-       watchlist              = COALESCE(EXCLUDED.watchlist, subscriptions.watchlist),
+       alert_preference       = CASE WHEN $8 IS NOT NULL THEN $8 ELSE subscriptions.alert_preference END,
+       watchlist              = CASE WHEN $9::text[] IS NOT NULL THEN $9::text[] ELSE subscriptions.watchlist END,
        alert_min_discount     = COALESCE($10::SMALLINT, subscriptions.alert_min_discount),
-       alert_timezone         = COALESCE($11::TEXT, subscriptions.alert_timezone),
+       alert_timezone         = CASE WHEN $11 IS NOT NULL THEN $11 ELSE subscriptions.alert_timezone END,
        onboarding_done        = CASE WHEN $12::BOOLEAN IS TRUE THEN TRUE ELSE subscriptions.onboarding_done END,
        updated_at             = NOW()`,
     [
       userId,
       patch.stripeCustomerId ?? null,
       patch.stripeSubscriptionId ?? null,
-      patch.status ?? 'free',
+      patch.status ?? null,
       patch.plan ?? null,
       patch.trialEndsAt ?? null,
       patch.currentPeriodEnd ?? null,
-      patch.alertPreference ?? 'daily',
-      patch.watchlist ?? [],
+      patch.alertPreference ?? null,
+      watchlistParam,
       minDiscount,
       patch.alertTimezone ?? null,
       patch.onboardingDone ?? null,

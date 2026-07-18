@@ -218,7 +218,7 @@ export default async function LandingPage() {
                 {
                   n: '02',
                   title: 'We detect real drops',
-                  body: 'A deal is only flagged when a price falls 30% below its rolling median — with at least 8 historical data points behind it.',
+                  body: 'A deal is only flagged when a price falls 30% below its rolling median — with at least 3 days of price history behind it.',
                 },
                 {
                   n: '03',

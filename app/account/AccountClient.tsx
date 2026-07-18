@@ -14,9 +14,10 @@ type Props = {
   minDiscountPct?: MinDiscountPct
   userId?: string
   showAlerts?: boolean
+  signOutOnly?: boolean
 }
 
-export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [], minDiscountPct = 40, userId, showAlerts }: Props) {
+export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [], minDiscountPct = 40, userId, showAlerts, signOutOnly }: Props) {
   const [portalLoading, setPortalLoading] = useState(false)
   const [pref, setPref] = useState<AlertPreference>(alertPreference ?? 'daily')
   const [discountPct, setDiscountPct] = useState<MinDiscountPct>(minDiscountPct)
@@ -63,6 +64,18 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
     }
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  if (signOutOnly) {
+    return (
+      <button
+        type="button"
+        onClick={() => signOut({ callbackUrl: '/' })}
+        className="text-[13px] text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]"
+      >
+        Sign out
+      </button>
+    )
   }
 
   if (showAlerts) {

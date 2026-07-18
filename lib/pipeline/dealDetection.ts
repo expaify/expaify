@@ -281,7 +281,7 @@ export async function getActiveDeals(opts: {
        d.deal_price_cents, d.median_price_cents, d.discount_pct,
        d.check_in_window, d.check_in_date::TEXT, d.nights,
        d.snapshot_count, d.ota_links, d.headline, d.description, d.is_mock,
-       d.first_seen::TEXT
+       d.first_seen::TEXT, d.expires_at::TEXT, d.updated_at::TEXT
      FROM deals d
      JOIN tracked_markets m ON m.id = d.market_id
      WHERE d.status = 'active'
