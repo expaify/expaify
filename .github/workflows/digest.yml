@@ -1,0 +1,26 @@
+name: Daily Digest Emails
+
+on:
+  schedule:
+    # Runs every hour so it catches users whose 9am window aligns with this tick.
+    # The digest endpoint skips users who already received email today.
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger digest on prod
+        env:
+          PIPELINE_SECRET: ${{ secrets.PIPELINE_SECRET }}
+        run: |
+          curl -fsSL --max-time 60 \
+            -X POST https://expaify.com/api/alerts/digest \
+            -H "Authorization: Bearer ${PIPELINE_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{}' | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          print(f'Sent: {d.get(\"recipients\", 0)}, Skipped: {d.get(\"skipped\", 0)}')
+          "
