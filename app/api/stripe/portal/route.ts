@@ -11,6 +11,10 @@ function getStripe(): Stripe {
   return new Stripe(key, { apiVersion: '2026-06-24.dahlia' })
 }
 
+function getOrigin(): string {
+  return (process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? 'https://expaify.com').replace(/\/$/, '')
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = await auth()
   if (!session?.user?.id) {
@@ -25,7 +29,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const stripe = getStripe()
   const portal = await stripe.billingPortal.sessions.create({
     customer: sub.stripeCustomerId,
-    return_url: `${req.nextUrl.origin}/account`,
+    return_url: `${getOrigin()}/account`,
   })
 
   return NextResponse.json({ url: portal.url })

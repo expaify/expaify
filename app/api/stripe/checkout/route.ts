@@ -10,6 +10,12 @@ function getStripe(): Stripe {
   return new Stripe(key, { apiVersion: '2026-06-24.dahlia' })
 }
 
+// req.nextUrl.origin returns the container's internal address (0.0.0.0:3000) behind Azure's
+// reverse proxy. Use the canonical public URL from env instead.
+function getOrigin(): string {
+  return (process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? 'https://expaify.com').replace(/\/$/, '')
+}
+
 // Price IDs are set in env; fall back to test placeholders so the app boots without Stripe configured
 const PRICE_IDS = {
   monthly: process.env.STRIPE_PRICE_MONTHLY ?? 'price_monthly_placeholder',
@@ -24,12 +30,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (!session?.user?.id) {
     // Not yet authenticated — bounce back to join to re-enter email
     const plan = req.nextUrl.searchParams.get('plan') ?? 'annual'
-    return NextResponse.redirect(new URL(`/join?plan=${plan}`, req.nextUrl.origin))
+    return NextResponse.redirect(new URL(`/join?plan=${plan}`, getOrigin()))
   }
 
   const plan = req.nextUrl.searchParams.get('plan') === 'monthly' ? 'monthly' : 'annual'
   const priceId = PRICE_IDS[plan]
-  const origin = req.nextUrl.origin
+  const origin = getOrigin()
 
   try {
     const stripe = getStripe()
@@ -65,7 +71,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const priceId = PRICE_IDS[plan]
 
   const stripe = getStripe()
-  const origin = req.nextUrl.origin
+  const origin = getOrigin()
 
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: 'subscription',
