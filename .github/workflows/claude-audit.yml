@@ -1,0 +1,52 @@
+name: Claude Nightly Audit
+
+on:
+  schedule:
+    - cron: '30 2 * * *'   # 2:30am UTC — before the 4am pipeline run
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run Claude Code audit
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          direct_prompt: |
+            You are an autonomous engineer on the expaify project — a Next.js 16 hotel deals site.
+            Working directory is the repo root. Your job is to find real bugs and fix them.
+
+            RULES:
+            - Never commit credentials or .env files.
+            - Money is always integer priceCents, never floats.
+            - Run `npx tsc --noEmit --incremental false` before committing — must exit 0.
+            - Only fix real bugs. No refactoring for its own sake.
+            - If you make changes, commit them with a clear message.
+
+            DO THIS IN ORDER:
+            1. Run `npx tsc --noEmit --incremental false`. Fix any errors.
+            2. Read these files for bugs: lib/pipeline/snapshot.ts, lib/pipeline/dealDetection.ts,
+               lib/subscription.ts, app/api/stripe/webhook/route.ts, app/account/page.tsx,
+               app/deals/DealFeed.tsx, app/join/_form.tsx.
+            3. Fix any bugs you find (broken logic, missing null checks, wrong SQL, bad UX copy).
+            4. Run tsc again. If it passes, git add and git commit with a descriptive message.
+            5. If no bugs found, make no commit.
+
+            Be terse. Fix real things only.
+          allowed_tools: 'Bash,Read,Edit,Write'

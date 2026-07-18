@@ -1,0 +1,51 @@
+name: Claude Weekly UX Audit
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'   # Monday 9am UTC
+  workflow_dispatch:
+
+jobs:
+  ux-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run Claude Code UX audit
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          direct_prompt: |
+            You are a senior product engineer doing a weekly UX and conversion audit
+            on expaify — a hotel deals site. Find and fix real friction in the user flows.
+
+            RULES:
+            - Run `npx tsc --noEmit --incremental false` before committing.
+            - No big refactors. Fix specific friction points only.
+            - Commit all fixes in one commit if any changes are made.
+
+            AUDIT THESE FILES for real UX problems (confusing copy, broken states,
+            missing feedback, weak CTAs, bad empty states):
+            - app/join/_form.tsx
+            - app/onboarding/OnboardingClient.tsx
+            - app/account/page.tsx
+            - app/account/AccountClient.tsx
+            - app/deals/DealFeed.tsx
+            - app/page.tsx (landing page)
+            - app/deals/[dealId]/page.tsx
+
+            Fix what's genuinely broken or weak. Run tsc. Commit and done.
+          allowed_tools: 'Bash,Read,Edit,Write'
