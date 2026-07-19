@@ -21,8 +21,11 @@ ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS last_alerted_at TIMESTAMPTZ;
 ## Email template spec
 
 ### Subject lines
-- Instant: `{hotelName} — {discountPct}% off in {city} 🏨`
-- Daily: `Your expaify deals for {date} — {n} hotel drops`
+
+> **SUPERSEDED (2026-07-19).** The subject lines below, and the CTA specs in the body diagrams ("See this deal", per-card "Book now →", coral "See all deals"), are superseded by `docs/pipeline/email-alert-template/03-design.md` (UXDES-EMAIL-ALERT-TEMPLATE-01). Do not implement from this section.
+
+- ~~Instant: `{hotelName} — {discountPct}% off in {city} 🏨`~~
+- ~~Daily: `Your expaify deals for {date} — {n} hotel drops`~~
 
 ### DealAlert email body
 ```
