@@ -7,6 +7,7 @@ import { LockedDealCard } from '../components/ui/LockedDealCard'
 import { SearchBar } from '../components/ui/SearchBar'
 import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
+import { track } from '@/lib/analytics'
 
 const CITIES = [
   'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
@@ -55,6 +56,7 @@ export type ApiDeal = {
   headline: string | null
   isMock: boolean
   firstSeen: string | null
+  updatedAt: string | null
   locked: boolean
 }
 
@@ -221,6 +223,11 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
   const [offset, setOffset] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [premium, setPremium] = useState(false)
+  // Full-set count from the API when it provides one; enables the
+  // "N deals are hidden by your filters" line in the filtered-empty state.
+  const [unfilteredTotal, setUnfilteredTotal] = useState<number | null>(null)
+  // Remounts SearchBar on Clear-all so its internal input state resets too.
+  const [searchKey, setSearchKey] = useState(0)
 
   const fetchDeals = useCallback(async (opts: DealFetchOpts) => {
     const { append } = opts
@@ -243,12 +250,13 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
     try {
       const res = await fetch(`/api/deals?${params}`)
       if (!res.ok) throw new Error('fetch failed')
-      const data: { deals: ApiDeal[]; total: number; premium?: boolean } = await res.json()
+      const data: { deals: ApiDeal[]; total: number; premium?: boolean; unfilteredTotal?: number } = await res.json()
       setDeals(prev => append ? [...prev, ...data.deals] : data.deals)
       // The API reports the page count, not the full set, so a full page is
       // the only reliable "there may be more" signal.
       setHasMore(data.deals.length === PAGE_SIZE)
       setPremium(Boolean(data.premium))
+      setUnfilteredTotal(typeof data.unfilteredTotal === 'number' ? data.unfilteredTotal : null)
     } catch {
       setError(true)
     } finally {
@@ -314,7 +322,16 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
   }
 
   function clearSearch() {
-    applyFilter({ city: '', minDiscount: DEFAULT_MIN_DISCOUNT, maxPriceCents: null, minStars: 0, dateFrom: '', dateTo: '' })
+    // On a city-scoped feed the city resets to the page's city, never '' —
+    // a Miami page must not silently become an all-cities feed.
+    applyFilter({ city: defaultCity ?? '', minDiscount: DEFAULT_MIN_DISCOUNT, maxPriceCents: null, minStars: 0, dateFrom: '', dateTo: '' })
+  }
+
+  function handleClearAll() {
+    track('feed_clear_all_clicked', { source: 'empty_state' })
+    focusGridOnLoad.current = true
+    setSearchKey(k => k + 1)
+    clearSearch()
   }
 
   function loadMore() {
@@ -343,7 +360,20 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
     return () => obs.disconnect()
   }, [activeTab, loading, error, deals.length])
 
-  const hasActiveFilters = Boolean(city || minDiscount !== DEFAULT_MIN_DISCOUNT || maxPriceCents || minStars || dateFrom || dateTo)
+  // After Clear-all resolves, the empty block unmounts; move focus to the
+  // results grid so keyboard users aren't dropped to <body>.
+  const gridRef = useRef<HTMLDivElement>(null)
+  const focusGridOnLoad = useRef(false)
+  useEffect(() => {
+    if (!loading && focusGridOnLoad.current) {
+      focusGridOnLoad.current = false
+      gridRef.current?.focus()
+    }
+  }, [loading])
+
+  // On a city-scoped feed the fixed city is not "a filter the user applied".
+  const cityFiltered = city !== (defaultCity ?? '')
+  const hasActiveFilters = Boolean(cityFiltered || minDiscount !== DEFAULT_MIN_DISCOUNT || maxPriceCents || minStars || dateFrom || dateTo)
 
   // SearchBar can set a max price that is not one of the popover options.
   const maxPriceLabel = maxPriceCents
@@ -351,6 +381,88 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
     : null
   const activeDiscount = DISCOUNT_OPTIONS.find(o => o.value === minDiscount)
   const activeStars = STARS_OPTIONS.find(o => o.value === minStars)
+
+  // Removable chips for the filtered-empty block — one per active filter,
+  // reusing the header pills' active labels. The fixed city on a city-scoped
+  // feed gets no chip.
+  function removeChip(filter: string, patch: Parameters<typeof applyFilter>[0]) {
+    track('feed_filter_chip_removed', { filter })
+    applyFilter(patch)
+  }
+  const fmtChipDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const activeChips: Array<{ key: string; label: string; onRemove: () => void }> = []
+  if (cityFiltered && city && !defaultCity) {
+    activeChips.push({ key: 'city', label: city, onRemove: () => removeChip('city', { city: '' }) })
+  }
+  if (minDiscount !== DEFAULT_MIN_DISCOUNT) {
+    activeChips.push({
+      key: 'minDiscount',
+      label: activeDiscount?.label ?? `${minDiscount}%+ off`,
+      onRemove: () => removeChip('minDiscount', { minDiscount: DEFAULT_MIN_DISCOUNT }),
+    })
+  }
+  if (minStars > 0) {
+    activeChips.push({
+      key: 'minStars',
+      label: activeStars?.label ?? `${minStars}★ & up`,
+      onRemove: () => removeChip('minStars', { minStars: 0 }),
+    })
+  }
+  if (maxPriceCents && maxPriceLabel) {
+    activeChips.push({ key: 'maxPrice', label: maxPriceLabel, onRemove: () => removeChip('maxPrice', { maxPriceCents: null }) })
+  }
+  if (dateFrom || dateTo) {
+    const label = dateFrom && dateTo
+      ? `${fmtChipDate(dateFrom)} – ${fmtChipDate(dateTo)}`
+      : dateFrom ? `From ${fmtChipDate(dateFrom)}` : `Until ${fmtChipDate(dateTo)}`
+    activeChips.push({ key: 'dates', label, onRemove: () => removeChip('dates', { dateFrom: '', dateTo: '' }) })
+  }
+  const activeFilterCount = [
+    cityFiltered,
+    minDiscount !== DEFAULT_MIN_DISCOUNT,
+    Boolean(maxPriceCents),
+    minStars > 0,
+    Boolean(dateFrom || dateTo),
+  ].filter(Boolean).length
+
+  const isColdSample = deals.length > 0 && deals.every(d => d.isMock)
+  const showFilteredEmpty = !loading && !error && deals.length === 0 && hasActiveFilters
+  const showColdEmpty = !loading && !error && !hasActiveFilters && (isColdSample || deals.length === 0)
+
+  // Empty-state view events — once per mount, guarded.
+  const firedEmptyView = useRef({ filtered: false, cold: false })
+  useEffect(() => {
+    if (activeTab !== 'hotels') return
+    if (showFilteredEmpty && !firedEmptyView.current.filtered) {
+      firedEmptyView.current.filtered = true
+      const props: Record<string, number> = { activeFilterCount }
+      if (typeof unfilteredTotal === 'number' && unfilteredTotal > 0) props.hiddenCount = unfilteredTotal
+      track('feed_empty_filtered_viewed', props)
+    }
+    if (showColdEmpty && !firedEmptyView.current.cold) {
+      firedEmptyView.current.cold = true
+      track('feed_empty_cold_viewed', { sampleCount: isColdSample ? deals.length : 0 })
+    }
+  }, [activeTab, showFilteredEmpty, showColdEmpty, isColdSample, deals.length, activeFilterCount, unfilteredTotal])
+
+  const toCardDeal = (deal: ApiDeal) => ({
+    id: deal.id,
+    hotelName: deal.hotelName,
+    city: deal.city,
+    stars: deal.stars ?? 3,
+    photoUrl: deal.photoUrl ?? undefined,
+    dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' },
+    medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' },
+    discountPct: deal.discountPct,
+    checkInWindow: deal.checkInWindow,
+    snapshotCount: deal.snapshotCount,
+    links: deal.otaLinks,
+    headline: deal.headline ?? undefined,
+    isMock: deal.isMock,
+    firstSeen: deal.firstSeen ?? undefined,
+    updatedAt: deal.updatedAt,
+  })
 
   const sortSegBase = 'rounded-[var(--radius-pill)] px-4 py-1.5 text-[13px] font-medium transition-colors duration-100 disabled:cursor-not-allowed disabled:opacity-50'
 
@@ -464,7 +576,7 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
         <>
           {/* Natural language search */}
           <div className="mb-4">
-            <SearchBar premium={premium} onResult={handleSearchResult} onClear={clearSearch} />
+            <SearchBar key={searchKey} premium={premium} onResult={handleSearchResult} onClear={clearSearch} />
           </div>
 
           {/* Sort: segmented pill */}
@@ -524,25 +636,82 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
                 Retry
               </button>
             </div>
-          ) : deals.length === 0 ? (
+          ) : showFilteredEmpty ? (
+            <div role="status" className="mx-auto max-w-[480px] py-16 text-center">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto" aria-hidden>
+                <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+              </svg>
+              <h3 className="mt-4 font-display text-[20px] font-bold text-[color:var(--ink)]">
+                No deals match your filters
+              </h3>
+              {typeof unfilteredTotal === 'number' && unfilteredTotal > 0 && (
+                <p className="mt-1 text-[13px] text-[color:var(--ink-soft)]">
+                  {unfilteredTotal} deal{unfilteredTotal !== 1 ? 's are' : ' is'} hidden by your filters
+                </p>
+              )}
+              <p className="mt-2 text-[14px] text-[color:var(--ink-soft)]">
+                Remove a filter, or clear them all to see everything that&rsquo;s live.
+              </p>
+
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {activeChips.map(chip => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={chip.onRemove}
+                    aria-label={`Remove filter: ${chip.label}`}
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--primary)] bg-[color:var(--primary)] px-4 text-[13px] font-medium text-white"
+                  >
+                    {chip.label}
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+
+              <button type="button" onClick={handleClearAll} className="btn btn-primary mt-6 min-h-[44px] px-8">
+                Clear all filters
+              </button>
+
+              {defaultCity && (
+                <a href="/deals" className="mt-3 block text-[13px] font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]">
+                  See all destinations
+                </a>
+              )}
+            </div>
+          ) : showColdEmpty ? (
             <>
-              <div className={`${gridClass} opacity-30`}>
-                {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
-              </div>
-              <div className="mt-10 text-center">
-                <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">
-                  {hasActiveFilters ? 'No deals match those filters.' : 'We’re building your feed.'}
-                </p>
+              <div role="status" className="mx-auto max-w-[480px] pt-10 text-center">
+                <h3 className="font-display text-[20px] font-bold text-[color:var(--ink)]">
+                  We&rsquo;re building your feed.
+                </h3>
                 <p className="mt-2 text-[14px] text-[color:var(--ink-soft)]">
-                  {hasActiveFilters
-                    ? 'Try widening your filters or clearing the search.'
-                    : 'Check back in a few hours — our pipeline runs daily across 20 destinations.'}
+                  Our tracker sweeps hotel prices across 20 destinations once a day.
+                  Real deals appear here after the next sweep — check back soon.
                 </p>
               </div>
+
+              {isColdSample && (
+                <section aria-label="Example deals" className="mt-12">
+                  <div className="mb-6 border-t border-[color:var(--line-ivory)] pt-8">
+                    <h3 className="text-h3 text-[color:var(--ink)]">Example deals</h3>
+                    <p className="mt-1 text-[13px] text-[color:var(--ink-soft)]">
+                      Here&rsquo;s what expaify surfaces once tracking completes. These use
+                      sample hotels and prices — they&rsquo;re not bookable.
+                    </p>
+                  </div>
+                  <div className={gridClass}>
+                    {deals.map(deal => (
+                      <DealCard key={deal.id} deal={toCardDeal(deal)} />
+                    ))}
+                  </div>
+                </section>
+              )}
             </>
           ) : (
             <>
-              <div className={gridClass}>
+              <div ref={gridRef} tabIndex={-1} className={gridClass}>
                 {deals.map(deal =>
                   deal.locked ? (
                     <LockedDealCard
@@ -557,22 +726,7 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
                     <DealCard
                       key={deal.id}
                       href={deal.isMock ? undefined : `/deals/${deal.id}`}
-                      deal={{
-                        id: deal.id,
-                        hotelName: deal.hotelName,
-                        city: deal.city,
-                        stars: deal.stars ?? 3,
-                        photoUrl: deal.photoUrl ?? undefined,
-                        dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' },
-                        medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' },
-                        discountPct: deal.discountPct,
-                        checkInWindow: deal.checkInWindow,
-                        snapshotCount: deal.snapshotCount,
-                        links: deal.otaLinks,
-                        headline: deal.headline ?? undefined,
-                        isMock: deal.isMock,
-                        firstSeen: deal.firstSeen ?? undefined,
-                      }}
+                      deal={toCardDeal(deal)}
                     />
                   )
                 )}

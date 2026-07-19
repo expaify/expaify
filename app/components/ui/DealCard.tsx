@@ -1,4 +1,5 @@
 import { formatMoney } from "@/lib/money";
+import { timeAgo } from "@/lib/timeAgo";
 import type { Money } from "@/lib/types";
 import { CompareRow } from "./CompareRow";
 import { DealChip } from "./DealChip";
@@ -25,6 +26,7 @@ type DealCardDeal = {
   headline?: string;
   isMock?: boolean;
   firstSeen?: string;
+  updatedAt?: string | null;
 };
 
 type DealCardProps = {
@@ -32,15 +34,14 @@ type DealCardProps = {
   href?: string;
 };
 
-function timeAgo(iso?: string): string {
-  if (!iso) return "today";
-  const diff = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 60) return minutes <= 1 ? "just now" : `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return days === 1 ? "yesterday" : `${days}d ago`;
+function fmtAbsolute(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function starChars(stars: number): string {
@@ -55,9 +56,16 @@ function savingsCents(deal: DealCardDeal): number {
 export function DealCard({ deal, href }: DealCardProps) {
   const savings = savingsCents(deal);
   const showSavings = savings >= 2000; // ≥ $20/night
+  const checked = deal.isMock ? null : timeAgo(deal.updatedAt);
 
   const content = (
-    <article className="group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]">
+    <article
+      className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)]${
+        deal.isMock
+          ? ""
+          : " transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]"
+      }`}
+    >
       {/* ── Image area ─────────────────────────────── */}
       <div className="relative h-[160px] overflow-hidden">
         {deal.photoUrl ? (
@@ -99,10 +107,20 @@ export function DealCard({ deal, href }: DealCardProps) {
           <DealChip discountPct={deal.discountPct} />
         </div>
 
-        {/* Found pill — top right */}
-        <span className="absolute right-3 top-3 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--bg)]">
-          found {timeAgo(deal.firstSeen)}
-        </span>
+        {/* Top right: Example badge (samples) or checked pill (real deals with
+            a known check time). Sample updatedAt is null, so never both. */}
+        {deal.isMock ? (
+          <span className="absolute right-3 top-3 rounded-[var(--radius-pill)] border border-[color:var(--line-white)] bg-[color:var(--surface)] px-2.5 py-1 text-[12px] font-semibold leading-none text-[color:var(--ink)]">
+            Example
+          </span>
+        ) : checked !== null ? (
+          <span
+            className="absolute right-3 top-3 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--bg)]"
+            title={deal.updatedAt ? fmtAbsolute(deal.updatedAt) : undefined}
+          >
+            checked {checked}
+          </span>
+        ) : null}
       </div>
 
       {/* ── Body ───────────────────────────────────── */}
@@ -148,17 +166,19 @@ export function DealCard({ deal, href }: DealCardProps) {
           )}
         </div>
 
-        {/* OTA compare */}
-        <CompareRow links={deal.links} />
-
-        {/* Trust line */}
-        <p className="text-caption leading-snug text-[color:var(--ink-faint)]">
-          Based on {deal.snapshotCount} price checks over 60 days · expaify never adds fees
-        </p>
-
         {deal.isMock ? (
-          <p className="text-caption leading-snug text-[color:var(--ink-faint)]">Preview deal</p>
-        ) : null}
+          <p className="text-[12px] font-medium text-[color:var(--ink-soft)]">Sample hotel — not bookable</p>
+        ) : (
+          <>
+            {/* OTA compare */}
+            <CompareRow links={deal.links} />
+
+            {/* Trust line */}
+            <p className="text-caption leading-snug text-[color:var(--ink-faint)]">
+              Based on {deal.snapshotCount} price checks over 60 days · expaify never adds fees
+            </p>
+          </>
+        )}
       </div>
     </article>
   );
