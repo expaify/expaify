@@ -199,12 +199,21 @@ function FilterPill({ label, activeLabel, disabled, options, onClear }: FilterPi
 
 const PAGE_SIZE = 12
 
+type Personalization = {
+  active: boolean
+  watchlist: string[]
+  minDiscountPct: 30 | 40 | 50
+  alertPreference: 'instant' | 'daily' | 'off'
+}
+
 type DealFeedProps = {
   initialDeals?: ApiDeal[]
   defaultCity?: string
+  premium?: boolean
+  personalization?: Personalization
 }
 
-export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
+export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = false, personalization }: DealFeedProps = {}) {
   const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
   const [hasMore, setHasMore] = useState(false)
@@ -220,7 +229,9 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
   const [sort, setSort] = useState<'newest' | 'discount'>('newest')
   const [offset, setOffset] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [premium, setPremium] = useState(false)
+  const [premium, setPremium] = useState(premiumProp)
+
+  const personalizationActive = Boolean(personalization?.active)
 
   const fetchDeals = useCallback(async (opts: DealFetchOpts) => {
     const { append } = opts
@@ -239,6 +250,9 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
     if (opts.minStars > 0) params.set('min_stars', String(opts.minStars))
     if (opts.dateFrom) params.set('date_from', opts.dateFrom)
     if (opts.dateTo) params.set('date_to', opts.dateTo)
+    // Outside the personalized view, ask the API to skip stored preferences so
+    // later pages match the unpersonalized first paint.
+    if (!personalizationActive) params.set('all', '1')
 
     try {
       const res = await fetch(`/api/deals?${params}`)
@@ -255,7 +269,7 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [])
+  }, [personalizationActive])
 
   useEffect(() => {
     // Skip initial fetch when deals were pre-fetched server-side
@@ -356,15 +370,43 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
 
   const gridClass = 'grid grid-cols-1 gap-6 min-[680px]:grid-cols-2 min-[1024px]:grid-cols-3'
 
+  const echoLinkClass = 'font-medium text-[color:var(--primary)] no-underline hover:underline'
+
+  // Preference echo: the subtitle reflects the onboarded user's stored
+  // watchlist and threshold; plain text + link, never styled as a filter pill.
+  let subtitle: React.ReactNode
+  if (!personalization) {
+    subtitle = 'Deals across 20 destinations, updated daily'
+  } else if (!personalization.active) {
+    subtitle = (
+      <>
+        Showing all destinations, updated daily ·{' '}
+        <a href="/deals" className={echoLinkClass}>Use my preferences</a>
+      </>
+    )
+  } else {
+    const list = personalization.watchlist
+    const cityFragment =
+      list.length === 0
+        ? 'all destinations'
+        : list.length <= 3
+          ? list.join(', ')
+          : `${list.slice(0, 2).join(', ')} + ${list.length - 2} more`
+    subtitle = (
+      <>
+        Watching {cityFragment} · {personalization.minDiscountPct}%+ off ·{' '}
+        <a href="/deals?all=1" className={echoLinkClass}>Show all deals</a>
+      </>
+    )
+  }
+
   return (
     <>
       {/* Header: title left, premium filter pills right */}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div>
           <h2 className="text-h2 text-[color:var(--ink)]">Today&rsquo;s catches</h2>
-          <p className="mt-1 text-[13px] text-[color:var(--ink-soft)]">
-            Deals across 20 destinations, updated daily
-          </p>
+          <p className="mt-1 text-[13px] text-[color:var(--ink-soft)]">{subtitle}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -524,6 +566,8 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
                 Retry
               </button>
             </div>
+          ) : deals.length === 0 && personalization?.active && !hasActiveFilters ? (
+            <PersonalizedEmpty personalization={personalization} premium={premium} />
           ) : deals.length === 0 ? (
             <>
               <div className={`${gridClass} opacity-30`}>
@@ -584,5 +628,44 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
         </>
       )}
     </>
+  )
+}
+
+/** Honest zero-result answer for the personalized feed — no ghost skeletons,
+    no mock cards, and a plan-aware footer line. */
+function PersonalizedEmpty({ personalization, premium }: { personalization: Personalization; premium: boolean }) {
+  const { watchlist, minDiscountPct: pct, alertPreference } = personalization
+  const headline =
+    watchlist.length >= 2
+      ? `No ${pct}%+ deals in your ${watchlist.length} destinations right now.`
+      : watchlist.length === 1
+        ? `No ${pct}%+ deals in ${watchlist[0]} right now.`
+        : `No ${pct}%+ deals right now.`
+
+  return (
+    <div className="py-20 text-center">
+      <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">{headline}</p>
+      <p className="mt-2 text-[14px] text-[color:var(--ink-soft)]">
+        Your bar is set at {pct}%+ off — drops that big are rare, and we check every destination daily. New deals land here the moment one clears it.
+      </p>
+      <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+        <a href="/deals?all=1" className="btn btn-primary px-8">
+          Show all deals
+        </a>
+        <a href="/account" className="btn btn-outline px-8">
+          Edit preferences
+        </a>
+      </div>
+      {!premium ? (
+        <p className="mt-5 text-[13px] text-[color:var(--ink-soft)]">
+          Want an email the moment a match appears? Alerts are included with Premium.{' '}
+          <a href="/join" className="font-bold text-[color:var(--primary)] no-underline hover:underline">
+            Start Premium
+          </a>
+        </p>
+      ) : alertPreference !== 'off' ? (
+        <p className="mt-5 text-[13px] text-[color:var(--ink-soft)]">You&rsquo;ll get an email as soon as a match appears.</p>
+      ) : null}
+    </div>
   )
 }

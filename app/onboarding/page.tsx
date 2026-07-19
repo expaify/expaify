@@ -1,5 +1,5 @@
 import { auth } from '@/auth'
-import { getSubscription } from '@/lib/subscription'
+import { getSubscription, isPremium } from '@/lib/subscription'
 import { redirect } from 'next/navigation'
 import { OnboardingClient } from './OnboardingClient'
 
@@ -12,7 +12,7 @@ export default async function OnboardingPage() {
 
   return (
     <main className="min-h-screen bg-[color:var(--bg)]">
-      <OnboardingClient />
+      <OnboardingClient premium={sub ? isPremium(sub.status) : false} />
     </main>
   )
 }
