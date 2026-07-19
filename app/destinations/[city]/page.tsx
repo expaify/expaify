@@ -6,6 +6,10 @@ import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DealFeed, type ApiDeal } from '@/app/deals/DealFeed'
 import { getPaywallContext, getFreeUnlockedDealIds } from '@/lib/paywall'
 import { query } from '@/lib/db/client'
+import { auth } from '@/auth'
+import { getSubscription, isPremium } from '@/lib/subscription'
+import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
+import { WatchCityPill } from '@/app/components/ui/WatchCityPill'
 
 function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
   if (locked) {
@@ -59,13 +63,18 @@ export default async function CityPage({ params }: PageProps) {
   ).catch(() => ({ rows: [] as { id: number }[] }))
   const marketId = marketRes.rows[0]?.id
 
-  const [rows, pwCtx, unlockedIds] = await Promise.all([
+  const session = await auth().catch(() => null)
+
+  const [rows, pwCtx, unlockedIds, sub] = await Promise.all([
     marketId
       ? getActiveDeals({ marketId, limit: 20, sort: 'newest', includeMock: false }).catch(() => [] as DealRow[])
       : Promise.resolve([] as DealRow[]),
     getPaywallContext(),
     getFreeUnlockedDealIds(),
+    session?.user?.id ? getSubscription(session.user.id).catch(() => null) : Promise.resolve(null),
   ])
+
+  const showWatchPill = !!sub && isPremium(sub.status) && TRACKED_MARKET_NAMES.includes(displayName)
 
   const initialDeals: ApiDeal[] = rows.map(row => {
     const locked = !pwCtx.premium && !unlockedIds.has(row.id)
@@ -90,6 +99,15 @@ export default async function CityPage({ params }: PageProps) {
       <h1 className="text-h2 text-[color:var(--ink)] font-display mb-1">
         Hotel deals in {displayName}
       </h1>
+      {showWatchPill && sub && (
+        <div className="mb-3 mt-2">
+          <WatchCityPill
+            city={displayName}
+            initialWatching={sub.watchlist.includes(displayName)}
+            initialCount={sub.watchlist.length}
+          />
+        </div>
+      )}
       <p className="text-[13px] text-[color:var(--text-2)] mb-8">
         Updated daily · {initialDeals.length} deal{initialDeals.length !== 1 ? 's' : ''} found
       </p>
