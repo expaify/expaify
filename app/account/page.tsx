@@ -31,6 +31,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
 
   const premium = sub ? isPremium(sub.status) : false
   const showWelcome = params.welcome === '1' || params.checkout === 'success'
+  const showCheckoutError = params.checkout === 'error'
   const daysLeft = sub?.status === 'trialing' && sub.trialEndsAt ? trialDaysLeft(sub.trialEndsAt) : null
 
   return (
@@ -56,6 +57,14 @@ export default async function AccountPage({ searchParams }: PageProps) {
               {' '}Your first deal alert arrives by email — usually within 24 hours.
             </p>
             <a href="/account" className="shrink-0 text-[18px] leading-none text-white opacity-70 hover:opacity-100 no-underline" aria-label="Dismiss">×</a>
+          </div>
+        )}
+
+        {showCheckoutError && (
+          <div className="mb-6 rounded-[var(--radius-card)] border border-[color:var(--error)] bg-white px-5 py-4">
+            <p className="text-[14px] font-medium text-[color:var(--error)]">
+              Checkout could not start. Check Stripe price and secret settings, then try again.
+            </p>
           </div>
         )}
 

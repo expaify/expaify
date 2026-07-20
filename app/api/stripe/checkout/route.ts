@@ -22,6 +22,12 @@ const PRICE_IDS = {
   annual: process.env.STRIPE_PRICE_ANNUAL ?? 'price_annual_placeholder',
 } as const
 
+function assertConfiguredPrice(priceId: string, plan: string): void {
+  if (priceId.includes('placeholder')) {
+    throw new Error(`Stripe ${plan} price id is not configured`)
+  }
+}
+
 // GET handler: used as the post-auth callback from magic-link sign-in on /join.
 // After the user clicks their email link, NextAuth redirects here with ?plan=&redirect=true.
 // We create a Stripe checkout session and send them directly to Stripe.
@@ -38,6 +44,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const origin = getOrigin()
 
   try {
+    assertConfiguredPrice(priceId, plan)
     const stripe = getStripe()
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -55,8 +62,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (!checkoutSession.url) throw new Error('No checkout URL')
     return NextResponse.redirect(checkoutSession.url)
   } catch {
-    // Stripe failed — send them to deals so at least auth succeeded
-    return NextResponse.redirect(new URL('/deals', origin))
+    return NextResponse.redirect(new URL('/account?checkout=error', origin))
   }
 }
 
@@ -69,6 +75,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const body = (await req.json()) as { plan?: string }
   const plan = body.plan === 'monthly' ? 'monthly' : 'annual'
   const priceId = PRICE_IDS[plan]
+  assertConfiguredPrice(priceId, plan)
 
   const stripe = getStripe()
   const origin = getOrigin()
