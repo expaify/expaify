@@ -58,13 +58,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       break
     }
 
+    case 'customer.subscription.created':
     case 'customer.subscription.updated': {
       const sub = event.data.object as Stripe.Subscription
       const existing = await getSubscriptionByStripeCustomer(sub.customer as string)
-      if (!existing) break
-      await upsertSubscription(existing.userId, {
+      const userId = existing?.userId ?? sub.metadata?.user_id
+      if (!userId) break
+      await upsertSubscription(userId, {
+        stripeCustomerId: sub.customer as string,
         stripeSubscriptionId: sub.id,
         status: mapStripeStatus(sub.status),
+        plan: sub.metadata?.plan === 'annual' ? 'annual' : existing?.plan,
         trialEndsAt: getTrialEnd(sub),
         currentPeriodEnd: getPeriodEnd(sub),
       })
