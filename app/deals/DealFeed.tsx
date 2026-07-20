@@ -7,6 +7,7 @@ import { LockedDealCard } from '../components/ui/LockedDealCard'
 import { SearchBar } from '../components/ui/SearchBar'
 import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
+import { track } from '@/lib/analytics'
 
 const CITIES = [
   'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
@@ -55,6 +56,7 @@ export type ApiDeal = {
   headline: string | null
   isMock: boolean
   firstSeen: string | null
+  updatedAt: string | null
   locked: boolean
 }
 
@@ -230,6 +232,8 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
   const [offset, setOffset] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [premium, setPremium] = useState(premiumProp)
+  const [unfilteredTotal, setUnfilteredTotal] = useState<number | undefined>(undefined)
+  const gridRef = useRef<HTMLDivElement>(null)
 
   const personalizationActive = Boolean(personalization?.active)
 
@@ -257,8 +261,9 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     try {
       const res = await fetch(`/api/deals?${params}`)
       if (!res.ok) throw new Error('fetch failed')
-      const data: { deals: ApiDeal[]; total: number; premium?: boolean } = await res.json()
+      const data: { deals: ApiDeal[]; total: number; premium?: boolean; unfilteredTotal?: number } = await res.json()
       setDeals(prev => append ? [...prev, ...data.deals] : data.deals)
+      setUnfilteredTotal(typeof data.unfilteredTotal === 'number' ? data.unfilteredTotal : undefined)
       // The API reports the page count, not the full set, so a full page is
       // the only reliable "there may be more" signal.
       setHasMore(data.deals.length === PAGE_SIZE)
@@ -328,7 +333,19 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
   }
 
   function clearSearch() {
-    applyFilter({ city: '', minDiscount: DEFAULT_MIN_DISCOUNT, maxPriceCents: null, minStars: 0, dateFrom: '', dateTo: '' })
+    applyFilter({ city: defaultCity ?? '', minDiscount: DEFAULT_MIN_DISCOUNT, maxPriceCents: null, minStars: 0, dateFrom: '', dateTo: '' })
+  }
+
+  function resetFilters() {
+    track('feed_clear_all_clicked')
+    const nextCity = defaultCity ?? ''
+    applyFilter({ city: nextCity, minDiscount: DEFAULT_MIN_DISCOUNT, maxPriceCents: null, minStars: 0, dateFrom: '', dateTo: '' })
+    window.setTimeout(() => gridRef.current?.focus(), 0)
+  }
+
+  function removeFilter(name: string, next: Parameters<typeof applyFilter>[0]) {
+    track('feed_filter_chip_removed', { filter: name })
+    applyFilter(next)
   }
 
   function loadMore() {
@@ -357,7 +374,9 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     return () => obs.disconnect()
   }, [activeTab, loading, error, deals.length])
 
-  const hasActiveFilters = Boolean(city || minDiscount !== DEFAULT_MIN_DISCOUNT || maxPriceCents || minStars || dateFrom || dateTo)
+  const hasCityFilter = defaultCity ? city !== defaultCity : Boolean(city)
+  const hasActiveFilters = Boolean(hasCityFilter || minDiscount !== DEFAULT_MIN_DISCOUNT || maxPriceCents || minStars || dateFrom || dateTo)
+  const isColdSampleFeed = deals.length > 0 && deals.every(d => d.isMock)
 
   // SearchBar can set a max price that is not one of the popover options.
   const maxPriceLabel = maxPriceCents
@@ -371,6 +390,38 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
   const gridClass = 'grid grid-cols-1 gap-6 min-[680px]:grid-cols-2 min-[1024px]:grid-cols-3'
 
   const echoLinkClass = 'font-medium text-[color:var(--primary)] no-underline hover:underline'
+
+  const activeFilterChips: Array<{ key: string; label: string; onRemove: () => void }> = []
+  if (!defaultCity && city) {
+    activeFilterChips.push({ key: 'city', label: city, onRemove: () => removeFilter('city', { city: '' }) })
+  }
+  if (minDiscount !== DEFAULT_MIN_DISCOUNT) {
+    activeFilterChips.push({ key: 'minDiscount', label: activeDiscount?.label ?? `${minDiscount}%+ off`, onRemove: () => removeFilter('minDiscount', { minDiscount: DEFAULT_MIN_DISCOUNT }) })
+  }
+  if (minStars) {
+    activeFilterChips.push({ key: 'minStars', label: activeStars?.label ?? `${minStars}★ & up`, onRemove: () => removeFilter('minStars', { minStars: 0 }) })
+  }
+  if (maxPriceLabel) {
+    activeFilterChips.push({ key: 'maxPrice', label: maxPriceLabel, onRemove: () => removeFilter('maxPrice', { maxPriceCents: null }) })
+  }
+  if (dateFrom) {
+    activeFilterChips.push({ key: 'dateFrom', label: `From ${dateFrom}`, onRemove: () => removeFilter('dateFrom', { dateFrom: '' }) })
+  }
+  if (dateTo) {
+    activeFilterChips.push({ key: 'dateTo', label: `To ${dateTo}`, onRemove: () => removeFilter('dateTo', { dateTo: '' }) })
+  }
+
+  useEffect(() => {
+    if (!loading && !error && deals.length === 0 && hasActiveFilters) {
+      track('feed_empty_filtered_viewed')
+    }
+  }, [deals.length, error, hasActiveFilters, loading])
+
+  useEffect(() => {
+    if (!loading && !error && isColdSampleFeed) {
+      track('feed_empty_cold_viewed')
+    }
+  }, [error, isColdSampleFeed, loading])
 
   // Preference echo: the subtitle reflects the onboarded user's stored
   // watchlist and threshold; plain text + link, never styled as a filter pill.
@@ -568,25 +619,65 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
             </div>
           ) : deals.length === 0 && personalization?.active && !hasActiveFilters ? (
             <PersonalizedEmpty personalization={personalization} premium={premium} />
-          ) : deals.length === 0 ? (
-            <>
-              <div className={`${gridClass} opacity-30`}>
-                {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
-              </div>
-              <div className="mt-10 text-center">
-                <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">
-                  {hasActiveFilters ? 'No deals match those filters.' : 'We’re building your feed.'}
-                </p>
+          ) : deals.length === 0 && hasActiveFilters ? (
+            <div ref={gridRef} tabIndex={-1} className="outline-none">
+              <div role="status" className="mx-auto max-w-[640px] rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] px-5 py-10 text-center">
+                <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">No deals match your filters</p>
+                {typeof unfilteredTotal === 'number' && unfilteredTotal > 0 ? (
+                  <p className="mt-2 text-[13px] font-medium text-[color:var(--primary)]">
+                    {unfilteredTotal} {unfilteredTotal === 1 ? 'deal is' : 'deals are'} hidden by your filters
+                  </p>
+                ) : null}
                 <p className="mt-2 text-[14px] text-[color:var(--ink-soft)]">
-                  {hasActiveFilters
-                    ? 'Try widening your filters or clearing the search.'
-                    : 'Check back in a few hours — our pipeline runs daily across 20 destinations.'}
+                  Remove a filter, or clear them all to see everything that&apos;s live.
                 </p>
+                {activeFilterChips.length > 0 ? (
+                  <div className="mt-5 flex flex-wrap justify-center gap-2">
+                    {activeFilterChips.map(chip => (
+                      <button
+                        key={chip.key}
+                        type="button"
+                        aria-label={`Remove filter: ${chip.label}`}
+                        onClick={chip.onRemove}
+                        className="inline-flex min-h-[36px] items-center gap-1.5 rounded-[var(--radius-pill)] border border-[color:var(--line-white)] bg-[color:var(--bg)] px-3 text-[13px] font-medium text-[color:var(--ink)] hover:border-[color:var(--primary)]"
+                      >
+                        {chip.label}
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+                          <path d="M18 6 6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                  <button type="button" onClick={resetFilters} className="btn btn-primary min-h-[44px] px-8">
+                    Clear all filters
+                  </button>
+                  <a href="/deals" className="text-[13px] font-medium text-[color:var(--primary)] no-underline hover:underline">
+                    See all destinations
+                  </a>
+                </div>
               </div>
-            </>
+            </div>
           ) : (
             <>
-              <div className={gridClass}>
+              {isColdSampleFeed ? (
+                <div className="mb-8 space-y-6">
+                  <section role="status" className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] px-5 py-6">
+                    <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">We&apos;re building your feed.</p>
+                    <p className="mt-2 max-w-[720px] text-[14px] leading-6 text-[color:var(--ink-soft)]">
+                      Our tracker sweeps hotel prices across 20 destinations once a day. Real deals appear here after the next sweep — check back soon.
+                    </p>
+                  </section>
+                  <div className="border-t border-[color:var(--line-ivory)] pt-6">
+                    <h3 className="text-h3 text-[color:var(--ink)]">Example deals</h3>
+                    <p className="mt-1 text-[13px] leading-5 text-[color:var(--ink-soft)]">
+                      Here&apos;s what expaify surfaces once tracking completes. These use sample hotels and prices — they&apos;re not bookable.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+              <div ref={gridRef} tabIndex={-1} className={`${gridClass} outline-none`}>
                 {deals.map(deal =>
                   deal.locked ? (
                     <LockedDealCard
@@ -616,6 +707,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
                         headline: deal.headline ?? undefined,
                         isMock: deal.isMock,
                         firstSeen: deal.firstSeen ?? undefined,
+                        updatedAt: deal.updatedAt,
                       }}
                     />
                   )

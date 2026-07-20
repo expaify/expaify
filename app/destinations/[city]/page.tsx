@@ -6,6 +6,9 @@ import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DealFeed, type ApiDeal } from '@/app/deals/DealFeed'
 import { getPaywallContext, getFreeUnlockedDealIds } from '@/lib/paywall'
 import { query } from '@/lib/db/client'
+import { auth } from '@/auth'
+import { getSubscription, isPremium } from '@/lib/subscription'
+import { WatchCityCta } from '@/app/components/WatchCityCta'
 
 function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
   if (locked) {
@@ -16,7 +19,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
       discountPct: row.discount_pct, checkInWindow: row.check_in_window,
       nights: row.nights, snapshotCount: row.snapshot_count,
       otaLinks: {}, headline: null, isMock: row.is_mock,
-      firstSeen: row.first_seen, locked: true,
+      firstSeen: row.first_seen, updatedAt: row.updated_at, locked: true,
     }
   }
   return {
@@ -26,7 +29,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
     discountPct: row.discount_pct, checkInWindow: row.check_in_window,
     nights: row.nights, snapshotCount: row.snapshot_count,
     otaLinks: row.ota_links, headline: row.headline, isMock: row.is_mock,
-    firstSeen: row.first_seen, locked: false,
+    firstSeen: row.first_seen, updatedAt: row.updated_at, locked: false,
   }
 }
 
@@ -71,6 +74,12 @@ export default async function CityPage({ params }: PageProps) {
     const locked = !pwCtx.premium && !unlockedIds.has(row.id)
     return toApiDeal(row, locked)
   })
+  const session = await auth()
+  const subscription = session?.user?.id ? await getSubscription(session.user.id).catch(() => null) : null
+  const premium = subscription ? isPremium(subscription.status) : false
+  const watchlist = subscription?.watchlist ?? []
+  const watchTier = !session?.user?.id ? 'anonymous' : premium ? 'premium' : 'free'
+  const isWatching = watchlist.includes(displayName)
 
   return (
     <main className="mx-auto max-w-[1200px] px-4 pb-24 pt-8 sm:px-6 lg:px-8">
@@ -91,7 +100,9 @@ export default async function CityPage({ params }: PageProps) {
         Hotel deals in {displayName}
       </h1>
       <p className="text-[13px] text-[color:var(--text-2)] mb-8">
-        Updated daily · {initialDeals.length} deal{initialDeals.length !== 1 ? 's' : ''} found
+        {initialDeals.length === 0
+          ? 'Checked daily — no active deals right now'
+          : `Updated daily · ${initialDeals.length} deal${initialDeals.length !== 1 ? 's' : ''} found`}
       </p>
 
       {initialDeals.length > 0 ? (
@@ -99,15 +110,13 @@ export default async function CityPage({ params }: PageProps) {
       ) : (
         <div className="mt-4 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] px-8 py-14 text-center">
           <p className="text-[15px] font-medium text-[color:var(--text-1)] mb-2">
-            No deals in {displayName} right now.
+            No {displayName} deals right now.
           </p>
           <p className="text-[13px] text-[color:var(--text-2)] mb-6">
-            We check daily — prices can drop overnight.
+            We check {displayName} hotel prices every day — deals appear here the moment a price drops.
           </p>
-          <Link
-            href="/deals"
-            className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[color:var(--brand)] px-5 py-2.5 text-[13px] font-medium text-white hover:opacity-90 transition-opacity"
-          >
+          <WatchCityCta city={displayName} tier={watchTier} watching={isWatching} watchlist={watchlist} />
+          <Link href="/deals" className="mt-5 inline-flex text-[13px] font-medium text-[color:var(--brand)] no-underline hover:underline">
             See all destinations
           </Link>
         </div>

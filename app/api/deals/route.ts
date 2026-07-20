@@ -24,7 +24,8 @@ type ApiDeal = {
   otaLinks: Record<string, string>
   headline: string | null
   isMock: boolean
-  firstSeen: string
+  firstSeen: string | null
+  updatedAt: string | null
   locked: boolean
 }
 
@@ -48,6 +49,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
       headline: null,
       isMock: row.is_mock,
       firstSeen: row.first_seen,
+      updatedAt: row.updated_at,
       locked: true,
     }
   }
@@ -69,11 +71,34 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
     headline: row.headline,
     isMock: row.is_mock,
     firstSeen: row.first_seen,
+    updatedAt: row.updated_at,
     locked: false,
   }
 }
 
-const FREE_LIMIT = 3
+function mockToApiDeal(d: ReturnType<typeof generateMockDeals>[number]): ApiDeal {
+  return {
+    id: d.hotel_id,
+    hotelId: d.hotel_id,
+    hotelName: d.hotel_name,
+    stars: d.stars,
+    photoUrl: d.photo_url,
+    city: '',
+    dealPriceCents: d.deal_price_cents,
+    medianPriceCents: d.median_price_cents,
+    discountPct: d.discount_pct,
+    checkInWindow: d.check_in_window,
+    checkInDate: d.check_in_date,
+    nights: d.nights,
+    snapshotCount: d.snapshot_count,
+    otaLinks: d.ota_links,
+    headline: null,
+    isMock: true,
+    firstSeen: null,
+    updatedAt: null,
+    locked: false,
+  }
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -117,14 +142,8 @@ export async function GET(req: NextRequest) {
   const source = deals.length > 0 ? deals : null
 
   if (!source && !hasFilters) {
-    const mocks = generateMockDeals(5)
-    // Mock deals have camelCase-adjacent structure — apply paywall mask inline
-    const paywalled = mocks.map((d, i) => {
-      const locked = !pwCtx.premium && i >= FREE_LIMIT
-      if (locked) return { ...d, hotelName: 'Members-only deal', dealPriceCents: 0, medianPriceCents: 0, otaLinks: {}, locked: true }
-      return { ...d, locked: false }
-    })
-    return NextResponse.json({ deals: paywalled, total: mocks.length, premium: pwCtx.premium })
+    const mocks = generateMockDeals(3).map(mockToApiDeal)
+    return NextResponse.json({ deals: mocks, total: mocks.length, premium: pwCtx.premium })
   }
 
   if (!source) {

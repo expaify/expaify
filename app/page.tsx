@@ -26,6 +26,7 @@ type DealCardDeal = {
   headline?: string
   isMock?: boolean
   firstSeen?: string
+  updatedAt?: string | null
 }
 
 function rowToCard(row: DealRow): DealCardDeal {
@@ -50,6 +51,7 @@ function rowToCard(row: DealRow): DealCardDeal {
     headline: row.headline ?? undefined,
     isMock: row.is_mock,
     firstSeen: row.first_seen ?? undefined,
+    updatedAt: row.updated_at,
   }
 }
 
@@ -69,6 +71,7 @@ const MOCK_HERO: DealCardDeal = {
   headline: '54% below its 60-day average',
   isMock: true,
   firstSeen: THREE_HOURS_AGO,
+  updatedAt: null,
 }
 
 const MOCK_TEASER: DealCardDeal = {
@@ -85,6 +88,7 @@ const MOCK_TEASER: DealCardDeal = {
   headline: '43% below usual',
   isMock: true,
   firstSeen: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+  updatedAt: null,
 }
 
 export default async function LandingPage() {
