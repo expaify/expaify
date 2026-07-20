@@ -20,7 +20,7 @@ function getPool(): Pool {
 const providers = [
   Resend({
     apiKey: process.env.RESEND_API_KEY,
-    from: 'expaify <dev@expaify.com>',
+    from: process.env.EMAIL_FROM ?? 'expaify <dev@expaify.com>',
     async sendVerificationRequest({ identifier: to, url }) {
       await sendMagicLink({ to, url })
     },

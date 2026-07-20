@@ -16,7 +16,7 @@ export async function sendMagicLink({
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: `expaify <dev@expaify.com>`,
+      from: process.env.EMAIL_FROM ?? `expaify <dev@expaify.com>`,
       to,
       subject: `Your sign-in link for expaify`,
       html: magicLinkHtml(url, host, to),

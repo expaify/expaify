@@ -32,6 +32,15 @@ function assertConfiguredPrice(priceId: string, plan: string): void {
 // After the user clicks their email link, NextAuth redirects here with ?plan=&redirect=true.
 // We create a Stripe checkout session and send them directly to Stripe.
 export async function GET(req: NextRequest): Promise<NextResponse> {
+  if (req.nextUrl.searchParams.get('debug') === '1') {
+    return NextResponse.json({
+      stripeSecretConfigured: Boolean(process.env.STRIPE_SECRET_KEY),
+      monthlyPriceConfigured: !PRICE_IDS.monthly.includes('placeholder'),
+      annualPriceConfigured: !PRICE_IDS.annual.includes('placeholder'),
+      origin: getOrigin(),
+    })
+  }
+
   const session = await auth()
   if (!session?.user?.id) {
     // Not yet authenticated — bounce back to join to re-enter email
