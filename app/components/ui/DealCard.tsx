@@ -2,6 +2,7 @@ import { formatMoney } from "@/lib/money";
 import type { Money } from "@/lib/types";
 import { CompareRow } from "./CompareRow";
 import { DealChip } from "./DealChip";
+import { timeAgo } from "@/lib/timeAgo";
 
 type DealLinks = {
   expedia?: string;
@@ -25,23 +26,13 @@ type DealCardDeal = {
   headline?: string;
   isMock?: boolean;
   firstSeen?: string;
+  updatedAt?: string | null;
 };
 
 type DealCardProps = {
   deal: DealCardDeal;
   href?: string;
 };
-
-function timeAgo(iso?: string): string {
-  if (!iso) return "today";
-  const diff = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 60) return minutes <= 1 ? "just now" : `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return days === 1 ? "yesterday" : `${days}d ago`;
-}
 
 function starChars(stars: number): string {
   const n = Math.max(0, Math.min(5, Math.round(stars)));
@@ -55,9 +46,10 @@ function savingsCents(deal: DealCardDeal): number {
 export function DealCard({ deal, href }: DealCardProps) {
   const savings = savingsCents(deal);
   const showSavings = savings >= 2000; // ≥ $20/night
+  const checked = deal.isMock ? null : timeAgo(deal.updatedAt);
 
   const content = (
-    <article className="group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]">
+    <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
       {/* ── Image area ─────────────────────────────── */}
       <div className="relative h-[160px] overflow-hidden">
         {deal.photoUrl ? (
@@ -99,10 +91,18 @@ export function DealCard({ deal, href }: DealCardProps) {
           <DealChip discountPct={deal.discountPct} />
         </div>
 
-        {/* Found pill — top right */}
-        <span className="absolute right-3 top-3 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--bg)]">
-          found {timeAgo(deal.firstSeen)}
-        </span>
+        {deal.isMock ? (
+          <span className="absolute right-3 top-3 rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-2 py-1 font-display text-[11px] font-bold leading-none text-[color:var(--gold-text)]">
+            Example
+          </span>
+        ) : checked ? (
+          <span
+            title={deal.updatedAt ?? undefined}
+            className="absolute right-3 top-3 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--bg)]"
+          >
+            checked {checked}
+          </span>
+        ) : null}
       </div>
 
       {/* ── Body ───────────────────────────────────── */}
@@ -149,15 +149,17 @@ export function DealCard({ deal, href }: DealCardProps) {
         </div>
 
         {/* OTA compare */}
-        <CompareRow links={deal.links} />
+        {deal.isMock ? (
+          <p className="text-caption font-medium leading-snug text-[color:var(--ink-faint)]">Sample hotel — not bookable</p>
+        ) : (
+          <CompareRow links={deal.links} />
+        )}
 
         {/* Trust line */}
-        <p className="text-caption leading-snug text-[color:var(--ink-faint)]">
-          Based on {deal.snapshotCount} price checks over 60 days · expaify never adds fees
-        </p>
-
-        {deal.isMock ? (
-          <p className="text-caption leading-snug text-[color:var(--ink-faint)]">Preview deal</p>
+        {!deal.isMock ? (
+          <p className="text-caption leading-snug text-[color:var(--ink-faint)]">
+            Based on {deal.snapshotCount} price checks over 60 days · expaify never adds fees
+          </p>
         ) : null}
       </div>
     </article>

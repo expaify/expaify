@@ -22,7 +22,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
       discountPct: row.discount_pct, checkInWindow: row.check_in_window,
       nights: row.nights, snapshotCount: row.snapshot_count,
       otaLinks: {}, headline: null, isMock: row.is_mock,
-      firstSeen: row.first_seen, locked: true,
+      firstSeen: row.first_seen, updatedAt: row.updated_at, locked: true,
     }
   }
   return {
@@ -32,7 +32,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
     discountPct: row.discount_pct, checkInWindow: row.check_in_window,
     nights: row.nights, snapshotCount: row.snapshot_count,
     otaLinks: row.ota_links, headline: row.headline, isMock: row.is_mock,
-    firstSeen: row.first_seen, locked: false,
+    firstSeen: row.first_seen, updatedAt: row.updated_at, locked: false,
   }
 }
 
@@ -55,9 +55,7 @@ export default async function DealsPage() {
     initialDeals = rows.map(row => toApiDeal(row, !pwCtx.premium && !unlockedIds.has(row.id)))
   } else {
     // Fallback mock deals while real data accumulates
-    const FREE_LIMIT = 3
-    initialDeals = generateMockDeals(5).map((d, i) => {
-      const locked = !pwCtx.premium && i >= FREE_LIMIT
+    initialDeals = generateMockDeals(3).map((d) => {
       const base: ApiDeal = {
         id: d.hotel_id,
         hotelId: d.hotel_id,
@@ -75,9 +73,9 @@ export default async function DealsPage() {
         headline: null,
         isMock: true,
         firstSeen: null,
+        updatedAt: null,
         locked: false,
       }
-      if (locked) return { ...base, hotelName: 'Members-only deal', dealPriceCents: 0, medianPriceCents: 0, otaLinks: {}, locked: true }
       return base
     })
   }

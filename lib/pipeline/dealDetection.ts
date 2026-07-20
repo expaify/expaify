@@ -169,9 +169,9 @@ export type DealRow = {
   headline: string | null
   description: string | null
   is_mock: boolean
-  first_seen: string
+  first_seen: string | null
   expires_at: string | null
-  updated_at: string
+  updated_at: string | null
 }
 
 export type PriceHistoryPoint = {

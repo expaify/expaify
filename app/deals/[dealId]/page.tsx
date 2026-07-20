@@ -11,15 +11,29 @@ import { PriceBlock } from '@/app/components/ui/PriceBlock'
 import { CompareRow } from '@/app/components/ui/CompareRow'
 import { StarRow } from '@/app/components/ui/StarRow'
 import { ShareButton } from '@/app/components/ui/ShareButton'
+import { TrackOnMount } from '@/app/components/TrackOnMount'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { scoreDeal } from '@/lib/scoring/scoreDeal'
 import type { DealScore } from '@/lib/types'
+import { timeAgo } from '@/lib/timeAgo'
 
 type PageProps = { params: Promise<{ dealId: string }> }
 
 function fmtDate(iso?: string | null): string {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function fmtCheckedDate(iso?: string | null): string {
+  if (!iso) return ''
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(iso))
 }
 
 function fmtShort(iso?: string | null): string {
@@ -31,17 +45,6 @@ function addNights(dateStr: string, nights: number): string {
   const d = new Date(dateStr)
   d.setDate(d.getDate() + nights)
   return fmtShort(d.toISOString())
-}
-
-function timeAgo(iso?: string | null): string {
-  if (!iso) return 'today'
-  const diff = Date.now() - new Date(iso).getTime()
-  const minutes = Math.floor(diff / 60000)
-  if (minutes < 60) return minutes <= 1 ? 'just now' : `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return days === 1 ? 'yesterday' : `${days}d ago`
 }
 
 function Fact({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
@@ -217,9 +220,12 @@ export default async function DealDetailPage({ params }: PageProps) {
 
   const now = Date.now()
   const isExpired = deal.expires_at ? new Date(deal.expires_at).getTime() < now : false
-  const isStale = !isExpired && deal.updated_at
-    ? (now - new Date(deal.updated_at).getTime()) > 6 * 3600 * 1000
-    : false
+  const updatedAtMs = deal.updated_at ? new Date(deal.updated_at).getTime() : NaN
+  const updatedAgeHours = Number.isFinite(updatedAtMs) ? (now - updatedAtMs) / 3600000 : null
+  const checkedAgo = timeAgo(deal.updated_at)
+  const isAging = !isExpired && updatedAgeHours !== null && updatedAgeHours >= 30 && updatedAgeHours < 48
+  const isStale = !isExpired && updatedAgeHours !== null && updatedAgeHours >= 48
+  const foundAgo = timeAgo(deal.first_seen)
 
   const hasOtaLinks = Object.keys(deal.ota_links ?? {}).length > 0
 
@@ -246,10 +252,11 @@ export default async function DealDetailPage({ params }: PageProps) {
 
         {/* Stale deal banner */}
         {isStale && (
-          <div className="mb-4 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] px-4 py-3" role="status">
-            <p className="text-[13px] font-bold text-[color:var(--ink)]">Price may be stale</p>
+          <div className="mb-4 rounded-[var(--radius-card)] border border-[color:var(--gold)] bg-[color:var(--surface)] px-4 py-3" role="status">
+            <TrackOnMount event="deal_stale_banner_viewed" props={{ dealId: deal.id }} />
+            <p className="text-[13px] font-bold text-[color:var(--ink)]">Price may be out of date</p>
             <p className="mt-0.5 text-[12px] leading-5 text-[color:var(--ink-soft)]">
-              This deal was last updated more than 6 hours ago. The provider confirms the current price and availability.
+              We haven&apos;t been able to re-verify this price since {fmtCheckedDate(deal.updated_at)}. Check the provider for the current price and availability.
             </p>
           </div>
         )}
@@ -276,9 +283,11 @@ export default async function DealDetailPage({ params }: PageProps) {
           <div className="absolute left-4 top-4">
             <DealChip discountPct={deal.discount_pct} />
           </div>
-          <span className="absolute right-4 top-4 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--bg)]">
-            found {timeAgo(deal.first_seen)}
-          </span>
+          {foundAgo ? (
+            <span className="absolute right-4 top-4 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--bg)]">
+              found {foundAgo}
+            </span>
+          ) : null}
         </div>
 
         {/* Title block */}
@@ -314,6 +323,11 @@ export default async function DealDetailPage({ params }: PageProps) {
               Save {formatMoney({ priceCents: savings, currency: 'USD' })}/night vs the usual price
             </p>
           )}
+          {checkedAgo ? (
+            <p className={`mt-2 text-caption leading-5 ${isAging ? 'font-semibold text-[color:var(--gold-text)]' : 'font-medium text-[color:var(--ink-soft)]'}`}>
+              Price checked {checkedAgo}{isAging ? ' — verify with the provider' : ''}
+            </p>
+          ) : null}
           <p className="mt-2 text-caption font-medium leading-5 text-[color:var(--ink-soft)]">
             Nightly rate before taxes and fees. Taxes, fees, cancellation policy, and final total are confirmed by the provider.
           </p>
@@ -379,10 +393,11 @@ export default async function DealDetailPage({ params }: PageProps) {
               </dd>
             </div>
           </dl>
-          <p className="mt-4 border-t border-[color:var(--line-ivory)] pt-3 text-caption text-[color:var(--ink-faint)]">
-            Updated {fmtDate(deal.updated_at)}
-            {!isExpired && deal.expires_at ? ` · Expires ${fmtDate(deal.expires_at)}` : ''}
-          </p>
+          {!isExpired && deal.expires_at ? (
+            <p className="mt-4 border-t border-[color:var(--line-ivory)] pt-3 text-caption text-[color:var(--ink-faint)]">
+              Expires {fmtDate(deal.expires_at)}
+            </p>
+          ) : null}
         </section>
 
         {/* Hotel continuity facts */}
