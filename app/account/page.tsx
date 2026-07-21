@@ -63,7 +63,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
         {showCheckoutError && (
           <div className="mb-6 rounded-[var(--radius-card)] border border-[color:var(--error)] bg-white px-5 py-4">
             <p className="text-[14px] font-medium text-[color:var(--error)]">
-              Checkout could not start. Check Stripe price and secret settings, then try again.
+              Checkout could not start. Try again in a moment or contact support and we will finish your upgrade.
             </p>
           </div>
         )}

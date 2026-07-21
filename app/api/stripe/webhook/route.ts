@@ -34,18 +34,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session
       const userId = session.metadata?.user_id
-      const plan = session.metadata?.plan as 'monthly' | 'annual' | null
-      if (!userId) break
+      const plan = parseStripePlan(session.metadata?.plan) ?? 'monthly'
+      const customerId = getStripeId(session.customer)
+      const subscriptionId = getStripeId(session.subscription)
+      if (!userId || !customerId) break
       await upsertSubscription(userId, {
-        stripeCustomerId: session.customer as string,
-        stripeSubscriptionId: session.subscription as string | null,
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subscriptionId,
         status: 'trialing',
-        plan: plan ?? 'monthly',
+        plan,
       })
       // Fetch full subscription details to get trial/period dates
-      if (session.subscription) {
+      if (subscriptionId) {
         try {
-          const sub = await stripe.subscriptions.retrieve(session.subscription as string)
+          const sub = await stripe.subscriptions.retrieve(subscriptionId)
           await upsertSubscription(userId, {
             status: mapStripeStatus(sub.status),
             trialEndsAt: getTrialEnd(sub),
@@ -61,14 +63,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     case 'customer.subscription.created':
     case 'customer.subscription.updated': {
       const sub = event.data.object as Stripe.Subscription
-      const existing = await getSubscriptionByStripeCustomer(sub.customer as string)
+      const customerId = getStripeId(sub.customer)
+      if (!customerId) break
+      const existing = await getSubscriptionByStripeCustomer(customerId)
       const userId = existing?.userId ?? sub.metadata?.user_id
       if (!userId) break
       await upsertSubscription(userId, {
-        stripeCustomerId: sub.customer as string,
+        stripeCustomerId: customerId,
         stripeSubscriptionId: sub.id,
         status: mapStripeStatus(sub.status),
-        plan: sub.metadata?.plan === 'annual' ? 'annual' : existing?.plan,
+        plan: parseStripePlan(sub.metadata?.plan) ?? existing?.plan,
         trialEndsAt: getTrialEnd(sub),
         currentPeriodEnd: getPeriodEnd(sub),
       })
@@ -78,7 +82,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     case 'customer.subscription.deleted':
     case 'invoice.payment_failed': {
       const obj = event.data.object as { customer?: string | Stripe.Customer }
-      const customerId = typeof obj.customer === 'string' ? obj.customer : (obj.customer as Stripe.Customer)?.id
+      const customerId = getStripeId(obj.customer)
       if (!customerId) break
       const existing = await getSubscriptionByStripeCustomer(customerId)
       if (!existing) break
@@ -103,6 +107,16 @@ function mapStripeStatus(status: Stripe.Subscription.Status): 'free' | 'trialing
     case 'incomplete_expired': return 'canceled'
     default: return 'free'
   }
+}
+
+function parseStripePlan(plan: string | null | undefined): 'monthly' | 'annual' | null {
+  if (plan === 'monthly' || plan === 'annual') return plan
+  return null
+}
+
+function getStripeId(value: string | { id?: string } | null | undefined): string | null {
+  if (typeof value === 'string') return value
+  return value?.id ?? null
 }
 
 function getTrialEnd(sub: Stripe.Subscription): Date | null {
