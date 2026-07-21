@@ -1,0 +1,22 @@
+name: Fix Stripe Public Details
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-public-details:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set public business URLs
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          curl -fsS https://api.stripe.com/v1/account \
+            -u "${STRIPE_SECRET_KEY}:" \
+            -d "business_profile[url]=https://expaify.com" \
+            -d "business_profile[support_url]=https://expaify.com/account" \
+            -d "business_profile[terms_of_service_url]=https://expaify.com/terms" \
+            -d "business_profile[privacy_policy_url]=https://expaify.com/privacy" \
+            -o /tmp/stripe-account.json
+          jq '{id, business_profile}' /tmp/stripe-account.json
