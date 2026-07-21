@@ -153,9 +153,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
             {premium || sub?.status === 'canceled' ? (
               <AccountClient stripeCustomerId={sub?.stripeCustomerId} userId={session.user.id} />
             ) : (
-              <a href="/join?plan=annual" className="btn btn-conversion self-start">
-                Upgrade — 7-day free trial
-              </a>
+              <AccountClient userId={session.user.id} upgradePlan="annual" />
             )}
           </div>
         </section>

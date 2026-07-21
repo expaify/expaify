@@ -15,10 +15,13 @@ type Props = {
   userId?: string
   showAlerts?: boolean
   signOutOnly?: boolean
+  upgradePlan?: 'monthly' | 'annual'
 }
 
-export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [], minDiscountPct = 40, userId, showAlerts, signOutOnly }: Props) {
+export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [], minDiscountPct = 40, userId, showAlerts, signOutOnly, upgradePlan }: Props) {
   const [portalLoading, setPortalLoading] = useState(false)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [pref, setPref] = useState<AlertPreference>(alertPreference ?? 'daily')
   const [discountPct, setDiscountPct] = useState<MinDiscountPct>(minDiscountPct)
   const [cities, setCities] = useState<string[]>(watchlist)
@@ -33,6 +36,26 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
     const data = (await res.json()) as { url?: string }
     if (data.url) window.location.href = data.url
     setPortalLoading(false)
+  }
+
+  async function startCheckout() {
+    setCheckoutLoading(true)
+    setCheckoutError(null)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: upgradePlan ?? 'annual' }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string }
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? 'Checkout could not start')
+      }
+      window.location.href = data.url
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : 'Checkout could not start')
+      setCheckoutLoading(false)
+    }
   }
 
   function toggleCity(city: string) {
@@ -75,6 +98,26 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
       >
         Sign out
       </button>
+    )
+  }
+
+  if (upgradePlan) {
+    return (
+      <div className="flex flex-col items-start gap-2">
+        <button
+          type="button"
+          onClick={startCheckout}
+          disabled={checkoutLoading}
+          className="btn btn-conversion self-start disabled:opacity-60"
+        >
+          {checkoutLoading ? 'Opening checkout…' : 'Upgrade — 7-day free trial'}
+        </button>
+        {checkoutError ? (
+          <p className="text-[13px] font-medium text-[color:var(--error)]" role="alert">
+            {checkoutError}
+          </p>
+        ) : null}
+      </div>
     )
   }
 

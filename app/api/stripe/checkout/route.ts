@@ -72,27 +72,35 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = (await req.json()) as { plan?: string }
-  const plan = body.plan === 'monthly' ? 'monthly' : 'annual'
-  const priceId = PRICE_IDS[plan]
-  assertConfiguredPrice(priceId, plan)
+  try {
+    const body = (await req.json()) as { plan?: string }
+    const plan = body.plan === 'monthly' ? 'monthly' : 'annual'
+    const priceId = PRICE_IDS[plan]
+    assertConfiguredPrice(priceId, plan)
 
-  const stripe = getStripe()
-  const origin = getOrigin()
+    const stripe = getStripe()
+    const origin = getOrigin()
 
-  const checkoutSession = await stripe.checkout.sessions.create({
-    mode: 'subscription',
-    line_items: [{ price: priceId, quantity: 1 }],
-    subscription_data: {
-      trial_period_days: 7,
+    const checkoutSession = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      subscription_data: {
+        trial_period_days: 7,
+        metadata: { user_id: session.user.id, plan },
+      },
+      customer_email: session.user.email ?? undefined,
+      consent_collection: { terms_of_service: 'required' },
+      success_url: `${origin}/account?checkout=success`,
+      cancel_url: `${origin}/account`,
       metadata: { user_id: session.user.id, plan },
-    },
-    customer_email: session.user.email ?? undefined,
-    consent_collection: { terms_of_service: 'required' },
-    success_url: `${origin}/account?checkout=success`,
-    cancel_url: `${origin}/#pricing`,
-    metadata: { user_id: session.user.id, plan },
-  })
+    })
 
-  return NextResponse.json({ url: checkoutSession.url })
+    if (!checkoutSession.url) {
+      return NextResponse.json({ error: 'Stripe did not return a checkout URL' }, { status: 502 })
+    }
+    return NextResponse.json({ url: checkoutSession.url })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Checkout could not start'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
