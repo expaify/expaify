@@ -2,6 +2,7 @@ import { query } from '../db/client'
 import { generateHeadlines } from '../ai/generateHeadline'
 import { buildOtaLinks } from './otaLinks'
 import { evaluateDeal } from './dealRules'
+import type { HotelDealSort } from '../deals/feedContract'
 
 type Market = { id: number; city: string; country: string; iata: string }
 
@@ -219,7 +220,7 @@ export async function getActiveDeals(opts: {
   minStars?: number
   dateFrom?: string
   dateTo?: string
-  sort?: 'newest' | 'discount'
+  sort?: HotelDealSort
   includeMock?: boolean
 }): Promise<DealRow[]> {
   const {
@@ -235,7 +236,11 @@ export async function getActiveDeals(opts: {
     includeMock = false,
   } = opts
 
-  const orderBy = sort === 'discount' ? 'discount_pct DESC, first_seen DESC' : 'first_seen DESC'
+  const orderBy: Record<HotelDealSort, string> = {
+    newest: 'd.first_seen DESC, d.id ASC',
+    discount: 'd.discount_pct DESC, d.first_seen DESC, d.id ASC',
+    price: 'd.deal_price_cents ASC, d.first_seen DESC, d.id ASC',
+  }
   const params: unknown[] = [limit, offset, minDiscount]
   let idx = 4
 
@@ -292,7 +297,7 @@ export async function getActiveDeals(opts: {
        ${dateFromFilter}
        ${dateToFilter}
        ${mockFilter}
-     ORDER BY ${orderBy}
+     ORDER BY ${orderBy[sort]}
      LIMIT $1 OFFSET $2`,
     params
   )

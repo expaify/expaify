@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { generateMockDeals } from '@/lib/pipeline/mock'
+import type { HotelDealSort } from '@/lib/deals/feedContract'
 
 export const runtime = 'nodejs'
 
@@ -114,7 +115,10 @@ export async function GET(req: NextRequest) {
   const dateFrom = (pwCtx.premium && searchParams.get('date_from')) || undefined
   const dateTo = (pwCtx.premium && searchParams.get('date_to')) || undefined
   let marketId = pwCtx.premium && searchParams.get('market_id') ? Number(searchParams.get('market_id')) : undefined
-  const sort = pwCtx.premium && searchParams.get('sort') === 'discount' ? 'discount' as const : 'newest' as const
+  const requestedSort = searchParams.get('sort')
+  const sort: HotelDealSort = pwCtx.premium && (requestedSort === 'discount' || requestedSort === 'price')
+    ? requestedSort
+    : 'newest'
   const hasFilters = pwCtx.premium && Boolean(
     searchParams.get('city') ||
     searchParams.get('market_id') ||

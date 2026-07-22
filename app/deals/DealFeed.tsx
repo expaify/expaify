@@ -8,6 +8,7 @@ import { SearchBar } from '../components/ui/SearchBar'
 import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 import { track } from '@/lib/analytics'
+import { HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
 
 const CITIES = [
   'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
@@ -17,7 +18,7 @@ const CITIES = [
 
 const DEFAULT_MIN_DISCOUNT = 20
 
-type SortKey = 'newest' | 'discount' | 'price'
+type SortKey = HotelDealSort
 type SortAnalyticsValue = 'recently_found' | 'biggest_discount' | 'lowest_nightly_price'
 
 const SORT_OPTIONS: ReadonlyArray<{
@@ -232,8 +233,6 @@ function FilterPill({ label, activeLabel, disabled, options, onClear }: FilterPi
   )
 }
 
-const PAGE_SIZE = 12
-
 type Personalization = {
   active: boolean
   watchlist: string[]
@@ -251,7 +250,7 @@ type DealFeedProps = {
 export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = false, personalization }: DealFeedProps = {}) {
   const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
-  const [hasMore, setHasMore] = useState(false)
+  const [hasMore, setHasMore] = useState((initialDeals?.length ?? 0) === HOTEL_DEAL_PAGE_SIZE)
   const [loading, setLoading] = useState(!initialDeals)
   const [error, setError] = useState(false)
   const [activeTab, setActiveTab] = useState<'hotels' | 'flights'>('hotels')
@@ -289,7 +288,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     setError(false)
 
     const params = new URLSearchParams({
-      limit: String(PAGE_SIZE),
+      limit: String(HOTEL_DEAL_PAGE_SIZE),
       offset: String(opts.offset),
       min_discount: String(opts.minDiscount),
       sort: opts.sort,
@@ -311,7 +310,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
       setUnfilteredTotal(typeof data.unfilteredTotal === 'number' ? data.unfilteredTotal : undefined)
       // The API reports the page count, not the full set, so a full page is
       // the only reliable "there may be more" signal.
-      setHasMore(data.deals.length === PAGE_SIZE)
+      setHasMore(data.deals.length === HOTEL_DEAL_PAGE_SIZE)
       setPremium(Boolean(data.premium))
     } catch {
       setError(true)
@@ -406,7 +405,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     sortTriggerRef.current?.focus()
 
     const params = new URLSearchParams({
-      limit: String(PAGE_SIZE),
+      limit: String(HOTEL_DEAL_PAGE_SIZE),
       offset: '0',
       min_discount: String(minDiscount),
       sort: target,
@@ -424,7 +423,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
       const data: { deals: ApiDeal[]; total: number; premium?: boolean; unfilteredTotal?: number } = await res.json()
       setDeals(data.deals)
       setUnfilteredTotal(typeof data.unfilteredTotal === 'number' ? data.unfilteredTotal : undefined)
-      setHasMore(data.deals.length === PAGE_SIZE)
+      setHasMore(data.deals.length === HOTEL_DEAL_PAGE_SIZE)
       setPremium(Boolean(data.premium))
       setPreviousSort(sortFrom)
       pendingSortEventRef.current = { from: sortFrom, to: target, startedAt }
@@ -438,7 +437,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
 
   function loadMore() {
     if (loading || loadingMore || error || !hasMore) return
-    const nextOffset = offset + PAGE_SIZE
+    const nextOffset = offset + HOTEL_DEAL_PAGE_SIZE
     setOffset(nextOffset)
     fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort: appliedSort, offset: nextOffset, append: true })
   }
