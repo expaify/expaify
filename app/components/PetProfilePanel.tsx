@@ -45,7 +45,10 @@ function createDraft(profile?: StatedPetProfile | null): PetProfileDraft {
     count: String(profile.count),
     knowsWeights: profile.knowsWeights ? 'yes' : 'unsure',
     weights: profile.knowsWeights
-      ? profile.weights.map(weight => ({ value: String(weight.value), unit: weight.unit }))
+      ? Array.from({ length: profile.count }, (_, index) => {
+          const weight = profile.weights[index]
+          return weight ? { value: String(weight.value), unit: weight.unit } : { value: '', unit: 'lb' as const }
+        })
       : Array.from({ length: profile.count }, () => ({ value: '', unit: 'lb' as const })),
   }
 }
@@ -262,7 +265,7 @@ export default function PetProfilePanel({
                 <div key={index}>
                   <label htmlFor={`pet-weight-${index}`} className="block text-sm font-bold text-[color:var(--text-1)]">Pet {index + 1} weight</label>
                   <div className="mt-1 grid grid-cols-[minmax(0,1fr)_5rem] gap-2">
-                    <input id={`pet-weight-${index}`} data-pet-field={`weight-${index}`} className={`field-input ${error && touched.has(`weight-${index}`) ? 'border-[color:var(--error)]' : ''}`} type="number" inputMode="decimal" min="0" step="0.1" value={weight.value} disabled={busy} onChange={event => setDraft(current => ({ ...current, weights: current.weights.map((item, itemIndex) => itemIndex === index ? { ...item, value: event.target.value } : item) }))} onBlur={() => markTouched(`weight-${index}`)} aria-invalid={Boolean(error && touched.has(`weight-${index}`))} aria-describedby={`pet-weight-helper-${index} pet-weight-error-${index}`} />
+                    <input id={`pet-weight-${index}`} data-pet-field={`weight-${index}`} className={`field-input ${error && touched.has(`weight-${index}`) ? 'border-[color:var(--error)]' : ''}`} type="number" inputMode="decimal" min="0.1" step="0.1" value={weight.value} disabled={busy} onChange={event => setDraft(current => ({ ...current, weights: current.weights.map((item, itemIndex) => itemIndex === index ? { ...item, value: event.target.value } : item) }))} onBlur={() => markTouched(`weight-${index}`)} aria-invalid={Boolean(error && touched.has(`weight-${index}`))} aria-describedby={`pet-weight-helper-${index} pet-weight-error-${index}`} />
                     <select aria-label={`Pet ${index + 1} weight unit`} className="field-input" value={weight.unit} disabled={busy} onChange={event => setDraft(current => ({ ...current, weights: current.weights.map((item, itemIndex) => itemIndex === index ? { ...item, unit: event.target.value as PetWeightUnit } : item) }))}>
                       <option value="lb">lb</option>
                       <option value="kg">kg</option>
@@ -289,8 +292,8 @@ export default function PetProfilePanel({
             <div className="mt-2 rounded-[var(--radius-control)] bg-[color:var(--warning-soft)] px-3 py-2 text-sm font-medium text-[color:var(--warning)]">
               <p>Remove these pet details? Hotel policy matches will no longer be shown.</p>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                <button type="button" className="min-h-11 px-3 font-bold" onClick={() => setConfirmingRemoval(false)}>Keep details</button>
-                <button type="button" className="min-h-11 px-3 font-bold underline underline-offset-4" onClick={async () => { await onRemove(); setConfirmingRemoval(false); triggerRef.current?.focus() }}>Remove details</button>
+                <button type="button" disabled={busy} className="min-h-11 px-3 font-bold" onClick={() => setConfirmingRemoval(false)}>Keep details</button>
+                <button type="button" disabled={busy} className="min-h-11 px-3 font-bold underline underline-offset-4" onClick={async () => { await onRemove(); setConfirmingRemoval(false); triggerRef.current?.focus() }}>Remove details</button>
               </div>
             </div>
           ) : null}

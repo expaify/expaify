@@ -158,6 +158,31 @@ describe('HotelCard pet-policy presentation', () => {
     expect(malformedText).toContain('Confirm pet charge, weight or size limit with the provider or property.')
   })
 
+  it('downgrades malformed known fees and preserves every supported known fee basis', () => {
+    const malformed = readyPolicy({
+      evidence: { ...readyPolicy().evidence, fee: undefined },
+    })
+    const malformedText = collectText(HotelCard({ hotel, petPolicy: malformed }))
+    expect(malformedText).toContain('Pet policy needs confirmation')
+    expect(malformedText).toContain('A pet charge is listed, but its amount or basis is unclear.')
+    expect(malformedText).not.toContain('Fits your pet')
+
+    expanded = true
+    const perNight = readyPolicy({
+      evidence: { ...readyPolicy().evidence, feeBasis: 'per_pet_per_night' },
+    })
+    expect(collectText(HotelCard({ hotel, petPolicy: perNight }))).toContain('$30 USD per pet, per night.')
+  })
+
+  it('keeps stale evidence unknown when its checked date is missing', () => {
+    expanded = true
+    const policy = readyPolicy({ evidence: { ...readyPolicy().evidence, stale: true, fetchedAt: undefined } })
+    const text = collectText(HotelCard({ hotel, petPolicy: policy }))
+    expect(text).toContain('This pet policy may have changed, and its checked date was not provided.')
+    expect(text).toContain('Policy freshness was not provided.')
+    expect(text).not.toContain('Fits your pet')
+  })
+
   it('preserves every conflicting statement and provides an unambiguous affiliate confirmation link', () => {
     expanded = true
     const policy = readyPolicy({

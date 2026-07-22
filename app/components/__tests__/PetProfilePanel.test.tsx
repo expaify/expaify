@@ -128,4 +128,31 @@ describe('PetProfilePanel', () => {
       'weight-0': 'Enter a weight greater than 0.',
     })
   })
+
+  it('renders a required weight field for every stated pet when saved data is incomplete', () => {
+    stateOverrides = [true]
+    const panel = PetProfilePanel({
+      profile: { type: 'dog', count: 2, knowsWeights: true, weights: [{ value: 20, unit: 'lb' }] },
+      onSave: jest.fn(),
+    })
+    const text = collectText(panel)
+    expect(text).toContain('Pet 1 weight')
+    expect(text).toContain('Pet 2 weight')
+    expect(collectElements(panel).find(node => node.props.id === 'pet-weight-1')?.props.value).toBe('')
+  })
+
+  it('disables removal confirmation actions while policies are being evaluated', () => {
+    stateOverrides = [false, undefined, {}, new Set(), true]
+    const panel = PetProfilePanel({
+      profile: { type: 'cat', count: 1, knowsWeights: false, weights: [] },
+      busy: true,
+      onSave: jest.fn(),
+      onRemove: jest.fn(),
+    })
+    const actions = collectElements(panel).filter(node => (
+      node.type === 'button' && ['Remove pet details', 'Keep details', 'Remove details'].includes(collectText(node))
+    ))
+    expect(actions).toHaveLength(3)
+    expect(actions.every(action => action.props.disabled === true)).toBe(true)
+  })
 })

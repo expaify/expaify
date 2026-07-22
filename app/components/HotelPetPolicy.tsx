@@ -106,6 +106,15 @@ function hasResolvedFitEvidence(evidence: HotelPetPolicyEvidence): boolean {
   )
 }
 
+function hasMalformedFeeEvidence(evidence: HotelPetPolicyEvidence): boolean {
+  if (evidence.feeStatus !== 'mandatory_known') return false
+  const knownBasis = evidence.feeBasis === 'per_pet_per_stay'
+    || evidence.feeBasis === 'per_pet_per_night'
+    || evidence.feeBasis === 'per_stay'
+    || evidence.feeBasis === 'per_night'
+  return !isValidMoney(evidence.fee) || !knownBasis
+}
+
 function presentationStatus(policy: ReadyPolicy): PetFitStatus {
   const { evidence, evaluation, profileSummary } = policy
   if (!profileSummary || evidence.stale || evidence.availability !== 'returned' || !evaluation) return 'unknown'
@@ -117,6 +126,7 @@ function presentationStatus(policy: ReadyPolicy): PetFitStatus {
     && hasResolvedFitEvidence(evidence)
     && evaluation.unresolvedDimensions.length === 0
     && evidence.feeStatus !== 'unconfirmed'
+    && !hasMalformedFeeEvidence(evidence)
     && !evidence.malformedLimit
 
   return canMakePositiveClaim ? 'suitable' : 'unknown'
@@ -152,10 +162,13 @@ function scanCopy(policy: ReadyPolicy): { outcome?: string; support?: string; st
   }
 
   const status = presentationStatus(policy)
+  const downgradedSupport = hasMalformedFeeEvidence(evidence)
+    ? 'A pet charge is listed, but its amount or basis is unclear.'
+    : 'Type, limits, or stay eligibility still needs confirmation.'
   return {
     outcome: OUTCOME_LABELS[status],
     support: evaluation.status === 'suitable' && status === 'unknown'
-      ? 'Type, limits, or stay eligibility still needs confirmation.'
+      ? downgradedSupport
       : scanSupport ?? evaluation.explanation,
     status,
   }
@@ -211,14 +224,23 @@ function typeText(evidence: HotelPetPolicyEvidence): string {
   return `${[allowed, blocked].filter(Boolean).join('; ')}.`
 }
 
+function feeBasisText(basis: HotelPetPolicyEvidence['feeBasis']): string | null {
+  if (basis === 'per_pet_per_stay') return 'per pet, per stay'
+  if (basis === 'per_pet_per_night') return 'per pet, per night'
+  if (basis === 'per_stay') return 'per stay'
+  if (basis === 'per_night') return 'per night'
+  return null
+}
+
 function feeText(evidence: HotelPetPolicyEvidence): string {
   const source = validSource(evidence)
   if (evidence.feeStatus === 'free') {
     return source ? `No pet charge stated by ${source}.` : 'Pet charge could not be confirmed.'
   }
   if (evidence.feeStatus === 'mandatory_known') {
-    if (isValidMoney(evidence.fee) && evidence.feeBasis === 'per_pet_per_stay') {
-      return `${formatMoney(evidence.fee)} per pet, per stay.`
+    const basis = feeBasisText(evidence.feeBasis)
+    if (isValidMoney(evidence.fee) && basis) {
+      return `${formatMoney(evidence.fee)} ${basis}.`
     }
     return 'A pet charge is listed, but its amount or basis could not be confirmed.'
   }
@@ -261,7 +283,9 @@ function detailedOutcome(policy: ReadyPolicy): { heading: string; body: string; 
   if (evidence.stale) {
     return {
       heading: OUTCOME_LABELS.unknown,
-      body: `This pet policy was checked ${checked ?? 'on an unavailable date'} and may have changed. Confirm the current policy before booking.`,
+      body: checked
+        ? `This pet policy was checked ${checked} and may have changed. Confirm the current policy before booking.`
+        : 'This pet policy may have changed, and its checked date was not provided. Confirm the current policy before booking.',
       status: 'unknown',
     }
   }
@@ -329,7 +353,7 @@ export function HotelPetPolicyDetails({ hotelId, hotelName, providerName, policy
   const outcome = detailedOutcome(policy)
   const source = validSource(evidence)
   const checked = formatCheckedDate(evidence.fetchedAt)
-  const unresolved = evaluation?.unresolvedDimensions.map(item => UNRESOLVED_LABELS[item] ?? item.replaceAll('_', ' ')) ?? []
+  const unresolved = [...new Set(evaluation?.unresolvedDimensions.map(item => UNRESOLVED_LABELS[item] ?? item.replaceAll('_', ' ')) ?? [])]
   const restrictions = evidence.restrictions
   const confirmationNeeded = outcome.status === 'unknown'
   const actionLabel = evidence.availability === 'error' && policy.canRetry ? 'Try policy again' : 'Confirm pet policy with provider'
