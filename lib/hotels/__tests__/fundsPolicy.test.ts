@@ -113,4 +113,20 @@ describe('hotel funds policy normalization', () => {
     expect(normalized.state).not.toBe('conflicting');
     expect(normalized.conflictingRecords).toBeUndefined();
   });
+
+  it('rejects malformed explicit-none obligations and upgrades fully documented partial input', () => {
+    expect(normalizeHotelFundsPolicyEvidence({
+      state: 'explicit_none',
+      obligations: [null],
+      sourceLabel: 'Provider policy',
+      scope: 'rate',
+    }, 'Fallback')).toEqual(createNotReturnedHotelFundsPolicy('Fallback'));
+
+    const completeRecordTaggedPartial = normalizeHotelFundsPolicyEvidence({
+      ...completeHold,
+      state: 'partial',
+    }, 'Fallback');
+    expect(completeRecordTaggedPartial.state).toBe('complete');
+    expect(completeRecordTaggedPartial.missingFields).toBeUndefined();
+  });
 });

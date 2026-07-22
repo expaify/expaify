@@ -179,7 +179,7 @@ export function normalizeHotelFundsPolicyEvidence(
 
   if (state === 'not_returned') return { ...fallback, sourceLabel };
   if (state === 'explicit_none') {
-    if (normalizedRecords.length > 0 || !suppliedSource || scope === 'not_returned') return fallback;
+    if (!Array.isArray(input.obligations) || input.obligations.length > 0 || !suppliedSource || scope === 'not_returned') return fallback;
     return { state, obligations: [], sourceLabel, scope, ...(fetchedAt ? { fetchedAt } : {}) };
   }
 
@@ -206,7 +206,7 @@ export function normalizeHotelFundsPolicyEvidence(
   for (const candidate of candidates) for (const field of candidate.missing) missing.add(field);
   if (!suppliedSource) missing.add('source');
   if (scope === 'not_returned') missing.add('scope');
-  const normalizedState: HotelFundsPolicyState = state === 'complete' && missing.size === 0 ? 'complete' : 'partial';
+  const normalizedState: HotelFundsPolicyState = missing.size === 0 ? 'complete' : 'partial';
 
   return {
     state: normalizedState,

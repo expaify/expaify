@@ -1,9 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { DealScore, HotelAmenityEvidence, HotelEvidenceFee, HotelOffer } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
-import { buildHotelBookingHref } from '@/lib/booking/config'
+import {
+  buildBookingHotelContext,
+  buildHotelBookingHref,
+  hotelBookingHrefRequiresReference,
+} from '@/lib/booking/config'
 import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import DealScorePanel from './DealScorePanel'
 import HotelFundsPolicyPanel, {
@@ -730,6 +734,7 @@ export default function HotelCard({
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [photoFailed, setPhotoFailed] = useState(false)
+  const [reviewState, setReviewState] = useState<'idle' | 'loading' | 'error'>('idle')
   const location = getHotelLocationDisplay(hotel)
   const hasBookingUrl = isValidBookingUrl(hotel.deeplink)
   const hasValidPrice = isValidMoney(hotel.pricePerNight)
@@ -740,7 +745,6 @@ export default function HotelCard({
   const legacyRatingPresent = !hotel.guestRating && hasPositiveNumber(hotel.rating)
   const collapsedGuestRating = getGuestRatingCollapsedText(hotel.guestRating)
   const qualityAriaLabel = getQualityAriaLabel(hotelClass, hotel.guestRating, legacyRatingPresent)
-  const bookingHref = canBook ? buildHotelBookingHref(hotel) : ''
   const formattedPrice = hasValidPrice ? formatMoney(hotel.pricePerNight) : ''
   const providerName = providerDisplayName(hotel.source)
   const hasHotelProviderName = hasProviderName(hotel.source)
@@ -748,6 +752,11 @@ export default function HotelCard({
   const providerConfirmationCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
   const reviewDisclosure = providerConfirmationCopy
   const resolvedFundsPolicy = fundsPolicy ?? hotel.fundsPolicy
+  const selectedHotel = resolvedFundsPolicy === hotel.fundsPolicy
+    ? hotel
+    : { ...hotel, fundsPolicy: resolvedFundsPolicy }
+  const bookingHref = canBook ? buildHotelBookingHref(selectedHotel) : ''
+  const bookingHrefNeedsReference = canBook && hotelBookingHrefRequiresReference(bookingHref)
   const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(RATE_ELIGIBILITY_NOT_PROVIDED, providerName, 'card')
   const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(resolvedFundsPolicy, fundsPolicyLoadState, providerName)
   const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy} ${policyAriaSuffix}`
@@ -789,6 +798,41 @@ export default function HotelCard({
     }
     setIsExpanded(value => !value)
   }
+
+  const handleReviewClick = async (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (!bookingHrefNeedsReference) return
+    if (reviewState === 'loading') return
+    setReviewState('loading')
+
+    try {
+      const response = await fetch('/api/book/hotel-context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildBookingHotelContext(selectedHotel)),
+      })
+      const result = await response.json() as {
+        ok?: boolean
+        data?: { href?: string }
+      }
+      if (!response.ok || !result.ok || typeof result.data?.href !== 'string') {
+        setReviewState('error')
+        return
+      }
+      window.location.assign(result.data.href)
+    } catch {
+      setReviewState('error')
+    }
+  }
+
+  const reviewActionClass = 'btn-primary inline-flex min-h-11 max-w-[8.5rem] items-center justify-center gap-2 rounded-[var(--radius-control)] px-3 text-xs font-bold sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm'
+  const reviewActionContent = (
+    <>
+      <span className="truncate">{reviewState === 'loading' ? 'Preparing review…' : 'Review hotel'}</span>
+      <svg className="shrink-0" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </>
+  )
 
   return (
     <article className="card @container overflow-hidden rounded-[var(--radius-card)]">
@@ -878,16 +922,22 @@ export default function HotelCard({
             <ScoreChip score={score} loading={loading} />
           </div>
           {canBook ? (
-            <a
-              href={bookingHref}
-              aria-label={reviewAriaLabel}
-              className="btn-primary inline-flex min-h-10 max-w-[8.5rem] items-center justify-center gap-2 rounded-[var(--radius-control)] px-3 text-xs font-bold sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm"
-            >
-              <span className="truncate">Review hotel</span>
-              <svg className="shrink-0" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                <path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </a>
+            bookingHrefNeedsReference ? (
+              <button
+                type="button"
+                aria-label={reviewAriaLabel}
+                aria-busy={reviewState === 'loading' || undefined}
+                disabled={reviewState === 'loading'}
+                onClick={handleReviewClick}
+                className={reviewActionClass}
+              >
+                {reviewActionContent}
+              </button>
+            ) : (
+              <a href={bookingHref} aria-label={reviewAriaLabel} className={reviewActionClass}>
+                {reviewActionContent}
+              </a>
+            )
           ) : (
             <span
               className="inline-flex min-h-10 max-w-[8.5rem] cursor-not-allowed items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-muted)] px-3 text-xs font-bold text-[color:var(--text-3)] sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm"
@@ -904,10 +954,15 @@ export default function HotelCard({
           aria-expanded={isExpanded}
           aria-controls={detailsId}
           onClick={handleDetailsToggle}
-          className="mt-3 flex min-h-10 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] text-sm font-bold text-[color:var(--text-1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
+          className="mt-3 flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] text-sm font-bold text-[color:var(--text-1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
         >
           {isExpanded ? 'Hide details' : 'Details'}
         </button>
+        {reviewState === 'error' ? (
+          <p role="status" className="mt-2 text-xs font-medium leading-5 text-[color:var(--error)]">
+            Hotel review could not be prepared. Try again.
+          </p>
+        ) : null}
       </div>
 
       {isExpanded && (

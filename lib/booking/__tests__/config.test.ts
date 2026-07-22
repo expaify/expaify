@@ -1,10 +1,14 @@
 import {
   buildBookingHref,
+  buildBookingHotelContext,
   buildHotelBookingHref,
+  HOTEL_CONTEXT_REFERENCE_REQUIRED,
+  MAX_INLINE_HOTEL_BOOKING_HREF_LENGTH,
   parseBookingFareContext,
   parseBookingHotelContext,
   validateBookingFareContext,
   validateBookingHotelContext,
+  validateStructuredBookingHotelContext,
 } from '../config';
 import type { HotelOffer, NormalizedFare } from '@/lib/types';
 import { calculateStraightLineDistanceKm } from '@/lib/hotels/locationEvidence';
@@ -383,5 +387,38 @@ describe('booking hotel context continuity', () => {
     });
     delete baseParams.fundsPolicy;
     expect(parseBookingHotelContext(baseParams)?.fundsPolicy.state).toBe('not_returned');
+  });
+
+  it('uses an opaque-reference handoff instead of emitting an unsafe policy URL', () => {
+    const longWording = Array.from({ length: 1_000 }, (_, index) => String(index % 10)).join('');
+    const obligations = Array.from({ length: 10 }, (_, index) => ({
+      type: 'authorization_hold' as const,
+      amount: { kind: 'exact' as const, money: { priceCents: 20_000 + index, currency: 'USD' } },
+      basis: 'per_stay' as const,
+      applicationWording: longWording,
+      paymentMethodWording: longWording,
+      returnOrRelease: { action: 'release' as const, providerWording: longWording, issuerProcessingWording: longWording },
+      sourceLabel: 'Property policy',
+      scope: 'selected_stay' as const,
+    }));
+    const href = buildHotelBookingHref({
+      ...hotel,
+      fundsPolicy: {
+        state: 'complete',
+        obligations,
+        sourceLabel: 'Property policy',
+        scope: 'selected_stay',
+      },
+    });
+    const url = new URL(href, 'https://expaify.test');
+
+    expect(href.length).toBeLessThanOrEqual(MAX_INLINE_HOTEL_BOOKING_HREF_LENGTH);
+    expect(url.searchParams.get('hotelContextRef')).toBe(HOTEL_CONTEXT_REFERENCE_REQUIRED);
+    expect(url.searchParams.get('fundsPolicy')).toBeNull();
+  });
+
+  it('validates a structured booking context without losing nested location or policy evidence', () => {
+    const context = buildBookingHotelContext(hotel);
+    expect(validateStructuredBookingHotelContext(JSON.parse(JSON.stringify(context)))).toEqual(context);
   });
 });
