@@ -7,6 +7,7 @@ import { buildHotelBookingHref } from '@/lib/booking/config'
 import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import DealScorePanel from './DealScorePanel'
 import { getHotelLocationDisplay } from './hotelLocationContext'
+import { PropertyPhoto } from './ui/PropertyPhoto'
 
 type Props = {
   hotel: HotelOffer
@@ -336,9 +337,9 @@ function StarRow({ stars }: { stars: number }) {
   )
 }
 
-function Price({ price, providerName }: { price: HotelOffer['pricePerNight']; providerName: string }) {
+function Price({ price, providerName, className = '' }: { price: HotelOffer['pricePerNight']; providerName: string; className?: string }) {
   return (
-    <div className="min-w-[6.75rem] max-w-[9.5rem] text-right">
+    <div className={`min-w-[6.75rem] max-w-[9.5rem] text-right ${className}`}>
       <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
         Nightly rate
       </p>
@@ -354,9 +355,9 @@ function Price({ price, providerName }: { price: HotelOffer['pricePerNight']; pr
   )
 }
 
-function PriceUnavailable({ reason, providerName, showProvider }: { reason: string; providerName: string; showProvider: boolean }) {
+function PriceUnavailable({ reason, providerName, showProvider, className = '' }: { reason: string; providerName: string; showProvider: boolean; className?: string }) {
   return (
-    <div className="min-w-[6.75rem] max-w-[9.5rem] text-right" role="status" aria-label={`Hotel price unavailable. ${reason}${showProvider ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`}>
+    <div className={`min-w-[6.75rem] max-w-[9.5rem] text-right ${className}`} role="status" aria-label={`Hotel price unavailable. ${reason}${showProvider ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`}>
       <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
         Nightly rate
       </p>
@@ -710,6 +711,7 @@ export default function HotelCard({
   accessEvidenceState,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [photoFailed, setPhotoFailed] = useState(false)
   const location = getHotelLocationDisplay(hotel)
   const hasBookingUrl = isValidBookingUrl(hotel.deeplink)
   const hasValidPrice = isValidMoney(hotel.pricePerNight)
@@ -748,24 +750,14 @@ export default function HotelCard({
       : undefined
 
   return (
-    <article className="card overflow-hidden rounded-[var(--radius-card)]">
+    <article className="card @container overflow-hidden rounded-[var(--radius-card)]">
       <div className="p-3 sm:p-5">
-        <div className="grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(6.75rem,auto)] gap-3">
-          {hotel.photoUrl ? (
-            <div className="relative h-16 w-16 overflow-hidden rounded-[var(--radius-control)] bg-[color:var(--bg-muted)]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={hotel.photoUrl}
-                alt={hotel.name}
-                loading="lazy"
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-            </div>
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-2 text-center">
-              <p className="text-[10px] font-medium leading-3 text-[color:var(--text-3)]">Photo unavailable</p>
-            </div>
-          )}
+        <div className="grid grid-cols-[5rem_minmax(0,1fr)_minmax(6.75rem,auto)] gap-2 @max-[351px]:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3">
+          <PropertyPhoto
+            src={photoFailed ? undefined : hotel.photoUrl}
+            size="thumbnail"
+            onFailure={() => setPhotoFailed(true)}
+          />
 
           <div className="min-w-0">
             <h3 className="line-clamp-2 text-sm font-bold leading-5 text-[color:var(--text-1)] sm:text-base">
@@ -810,9 +802,18 @@ export default function HotelCard({
           </div>
 
           {hasValidPrice ? (
-            <Price price={hotel.pricePerNight} providerName={providerName} />
+            <Price
+              price={hotel.pricePerNight}
+              providerName={providerName}
+              className="@max-[351px]:col-span-2 @max-[351px]:min-w-0 @max-[351px]:max-w-none @max-[351px]:pt-1 @max-[351px]:text-left"
+            />
           ) : (
-            <PriceUnavailable reason={unavailableReason} providerName={providerName} showProvider={hasHotelProviderName} />
+            <PriceUnavailable
+              reason={unavailableReason}
+              providerName={providerName}
+              showProvider={hasHotelProviderName}
+              className="@max-[351px]:col-span-2 @max-[351px]:min-w-0 @max-[351px]:max-w-none @max-[351px]:pt-1 @max-[351px]:text-left"
+            />
           )}
         </div>
 
@@ -856,18 +857,6 @@ export default function HotelCard({
       {isExpanded && (
         <div id={detailsId} className="border-t border-[color:var(--border)] px-3 pb-3 pt-3 sm:px-5 sm:pb-5">
           <div className="space-y-3">
-            {hotel.photoUrl ? (
-              <div className="relative h-40 w-full overflow-hidden rounded-[var(--radius-card)] bg-[color:var(--bg-muted)]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={hotel.photoUrl}
-                  alt={hotel.name}
-                  loading="lazy"
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              </div>
-            ) : null}
-
             <DealScorePanel
               score={score}
               loading={loading}
@@ -916,6 +905,10 @@ export default function HotelCard({
               <p>{canBook ? reviewDisclosure : unavailableReason}</p>
               {!hasValidPrice || !hasBookingUrl ? <p className="mt-2">{unavailableReason}</p> : null}
             </div>
+
+            {hotel.photoUrl && !photoFailed ? (
+              <PropertyPhoto src={hotel.photoUrl} size="expanded" onFailure={() => setPhotoFailed(true)} />
+            ) : null}
           </div>
         </div>
       )}
