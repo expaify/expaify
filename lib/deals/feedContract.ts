@@ -28,15 +28,18 @@ export function buildDealPage<T extends { id: string }>(
   offset: number,
   limit: number,
 ): { items: T[]; page: DealPageMetadata; coverage: DealCoverage } {
-  const uniqueRows = dedupeByStableId(rowsWithLookahead)
-  const items = uniqueRows.slice(0, limit)
-  const hasMore = uniqueRows.length > limit
+  const consumedRows = rowsWithLookahead.slice(0, limit)
+  const items = dedupeByStableId(consumedRows)
+  const hasMore = rowsWithLookahead.length > limit
 
   return {
     items,
     page: {
       hasMore,
-      nextOffset: hasMore ? offset + items.length : null,
+      // The continuation boundary tracks rows consumed by the server query,
+      // not items left after stable-id deduplication. Otherwise a partially
+      // duplicated page repeats already-consumed rows on the next request.
+      nextOffset: hasMore ? offset + consumedRows.length : null,
     },
     coverage: hasMore ? 'more_available' : 'confirmed_end',
   }

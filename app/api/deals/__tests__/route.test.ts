@@ -162,4 +162,33 @@ describe('GET /api/deals sorting', () => {
     expect(body.deals.map(deal => deal.id)).toEqual(['deal-cheapest'])
     expect(body.page).toEqual({ hasMore: false, nextOffset: null })
   })
+
+  it('advances continuation by consumed rows after stable-id deduplication', async () => {
+    mockGetPaywallContext.mockResolvedValue({
+      userId: 'premium-user',
+      premium: true,
+      freeUnlockedThisWeek: 0,
+      freeUnlockLimit: 3,
+    })
+    mockGetActiveDeals.mockResolvedValue([
+      row,
+      { ...row, hotel_name: 'Duplicate row' },
+      ...Array.from({ length: 11 }, (_, index) => ({
+        ...row,
+        id: `deal-${index + 2}`,
+        hotel_id: `hotel-${index + 2}`,
+      })),
+    ])
+
+    const response = await GET(request('limit=12&offset=24'))
+    const body = await response.json() as {
+      deals: Array<{ id: string }>
+      page: { nextOffset: number | null; hasMore: boolean }
+      coverage: string
+    }
+
+    expect(body.deals).toHaveLength(11)
+    expect(body.page).toEqual({ hasMore: true, nextOffset: 36 })
+    expect(body.coverage).toBe('more_available')
+  })
 })
