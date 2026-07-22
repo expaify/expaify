@@ -27,6 +27,8 @@ import {
   HotelCardEligibilityLine,
   RATE_ELIGIBILITY_NOT_PROVIDED,
 } from './HotelRateRestrictions'
+import { HotelPetPolicyDetails, HotelPetPolicyScan } from './HotelPetPolicy'
+import type { HotelPetPolicyPresentation } from './HotelPetPolicy'
 
 type Props = {
   hotel: HotelOffer
@@ -40,6 +42,7 @@ type Props = {
   hasSearchDates?: boolean
   fundsPolicy?: HotelFundsPolicyEvidence | null
   fundsPolicyLoadState?: HotelFundsPolicyLoadState
+  petPolicy?: HotelPetPolicyPresentation
 }
 
 type AccessFactId =
@@ -718,6 +721,7 @@ export default function HotelCard({
   hasSearchDates = true,
   fundsPolicy,
   fundsPolicyLoadState = 'ready',
+  petPolicy,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [photoFailed, setPhotoFailed] = useState(false)
@@ -909,6 +913,8 @@ export default function HotelCard({
           />
         ) : null}
 
+        {petPolicy ? <HotelPetPolicyScan policy={petPolicy} /> : null}
+
         <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <div className="min-w-0">
             <ScoreChip score={score} loading={loading} />
@@ -1000,6 +1006,15 @@ export default function HotelCard({
               malformed={parkingEvidenceMalformed}
               hasSearchDates={hasSearchDates}
             />
+
+            {petPolicy ? (
+              <HotelPetPolicyDetails
+                hotelId={hotel.id}
+                hotelName={hotel.name}
+                providerName={providerName}
+                policy={petPolicy}
+              />
+            ) : null}
 
             <AccessEvidencePanel
               hotelId={hotel.id}
