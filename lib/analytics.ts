@@ -13,8 +13,8 @@ export function track(event: string, props?: AnalyticsProps): void {
   const body = JSON.stringify({ event, properties: props ?? {}, occurredAt: new Date().toISOString() })
   try {
     if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-      navigator.sendBeacon(endpoint, new Blob([body], { type: 'application/json' }))
-      return
+      const queued = navigator.sendBeacon(endpoint, new Blob([body], { type: 'application/json' }))
+      if (queued) return
     }
     void fetch(endpoint, {
       method: 'POST',

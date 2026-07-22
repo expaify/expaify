@@ -423,6 +423,41 @@ describe('BookingFlow fare context review', () => {
     }
   });
 
+  it('normalizes unrecognized provider values before emitting invoice analytics', () => {
+    const originalFetch = Object.getOwnPropertyDescriptor(globalThis, 'fetch');
+    Object.defineProperty(globalThis, 'fetch', {
+      value: jest.fn().mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ ok: true, data: hotelContext.documentReadiness }),
+      }),
+      configurable: true,
+    });
+    const contextualHotel: BookingHotelContext = {
+      ...hotelContext,
+      provider: 'property-name-must-not-leak',
+    };
+    try {
+      const tree = BookingFlow({
+        bookingEnabled: false,
+        duffelSandbox: false,
+        fareContext: null,
+        hotelContext: contextualHotel,
+      });
+      const checkbox = findElements(tree, element => element.type === 'input' && element.props.type === 'checkbox')[0];
+
+      (checkbox.props.onChange as (event: unknown) => void)({ currentTarget: { checked: true } });
+
+      expect(trackMock).toHaveBeenCalledWith('hotel_invoice_need_changed', {
+        needed: true,
+        source: 'other',
+        partnerNamed: false,
+      });
+    } finally {
+      if (originalFetch) Object.defineProperty(globalThis, 'fetch', originalFetch);
+      else delete (globalThis as { fetch?: unknown }).fetch;
+    }
+  });
+
   it('guards request analytics behind sustained guidance exposure and uses non-sensitive properties', () => {
     jest.useFakeTimers();
     let intersectionCallback: IntersectionObserverCallback | undefined;

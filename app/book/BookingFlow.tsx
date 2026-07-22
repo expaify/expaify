@@ -115,6 +115,10 @@ function emitAnalytics(event: string, props: Record<string, string | number | bo
   }
 }
 
+function hotelInvoiceAnalyticsSource(source: string): 'hotellook' | 'other' {
+  return source.trim().toLowerCase() === 'hotellook' ? 'hotellook' : 'other'
+}
+
 function invoiceReadinessAnalytics(readiness: HotelDocumentReadiness, source: string) {
   return {
     status: readiness.status,
@@ -122,7 +126,7 @@ function invoiceReadinessAnalytics(readiness: HotelDocumentReadiness, source: st
     invoiceIssuerRole: readiness.issuerByDocument.invoice?.role ?? 'unknown',
     receiptIssuerRole: readiness.issuerByDocument.receipt?.role ?? 'unknown',
     billingDetailsStep: readiness.billingDetailsStep,
-    source,
+    source: hotelInvoiceAnalyticsSource(source),
     scope: readiness.scope,
   }
 }
@@ -677,7 +681,7 @@ function HotelHandoffReview({
     setInvoiceNeeded(needed)
     emitAnalytics('hotel_invoice_need_changed', {
       needed,
-      source: hotelContext.provider,
+      source: hotelInvoiceAnalyticsSource(hotelContext.provider),
       partnerNamed: partner.named,
     })
     if (needed && documentCheckState === 'idle') void runDocumentReadinessCheck()
@@ -687,7 +691,7 @@ function HotelHandoffReview({
     if (documentCheckState === 'loading') return
     emitAnalytics('hotel_invoice_retry_clicked', {
       priorCheckState: documentCheckState,
-      source: hotelContext.provider,
+      source: hotelInvoiceAnalyticsSource(hotelContext.provider),
       scope: documentReadiness.scope,
     })
     void runDocumentReadinessCheck()
