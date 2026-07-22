@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { signOut } from 'next-auth/react'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 
@@ -106,6 +106,12 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
   const controllers = useRef<Partial<Record<GroupName, AbortController>>>({})
   const savingTimers = useRef<Partial<Record<GroupName, ReturnType<typeof setTimeout>>>>({})
   const savedTimers = useRef<Partial<Record<GroupName, ReturnType<typeof setTimeout>>>>({})
+
+  useEffect(() => () => {
+    Object.values(controllers.current).forEach(controller => controller?.abort())
+    Object.values(savingTimers.current).forEach(timer => clearTimeout(timer))
+    Object.values(savedTimers.current).forEach(timer => clearTimeout(timer))
+  }, [])
 
   function setStatus(group: GroupName, status: GroupStatus) {
     setGroupStatus(s => ({ ...s, [group]: status }))

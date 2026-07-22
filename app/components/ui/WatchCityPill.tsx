@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export type WatchCityPillProps = {
   city: string             // display name, must be in TRACKED_MARKET_NAMES
@@ -9,6 +9,7 @@ export type WatchCityPillProps = {
 }
 
 type Status = 'idle' | 'error' | 'cap' | 'emptied'
+type WatchlistResponse = { watchlist?: unknown; error?: unknown }
 
 function PlusIcon() {
   return (
@@ -35,6 +36,11 @@ export function WatchCityPill({ city, initialWatching, initialCount }: WatchCity
   const emptiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const atCap = !watching && count >= 10
+
+  useEffect(() => () => {
+    controller.current?.abort()
+    if (emptiedTimer.current) clearTimeout(emptiedTimer.current)
+  }, [])
 
   function showEmptied() {
     setStatus('emptied')
@@ -68,7 +74,7 @@ export function WatchCityPill({ city, initialWatching, initialCount }: WatchCity
     controller.current = ctrl
 
     let res: Response | null = null
-    let data: { watchlist?: unknown; error?: unknown } | null = null
+    let data: WatchlistResponse | null = null
     try {
       res = await fetch('/api/account/watchlist', {
         method: 'PATCH',
@@ -76,7 +82,7 @@ export function WatchCityPill({ city, initialWatching, initialCount }: WatchCity
         body: JSON.stringify({ op, city }),
         signal: ctrl.signal,
       })
-      data = (await res.json().catch(() => null)) as typeof data
+      data = (await res.json().catch(() => null)) as WatchlistResponse | null
     } catch {
       // Aborted by a newer click — that click owns the state now.
       if (ctrl.signal.aborted) return
