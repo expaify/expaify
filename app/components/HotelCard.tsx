@@ -8,6 +8,7 @@ import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import DealScorePanel from './DealScorePanel'
 import { getHotelLocationDisplay } from './hotelLocationContext'
 import { PropertyPhoto } from './ui/PropertyPhoto'
+import SmokingPolicyPanel, { getCollapsedSmokingPolicy, type HotelSmokingPolicyView } from './SmokingPolicyPanel'
 
 type Props = {
   hotel: HotelOffer
@@ -15,6 +16,7 @@ type Props = {
   loading?: boolean
   amenityEvidence?: readonly HotelAmenityEvidence[]
   accessEvidenceState?: 'ready' | 'loading' | 'error'
+  smokingPolicy?: HotelSmokingPolicyView
 }
 
 type AccessFactId =
@@ -709,6 +711,7 @@ export default function HotelCard({
   loading = false,
   amenityEvidence,
   accessEvidenceState,
+  smokingPolicy,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [photoFailed, setPhotoFailed] = useState(false)
@@ -748,6 +751,7 @@ export default function HotelCard({
     : collapsedAccessFact?.id === 'on_site_parking'
       ? `On-site parking. ${collapsedAccessFact.sourceLabel.trim()} confirms this property has on-site parking. Review parking fees and space availability in details.`
       : undefined
+  const collapsedSmokingPolicy = getCollapsedSmokingPolicy(smokingPolicy)
 
   return (
     <article className="card @container overflow-hidden rounded-[var(--radius-card)]">
@@ -816,6 +820,15 @@ export default function HotelCard({
             />
           )}
         </div>
+
+        {collapsedSmokingPolicy ? (
+          <p
+            className="mt-1.5 line-clamp-2 text-xs font-bold leading-5 text-[color:var(--text-2)]"
+            aria-label={collapsedSmokingPolicy.ariaLabel}
+          >
+            {collapsedSmokingPolicy.label}
+          </p>
+        ) : null}
 
         <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <div className="min-w-0">
@@ -889,6 +902,10 @@ export default function HotelCard({
                 <p className="mt-2 break-words text-[color:var(--text-2)]">{location.distanceText}</p>
               ) : null}
             </div>
+
+            {smokingPolicy ? (
+              <SmokingPolicyPanel offerId={hotel.id} policy={smokingPolicy} surface="result_detail" />
+            ) : null}
 
             <AccessEvidencePanel
               hotelId={hotel.id}
