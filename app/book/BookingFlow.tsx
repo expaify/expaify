@@ -13,6 +13,11 @@ import {
   HotelRateRestrictionsSection,
   RATE_ELIGIBILITY_NOT_PROVIDED,
 } from '@/app/components/HotelRateRestrictions'
+import {
+  HotelDocumentIntentControl,
+  HotelDocumentReadinessDisclosure,
+  getNotProvidedHotelDocumentReadiness,
+} from '@/app/components/HotelDocumentReadiness'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -616,6 +621,11 @@ function HotelHandoffReview({
   const returnArmedRef = useRef(false)
   const hiddenAfterContinueRef = useRef(false)
   const continueStartedAtRef = useRef<number | undefined>(undefined)
+  const [invoiceNeeded, setInvoiceNeeded] = useState(false)
+  const documentReadiness = useMemo(
+    () => getNotProvidedHotelDocumentReadiness(providerDisplayName(hotelContext.provider)),
+    [hotelContext.provider],
+  )
 
   useEffect(() => {
     const guidanceBlock = guidanceBlockRef.current
@@ -780,6 +790,15 @@ function HotelHandoffReview({
             <p className="mt-2 text-sm leading-5 text-[color:var(--text-2)]">Final total, taxes, fees, room availability, and cancellation policy.</p>
           </div>
         </div>
+        <HotelDocumentIntentControl checked={invoiceNeeded} onChange={setInvoiceNeeded} />
+        {invoiceNeeded ? (
+          <HotelDocumentReadinessDisclosure
+            readiness={documentReadiness}
+            checkState="ready"
+            partner={partner}
+            providerUrl={hotelContext.providerUrl}
+          />
+        ) : null}
         <section
           ref={guidanceBlockRef}
           aria-labelledby="hotel-special-requests-title"
