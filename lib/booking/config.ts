@@ -5,6 +5,8 @@ import type {
   HotelLocationEvidenceSource,
   HotelLocationPrecision,
   HotelOffer,
+  HotelRatingEvidence,
+  DealScore,
   NormalizedFare,
 } from '../types';
 import {
@@ -38,6 +40,27 @@ export type BookingHotelContext = {
   currency: string;
   priceBasis: 'per_night_before_taxes_fees';
   providerUrl: string;
+  entrySource: HotelDetailEntrySource;
+  returnUrl: string;
+  checkIn?: string;
+  checkOut?: string;
+  nightCount?: number;
+  score?: DealScore;
+  priceCheckedAt?: string;
+  hotelClass?: HotelRatingEvidence;
+  guestRating?: HotelRatingEvidence;
+};
+
+export type HotelDetailEntrySource = 'hotel_results' | 'saved_deals' | 'direct';
+
+export type HotelBookingHrefOptions = {
+  entrySource?: HotelDetailEntrySource;
+  returnUrl?: string;
+  checkIn?: string;
+  checkOut?: string;
+  nightCount?: number;
+  score?: DealScore | null;
+  priceCheckedAt?: string;
 };
 
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
@@ -63,6 +86,27 @@ type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
   locationDistanceMethod?: unknown;
   locationDistanceSource?: unknown;
   locationProviderName?: unknown;
+  scorePercentile?: unknown;
+  scorePctVsMedian?: unknown;
+  scoreMedianCents?: unknown;
+  scoreCurrency?: unknown;
+  scoreVerdict?: unknown;
+  scoreConfidence?: unknown;
+  scoreExplanation?: unknown;
+  hotelClassKind?: unknown;
+  hotelClassValue?: unknown;
+  hotelClassScaleMax?: unknown;
+  hotelClassSourceLabel?: unknown;
+  hotelClassReviewCount?: unknown;
+  hotelClassFetchedAt?: unknown;
+  hotelClassConfidence?: unknown;
+  guestRatingKind?: unknown;
+  guestRatingValue?: unknown;
+  guestRatingScaleMax?: unknown;
+  guestRatingSourceLabel?: unknown;
+  guestRatingReviewCount?: unknown;
+  guestRatingFetchedAt?: unknown;
+  guestRatingConfidence?: unknown;
 };
 
 export function isBookingEnabled(): boolean {
@@ -86,6 +130,10 @@ function cleanRequired(value: unknown): string {
 function cleanOptional(value: unknown): string | undefined {
   const cleaned = cleanRequired(value);
   return cleaned ? cleaned : undefined;
+}
+
+function isBlank(value: unknown): boolean {
+  return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
 }
 
 function parseInteger(value: unknown): number | null {
@@ -130,17 +178,119 @@ function isCurrencyCode(value: string): boolean {
   return /^[A-Z]{3}$/.test(value);
 }
 
-function isSafeProviderUrl(value: string): boolean {
+export function isValidatedAffiliateProviderUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' || url.protocol === 'http:';
+    if (url.protocol !== 'https:' || !url.hostname) return false;
+
+    return ['marker', 'aid', 'affcid', 'affilid', 'affiliate_id', 'aff_id']
+      .some((key) => Boolean(url.searchParams.get(key)?.trim()));
   } catch {
     return false;
   }
 }
 
+function isHotelDetailEntrySource(value: string): value is HotelDetailEntrySource {
+  return value === 'hotel_results' || value === 'saved_deals' || value === 'direct';
+}
+
+export function validateHotelReturnUrl(value: unknown, entrySource: HotelDetailEntrySource): string {
+  const fallback = entrySource === 'saved_deals' ? '/deals' : '/';
+  const candidate = cleanRequired(value);
+  if (!candidate || !candidate.startsWith('/') || candidate.startsWith('//') || /[\u0000-\u001f\u007f]/.test(candidate)) {
+    return fallback;
+  }
+
+  try {
+    const parsed = new URL(candidate, 'https://expaify.invalid');
+    if (parsed.origin !== 'https://expaify.invalid' || parsed.username || parsed.password) return fallback;
+    const allowed = parsed.pathname === '/' || parsed.pathname === '/deals' || parsed.pathname.startsWith('/destinations/');
+    return allowed ? `${parsed.pathname}${parsed.search}` : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function isValidDateInput(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}(T.+)?$/.test(value) && !Number.isNaN(new Date(value).getTime());
+}
+
+function isStayDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function parseStayContext(input: HotelContextInput): Pick<BookingHotelContext, 'checkIn' | 'checkOut' | 'nightCount'> | null {
+  const checkIn = cleanOptional(input.checkIn);
+  const checkOut = cleanOptional(input.checkOut);
+  const nightCount = isBlank(input.nightCount)
+    ? undefined
+    : parseInteger(input.nightCount);
+
+  if ((checkIn && !isStayDate(checkIn)) || (checkOut && !isStayDate(checkOut))) return null;
+  if (nightCount === null || (nightCount !== undefined && (nightCount < 1 || nightCount > 365))) return null;
+
+  if (checkIn && checkOut) {
+    const calculatedNights = Math.round((Date.parse(`${checkOut}T00:00:00.000Z`) - Date.parse(`${checkIn}T00:00:00.000Z`)) / 86_400_000);
+    if (calculatedNights < 1 || (nightCount !== undefined && nightCount !== calculatedNights)) return null;
+  }
+
+  return { checkIn, checkOut, nightCount };
+}
+
+function isQualityKind(value: string): value is HotelRatingEvidence['kind'] {
+  return value === 'hotel_class' || value === 'guest_review' || value === 'provider_quality' || value === 'inferred' || value === 'unknown';
+}
+
+function isQualityConfidence(value: string): value is HotelRatingEvidence['confidence'] {
+  return value === 'verified' || value === 'provider_only' || value === 'inferred' || value === 'unavailable';
+}
+
+function parseRatingEvidence(input: HotelContextInput, prefix: 'hotelClass' | 'guestRating'): HotelRatingEvidence | undefined | null {
+  const kind = cleanOptional(input[`${prefix}Kind`]);
+  const confidence = cleanOptional(input[`${prefix}Confidence`]);
+  const value = parseOptionalNumber(input[`${prefix}Value`]);
+  const scaleMax = parseOptionalNumber(input[`${prefix}ScaleMax`]);
+  const reviewCount = isBlank(input[`${prefix}ReviewCount`])
+    ? undefined
+    : parseInteger(input[`${prefix}ReviewCount`]);
+  const sourceLabel = cleanOptional(input[`${prefix}SourceLabel`]);
+  const fetchedAt = cleanOptional(input[`${prefix}FetchedAt`]);
+
+  const hasAny = kind !== undefined || confidence !== undefined || value !== undefined || scaleMax !== undefined || reviewCount !== undefined || sourceLabel !== undefined || fetchedAt !== undefined;
+  if (!hasAny) return undefined;
+  if (!kind || !isQualityKind(kind) || !confidence || !isQualityConfidence(confidence)) return null;
+  if (value === null || scaleMax === null || reviewCount === null) return null;
+  if (value !== undefined && (value <= 0 || value > 100)) return null;
+  if (scaleMax !== undefined && (scaleMax <= 0 || scaleMax > 100 || (value !== undefined && value > scaleMax))) return null;
+  if (reviewCount !== undefined && reviewCount < 1) return null;
+  if (fetchedAt && !isValidDateInput(fetchedAt)) return null;
+
+  return { kind, confidence, value, scaleMax, sourceLabel, reviewCount, fetchedAt };
+}
+
+function parseDealScore(input: HotelContextInput, observedCurrency: string): DealScore | undefined | null {
+  const fields = [input.scorePercentile, input.scorePctVsMedian, input.scoreMedianCents, input.scoreCurrency, input.scoreVerdict, input.scoreConfidence, input.scoreExplanation];
+  if (fields.every(isBlank)) return undefined;
+
+  const percentile = parseNumber(input.scorePercentile);
+  const pctVsMedian = parseNumber(input.scorePctVsMedian);
+  const medianCents = parseInteger(input.scoreMedianCents);
+  const currency = cleanRequired(input.scoreCurrency);
+  const verdict = cleanRequired(input.scoreVerdict);
+  const confidence = cleanRequired(input.scoreConfidence);
+  const explanation = cleanRequired(input.scoreExplanation);
+  if (
+    percentile === null || percentile < 0 || percentile > 100 ||
+    pctVsMedian === null || pctVsMedian < -100 || pctVsMedian > 10_000 ||
+    medianCents === null || medianCents <= 0 ||
+    !isCurrencyCode(currency) || currency !== observedCurrency ||
+    (verdict !== 'Great' && verdict !== 'Good' && verdict !== 'Typical') ||
+    (confidence !== 'high' && confidence !== 'low') || !explanation || explanation.length > 300
+  ) return null;
+
+  return { percentile, pctVsMedian, medianCents, currency, verdict, confidence, explanation };
 }
 
 function isLocationPrecision(value: string): value is HotelLocationPrecision {
@@ -385,6 +535,13 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const priceBasis = cleanRequired(input.priceBasis);
   const providerUrl = cleanRequired(input.providerUrl);
   const location = validateHotelLocation(input);
+  const entrySourceValue = cleanOptional(input.entrySource) ?? 'direct';
+  const entrySource = isHotelDetailEntrySource(entrySourceValue) ? entrySourceValue : null;
+  const stay = parseStayContext(input);
+  const score = parseDealScore(input, currency);
+  const priceCheckedAt = cleanOptional(input.priceCheckedAt);
+  const hotelClass = parseRatingEvidence(input, 'hotelClass');
+  const guestRating = parseRatingEvidence(input, 'guestRating');
 
   if (
     kind !== 'hotel' ||
@@ -395,8 +552,10 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     priceCents === null ||
     priceCents <= 0 ||
     priceBasis !== 'per_night_before_taxes_fees' ||
-    !isSafeProviderUrl(providerUrl) ||
-    location === null
+    !isValidatedAffiliateProviderUrl(providerUrl) ||
+    location === null ||
+    entrySource === null || stay === null || score === null || hotelClass === null || guestRating === null ||
+    (priceCheckedAt !== undefined && !isValidDateInput(priceCheckedAt))
   ) {
     return null;
   }
@@ -412,6 +571,15 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     currency,
     priceBasis,
     providerUrl,
+    entrySource,
+    returnUrl: validateHotelReturnUrl(input.returnUrl, entrySource),
+    ...(stay.checkIn ? { checkIn: stay.checkIn } : {}),
+    ...(stay.checkOut ? { checkOut: stay.checkOut } : {}),
+    ...(stay.nightCount ? { nightCount: stay.nightCount } : {}),
+    ...(score ? { score } : {}),
+    ...(priceCheckedAt ? { priceCheckedAt } : {}),
+    ...(hotelClass ? { hotelClass } : {}),
+    ...(guestRating ? { guestRating } : {}),
   };
 }
 
@@ -444,7 +612,40 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     currency: firstParam(params.currency),
     priceBasis: firstParam(params.priceBasis),
     providerUrl: firstParam(params.providerUrl),
+    entrySource: firstParam(params.entrySource),
+    returnUrl: firstParam(params.returnUrl),
+    checkIn: firstParam(params.checkIn),
+    checkOut: firstParam(params.checkOut),
+    nightCount: firstParam(params.nightCount),
+    scorePercentile: firstParam(params.scorePercentile),
+    scorePctVsMedian: firstParam(params.scorePctVsMedian),
+    scoreMedianCents: firstParam(params.scoreMedianCents),
+    scoreCurrency: firstParam(params.scoreCurrency),
+    scoreVerdict: firstParam(params.scoreVerdict),
+    scoreConfidence: firstParam(params.scoreConfidence),
+    scoreExplanation: firstParam(params.scoreExplanation),
+    priceCheckedAt: firstParam(params.priceCheckedAt),
+    hotelClassKind: firstParam(params.hotelClassKind),
+    hotelClassValue: firstParam(params.hotelClassValue),
+    hotelClassScaleMax: firstParam(params.hotelClassScaleMax),
+    hotelClassSourceLabel: firstParam(params.hotelClassSourceLabel),
+    hotelClassReviewCount: firstParam(params.hotelClassReviewCount),
+    hotelClassFetchedAt: firstParam(params.hotelClassFetchedAt),
+    hotelClassConfidence: firstParam(params.hotelClassConfidence),
+    guestRatingKind: firstParam(params.guestRatingKind),
+    guestRatingValue: firstParam(params.guestRatingValue),
+    guestRatingScaleMax: firstParam(params.guestRatingScaleMax),
+    guestRatingSourceLabel: firstParam(params.guestRatingSourceLabel),
+    guestRatingReviewCount: firstParam(params.guestRatingReviewCount),
+    guestRatingFetchedAt: firstParam(params.guestRatingFetchedAt),
+    guestRatingConfidence: firstParam(params.guestRatingConfidence),
   });
+}
+
+export function parseHotelDetailRecovery(params: SearchParams): Pick<BookingHotelContext, 'entrySource' | 'returnUrl'> {
+  const value = firstParam(params.entrySource);
+  const entrySource = isHotelDetailEntrySource(value) ? value : 'direct';
+  return { entrySource, returnUrl: validateHotelReturnUrl(firstParam(params.returnUrl), entrySource) };
 }
 
 export function buildBookingHref(fare: NormalizedFare): string {
@@ -467,7 +668,20 @@ export function buildBookingHref(fare: NormalizedFare): string {
   return `/book?${params.toString()}`;
 }
 
-export function buildHotelBookingHref(hotel: HotelOffer): string {
+function addRatingEvidenceParams(params: URLSearchParams, prefix: 'hotelClass' | 'guestRating', evidence?: HotelRatingEvidence): void {
+  if (!evidence) return;
+  params.set(`${prefix}Kind`, evidence.kind);
+  params.set(`${prefix}Confidence`, evidence.confidence);
+  if (evidence.value !== undefined) params.set(`${prefix}Value`, String(evidence.value));
+  if (evidence.scaleMax !== undefined) params.set(`${prefix}ScaleMax`, String(evidence.scaleMax));
+  if (evidence.sourceLabel) params.set(`${prefix}SourceLabel`, evidence.sourceLabel);
+  if (evidence.reviewCount !== undefined) params.set(`${prefix}ReviewCount`, String(evidence.reviewCount));
+  if (evidence.fetchedAt) params.set(`${prefix}FetchedAt`, evidence.fetchedAt);
+}
+
+export function buildHotelBookingHref(hotel: HotelOffer, options: HotelBookingHrefOptions = {}): string {
+  const entrySource = options.entrySource ?? 'hotel_results';
+  const priceCheckedAt = options.priceCheckedAt ?? hotel.fetchedAt ?? hotel.hotelClass?.fetchedAt ?? hotel.guestRating?.fetchedAt;
   const params = new URLSearchParams({
     kind: 'hotel',
     offerId: hotel.id,
@@ -477,6 +691,8 @@ export function buildHotelBookingHref(hotel: HotelOffer): string {
     currency: hotel.pricePerNight.currency,
     priceBasis: hotel.priceBasis ?? 'per_night_before_taxes_fees',
     providerUrl: hotel.deeplink,
+    entrySource,
+    returnUrl: validateHotelReturnUrl(options.returnUrl, entrySource),
   });
 
   if (hotel.area) params.set('area', hotel.area);
@@ -502,6 +718,21 @@ export function buildHotelBookingHref(hotel: HotelOffer): string {
     params.set('locationDistanceSource', hotel.location.distance.source);
   }
   if (hotel.location?.providerLocationName) params.set('locationProviderName', hotel.location.providerLocationName);
+  if (options.checkIn) params.set('checkIn', options.checkIn);
+  if (options.checkOut) params.set('checkOut', options.checkOut);
+  if (options.nightCount !== undefined) params.set('nightCount', String(options.nightCount));
+  if (priceCheckedAt) params.set('priceCheckedAt', priceCheckedAt);
+  if (options.score) {
+    params.set('scorePercentile', String(options.score.percentile));
+    params.set('scorePctVsMedian', String(options.score.pctVsMedian));
+    params.set('scoreMedianCents', String(options.score.medianCents));
+    params.set('scoreCurrency', options.score.currency);
+    params.set('scoreVerdict', options.score.verdict);
+    params.set('scoreConfidence', options.score.confidence);
+    params.set('scoreExplanation', options.score.explanation);
+  }
+  addRatingEvidenceParams(params, 'hotelClass', hotel.hotelClass);
+  addRatingEvidenceParams(params, 'guestRating', hotel.guestRating);
 
   return `/book?${params.toString()}`;
 }

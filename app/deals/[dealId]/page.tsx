@@ -9,12 +9,16 @@ import { PriceSparkline } from '@/app/components/ui/PriceSparkline'
 import { CompareRow } from '@/app/components/ui/CompareRow'
 import { ShareButton } from '@/app/components/ui/ShareButton'
 import DealScorePanel from '@/app/components/DealScorePanel'
-import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
+import { HotelDecisionAnalytics, priceFreshnessState } from '@/app/components/HotelDecisionAnalytics'
 import { scoreDeal } from '@/lib/scoring/scoreDeal'
+import { isValidatedAffiliateProviderUrl, validateHotelReturnUrl } from '@/lib/booking/config'
 import type { DealScore } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
 
-type PageProps = { params: Promise<{ dealId: string }> }
+type PageProps = {
+  params: Promise<{ dealId: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
 
 function fmtDate(iso?: string | null): string {
   if (!iso) return ''
@@ -199,8 +203,11 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
   return <DealScorePanel score={score} loading={false} scope="hotel" priceNoun="nightly rate" unavailableCopy="We could not compare this nightly rate with enough recent hotel prices." />
 }
 
-export default async function DealDetailPage({ params }: PageProps) {
+export default async function DealDetailPage({ params, searchParams }: PageProps) {
   const { dealId } = await params
+  const queryParams = await searchParams
+  const suppliedReturnUrl = Array.isArray(queryParams.returnUrl) ? queryParams.returnUrl[0] : queryParams.returnUrl
+  const returnUrl = validateHotelReturnUrl(suppliedReturnUrl, 'saved_deals')
 
   const deal = await getDealById(dealId).catch(() => null)
   if (!deal) notFound()
@@ -223,15 +230,16 @@ export default async function DealDetailPage({ params }: PageProps) {
   const checkedAgo = timeAgo(deal.updated_at)
   const isAging = !isExpired && updatedAgeHours !== null && updatedAgeHours >= 30 && updatedAgeHours < 48
   const isStale = !isExpired && updatedAgeHours !== null && updatedAgeHours >= 48
-  const validOtaLinks = Object.fromEntries(Object.entries(deal.ota_links ?? {}).filter(([, href]) => {
-    try { return ['http:', 'https:'].includes(new URL(href).protocol) } catch { return false }
-  }))
+  const validOtaLinks = Object.fromEntries(Object.entries(deal.ota_links ?? {}).filter(([, href]) => isValidatedAffiliateProviderUrl(href)))
   const hasOtaLinks = Object.keys(validOtaLinks).length > 0
   const hasValidPrice = Number.isInteger(deal.deal_price_cents) && deal.deal_price_cents > 0
 
   // check-in / check-out derived
   const checkInDisplay = deal.check_in_date ? fmtShort(deal.check_in_date) : null
   const checkOutDisplay = deal.check_in_date && Number.isInteger(deal.nights) && deal.nights > 0 ? addNights(deal.check_in_date, deal.nights) : null
+  const hasDates = Boolean(checkInDisplay && checkOutDisplay && deal.nights > 0)
+  const savedScoreState = deal.snapshot_count > 0 ? deal.snapshot_count < 10 ? 'low_confidence' : 'confident' : 'unavailable'
+  const freshnessState = priceFreshnessState(deal.updated_at, isExpired, now)
 
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
@@ -244,10 +252,11 @@ export default async function DealDetailPage({ params }: PageProps) {
         </div>
       </nav>
 
+      <HotelDecisionAnalytics hotelId={deal.hotel_id} entrySource="saved_deals" hasDates={hasDates} hasVerifiedGuestRating={false} scoreState={savedScoreState} priceFreshnessState={freshnessState}>
       <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
-        <a href="/deals" className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)]">← Back to saved deals</a>
+        <a href={returnUrl} data-hotel-back className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)]">← Back to saved deals</a>
         <div className="mt-4 space-y-4">
-          <section aria-labelledby="property-stay-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+          <section data-hotel-decision-section="property_stay" data-hotel-decision-position="1" aria-labelledby="property-stay-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <p className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
             <h1 id="property-stay-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name}</h1>
             <div className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
@@ -265,7 +274,7 @@ export default async function DealDetailPage({ params }: PageProps) {
             <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">{checkInDisplay && checkOutDisplay && deal.nights > 0 ? 'Rate shown for this stay context; the provider confirms room-level details.' : 'Stay dates are incomplete. Choose or confirm dates with the provider before comparing room options.'}</p>
           </section>
 
-          <section aria-labelledby="price-score-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+          <section data-hotel-decision-section="price_deal_score" data-hotel-decision-position="2" aria-labelledby="price-score-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="price-score-title" className="text-xl font-bold text-[color:var(--text-1)]">Price and Deal Score</h2>
             <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
               <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">
@@ -283,15 +292,15 @@ export default async function DealDetailPage({ params }: PageProps) {
             </div>
           </section>
 
-          <section aria-labelledby="hotel-fit-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+          <section data-hotel-decision-section="hotel_fit" data-hotel-decision-position="3" aria-labelledby="hotel-fit-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="hotel-fit-title" className="text-xl font-bold text-[color:var(--text-1)]">Hotel fit</h2>
             <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Hotel class</dt><dd className="mt-2 text-sm text-[color:var(--text-2)]">Hotel class not provided</dd></div>
+              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Hotel class</dt><dd className="mt-2 text-sm text-[color:var(--text-2)]">{deal.stars && deal.stars > 0 ? `${deal.stars}-star hotel class from saved provider snapshot` : 'Hotel class not provided'}</dd></div>
               <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Guest rating</dt><dd className="mt-2 text-sm text-[color:var(--text-2)]">Guest rating not provided<span className="mt-1 block text-xs text-[color:var(--text-3)]">This provider did not return guest-rating evidence.</span></dd></div>
             </dl>
           </section>
 
-          <section aria-labelledby="room-check-title" className="rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+          <section data-hotel-decision-section="provider_handoff" data-hotel-decision-position="4" aria-labelledby="room-check-title" className="rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="room-check-title" className="text-xl font-bold text-[color:var(--text-1)]">Check rooms with provider</h2>
         {isExpired ? (
           <div className="mt-3" role="status"><p className="font-bold text-[color:var(--error)]">Saved rate expired</p><p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">This observed nightly rate is no longer current. Search again before inspecting room options.</p><a href="/deals" className="btn btn-primary mt-4 block min-h-11 w-full text-center">
@@ -304,7 +313,7 @@ export default async function DealDetailPage({ params }: PageProps) {
         )}
           </section>
 
-          <section aria-labelledby="supporting-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+          <section data-hotel-decision-section="supporting_evidence" data-hotel-decision-position="5" aria-labelledby="supporting-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="supporting-title" className="text-xl font-bold text-[color:var(--text-1)]">Supporting evidence</h2>
             {deal.photo_url ? <img src={deal.photo_url} alt="" className="mt-4 h-44 w-full rounded-[var(--radius-card)] object-cover sm:h-64" decoding="async" /> : null}
             <Suspense fallback={<PriceHistorySkeleton />}><PriceHistorySection deal={deal} /></Suspense>
@@ -313,6 +322,7 @@ export default async function DealDetailPage({ params }: PageProps) {
           </section>
         </div>
       </main>
+      </HotelDecisionAnalytics>
     </div>
   )
 }

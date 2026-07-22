@@ -231,6 +231,8 @@ describe('booking hotel context continuity', () => {
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
       providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      entrySource: 'direct',
+      returnUrl: '/',
     });
 
     expect(parsed).toEqual({
@@ -260,6 +262,8 @@ describe('booking hotel context continuity', () => {
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
       providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      entrySource: 'direct',
+      returnUrl: '/',
     });
   });
 
@@ -345,5 +349,73 @@ describe('booking hotel context continuity', () => {
     expect(url.searchParams.get('locationDistanceValue')).toBeNull();
     expect(url.searchParams.get('locationAnchorId')).toBeNull();
     expect(url.searchParams.get('locationDistanceReferencePoint')).toBeNull();
+  });
+
+  it('round-trips validated decision context without converting integer money to floats', () => {
+    const score = {
+      percentile: 12,
+      pctVsMedian: -31.5,
+      medianCents: 27500,
+      currency: 'USD',
+      verdict: 'Great' as const,
+      confidence: 'high' as const,
+      explanation: 'This rate is lower than most recent prices.',
+    };
+    const contextualHotel: HotelOffer = {
+      ...hotel,
+      fetchedAt: '2026-07-21T12:00:00.000Z',
+      hotelClass: { kind: 'hotel_class', value: 4, scaleMax: 5, sourceLabel: 'Hotellook', confidence: 'provider_only' },
+      guestRating: { kind: 'guest_review', value: 8.8, scaleMax: 10, reviewCount: 412, sourceLabel: 'Hotellook', confidence: 'verified' },
+    };
+    const href = buildHotelBookingHref(contextualHotel, {
+      entrySource: 'hotel_results',
+      returnUrl: '/?destination=NYC&sort=score',
+      checkIn: '2026-08-12',
+      checkOut: '2026-08-15',
+      nightCount: 3,
+      score,
+    });
+    const url = new URL(href, 'https://expaify.test');
+    const parsed = parseBookingHotelContext(Object.fromEntries(url.searchParams));
+
+    expect(parsed).toMatchObject({
+      entrySource: 'hotel_results',
+      returnUrl: '/?destination=NYC&sort=score',
+      checkIn: '2026-08-12',
+      checkOut: '2026-08-15',
+      nightCount: 3,
+      priceCents: 18900,
+      priceCheckedAt: '2026-07-21T12:00:00.000Z',
+      score,
+      hotelClass: contextualHotel.hotelClass,
+      guestRating: contextualHotel.guestRating,
+    });
+    expect(Number.isInteger(parsed?.priceCents)).toBe(true);
+    expect(Number.isInteger(parsed?.score?.medianCents)).toBe(true);
+  });
+
+  it('rejects inconsistent stays, malformed evidence, and provider URLs without affiliate attribution', () => {
+    const baseContext = {
+      kind: 'hotel', offerId: 'hotel_123', provider: 'hotellook', name: 'The Example Hotel',
+      priceCents: 18900, currency: 'USD', priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker', entrySource: 'hotel_results', returnUrl: '/',
+    } as const;
+
+    expect(validateBookingHotelContext({ ...baseContext, checkIn: '2026-08-12', checkOut: '2026-08-15', nightCount: 2 })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, guestRatingKind: 'guest_review', guestRatingConfidence: 'verified', guestRatingValue: 11, guestRatingScaleMax: 10 })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'https://booking.com/hotel/example' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'http://booking.com/hotel/example?aid=123' })).toBeNull();
+  });
+
+  it('falls back from external or privileged return destinations to the source-safe route', () => {
+    const baseContext = {
+      kind: 'hotel', offerId: 'hotel_123', provider: 'hotellook', name: 'The Example Hotel',
+      priceCents: 18900, currency: 'USD', priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker', entrySource: 'saved_deals',
+    } as const;
+
+    expect(validateBookingHotelContext({ ...baseContext, returnUrl: 'https://evil.example/steal' })?.returnUrl).toBe('/deals');
+    expect(validateBookingHotelContext({ ...baseContext, returnUrl: '/api/admin' })?.returnUrl).toBe('/deals');
+    expect(validateBookingHotelContext({ ...baseContext, returnUrl: '/deals?city=Paris&sort=discount' })?.returnUrl).toBe('/deals?city=Paris&sort=discount');
   });
 });

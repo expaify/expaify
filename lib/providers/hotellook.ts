@@ -389,6 +389,7 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     guestRating,
     amenityEvidence: access.evidence,
     accessEvidenceState,
+    fetchedAt: typeof value.fetchedAt === 'string' && !Number.isNaN(Date.parse(value.fetchedAt)) ? value.fetchedAt : undefined,
   };
 }
 
@@ -498,6 +499,7 @@ export class HotellookProvider implements HotelProvider {
           }),
           amenityEvidence: access.evidence,
           accessEvidenceState: access.state,
+          fetchedAt,
         };
       });
 

@@ -165,6 +165,7 @@ describe('HotellookProvider.searchHotels', () => {
         },
         amenityEvidence: notReturnedEvidence,
         accessEvidenceState: 'ready',
+        fetchedAt: expect.any(String),
       },
     ]);
   });

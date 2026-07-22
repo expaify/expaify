@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { DealScore, HotelAmenityEvidence, HotelEvidenceFee, HotelOffer } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
-import { buildHotelBookingHref } from '@/lib/booking/config'
+import { buildHotelBookingHref, isValidatedAffiliateProviderUrl, type HotelBookingHrefOptions } from '@/lib/booking/config'
 import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import DealScorePanel from './DealScorePanel'
 import { getHotelLocationDisplay } from './hotelLocationContext'
@@ -15,6 +15,7 @@ type Props = {
   loading?: boolean
   amenityEvidence?: readonly HotelAmenityEvidence[]
   accessEvidenceState?: 'ready' | 'loading' | 'error'
+  detailContext?: Omit<HotelBookingHrefOptions, 'score' | 'priceCheckedAt'>
 }
 
 type AccessFactId =
@@ -385,15 +386,6 @@ function getUnavailableReason(hasBookingUrl: boolean, hasValidPrice: boolean) {
   return 'No valid provider link was returned.'
 }
 
-function isValidBookingUrl(value: string): boolean {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'https:' || url.protocol === 'http:'
-  } catch {
-    return false
-  }
-}
-
 function ratingLabel(rating: number): string {
   return rating >= 8.5 ? 'Excellent' : rating >= 8 ? 'Very good' : 'Good'
 }
@@ -709,11 +701,12 @@ export default function HotelCard({
   loading = false,
   amenityEvidence,
   accessEvidenceState,
+  detailContext,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [photoFailed, setPhotoFailed] = useState(false)
   const location = getHotelLocationDisplay(hotel)
-  const hasBookingUrl = isValidBookingUrl(hotel.deeplink)
+  const hasBookingUrl = isValidatedAffiliateProviderUrl(hotel.deeplink)
   const hasValidPrice = isValidMoney(hotel.pricePerNight)
   const canBook = hasBookingUrl && hasValidPrice
   const unavailableReason = getUnavailableReason(hasBookingUrl, hasValidPrice)
@@ -722,7 +715,11 @@ export default function HotelCard({
   const legacyRatingPresent = !hotel.guestRating && hasPositiveNumber(hotel.rating)
   const collapsedGuestRating = getGuestRatingCollapsedText(hotel.guestRating)
   const qualityAriaLabel = getQualityAriaLabel(hotelClass, hotel.guestRating, legacyRatingPresent)
-  const bookingHref = canBook ? buildHotelBookingHref(hotel) : ''
+  const bookingHref = canBook ? buildHotelBookingHref(hotel, {
+    ...detailContext,
+    score,
+    priceCheckedAt: hotel.fetchedAt ?? hotel.hotelClass?.fetchedAt ?? hotel.guestRating?.fetchedAt,
+  }) : ''
   const formattedPrice = hasValidPrice ? formatMoney(hotel.pricePerNight) : ''
   const providerName = providerDisplayName(hotel.source)
   const hasHotelProviderName = hasProviderName(hotel.source)

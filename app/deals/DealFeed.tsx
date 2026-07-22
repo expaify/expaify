@@ -213,22 +213,31 @@ type DealFeedProps = {
   defaultCity?: string
   premium?: boolean
   personalization?: Personalization
+  initialFilters?: {
+    city?: string
+    minDiscount?: number
+    maxPriceCents?: number | null
+    minStars?: number
+    dateFrom?: string
+    dateTo?: string
+    sort?: 'newest' | 'discount'
+  }
 }
 
-export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = false, personalization }: DealFeedProps = {}) {
+export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = false, personalization, initialFilters }: DealFeedProps = {}) {
   const router = useRouter()
-  const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
+  const [deals, setDeals] = useState<ApiDeal[]>(initialFilters ? [] : initialDeals ?? [])
   const [hasMore, setHasMore] = useState(false)
-  const [loading, setLoading] = useState(!initialDeals)
+  const [loading, setLoading] = useState(!initialDeals || Boolean(initialFilters))
   const [error, setError] = useState(false)
   const [activeTab, setActiveTab] = useState<'hotels' | 'flights'>('hotels')
-  const [city, setCity] = useState(defaultCity ?? '')
-  const [minDiscount, setMinDiscount] = useState(DEFAULT_MIN_DISCOUNT)
-  const [maxPriceCents, setMaxPriceCents] = useState<number | null>(null)
-  const [minStars, setMinStars] = useState(0)
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-  const [sort, setSort] = useState<'newest' | 'discount'>('newest')
+  const [city, setCity] = useState(initialFilters?.city ?? defaultCity ?? '')
+  const [minDiscount, setMinDiscount] = useState(initialFilters?.minDiscount ?? DEFAULT_MIN_DISCOUNT)
+  const [maxPriceCents, setMaxPriceCents] = useState<number | null>(initialFilters?.maxPriceCents ?? null)
+  const [minStars, setMinStars] = useState(initialFilters?.minStars ?? 0)
+  const [dateFrom, setDateFrom] = useState(initialFilters?.dateFrom ?? '')
+  const [dateTo, setDateTo] = useState(initialFilters?.dateTo ?? '')
+  const [sort, setSort] = useState<'newest' | 'discount'>(initialFilters?.sort ?? 'newest')
   const [offset, setOffset] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [premium, setPremium] = useState(premiumProp)
@@ -278,7 +287,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
 
   useEffect(() => {
     // Skip initial fetch when deals were pre-fetched server-side
-    if (initialDeals) return
+    if (initialDeals && !initialFilters) return
     fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort, offset: 0, append: false })
     // Initial feed load only; filter changes call fetchDeals through applyFilter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -390,6 +399,15 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
   const gridClass = 'grid grid-cols-1 gap-6 min-[680px]:grid-cols-2 min-[1024px]:grid-cols-3'
 
   const echoLinkClass = 'font-medium text-[color:var(--primary)] no-underline hover:underline'
+  const returnParams = new URLSearchParams()
+  if (city) returnParams.set('city', city)
+  if (minDiscount !== DEFAULT_MIN_DISCOUNT) returnParams.set('min_discount', String(minDiscount))
+  if (maxPriceCents) returnParams.set('max_price_cents', String(maxPriceCents))
+  if (minStars > 0) returnParams.set('min_stars', String(minStars))
+  if (dateFrom) returnParams.set('date_from', dateFrom)
+  if (dateTo) returnParams.set('date_to', dateTo)
+  if (sort !== 'newest') returnParams.set('sort', sort)
+  const savedFeedReturnUrl = `/deals${returnParams.size ? `?${returnParams.toString()}` : ''}`
 
   const activeFilterChips: Array<{ key: string; label: string; onRemove: () => void }> = []
   if (!defaultCity && city) {
@@ -691,7 +709,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
                   ) : (
                     <DealCard
                       key={deal.id}
-                      href={deal.isMock ? undefined : `/deals/${deal.id}`}
+                      href={deal.isMock ? undefined : `/deals/${deal.id}?returnUrl=${encodeURIComponent(savedFeedReturnUrl)}`}
                       deal={{
                         id: deal.id,
                         hotelName: deal.hotelName,

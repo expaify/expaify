@@ -22,7 +22,7 @@ const hotel: HotelOffer = {
   area: 'Central district',
   stars: 4,
   pricePerNight: { priceCents: 17900, currency: 'USD' },
-  deeplink: 'https://example.com/hotel',
+  deeplink: 'https://example.com/hotel?affiliate_id=test-marker',
   source: 'hotellook',
 }
 

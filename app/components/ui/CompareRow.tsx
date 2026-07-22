@@ -41,6 +41,7 @@ export function CompareRow({ links, size = "compact", hotelName }: CompareRowPro
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
+                data-hotel-provider={label}
                 aria-label={primary && hotelName ? `Check rooms at ${label} for ${hotelName}. Opens in a new tab. The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.` : undefined}
                 className={`${base} hover:border-[color:var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_4%,transparent)]`}
               >

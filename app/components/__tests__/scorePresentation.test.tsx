@@ -113,7 +113,7 @@ const hotel: HotelOffer = {
   stars: 4,
   pricePerNight: { priceCents: 18900, currency: 'USD' },
   rating: 8.7,
-  deeplink: 'https://example.com/hotel',
+  deeplink: 'https://example.com/hotel?affiliate_id=test-marker',
   source: 'hotellook',
 }
 
@@ -492,21 +492,22 @@ describe('Deal score presentation', () => {
     expect(withoutPhotoText).not.toContain('Property photo')
   })
 
-  it('keeps deal-detail price claims outside the figure and orders evidence before imagery', () => {
+  it('keeps the saved hotel decision sections and supporting image in semantic order', () => {
     const fs = jest.requireActual('node:fs') as typeof import('node:fs')
     const source = fs.readFileSync('app/deals/[dealId]/page.tsx', 'utf8')
-    const titleIndex = source.indexOf('{/* Title block */}')
-    const priceIndex = source.indexOf('{/* Price */}')
-    const scoreIndex = source.indexOf('{/* Deal score')
-    const photoIndex = source.indexOf('<PropertyPhoto src={deal.photo_url}')
-    const actionIndex = source.indexOf('{/* Primary action zone */}')
+    const propertyIndex = source.indexOf('data-hotel-decision-section="property_stay"')
+    const priceIndex = source.indexOf('data-hotel-decision-section="price_deal_score"')
+    const fitIndex = source.indexOf('data-hotel-decision-section="hotel_fit"')
+    const actionIndex = source.indexOf('data-hotel-decision-section="provider_handoff"')
+    const supportIndex = source.indexOf('data-hotel-decision-section="supporting_evidence"')
+    const photoIndex = source.indexOf('<img src={deal.photo_url}')
 
-    expect(source).toContain('PropertyPhoto src={deal.photo_url}')
-    expect(source).toContain('Deal found {foundAgo}')
+    expect(source).toContain('<img src={deal.photo_url}')
     expect(source).not.toContain('bg-gradient-to-t')
-    expect(titleIndex).toBeLessThan(priceIndex)
-    expect(priceIndex).toBeLessThan(scoreIndex)
-    expect(scoreIndex).toBeLessThan(photoIndex)
-    expect(photoIndex).toBeLessThan(actionIndex)
+    expect(propertyIndex).toBeLessThan(priceIndex)
+    expect(priceIndex).toBeLessThan(fitIndex)
+    expect(fitIndex).toBeLessThan(actionIndex)
+    expect(actionIndex).toBeLessThan(supportIndex)
+    expect(supportIndex).toBeLessThan(photoIndex)
   })
 })
