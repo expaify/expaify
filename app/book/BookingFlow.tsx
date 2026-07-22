@@ -6,10 +6,25 @@ import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
 import { track } from '@/lib/analytics'
 import { providerDisplayName } from '@/lib/providerFreshness'
-import SmokingPolicyPanel, { type HotelSmokingPolicyView } from '@/app/components/SmokingPolicyPanel'
+import type { HotelSmokingPolicyView } from '@/app/components/SmokingPolicyPanel'
+import TrackedSmokingPolicyPanel from '@/app/components/TrackedSmokingPolicyPanel'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
+type HotelReturnReason =
+  | 'smoking_policy_or_room_mismatch'
+  | 'price_or_fees_mismatch'
+  | 'room_availability_mismatch'
+  | 'other_hotel_details_mismatch'
+  | 'prefer_not_to_say'
+
+const HOTEL_RETURN_REASONS: ReadonlyArray<{ value: HotelReturnReason; label: string }> = [
+  { value: 'smoking_policy_or_room_mismatch', label: 'Smoking policy or room did not match' },
+  { value: 'price_or_fees_mismatch', label: 'Price or fees did not match' },
+  { value: 'room_availability_mismatch', label: 'Room availability did not match' },
+  { value: 'other_hotel_details_mismatch', label: 'Other hotel details did not match' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+]
 
 const labelCls = 'mb-1.5 block text-xs font-medium uppercase tracking-wide text-[color:var(--text-2)]'
 const inputCls = 'field-input !px-4'
@@ -590,6 +605,13 @@ function HotelHandoffReview({ hotelContext, hotelSmokingPolicy, duffelSandbox }:
   const returnArmedRef = useRef(false)
   const hiddenAfterContinueRef = useRef(false)
   const continueStartedAtRef = useRef<number | undefined>(undefined)
+  const handoffSessionIdRef = useRef<string | undefined>(undefined)
+  const feedbackTriggerRef = useRef<HTMLButtonElement>(null)
+  const [showReturnPrompt, setShowReturnPrompt] = useState(false)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [selectedReturnReason, setSelectedReturnReason] = useState<HotelReturnReason | ''>('')
+  const [feedbackSent, setFeedbackSent] = useState(false)
+  const policy = hotelSmokingPolicy ?? hotelContext.smokingPolicy
 
   useEffect(() => {
     const guidanceBlock = guidanceBlockRef.current
@@ -651,6 +673,7 @@ function HotelHandoffReview({ hotelContext, hotelSmokingPolicy, duffelSandbox }:
         partnerHost: partner.host,
         awayDurationBucket: getAwayDurationBucket(durationMs),
       })
+      setShowReturnPrompt(true)
       returnArmedRef.current = false
       hiddenAfterContinueRef.current = false
       continueStartedAtRef.current = undefined
@@ -665,6 +688,9 @@ function HotelHandoffReview({ hotelContext, hotelSmokingPolicy, duffelSandbox }:
     returnArmedRef.current = true
     hiddenAfterContinueRef.current = false
     continueStartedAtRef.current = performance.now()
+    handoffSessionIdRef.current = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `handoff-${Date.now()}`
     emitAnalytics('hotel_handoff_continue_clicked', { ...analyticsProps, partnerNamed: partner.named })
     if (guidanceViewedRef.current) {
       emitAnalytics('hotel_request_handoff_continued', {
@@ -676,6 +702,20 @@ function HotelHandoffReview({ hotelContext, hotelSmokingPolicy, duffelSandbox }:
         guidanceSeen: true,
       })
     }
+  }
+
+  const handleReturnFeedback = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selectedReturnReason || !handoffSessionIdRef.current) return
+    emitAnalytics('hotel_handoff_return_reason_selected', {
+      reason: selectedReturnReason,
+      offerId: hotelContext.offerId,
+      provider: hotelContext.provider,
+      partnerHost: partner.host,
+      handoffSessionId: handoffSessionIdRef.current,
+    })
+    setFeedbackSent(true)
+    setFeedbackOpen(false)
   }
 
   const handleHelpToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
@@ -720,8 +760,55 @@ function HotelHandoffReview({ hotelContext, hotelSmokingPolicy, duffelSandbox }:
       hotelContext={hotelContext}
       duffelSandbox={duffelSandbox}
       onBackClick={handleBack}
-      hotelSupplement={hotelSmokingPolicy ? (
-        <SmokingPolicyPanel offerId={hotelContext.offerId} policy={hotelSmokingPolicy} surface="review" />
+      hotelSupplement={policy ? (
+        <div className="space-y-3">
+          <TrackedSmokingPolicyPanel offerId={hotelContext.offerId} provider={hotelContext.provider} policy={policy} surface="review" />
+          {showReturnPrompt ? (
+            <section className="rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4" aria-labelledby="hotel-return-feedback-title">
+              <h3 id="hotel-return-feedback-title" className="text-sm font-bold text-[color:var(--text-1)]">Did the partner details match?</h3>
+              <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Optional: tell us what changed so we can improve hotel evidence.</p>
+              {feedbackSent ? (
+                <p className="mt-3 text-sm font-medium text-[color:var(--brand)]" role="status">Thanks. Your feedback was recorded.</p>
+              ) : feedbackOpen ? (
+                <form className="mt-3" onSubmit={handleReturnFeedback}>
+                  <fieldset>
+                    <legend className="text-sm font-bold text-[color:var(--text-1)]">What did not match?</legend>
+                    <div className="mt-2 space-y-1">
+                      {HOTEL_RETURN_REASONS.map(reason => (
+                        <label key={reason.value} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm text-[color:var(--text-2)] focus-within:shadow-[var(--focus-ring)]">
+                          <input
+                            type="radio"
+                            name="hotel-return-reason"
+                            value={reason.value}
+                            checked={selectedReturnReason === reason.value}
+                            onChange={() => setSelectedReturnReason(reason.value)}
+                          />
+                          <span>{reason.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <button type="submit" disabled={!selectedReturnReason} className="btn-primary min-h-11 rounded-lg px-4 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">Send feedback</button>
+                    <button
+                      type="button"
+                      className={secondaryButtonCls}
+                      onClick={() => {
+                        setFeedbackOpen(false)
+                        setSelectedReturnReason('')
+                        window.setTimeout(() => feedbackTriggerRef.current?.focus(), 0)
+                      }}
+                    >Cancel</button>
+                  </div>
+                </form>
+              ) : (
+                <button ref={feedbackTriggerRef} type="button" onClick={() => setFeedbackOpen(true)} className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-[color:var(--border)] px-4 text-sm font-medium text-[color:var(--text-1)] focus-visible:shadow-[var(--focus-ring)]">
+                  Report a mismatch
+                </button>
+              )}
+            </section>
+          ) : null}
+        </div>
       ) : undefined}
     >
       <TrackOnMount event="hotel_handoff_viewed" props={analyticsProps} />

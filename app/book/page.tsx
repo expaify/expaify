@@ -40,6 +40,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
           duffelSandbox={isDuffelSandboxMode()}
           fareContext={fareContext}
           hotelContext={hotelContext}
+          hotelSmokingPolicy={hotelContext?.smokingPolicy}
           invalidHotelSelection={requestedHotelReview && !hotelContext}
         />
       </Suspense>

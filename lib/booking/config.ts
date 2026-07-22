@@ -5,12 +5,18 @@ import type {
   HotelLocationEvidenceSource,
   HotelLocationPrecision,
   HotelOffer,
+  HotelSmokingDimension,
+  HotelSmokingPolicy,
+  PropertySmokingPolicyValue,
+  RoomSmokingPolicyValue,
+  SupplierSmokingStatement,
   NormalizedFare,
 } from '../types';
 import {
   hasValidCoordinates,
   hasVerifiedHotelLocationComparison,
 } from '../hotels/locationEvidence';
+import { normalizeHotelSmokingPolicy, unavailableHotelSmokingPolicy } from '../hotels/smokingPolicy';
 
 export type BookingFareContext = {
   offerId: string;
@@ -38,6 +44,7 @@ export type BookingHotelContext = {
   currency: string;
   priceBasis: 'per_night_before_taxes_fees';
   providerUrl: string;
+  smokingPolicy?: HotelSmokingPolicy;
 };
 
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
@@ -63,6 +70,7 @@ type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
   locationDistanceMethod?: unknown;
   locationDistanceSource?: unknown;
   locationProviderName?: unknown;
+  smokingPolicy?: unknown;
 };
 
 export function isBookingEnabled(): boolean {
@@ -385,6 +393,9 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const priceBasis = cleanRequired(input.priceBasis);
   const providerUrl = cleanRequired(input.providerUrl);
   const location = validateHotelLocation(input);
+  const smokingPolicy = input.smokingPolicy === undefined
+    ? unavailableHotelSmokingPolicy()
+    : normalizeHotelSmokingPolicy(input.smokingPolicy, provider);
 
   if (
     kind !== 'hotel' ||
@@ -412,7 +423,52 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     currency,
     priceBasis,
     providerUrl,
+    smokingPolicy,
   };
+}
+
+const SMOKING_STATEMENT_FIELDS = [
+  'id', 'value', 'scope', 'sourceLabel', 'sourceText', 'fetchedAt',
+  'checkin', 'checkout', 'roomId', 'rateId',
+] as const;
+
+function parseSmokingDimensionParams(params: SearchParams, kind: 'Room' | 'Property'): Record<string, unknown> {
+  const prefix = `smoking${kind}`;
+  const countValue = firstParam(params[`${prefix}StatementCount`]);
+  const count = /^\d+$/.test(countValue) ? Number(countValue) : -1;
+  const statements = count >= 0 && count <= 20
+    ? Array.from({ length: count }, (_, index) => {
+        const statement: Record<string, unknown> = {};
+        for (const field of SMOKING_STATEMENT_FIELDS) {
+          const value = firstParam(params[`${prefix}Statement${index}${field[0].toUpperCase()}${field.slice(1)}`]);
+          if (value !== '') statement[field] = value;
+        }
+        return statement;
+      })
+    : [{}];
+
+  const dimension: Record<string, unknown> = {
+    state: firstParam(params[`${prefix}State`]),
+    statements,
+  };
+  const value = firstParam(params[`${prefix}Value`]);
+  const scope = firstParam(params[`${prefix}Scope`]);
+  if (value) dimension.value = value;
+  if (scope) dimension.scope = scope;
+  if (firstParam(params[`${prefix}Stale`]) === '1') dimension.isStale = true;
+  return dimension;
+}
+
+function parseSmokingPolicyParams(params: SearchParams): HotelSmokingPolicy | undefined {
+  const version = firstParam(params.smokingPolicyVersion);
+  if (!version) return undefined;
+  if (version !== '1') return unavailableHotelSmokingPolicy();
+  return normalizeHotelSmokingPolicy({
+    loadState: firstParam(params.smokingLoadState),
+    refreshFailed: firstParam(params.smokingRefreshFailed) === '1',
+    room: parseSmokingDimensionParams(params, 'Room'),
+    property: parseSmokingDimensionParams(params, 'Property'),
+  }, firstParam(params.provider));
 }
 
 export function parseBookingHotelContext(params: SearchParams): BookingHotelContext | null {
@@ -444,6 +500,7 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     currency: firstParam(params.currency),
     priceBasis: firstParam(params.priceBasis),
     providerUrl: firstParam(params.providerUrl),
+    smokingPolicy: parseSmokingPolicyParams(params),
   });
 }
 
@@ -502,6 +559,37 @@ export function buildHotelBookingHref(hotel: HotelOffer): string {
     params.set('locationDistanceSource', hotel.location.distance.source);
   }
   if (hotel.location?.providerLocationName) params.set('locationProviderName', hotel.location.providerLocationName);
+  serializeSmokingPolicy(params, hotel.smokingPolicy ?? unavailableHotelSmokingPolicy());
 
   return `/book?${params.toString()}`;
+}
+
+function serializeSmokingDimension<T extends RoomSmokingPolicyValue | PropertySmokingPolicyValue>(
+  params: URLSearchParams,
+  kind: 'Room' | 'Property',
+  dimension: HotelSmokingDimension<T>,
+): void {
+  const prefix = `smoking${kind}`;
+  params.set(`${prefix}State`, dimension.state);
+  if (dimension.value) params.set(`${prefix}Value`, dimension.value);
+  if (dimension.scope) params.set(`${prefix}Scope`, dimension.scope);
+  if (dimension.isStale) params.set(`${prefix}Stale`, '1');
+  params.set(`${prefix}StatementCount`, String(dimension.statements.length));
+
+  dimension.statements.forEach((statement: SupplierSmokingStatement, index: number) => {
+    for (const field of SMOKING_STATEMENT_FIELDS) {
+      const value = statement[field];
+      if (value !== undefined) {
+        params.set(`${prefix}Statement${index}${field[0].toUpperCase()}${field.slice(1)}`, value);
+      }
+    }
+  });
+}
+
+function serializeSmokingPolicy(params: URLSearchParams, policy: HotelSmokingPolicy): void {
+  params.set('smokingPolicyVersion', '1');
+  params.set('smokingLoadState', policy.loadState);
+  if (policy.refreshFailed) params.set('smokingRefreshFailed', '1');
+  serializeSmokingDimension(params, 'Room', policy.room);
+  serializeSmokingDimension(params, 'Property', policy.property);
 }

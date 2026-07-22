@@ -148,6 +148,67 @@ export interface HotelAmenityEvidence {
 
 export type HotelAccessEvidenceState = 'loading' | 'ready' | 'error';
 
+export type HotelSmokingEvidenceState =
+  | 'confirmed'
+  | 'ambiguous'
+  | 'conflicting'
+  | 'not_provided'
+  | 'unavailable';
+
+export type HotelSmokingPolicyLoadState = 'loading' | 'ready' | 'refreshing' | 'error';
+
+export type RoomSmokingPolicyValue =
+  | 'all_rooms_non_smoking'
+  | 'smoking_rooms_offered'
+  | 'selected_room_non_smoking'
+  | 'selected_room_smoking';
+
+export type PropertySmokingPolicyValue =
+  | 'smoke_free_property'
+  | 'indoor_common_areas_smoke_free'
+  | 'designated_smoking_areas'
+  | 'smoking_permitted_in_stated_areas';
+
+export type HotelSmokingScope =
+  | 'property_room_inventory'
+  | 'property_room_capability'
+  | 'selected_room_rate'
+  | 'entire_property'
+  | 'indoor_common_areas'
+  | 'designated_areas'
+  | 'stated_areas'
+  | 'unclear';
+
+export interface SupplierSmokingStatement {
+  id: string;
+  value?: RoomSmokingPolicyValue | PropertySmokingPolicyValue;
+  scope: HotelSmokingScope;
+  sourceLabel: string;
+  sourceText: string;
+  fetchedAt: string;
+  checkin?: string;
+  checkout?: string;
+  roomId?: string;
+  rateId?: string;
+}
+
+export interface HotelSmokingDimension<T> {
+  state: HotelSmokingEvidenceState;
+  value?: T;
+  scope?: HotelSmokingScope;
+  statements: SupplierSmokingStatement[];
+  /** Retained provenance that is excluded from current claims and filters. */
+  isStale?: boolean;
+}
+
+export interface HotelSmokingPolicy {
+  loadState: HotelSmokingPolicyLoadState;
+  room: HotelSmokingDimension<RoomSmokingPolicyValue>;
+  property: HotelSmokingDimension<PropertySmokingPolicyValue>;
+  /** Set only when a refresh failed and stale evidence remains visible. */
+  refreshFailed?: boolean;
+}
+
 export type HotelLocationPrecision = 'exact' | 'coordinates' | 'area' | 'search_area' | 'missing';
 
 export type HotelLocationEvidenceSource = 'provider' | 'search_fallback' | 'unavailable';
@@ -203,6 +264,7 @@ export interface HotelOffer {
   guestRating?: HotelRatingEvidence;
   amenityEvidence?: HotelAmenityEvidence[];
   accessEvidenceState?: HotelAccessEvidenceState;
+  smokingPolicy?: HotelSmokingPolicy;
 }
 
 export type NormalizedHotelOffer = HotelOffer;

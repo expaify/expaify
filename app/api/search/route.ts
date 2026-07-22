@@ -185,7 +185,7 @@ async function searchHotelAvailability(
  * GET /api/search
  *
  * Streams results as newline-delimited JSON (NDJSON).
- * Each line: { type: 'flights'|'flight-date-coverage'|'hotels'|'hotel-status'|'hotel-access-status'|'notice'|'suggestion'|'done', ... }
+ * Each line: { type: 'flights'|'flight-date-coverage'|'hotels'|'hotel-status'|'hotel-access-status'|'hotel-smoking-policy-status'|'notice'|'suggestion'|'done', ... }
  * Providers are raced — first to return streams immediately.
  */
 export async function GET(request: NextRequest) {
@@ -396,6 +396,7 @@ export async function GET(request: NextRequest) {
       // Hotels after all flight providers resolve
       if (destIATA && depart && ret) {
         send({ type: 'hotel-access-status', status: 'loading' });
+        send({ type: 'hotel-smoking-policy-status', status: 'loading' });
         const hotelsResult = await searchHotelAvailability(
           destIATA,
           { checkin: depart, checkout: ret },
@@ -404,6 +405,14 @@ export async function GET(request: NextRequest) {
         if (hotelsResult.ok && hotelsResult.data.length > 0) {
           send({ type: 'hotel-status', status: 'available' });
           send({ type: 'hotels', source: 'hotellook', data: hotelsResult.data });
+          send({
+            type: 'hotel-smoking-policy-status',
+            status: 'ready',
+            provider: 'hotellook',
+            normalizedCoverageCount: 0,
+            totalCount: hotelsResult.data.length,
+            filterEnabled: false,
+          });
           const accessState = hotelsResult.data.some(hotel => hotel.accessEvidenceState === 'error')
             ? 'error'
             : 'ready';
@@ -417,6 +426,14 @@ export async function GET(request: NextRequest) {
         } else if (hotelsResult.ok) {
           send({ type: 'hotel-status', status: 'empty', message: 'No hotels were returned for these dates.' });
           send({ type: 'hotel-access-status', status: 'ready' });
+          send({
+            type: 'hotel-smoking-policy-status',
+            status: 'ready',
+            provider: 'hotellook',
+            normalizedCoverageCount: 0,
+            totalCount: 0,
+            filterEnabled: false,
+          });
         } else {
           const status = classifyProviderIssue(hotelsResult.reason);
           send({
@@ -435,6 +452,13 @@ export async function GET(request: NextRequest) {
             status: 'error',
             message: 'Access details could not be checked because the hotel provider is unavailable.',
           });
+          send({
+            type: 'hotel-smoking-policy-status',
+            status: 'error',
+            provider: 'hotellook',
+            message: 'Smoking policy could not be checked because the hotel provider is unavailable.',
+            filterEnabled: false,
+          });
         }
       } else {
         send({
@@ -443,6 +467,7 @@ export async function GET(request: NextRequest) {
           message: 'Enter a destination plus depart and return dates to check hotel availability.',
         });
         send({ type: 'hotel-access-status', status: 'skipped' });
+        send({ type: 'hotel-smoking-policy-status', status: 'skipped', filterEnabled: false });
       }
 
       send({ type: 'done' });

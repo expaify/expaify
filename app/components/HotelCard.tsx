@@ -8,7 +8,8 @@ import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import DealScorePanel from './DealScorePanel'
 import { getHotelLocationDisplay } from './hotelLocationContext'
 import { PropertyPhoto } from './ui/PropertyPhoto'
-import SmokingPolicyPanel, { getCollapsedSmokingPolicy, type HotelSmokingPolicyView } from './SmokingPolicyPanel'
+import { getCollapsedSmokingPolicy, type HotelSmokingPolicyView } from './SmokingPolicyPanel'
+import TrackedSmokingPolicyPanel from './TrackedSmokingPolicyPanel'
 
 type Props = {
   hotel: HotelOffer
@@ -751,7 +752,8 @@ export default function HotelCard({
     : collapsedAccessFact?.id === 'on_site_parking'
       ? `On-site parking. ${collapsedAccessFact.sourceLabel.trim()} confirms this property has on-site parking. Review parking fees and space availability in details.`
       : undefined
-  const collapsedSmokingPolicy = getCollapsedSmokingPolicy(smokingPolicy)
+  const resolvedSmokingPolicy = smokingPolicy ?? hotel.smokingPolicy
+  const collapsedSmokingPolicy = getCollapsedSmokingPolicy(resolvedSmokingPolicy)
 
   return (
     <article className="card @container overflow-hidden rounded-[var(--radius-card)]">
@@ -903,8 +905,8 @@ export default function HotelCard({
               ) : null}
             </div>
 
-            {smokingPolicy ? (
-              <SmokingPolicyPanel offerId={hotel.id} policy={smokingPolicy} surface="result_detail" />
+            {resolvedSmokingPolicy ? (
+              <TrackedSmokingPolicyPanel offerId={hotel.id} provider={hotel.source} policy={resolvedSmokingPolicy} surface="result_detail" />
             ) : null}
 
             <AccessEvidencePanel
