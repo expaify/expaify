@@ -520,53 +520,23 @@ function InvalidBookingState({ duffelSandbox }: { duffelSandbox: boolean }) {
   )
 }
 
-function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
-  const headingRef = useRef<HTMLHeadingElement>(null)
-
-  useEffect(() => {
-    headingRef.current?.focus()
-  }, [])
-
+function InvalidHotelState() {
   return (
-    <ReviewShell
-      title="We can't identify this hotel"
-      message="Return to search and choose a current hotel result before reviewing provider handoff options."
-      fareContext={null}
-      duffelSandbox={duffelSandbox}
-      status={
-        <StatusPanel
-          title="Selection details are missing"
-          message="Return to search and choose a current hotel result before reviewing provider handoff options."
-          tone="red"
-          live="assertive"
-        />
-      }
-    >
-      <div className={`${panelCls} p-4 sm:p-6`}>
-        <h2
-          ref={headingRef}
-          tabIndex={-1}
-          className="sr-only outline-none"
-        >
-          Hotel handoff unavailable
-        </h2>
-        <div className={`mt-5 p-4 ${insetPanelCls}`}>
-          <p className={factLabelCls}>What happens now</p>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            Use a current hotel result so the review page receives a verified provider, offer identifier, hotel name, integer-cent price, currency, price basis, and provider handoff URL.
-          </p>
-        </div>
-        <div className={actionStackCls}>
-          <a href="/" className="btn-primary">
-            Back to search
-          </a>
-        </div>
-      </div>
-    </ReviewShell>
+    <main className="mx-auto flex min-h-[70vh] w-full max-w-[560px] items-center px-4 py-8 sm:px-6">
+      <section className={`${panelCls} w-full p-6 sm:p-8`}>
+        <h1 className="font-display text-2xl font-bold text-[color:var(--text-1)]">Hotel review unavailable</h1>
+        <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
+          This hotel link is incomplete, so expaify cannot show a trustworthy property and nightly rate.
+        </p>
+        <a href="/deals" className="btn btn-primary mt-6 inline-flex min-h-11 w-full items-center justify-center">
+          Search hotels
+        </a>
+      </section>
+    </main>
   )
 }
 
-function HotelHandoffReview({ hotelContext, duffelSandbox: _duffelSandbox }: { hotelContext: BookingHotelContext; duffelSandbox: boolean }) {
+function HotelHandoffReview({ hotelContext }: { hotelContext: BookingHotelContext }) {
   const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
   const location = getHotelLocationDisplay(hotelContext)
   const analyticsProps = useMemo(() => ({
@@ -629,15 +599,15 @@ function HotelHandoffReview({ hotelContext, duffelSandbox: _duffelSandbox }: { h
 
   const continueLabel = partner.named ? `Check rooms at ${partner.label}` : 'Check rooms at provider'
   const newTabCue = partner.named
-    ? `Opens ${partner.label} in a new tab. Your expaify search stays open here.`
-    : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
+    ? `Opens ${partner.label} in a new tab. Your expaify page stays open.`
+    : 'Opens the provider site in a new tab. Your expaify page stays open.'
   const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens in a new tab. The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.`
 
   return (
     <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
       <TrackOnMount event="hotel_handoff_viewed" props={analyticsProps} />
-      <a href="/" onClick={handleBack} className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)]">
-        ← Back to results
+      <a href="/deals" onClick={handleBack} className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)] focus-visible:rounded-[var(--radius-control)]">
+        ← Back to hotel search
       </a>
       <div className="mt-4 space-y-4 sm:mt-6">
         <section aria-labelledby="hotel-property-title" className={`${panelCls} p-4 sm:p-6`}>
@@ -679,7 +649,7 @@ function HotelHandoffReview({ hotelContext, duffelSandbox: _duffelSandbox }: { h
           </dl>
         </section>
 
-        <section aria-labelledby="hotel-room-check-title" className={`${panelCls} p-4 sm:p-6`}>
+        <section aria-labelledby="hotel-room-check-title" className="rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] p-4 shadow-[var(--shadow-card)] sm:p-6">
           <h2 id="hotel-room-check-title" className="text-xl font-bold text-[color:var(--text-1)]">Check rooms with provider</h2>
           <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms. Choose or confirm your dates there before comparing room options.{location.precision === 'missing' ? ' Confirm the property location there before choosing a room.' : ''}</p>
           <div className="mt-5 flex flex-col gap-3">
@@ -702,8 +672,8 @@ function HotelHandoffReview({ hotelContext, duffelSandbox: _duffelSandbox }: { h
 
         <section aria-labelledby="hotel-support-title" className={`${panelCls} p-4 sm:p-6`}>
           <h2 id="hotel-support-title" className="text-xl font-bold text-[color:var(--text-1)]">Supporting evidence</h2>
-          <details className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
-            <summary className="min-h-11 cursor-pointer font-medium text-[color:var(--text-1)]">Show offer details</summary>
+          <details className="group mt-4 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
+            <summary className="min-h-11 cursor-pointer font-medium text-[color:var(--text-1)]"><span className="group-open:hidden">Show offer details</span><span className="hidden group-open:inline">Hide offer details</span></summary>
             <p className={factLabelCls}>Offer reference</p>
             <p className="mt-2 break-all font-mono text-xs text-[color:var(--text-2)]">{hotelContext.offerId}</p>
             <p className="mt-2 text-xs text-[color:var(--text-3)]">Use this reference if you contact expaify support.</p>
@@ -732,11 +702,11 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
   const maxDobStr = maxDob.toISOString().slice(0, 10)
 
   if (hotelContext) {
-    return <HotelHandoffReview hotelContext={hotelContext} duffelSandbox={duffelSandbox} />
+    return <HotelHandoffReview hotelContext={hotelContext} />
   }
 
   if (invalidHotelSelection) {
-    return <InvalidHotelState duffelSandbox={duffelSandbox} />
+    return <InvalidHotelState />
   }
 
   async function handleSubmit(e: FormEvent) {

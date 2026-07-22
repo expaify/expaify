@@ -177,7 +177,7 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Guest rating not provided');
     expect(text).toContain('Check rooms at provider');
     expect(text).toContain('The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.');
-    expect(text).toContain('Opens the booking partner’s site in a new tab. Your expaify search stays open here.');
+    expect(text).toContain('Opens the provider site in a new tab. Your expaify page stays open.');
     expect(text).not.toContain('Provider confirmation required');
     expect(text).not.toContain('Before you continue');
     expect(text).not.toContain('Continue to');
@@ -210,8 +210,8 @@ describe('BookingFlow fare context review', () => {
   });
 
   it.each([
-    ['search_area', 'Only the searched destination is available. Confirm location with the provider.'],
-    ['missing', 'No provider location details were returned.'],
+    ['search_area', 'Only the searched destination is available. Confirm the property location with the provider.'],
+    ['missing', 'No property location details were returned.'],
   ] as const)('preserves the %s location warning without disabling handoff', (precision, warning) => {
     const contextualHotel: BookingHotelContext = {
       ...hotelContext,
@@ -239,7 +239,7 @@ describe('BookingFlow fare context review', () => {
       hotelContext,
     });
     const anchors = findElements(tree, element => element.type === 'a');
-    const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function');
+    const backLink = anchors.find(element => element.props.href === '/deals' && typeof element.props.onClick === 'function');
 
     expect(trackMock).toHaveBeenCalledWith('hotel_handoff_viewed', {
       source: 'hotellook',
@@ -282,7 +282,7 @@ describe('BookingFlow fare context review', () => {
       });
       const anchors = findElements(tree, element => element.type === 'a');
       const outbound = anchors.find(element => element.props.target === '_blank');
-      const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function');
+      const backLink = anchors.find(element => element.props.href === '/deals' && typeof element.props.onClick === 'function');
 
       (outbound?.props.onClick as (() => void))();
       expect(trackMock).toHaveBeenCalledWith('hotel_handoff_continue_clicked', expect.objectContaining({
@@ -322,9 +322,9 @@ describe('BookingFlow fare context review', () => {
       invalidHotelSelection: true,
     }));
 
-    expect(text).toContain("We can't identify this hotel");
-    expect(text).toContain('integer-cent price, currency, price basis, and provider handoff URL');
-    expect(text).toContain('Back to search');
+    expect(text).toContain('Hotel review unavailable');
+    expect(text).toContain('This hotel link is incomplete, so expaify cannot show a trustworthy property and nightly rate.');
+    expect(text).toContain('Search hotels');
     expect(text).not.toContain("We can't identify this fare");
   });
 });

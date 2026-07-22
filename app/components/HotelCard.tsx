@@ -721,13 +721,10 @@ export default function HotelCard({
   const collapsedGuestRating = getGuestRatingCollapsedText(hotel.guestRating)
   const qualityAriaLabel = getQualityAriaLabel(hotelClass, hotel.guestRating, legacyRatingPresent)
   const bookingHref = canBook ? buildHotelBookingHref(hotel) : ''
-  const formattedPrice = hasValidPrice ? formatMoney(hotel.pricePerNight) : ''
   const providerName = providerDisplayName(hotel.source)
   const hasHotelProviderName = hasProviderName(hotel.source)
   const rateCheckCopy = `Rate from ${providerName}. Last-checked time unavailable.`
-  const providerConfirmationCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
-  const reviewDisclosure = providerConfirmationCopy
-  const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${providerConfirmationCopy}`
+  const reviewAriaLabel = `Review ${hotel.name} in expaify`
   const unavailableAriaLabel = hasValidPrice
     ? `Provider link unavailable for ${hotel.name}. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
     : `Hotel price unavailable. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
@@ -912,8 +909,6 @@ export default function HotelCard({
               <p>per night before taxes and fees</p>
               <p className="mt-2 font-bold text-[color:var(--text-1)]">Rate check</p>
               <p>{rateCheckCopy}</p>
-              <p className="mt-2 font-bold text-[color:var(--text-1)]">Provider handoff</p>
-              <p>{canBook ? reviewDisclosure : unavailableReason}</p>
               {!hasValidPrice || !hasBookingUrl ? <p className="mt-2">{unavailableReason}</p> : null}
             </div>
           </div>

@@ -127,18 +127,26 @@ function LockedDealDetail({ city, checkInWindow }: { city: string; checkInWindow
 /* Streams in after the static content: the market lookup and the 60-day
    history query never block the hero, title, price, or CompareRow. */
 async function PriceHistorySection({ deal }: { deal: DealRow }) {
-  const mktRes = await query<{ id: number }>(
-    'SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1',
-    [deal.city]
-  ).catch(() => ({ rows: [] as { id: number }[] }))
-  const marketId = mktRes.rows[0]?.id
-
-  const history = await getPriceHistory(deal.hotel_id, marketId).catch(() => [])
+  let history: Awaited<ReturnType<typeof getPriceHistory>>
+  try {
+    const mktRes = await query<{ id: number }>(
+      'SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1',
+      [deal.city]
+    )
+    history = await getPriceHistory(deal.hotel_id, mktRes.rows[0]?.id)
+  } catch {
+    return (
+      <section aria-labelledby="price-history-error-title" className="mt-8">
+        <h3 id="price-history-error-title" className="text-h3 text-[color:var(--ink)]">Price history could not be loaded</h3>
+        <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">The observed nightly rate and provider handoff are still available above.</p>
+      </section>
+    )
+  }
 
   if (history.length < 3) {
     return (
-      <section className="mt-8">
-        <h3 className="text-h3 text-[color:var(--ink)]">Price history unavailable</h3>
+      <section aria-labelledby="price-history-unavailable-title" className="mt-8">
+        <h3 id="price-history-unavailable-title" className="text-h3 text-[color:var(--ink)]">Price history unavailable</h3>
         <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">Not enough historical checks are available to draw a chart.</p>
         <TrustLine snapshotCount={deal.snapshot_count} />
       </section>
@@ -146,8 +154,8 @@ async function PriceHistorySection({ deal }: { deal: DealRow }) {
   }
 
   return (
-    <section className="mt-8">
-      <h3 className="text-h3 text-[color:var(--ink)]">60-day price history</h3>
+    <section aria-labelledby="price-history-title" className="mt-8">
+      <h3 id="price-history-title" className="text-h3 text-[color:var(--ink)]">60-day price history</h3>
       <div className="mt-4">
         <PriceSparkline
           history={history}
@@ -164,7 +172,7 @@ async function PriceHistorySection({ deal }: { deal: DealRow }) {
 
 function PriceHistorySkeleton() {
   return (
-    <section className="mt-8" role="status" aria-live="polite">
+    <section className="mt-8" role="status" aria-live="polite" aria-atomic="true">
       <span className="sr-only">Loading price history</span>
       <div aria-hidden="true"><div className="skeleton h-6 w-44 rounded-[var(--radius-input)]" /><div className="skeleton mt-4 h-[80px] w-full rounded-[var(--radius-input)]" /><div className="skeleton mt-3 h-3 w-64 rounded-full" /></div>
     </section>
@@ -172,13 +180,22 @@ function PriceHistorySkeleton() {
 }
 
 async function DealScoreSection({ deal }: { deal: DealRow }) {
-  const mktRes = await query<{ id: number }>(
-    'SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1',
-    [deal.city]
-  ).catch(() => ({ rows: [] as { id: number }[] }))
-  const marketId = mktRes.rows[0]?.id
-
-  const rawHistory = await getPriceHistory(deal.hotel_id, marketId).catch(() => [])
+  let rawHistory: Awaited<ReturnType<typeof getPriceHistory>>
+  try {
+    const mktRes = await query<{ id: number }>(
+      'SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1',
+      [deal.city]
+    )
+    rawHistory = await getPriceHistory(deal.hotel_id, mktRes.rows[0]?.id)
+  } catch {
+    return (
+      <div role="status" aria-live="polite" aria-atomic="true" className="rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--error-soft)] p-4">
+        <p className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Deal Score</p>
+        <p className="mt-1 font-bold text-[color:var(--text-1)]">Deal Score unavailable</p>
+        <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">We could not load the price comparison. You can still inspect rooms with the provider.</p>
+      </div>
+    )
+  }
   const pricePoints = rawHistory.map((h) => ({ date: h.date, priceCents: h.price_cents, currency: 'USD' as const }))
 
   let score: DealScore | null = null
@@ -201,7 +218,7 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
 export default async function DealDetailPage({ params }: PageProps) {
   const { dealId } = await params
 
-  const deal = await getDealById(dealId).catch(() => null)
+  const deal = await getDealById(dealId)
   if (!deal) notFound()
   if (!deal.hotel_name?.trim()) return <PropertyUnavailable />
 
@@ -231,6 +248,7 @@ export default async function DealDetailPage({ params }: PageProps) {
   // check-in / check-out derived
   const checkInDisplay = deal.check_in_date ? fmtShort(deal.check_in_date) : null
   const checkOutDisplay = deal.check_in_date && Number.isInteger(deal.nights) && deal.nights > 0 ? addNights(deal.check_in_date, deal.nights) : null
+  const hasCompleteStay = Boolean(checkInDisplay && checkOutDisplay && deal.nights > 0)
 
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
@@ -261,7 +279,7 @@ export default async function DealDetailPage({ params }: PageProps) {
                 <Fact label="Nights" value={deal.nights > 0 ? `${deal.nights} night${deal.nights === 1 ? '' : 's'}` : 'Night count not provided'} muted={!deal.nights} />
               </dl>
             ) : <div className="mt-3 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><p className="font-medium text-[color:var(--text-1)]">Stay dates not provided</p></div>}
-            <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">{checkInDisplay && checkOutDisplay && deal.nights > 0 ? 'Rate shown for this stay context; the provider confirms room-level details.' : 'Stay dates are incomplete. Choose or confirm dates with the provider before comparing room options.'}</p>
+            <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">{hasCompleteStay ? 'Rate shown for this stay context; the provider confirms room-level details.' : 'Stay dates are incomplete. Choose or confirm dates with the provider before comparing room options.'}</p>
           </section>
 
           <section aria-labelledby="price-score-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
@@ -269,16 +287,9 @@ export default async function DealDetailPage({ params }: PageProps) {
             <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
               <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">
                 <p className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Observed nightly rate</p>
-                {hasValidPrice ? <p className="mt-2 font-display text-3xl font-bold tabular-nums text-[color:var(--text-1)] sm:text-4xl">{formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}</p> : <p className="mt-2 text-xl font-bold text-[color:var(--error)]">Price unavailable</p>}
-                <p className="mt-1 text-xs text-[color:var(--text-2)]">per night before taxes and fees</p>
-                <p className="mt-2 text-sm text-[color:var(--text-2)]">Rate observed from a booking partner</p>
-                <p className={`mt-1 text-sm leading-6 ${isExpired ? 'font-medium text-[color:var(--error)]' : isAging || isStale || !checkedAgo ? 'font-medium text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
-                  {isExpired && deal.expires_at ? `This saved rate expired ${fmtDate(deal.expires_at)}. It is shown for reference only.` : isStale ? `Price may be out of date. We have not rechecked it since ${fmtCheckedDate(deal.updated_at)}.` : checkedAgo ? `Price checked ${checkedAgo}.${isAging ? ' Confirm the current rate with the provider.' : ''}` : 'Last-checked time not provided.'}
-                </p>
+                {hasValidPrice ? <><p className="mt-2 font-display text-3xl font-bold tabular-nums text-[color:var(--text-1)] sm:text-4xl">{formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}</p><p className="mt-1 text-xs text-[color:var(--text-2)]">per night before taxes and fees</p><p className="mt-2 text-sm text-[color:var(--text-2)]">Rate observed from a booking partner</p><p className={`mt-1 text-sm leading-6 ${isExpired ? 'font-medium text-[color:var(--error)]' : isAging || isStale || !checkedAgo ? 'font-medium text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>{isExpired && deal.expires_at ? `This saved rate expired ${fmtDate(deal.expires_at)}. It is shown for reference only.` : isStale ? `Price may be out of date. We have not rechecked it since ${fmtCheckedDate(deal.updated_at)}.` : checkedAgo ? `Price checked ${checkedAgo}.${isAging ? ' Confirm the current rate with the provider.' : ''}` : 'Last-checked time not provided.'}</p></> : <><p className="mt-2 text-xl font-bold text-[color:var(--error)]">Price unavailable</p><p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">The provider did not return a valid nightly rate and currency.</p></>}
               </div>
-              <Suspense fallback={<div role="status" aria-live="polite" className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">Checking recent price history</div>}>
-                <DealScoreSection deal={deal} />
-              </Suspense>
+              {hasValidPrice ? <Suspense fallback={<div role="status" aria-live="polite" aria-atomic="true" className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4"><p className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Deal Score</p><p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">Checking recent price history</p></div>}><DealScoreSection deal={deal} /></Suspense> : <div role="status" className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4"><p className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Deal Score</p><p className="mt-1 font-bold text-[color:var(--text-1)]">Deal Score unavailable</p><p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">A valid nightly rate is required for a price comparison.</p></div>}
             </div>
           </section>
 
@@ -297,7 +308,7 @@ export default async function DealDetailPage({ params }: PageProps) {
               Search current deals
             </a></div>
         ) : hasValidPrice && hasOtaLinks ? (
-          <div className="mt-3"><p className="text-sm leading-6 text-[color:var(--text-2)]">The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms. Confirm the property location there before choosing a room.</p><div className="mt-4"><CompareRow links={validOtaLinks} size="primary" hotelName={deal.hotel_name} /></div><p className="mt-3 text-xs leading-5 text-[color:var(--text-3)]">Opens the provider in a new tab. Your expaify page stays open.</p></div>
+          <div className="mt-3"><p className="text-sm leading-6 text-[color:var(--text-2)]">The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.{!hasCompleteStay ? ' Choose or confirm your dates there before comparing room options.' : ''} Confirm the property location there before choosing a room.</p><div className="mt-4"><CompareRow links={validOtaLinks} size="primary" hotelName={deal.hotel_name} /></div></div>
         ) : (
           <div className="mt-3" role="status"><p className="font-bold text-[color:var(--text-1)]">{hasValidPrice ? 'Provider link unavailable' : 'Room check unavailable'}</p><p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">{hasValidPrice ? 'You can review this hotel here, but expaify does not have a valid provider link for room inspection.' : 'A trustworthy nightly rate is required before expaify can send this hotel selection to a provider.'}</p><a href="/deals" className="mt-3 inline-flex min-h-11 items-center font-medium text-[color:var(--brand)]">Search current deals</a></div>
         )}
@@ -307,7 +318,7 @@ export default async function DealDetailPage({ params }: PageProps) {
             <h2 id="supporting-title" className="text-xl font-bold text-[color:var(--text-1)]">Supporting evidence</h2>
             {deal.photo_url ? <img src={deal.photo_url} alt="" className="mt-4 h-44 w-full rounded-[var(--radius-card)] object-cover sm:h-64" decoding="async" /> : null}
             <Suspense fallback={<PriceHistorySkeleton />}><PriceHistorySection deal={deal} /></Suspense>
-            <details className="mt-6 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><summary className="min-h-11 cursor-pointer font-medium text-[color:var(--text-1)]">Show offer details</summary><p className="mt-3 text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p><p className="mt-1 break-all font-mono text-xs text-[color:var(--text-2)]">{deal.id}</p><p className="mt-2 text-xs text-[color:var(--text-3)]">Use this reference if you contact expaify support.</p></details>
+            <details className="group mt-6 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><summary className="min-h-11 cursor-pointer font-medium text-[color:var(--text-1)]"><span className="group-open:hidden">Show offer details</span><span className="hidden group-open:inline">Hide offer details</span></summary><p className="mt-3 text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p><p className="mt-1 break-all font-mono text-xs text-[color:var(--text-2)]">{deal.id}</p><p className="mt-2 text-xs text-[color:var(--text-3)]">Use this reference if you contact expaify support.</p></details>
             <div className="mt-4"><ShareButton /></div>
           </section>
         </div>

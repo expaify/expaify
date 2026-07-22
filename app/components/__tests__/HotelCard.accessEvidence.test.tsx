@@ -133,7 +133,7 @@ describe('HotelCard access evidence', () => {
     expect(collectText(card)).not.toContain('Elevator')
   })
 
-  it('renders the neutral all-not-returned default before provider handoff', () => {
+  it('renders the neutral all-not-returned default without duplicating the provider boundary', () => {
     expanded = true
     const card = HotelCard({ hotel })
     const text = collectText(card)
@@ -145,7 +145,7 @@ describe('HotelCard access evidence', () => {
     expect(section.props['aria-label']).toBe(
       'Access and room requests. Access details not documented by this provider. Confirm directly before booking.'
     )
-    expect(text.indexOf('Access & room requests')).toBeLessThan(text.indexOf('Provider handoff'))
+    expect(text).not.toContain('Provider handoff')
     expect(String(section.props.className)).toContain('bg-[color:var(--bg-raised)]')
   })
 

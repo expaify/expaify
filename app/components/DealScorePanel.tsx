@@ -77,11 +77,21 @@ function Fact({ label, value }: { label: string; value: string }) {
   )
 }
 
-function EvidenceGrid({ usual, vsUsual }: { usual: string; vsUsual: string }) {
+function EvidenceGrid({
+  usual,
+  usualLabel,
+  vsUsual,
+  showComparison,
+}: {
+  usual: string
+  usualLabel: string
+  vsUsual: string
+  showComparison: boolean
+}) {
   return (
     <div className="grid grid-cols-2 gap-2 text-xs min-[420px]:grid-cols-3">
-      <Fact label="Usual" value={usual} />
-      <Fact label="Vs usual" value={vsUsual} />
+      <Fact label={usualLabel} value={usual} />
+      {showComparison ? <Fact label="Vs usual" value={vsUsual} /> : null}
       <Fact label="Window" value="Last 90 days" />
     </div>
   )
@@ -133,7 +143,7 @@ export default function DealScorePanel({
           Deal Score
         </p>
         <p className="mt-0.5 text-sm font-medium leading-5 text-[color:var(--text-1)]">
-          Unavailable right now
+          Deal Score unavailable
         </p>
         <p className="mt-1 text-xs font-medium leading-5 text-[color:var(--text-2)]">
           {unavailableCopy}
@@ -144,7 +154,9 @@ export default function DealScorePanel({
 
   const isLowConfidence = score.confidence === 'low'
   const usualMoney = { priceCents: score.medianCents, currency: score.currency }
-  const usual = isValidMoney(usualMoney) ? formatMoney(usualMoney) : 'Usual unavailable'
+  const hasValidUsual = isValidMoney(usualMoney)
+  const usual = hasValidUsual ? formatMoney(usualMoney) : 'Unavailable'
+  const usualLabel = priceNoun === 'nightly rate' ? 'Usual nightly rate' : 'Usual fare'
   const percentile = isLowConfidence
     ? 'Not enough comparable prices for a confirmed rating'
     : `${formatOrdinal(score.percentile)} percentile`
@@ -167,13 +179,18 @@ export default function DealScorePanel({
       </div>
       <div className="min-w-0">
         <p className="mt-0.5 text-xs font-medium leading-5 text-[color:var(--text-2)]">
-          {scopeLabel(scope)}
+          {isLowConfidence ? 'Limited price history' : scopeLabel(scope)}
         </p>
         <p className="text-xs font-medium leading-5 text-[color:var(--text-2)]">
           {percentile}
         </p>
       </div>
-      <EvidenceGrid usual={usual} vsUsual={formatPctVsMedian(score.pctVsMedian)} />
+      <EvidenceGrid
+        usual={usual}
+        usualLabel={usualLabel}
+        vsUsual={formatPctVsMedian(score.pctVsMedian)}
+        showComparison={hasValidUsual && Number.isFinite(score.pctVsMedian)}
+      />
       {isLowConfidence ? (
         <p className="text-xs font-medium leading-5 text-[color:var(--warning)]">
           {LOW_CONFIDENCE_RULE}

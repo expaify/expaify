@@ -48,7 +48,7 @@ export function getHotelLocationDisplay(source: HotelLocationSource): HotelLocat
     return {
       label: 'Exact location',
       value: address || locationLabel || providerLocationName || area || 'Confirm with provider',
-      note: 'Provider-supplied address. Confirm final address before payment.',
+      note: 'Provider-supplied address. Confirm the final address before payment.',
       precision: 'exact',
       isWarning: false,
       distanceText,
@@ -59,7 +59,7 @@ export function getHotelLocationDisplay(source: HotelLocationSource): HotelLocat
     return {
       label: 'Map position',
       value: providerLocationName || locationLabel || area || 'Confirm with provider',
-      note: 'Provider-supplied map position. Confirm final address before payment.',
+      note: 'Provider-supplied map position. Confirm the final address before payment.',
       precision: 'coordinates',
       isWarning: false,
       distanceText,
@@ -81,7 +81,7 @@ export function getHotelLocationDisplay(source: HotelLocationSource): HotelLocat
     return {
       label: 'Search area',
       value: locationLabel || providerLocationName || 'Confirm with provider',
-      note: 'Only the searched destination is available. Confirm location with the provider.',
+      note: 'Only the searched destination is available. Confirm the property location with the provider.',
       precision: 'search_area',
       isWarning: true,
       distanceText,
@@ -89,9 +89,9 @@ export function getHotelLocationDisplay(source: HotelLocationSource): HotelLocat
   }
 
   return {
-    label: 'Location unavailable',
+    label: 'Location not provided',
     value: 'Confirm with provider',
-    note: 'No provider location details were returned.',
+    note: 'No property location details were returned.',
     precision: 'missing',
     isWarning: true,
   }

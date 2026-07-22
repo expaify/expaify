@@ -23,7 +23,7 @@ export function CompareRow({ links, size = "compact", hotelName }: CompareRowPro
   const primary = size === "primary";
 
   const base = primary
-    ? "flex min-h-[52px] items-center justify-center rounded-[var(--radius-input)] border-[1.5px] border-[color:var(--line-white)] bg-[color:var(--surface)] px-3 text-center text-[14px] font-semibold leading-none text-[color:var(--ink)] no-underline transition-colors duration-100"
+    ? "flex min-h-[52px] items-center justify-center rounded-[var(--radius-input)] border-[1.5px] border-[color:var(--line-white)] bg-[color:var(--surface)] px-3 text-center text-[14px] font-semibold leading-snug text-[color:var(--ink)] no-underline transition-colors duration-100"
     : "block rounded-[var(--radius-input)] border-[0.5px] border-[color:var(--line-white)] py-2 text-center text-[11px] font-medium leading-none text-[color:var(--ink)] no-underline transition-colors duration-100";
 
   return (
@@ -31,13 +31,12 @@ export function CompareRow({ links, size = "compact", hotelName }: CompareRowPro
       <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--ink-faint)]">
         {primary ? "Provider options" : "Compare on"}
       </p>
-      <div className={primary ? "grid grid-cols-2 gap-2 min-[480px]:grid-cols-4" : "grid grid-cols-2 gap-2 min-[420px]:grid-cols-4"}>
+      <div className={primary ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : "grid grid-cols-2 gap-2 min-[420px]:grid-cols-4"}>
         {PROVIDERS.map(({ key, label }) => {
           const href = links[key];
           if (href) {
-            return (
+            const link = (
               <a
-                key={key}
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
@@ -46,6 +45,17 @@ export function CompareRow({ links, size = "compact", hotelName }: CompareRowPro
               >
                 {primary ? `Check rooms at ${label}` : label}
               </a>
+            );
+
+            if (!primary) return <span key={key}>{link}</span>;
+
+            return (
+              <div key={key} className="min-w-0">
+                {link}
+                <p className="mt-1.5 text-center text-xs leading-5 text-[color:var(--text-3)]">
+                  Opens {label} in a new tab. Your expaify page stays open.
+                </p>
+              </div>
             );
           }
           return primary ? null : (
