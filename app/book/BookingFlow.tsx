@@ -6,6 +6,7 @@ import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
 import { track } from '@/lib/analytics'
 import { providerDisplayName } from '@/lib/providerFreshness'
+import SmokingPolicyPanel, { type HotelSmokingPolicyView } from '@/app/components/SmokingPolicyPanel'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -104,6 +105,8 @@ type BookingFlowProps = {
   fareContext: BookingFareContext | null
   hotelContext?: BookingHotelContext | null
   invalidHotelSelection?: boolean
+  /** Validated policy snapshot. DEV will wire this through BookingHotelContext serialization. */
+  hotelSmokingPolicy?: HotelSmokingPolicyView
 }
 
 function formatMoney(cents: number, currency: string) {
@@ -391,6 +394,7 @@ function ReviewShell({
   duffelSandbox,
   status,
   onBackClick,
+  hotelSupplement,
   children,
 }: {
   eyebrow?: string
@@ -401,6 +405,7 @@ function ReviewShell({
   duffelSandbox: boolean
   status?: ReactNode
   onBackClick?: MouseEventHandler<HTMLAnchorElement>
+  hotelSupplement?: ReactNode
   children: ReactNode
 }) {
   return (
@@ -422,6 +427,7 @@ function ReviewShell({
           {hotelContext && (
             <HotelSummary hotelContext={hotelContext} partner={getHotelPartnerIdentity(hotelContext.providerUrl)} />
           )}
+          {hotelContext ? hotelSupplement : null}
         </div>
         <div className="min-w-0 lg:sticky lg:top-6">
           {children}
@@ -566,7 +572,7 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
   )
 }
 
-function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: BookingHotelContext; duffelSandbox: boolean }) {
+function HotelHandoffReview({ hotelContext, hotelSmokingPolicy, duffelSandbox }: { hotelContext: BookingHotelContext; hotelSmokingPolicy?: HotelSmokingPolicyView; duffelSandbox: boolean }) {
   const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
   const location = getHotelLocationDisplay(hotelContext)
   const analyticsProps = useMemo(() => ({
@@ -703,7 +709,7 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
     ? `Opens ${partner.label} in a new tab. Your expaify search stays open here.`
     : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
   const accessiblePartner = partner.named ? partner.label : 'the booking partner’s site'
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ.`
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
 
   return (
     <ReviewShell
@@ -714,6 +720,9 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
       hotelContext={hotelContext}
       duffelSandbox={duffelSandbox}
       onBackClick={handleBack}
+      hotelSupplement={hotelSmokingPolicy ? (
+        <SmokingPolicyPanel offerId={hotelContext.offerId} policy={hotelSmokingPolicy} surface="review" />
+      ) : undefined}
     >
       <TrackOnMount event="hotel_handoff_viewed" props={analyticsProps} />
       <div className={`${panelCls} p-4 sm:p-6`}>
@@ -763,6 +772,9 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
             </ul>
           </details>
         </section>
+        <div className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-sm font-medium leading-6 text-[color:var(--text-2)]">
+          The booking partner confirms the room&apos;s smoking status and the property&apos;s current smoking rules. Compare both before you book.
+        </div>
         <div className="mt-5 flex flex-col gap-3">
           <a
             href={hotelContext.providerUrl}
@@ -787,7 +799,7 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
   )
 }
 
-export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext, hotelContext = null, invalidHotelSelection = false }: BookingFlowProps) {
+export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext, hotelContext = null, invalidHotelSelection = false, hotelSmokingPolicy }: BookingFlowProps) {
   const [state, setState] = useState<BookingState>('idle')
   const [bookingRef, setBookingRef] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
@@ -805,7 +817,7 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
   const maxDobStr = maxDob.toISOString().slice(0, 10)
 
   if (hotelContext) {
-    return <HotelHandoffReview hotelContext={hotelContext} duffelSandbox={duffelSandbox} />
+    return <HotelHandoffReview hotelContext={hotelContext} hotelSmokingPolicy={hotelSmokingPolicy} duffelSandbox={duffelSandbox} />
   }
 
   if (invalidHotelSelection) {

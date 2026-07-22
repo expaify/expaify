@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import type { HotelAmenityEvidence, HotelOffer } from '@/lib/types'
+import type { HotelSmokingPolicyView } from '../SmokingPolicyPanel'
 
 type TestElement = ReactElement<Record<string, unknown>>
 
@@ -36,6 +37,24 @@ function evidence(overrides: Partial<HotelAmenityEvidence> = {}): HotelAmenityEv
     certainty: 'guaranteed',
     ...overrides,
   }
+}
+
+const confirmedSmokingPolicy: HotelSmokingPolicyView = {
+  loadState: 'ready',
+  room: {
+    state: 'confirmed',
+    value: 'all_rooms_non_smoking',
+    scope: 'property_room_inventory',
+    statements: [{
+      id: 'room-policy',
+      value: 'all_rooms_non_smoking',
+      scope: 'property_room_inventory',
+      sourceLabel: 'Example Supplier',
+      sourceText: 'All guest rooms are non-smoking.',
+      fetchedAt: '2026-07-20T12:00:00.000Z',
+    }],
+  },
+  property: { state: 'not_provided', statements: [] },
 }
 
 function childrenOf(node: TestElement): unknown[] {
@@ -78,6 +97,36 @@ function accessSection(root: unknown): TestElement {
 describe('HotelCard access evidence', () => {
   beforeEach(() => {
     expanded = false
+  })
+
+  it('shows only current confirmed smoking evidence in the collapsed card', () => {
+    const card = HotelCard({ hotel, smokingPolicy: confirmedSmokingPolicy })
+    const summary = collectElements(card).find(node => node.props['aria-label'] ===
+      'Room policy. Confirmed supplier statement. All guest rooms at this property are non-smoking. Open Details for full supplier evidence.')
+
+    expect(collectText(summary)).toBe('All rooms non-smoking')
+    expect(String(summary?.props.className)).toContain('line-clamp-2')
+
+    const missingCard = HotelCard({
+      hotel,
+      smokingPolicy: {
+        loadState: 'ready',
+        room: { state: 'not_provided', statements: [] },
+        property: { state: 'not_provided', statements: [] },
+      },
+    })
+    expect(collectText(missingCard)).not.toContain('Smoking policy')
+  })
+
+  it('places smoking policy between Location and Access in expanded details', () => {
+    expanded = true
+    const card = HotelCard({ hotel, smokingPolicy: confirmedSmokingPolicy })
+    const text = collectText(card)
+
+    expect(text.indexOf('Location')).toBeLessThan(text.indexOf('Smoking policy'))
+    expect(text.indexOf('Smoking policy')).toBeLessThan(text.indexOf('Access & room requests'))
+    expect(text).toContain('Property & common areasNot providedSmoking policy not provided by this supplier.')
+    expect(text).toContain('Review hotel')
   })
 
   it('shows only the highest-priority guaranteed property chip when collapsed', () => {

@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import type { BookingFareContext, BookingHotelContext } from '@/lib/booking/config';
+import type { HotelSmokingPolicyView } from '@/app/components/SmokingPolicyPanel';
 
 type TestElement = ReactElement<Record<string, unknown>>;
 const trackMock = jest.fn();
@@ -94,6 +95,22 @@ const hotelContext: BookingHotelContext = {
   currency: 'USD',
   priceBasis: 'per_night_before_taxes_fees',
   providerUrl: 'https://tp.media/r?marker=hotel-marker',
+};
+
+const hotelSmokingPolicy: HotelSmokingPolicyView = {
+  loadState: 'ready',
+  room: {
+    state: 'ambiguous',
+    scope: 'unclear',
+    statements: [{
+      id: 'room-policy',
+      scope: 'unclear',
+      sourceLabel: 'Example Supplier',
+      sourceText: 'Non-smoking room may be requested.',
+      fetchedAt: '2026-07-20T12:00:00.000Z',
+    }],
+  },
+  property: { state: 'not_provided', statements: [] },
 };
 
 describe('BookingFlow fare context review', () => {
@@ -198,7 +215,29 @@ describe('BookingFlow fare context review', () => {
     const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
     expect(outbound.props.href).toBe(hotelContext.providerUrl);
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
-    expect(outbound.props['aria-label']).toBe('Continue to booking partner for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ.');
+    expect(outbound.props['aria-label']).toBe("Continue to booking partner for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ. Confirm the room's smoking status and the property's current smoking rules on the booking partner.");
+  });
+
+  it('reuses an explicitly validated smoking snapshot in review and places comparison guidance before the CTA', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext,
+      hotelSmokingPolicy,
+    });
+    const text = collectText(tree);
+    const policyIndex = text.indexOf('Smoking policy');
+    const instruction = "The booking partner confirms the room's smoking status and the property's current smoking rules. Compare both before you book.";
+    const instructionIndex = text.indexOf(instruction);
+    const ctaIndex = text.indexOf('Continue to booking partner');
+
+    expect(policyIndex).toBeGreaterThan(text.indexOf('Offer reference'));
+    expect(text).toContain('Policy wording provided; scope unclear.');
+    expect(text).toContain('Non-smoking room may be requested.');
+    expect(text).toContain('Property & common areasNot providedSmoking policy not provided by this supplier.');
+    expect(instructionIndex).toBeGreaterThanOrEqual(0);
+    expect(instructionIndex).toBeLessThan(ctaIndex);
   });
 
   it('names a resolved destination without changing its affiliate URL', () => {
