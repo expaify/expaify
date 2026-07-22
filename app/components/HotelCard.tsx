@@ -7,6 +7,7 @@ import { buildHotelBookingHref } from '@/lib/booking/config'
 import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import DealScorePanel from './DealScorePanel'
 import { getHotelLocationDisplay } from './hotelLocationContext'
+import { PropertyPhoto } from './ui/PropertyPhoto'
 
 type Props = {
   hotel: HotelOffer
@@ -399,6 +400,7 @@ function ScoreChip({ score, loading }: { score: DealScore | null; loading: boole
 
 export default function HotelCard({ hotel, score = null, loading = false }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [photoFailed, setPhotoFailed] = useState(false)
   const location = getHotelLocationDisplay(hotel)
   const hasBookingUrl = isValidBookingUrl(hotel.deeplink)
   const hasValidPrice = isValidMoney(hotel.pricePerNight)
@@ -425,22 +427,12 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
   return (
     <article className="card overflow-hidden rounded-[var(--radius-card)]">
       <div className="p-3 sm:p-5">
-        <div className="grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(6.75rem,auto)] gap-3">
-          {hotel.photoUrl ? (
-            <div className="relative h-16 w-16 overflow-hidden rounded-[var(--radius-control)] bg-[color:var(--bg-muted)]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={hotel.photoUrl}
-                alt={hotel.name}
-                loading="lazy"
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-            </div>
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-2 text-center">
-              <p className="text-[10px] font-medium leading-3 text-[color:var(--text-3)]">Photo unavailable</p>
-            </div>
-          )}
+        <div className="grid grid-cols-[5rem_minmax(0,1fr)_minmax(6.75rem,auto)] gap-2 sm:gap-3">
+          <PropertyPhoto
+            src={photoFailed ? undefined : hotel.photoUrl}
+            size="thumbnail"
+            onFailure={() => setPhotoFailed(true)}
+          />
 
           <div className="min-w-0">
             <h3 className="line-clamp-2 text-sm font-bold leading-5 text-[color:var(--text-1)] sm:text-base">
@@ -523,18 +515,6 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
       {isExpanded && (
         <div id={detailsId} className="border-t border-[color:var(--border)] px-3 pb-3 pt-3 sm:px-5 sm:pb-5">
           <div className="space-y-3">
-            {hotel.photoUrl ? (
-              <div className="relative h-40 w-full overflow-hidden rounded-[var(--radius-card)] bg-[color:var(--bg-muted)]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={hotel.photoUrl}
-                  alt={hotel.name}
-                  loading="lazy"
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              </div>
-            ) : null}
-
             <DealScorePanel
               score={score}
               loading={loading}
@@ -577,6 +557,10 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
               <p>{canBook ? reviewDisclosure : unavailableReason}</p>
               {!hasValidPrice || !hasBookingUrl ? <p className="mt-2">{unavailableReason}</p> : null}
             </div>
+
+            {hotel.photoUrl && !photoFailed ? (
+              <PropertyPhoto src={hotel.photoUrl} size="expanded" onFailure={() => setPhotoFailed(true)} />
+            ) : null}
           </div>
         </div>
       )}

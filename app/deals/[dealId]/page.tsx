@@ -13,6 +13,7 @@ import { StarRow } from '@/app/components/ui/StarRow'
 import { ShareButton } from '@/app/components/ui/ShareButton'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
 import DealScorePanel from '@/app/components/DealScorePanel'
+import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
 import { scoreDeal } from '@/lib/scoring/scoreDeal'
 import type { DealScore } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
@@ -261,37 +262,8 @@ export default async function DealDetailPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* Hero photo */}
-        <div className="relative h-[220px] overflow-hidden rounded-[var(--radius-card)] min-[680px]:h-[320px]">
-          {deal.photo_url ? (
-            <>
-              <img src={deal.photo_url} alt="" className="h-full w-full object-cover" decoding="async" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--primary)_40%,transparent)] to-transparent" aria-hidden />
-            </>
-          ) : (
-            <div
-              className="flex h-full w-full items-center justify-center"
-              style={{ background: 'linear-gradient(150deg,var(--primary) 0%,var(--primary-deep) 100%)' }}
-              aria-hidden
-            >
-              <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--primary-soft)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M9 22V12h6v10M3 9h18M9 3v6M15 3v6" />
-              </svg>
-            </div>
-          )}
-          <div className="absolute left-4 top-4">
-            <DealChip discountPct={deal.discount_pct} />
-          </div>
-          {foundAgo ? (
-            <span className="absolute right-4 top-4 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--bg)]">
-              found {foundAgo}
-            </span>
-          ) : null}
-        </div>
-
         {/* Title block */}
-        <div className="mt-6 flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-h2 text-[color:var(--ink)]">{deal.hotel_name}</h2>
             <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption font-medium text-[color:var(--ink-soft)]">
@@ -300,6 +272,12 @@ export default async function DealDetailPage({ params }: PageProps) {
               <span>{deal.city}</span>
               <span aria-hidden>·</span>
               <span>{deal.check_in_window}</span>
+              {foundAgo ? (
+                <>
+                  <span aria-hidden>·</span>
+                  <span>Deal found {foundAgo}</span>
+                </>
+              ) : null}
               {isExpired && deal.expires_at && (
                 <>
                   <span aria-hidden>·</span>
@@ -318,6 +296,9 @@ export default async function DealDetailPage({ params }: PageProps) {
             dealPrice={{ priceCents: deal.deal_price_cents, currency: 'USD' }}
             medianPrice={{ priceCents: deal.median_price_cents, currency: 'USD' }}
           />
+          <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2">
+            <DealChip discountPct={deal.discount_pct} />
+          </div>
           {showSavings && (
             <p className="mt-2 text-[13px] font-medium text-[color:var(--primary)]">
               Save {formatMoney({ priceCents: savings, currency: 'USD' })}/night vs the usual price
@@ -332,6 +313,15 @@ export default async function DealDetailPage({ params }: PageProps) {
             Nightly rate before taxes and fees. Taxes, fees, cancellation policy, and final total are confirmed by the provider.
           </p>
         </section>
+
+        {/* Deal score — computed from price history */}
+        <Suspense fallback={null}>
+          <DealScoreSection deal={deal} />
+        </Suspense>
+
+        <div className="mt-8">
+          <PropertyPhoto src={deal.photo_url} size="detail" loading="eager" />
+        </div>
 
         {/* Primary action zone */}
         {isExpired ? (
@@ -363,11 +353,6 @@ export default async function DealDetailPage({ params }: PageProps) {
         {/* Price history — streams in after the content above renders */}
         <Suspense fallback={<PriceHistorySkeleton />}>
           <PriceHistorySection deal={deal} />
-        </Suspense>
-
-        {/* Deal score — computed from price history */}
-        <Suspense fallback={null}>
-          <DealScoreSection deal={deal} />
         </Suspense>
 
         {/* Why this is a deal */}
