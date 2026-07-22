@@ -91,6 +91,10 @@ function normalizeAmount(value: unknown): HotelFundsAmount | undefined {
 
 type NormalizedRecord = { record: HotelFundsEvidenceRecord; missing: Set<HotelFundsMissingField>; usable: boolean };
 
+function recordSignature(record: HotelFundsEvidenceRecord): string {
+  return JSON.stringify(record);
+}
+
 function normalizeRecord(value: unknown, fallbackSource: string): NormalizedRecord | null {
   if (!isRecord(value)) return null;
   const missing = new Set<HotelFundsMissingField>();
@@ -182,14 +186,17 @@ export function normalizeHotelFundsPolicyEvidence(
   const conflictRecords = Array.isArray(input.conflictingRecords)
     ? input.conflictingRecords.slice(0, MAX_RECORDS).map(value => normalizeRecord(value, sourceLabel)).filter((value): value is NormalizedRecord => value !== null && value.usable)
     : [];
-  if (state === 'conflicting' && conflictRecords.length >= 2) {
+  const distinctConflictRecords = conflictRecords.filter((candidate, index, records) => (
+    records.findIndex(record => recordSignature(record.record) === recordSignature(candidate.record)) === index
+  ));
+  if (state === 'conflicting' && distinctConflictRecords.length >= 2) {
     return {
       state,
       obligations: usableRecords.map(value => value.record),
       sourceLabel,
       scope,
       ...(fetchedAt ? { fetchedAt } : {}),
-      conflictingRecords: conflictRecords.map(value => value.record),
+      conflictingRecords: distinctConflictRecords.map(value => value.record),
     };
   }
 
@@ -232,7 +239,10 @@ export function getHotelFundsAnalyticsDimensions(input: {
     return { policyState: 'error', obligationTypes: 'unknown', scope: 'not_returned', provider, surface: input.surface };
   }
   const evidence = normalizeHotelFundsPolicyEvidence(input.evidence, provider);
-  const types = [...new Set(evidence.obligations.map(record => record.type).filter((type): type is HotelFundsObligationType => Boolean(type)))].sort();
+  const analyticsRecords = evidence.state === 'conflicting'
+    ? evidence.conflictingRecords ?? []
+    : evidence.obligations;
+  const types = [...new Set(analyticsRecords.map(record => record.type).filter((type): type is HotelFundsObligationType => Boolean(type)))].sort();
   return {
     policyState: evidence.state,
     obligationTypes: evidence.state === 'explicit_none' ? 'none' : types.join(',') || 'unknown',

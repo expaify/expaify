@@ -76,4 +76,41 @@ describe('hotel funds policy normalization', () => {
       surface: 'book_handoff',
     });
   });
+
+  it('derives bounded obligation types from conflicting records', () => {
+    expect(getHotelFundsAnalyticsDimensions({
+      evidence: {
+        state: 'conflicting',
+        obligations: [],
+        sourceLabel: 'Provider policy',
+        scope: 'property',
+        conflictingRecords: [
+          completeHold.obligations[0],
+          {
+            ...completeHold.obligations[0],
+            type: 'refundable_deposit',
+            returnOrRelease: { action: 'refund', providerWording: 'after inspection' },
+          },
+        ],
+      },
+      provider: 'provider',
+      surface: 'hotel_card',
+    })).toMatchObject({
+      policyState: 'conflicting',
+      obligationTypes: 'authorization_hold,refundable_deposit',
+    });
+  });
+
+  it('does not accept duplicate records as conflicting evidence', () => {
+    const normalized = normalizeHotelFundsPolicyEvidence({
+      state: 'conflicting',
+      obligations: [],
+      sourceLabel: 'Provider policy',
+      scope: 'selected_stay',
+      conflictingRecords: [completeHold.obligations[0], completeHold.obligations[0]],
+    }, 'Fallback');
+
+    expect(normalized.state).not.toBe('conflicting');
+    expect(normalized.conflictingRecords).toBeUndefined();
+  });
 });

@@ -67,4 +67,25 @@ describe('hotel funds policy analytics', () => {
       provider: 'hotellook', surface: 'book_handoff', partnerNamed: true,
     });
   });
+
+  it('bounds the detail-open dedupe cache while keeping analytics payloads free of offer ids', () => {
+    for (let index = 0; index <= 1_000; index += 1) {
+      analytics.trackHotelFundsPolicyDetailsOpened({
+        evidence: undefined,
+        loadState: 'ready',
+        offerId: `offer-${index}-${'x'.repeat(3_000)}`,
+        provider: 'hotellook',
+      });
+    }
+
+    analytics.trackHotelFundsPolicyDetailsOpened({
+      evidence: undefined,
+      loadState: 'ready',
+      offerId: `offer-0-${'x'.repeat(3_000)}`,
+      provider: 'hotellook',
+    });
+
+    expect(trackMock).toHaveBeenCalledTimes(1_002);
+    expect(trackMock.mock.calls.every(([, props]) => !Object.prototype.hasOwnProperty.call(props, 'offerId'))).toBe(true);
+  });
 });
