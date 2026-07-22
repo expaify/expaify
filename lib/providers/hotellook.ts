@@ -1,7 +1,8 @@
-import { HotelProvider, HotelLocation, HotelOffer, HotelRatingEvidence, Result } from '../types';
+import { HotelProvider, HotelLocation, HotelOffer, HotelRatingEvidence, HotelSearchContext, Result } from '../types';
 import { cache } from '../cache/redis';
 import { fetchWithProviderTimeout } from './timeout';
 import { normalizeHotelAmenityEvidence } from './hotelAmenityEvidence';
+import { withCalculatedAnchorDistance } from '../hotels/locationEvidence';
 
 const ENGINE_BASE = 'https://engine.hotellook.com/api/v2/cache.json';
 const CACHE_TTL = 21600; // 6 hours
@@ -84,41 +85,27 @@ function parseLongitude(value: unknown): number | undefined {
   return coordinate !== undefined && coordinate >= -180 && coordinate <= 180 ? coordinate : undefined;
 }
 
-function parseProviderDistance(value: unknown): HotelLocation['distance'] | undefined {
-  if (value === undefined || value === null || value === '') return undefined;
-
-  const distance = Number(value);
-  if (!Number.isFinite(distance) || distance < 0) return undefined;
-
-  return {
-    value: Math.round(distance * 10) / 10,
-    unit: 'km',
-    referencePoint: 'city center',
-  };
-}
-
 function normalizeHotelLocation(input: {
   area: string;
   address?: unknown;
-  distance?: unknown;
   location?: HotelLookCacheEntry['location'];
-}): HotelLocation | undefined {
+}): HotelLocation {
   const providerLocationName = cleanString(input.location?.name);
   const address = cleanLocalizedString(input.address);
   const lat = parseLatitude(input.location?.geo?.lat ?? input.location?.lat);
   const lng = parseLongitude(input.location?.geo?.lon ?? input.location?.lon);
-  const distance = parseProviderDistance(input.distance);
   const label = address ?? providerLocationName ?? input.area;
+  const coordinates = lat !== undefined && lng !== undefined ? { lat, lng } : {};
 
   if (address) {
     return {
       label,
       precision: 'exact',
       address,
-      ...(lat !== undefined ? { lat } : {}),
-      ...(lng !== undefined ? { lng } : {}),
-      ...(distance ? { distance } : {}),
+      ...coordinates,
       ...(providerLocationName ? { providerLocationName } : {}),
+      ...(providerLocationName ? { area: providerLocationName } : {}),
+      source: 'provider',
     };
   }
 
@@ -128,8 +115,9 @@ function normalizeHotelLocation(input: {
       precision: 'coordinates',
       lat,
       lng,
-      ...(distance ? { distance } : {}),
       ...(providerLocationName ? { providerLocationName } : {}),
+      ...(providerLocationName ? { area: providerLocationName } : {}),
+      source: 'provider',
     };
   }
 
@@ -137,22 +125,39 @@ function normalizeHotelLocation(input: {
     return {
       label: providerLocationName,
       precision: 'area',
-      ...(distance ? { distance } : {}),
       providerLocationName,
+      area: providerLocationName,
+      source: 'provider',
     };
   }
 
-  return undefined;
+  return {
+    label: input.area,
+    precision: 'search_area',
+    area: input.area,
+    source: 'search_fallback',
+  };
 }
 
 function normalizeCachedHotelLocation(value: unknown, area: string): HotelLocation | undefined {
-  if (!isRecord(value)) return undefined;
+  if (!isRecord(value)) {
+    return {
+      label: area,
+      precision: 'search_area',
+      area,
+      source: 'search_fallback',
+    };
+  }
 
   const precision = value.precision;
-  const distance = value.distance;
   const lat = parseLatitude(value.lat);
   const lng = parseLongitude(value.lng);
-  const normalized: HotelLocation = {};
+  const source = value.source === 'provider' || value.source === 'search_fallback' || value.source === 'unavailable'
+    ? value.source
+    : undefined;
+  const normalized: HotelLocation = {
+    source: source ?? (value.precision === 'search_area' ? 'search_fallback' : 'provider'),
+  };
 
   if (
     precision === 'exact' ||
@@ -167,27 +172,15 @@ function normalizeCachedHotelLocation(value: unknown, area: string): HotelLocati
   const label = cleanString(value.label);
   const address = cleanString(value.address);
   const providerLocationName = cleanString(value.providerLocationName);
+  const providerArea = cleanString(value.area);
   if (label) normalized.label = label;
   if (address) normalized.address = address;
   if (providerLocationName) normalized.providerLocationName = providerLocationName;
+  if (providerArea) normalized.area = providerArea;
+  else if (providerLocationName) normalized.area = providerLocationName;
   if (lat !== undefined && lng !== undefined) {
     normalized.lat = lat;
     normalized.lng = lng;
-  }
-  if (
-    isRecord(distance) &&
-    typeof distance.value === 'number' &&
-    Number.isFinite(distance.value) &&
-    distance.value >= 0 &&
-    (distance.unit === 'mi' || distance.unit === 'km') &&
-    typeof distance.referencePoint === 'string' &&
-    distance.referencePoint.trim() !== ''
-  ) {
-    normalized.distance = {
-      value: distance.value,
-      unit: distance.unit,
-      referencePoint: distance.referencePoint.trim(),
-    };
   }
 
   if (
@@ -196,10 +189,15 @@ function normalizeCachedHotelLocation(value: unknown, area: string): HotelLocati
     normalized.address === undefined &&
     normalized.lat === undefined &&
     normalized.lng === undefined &&
-    normalized.distance === undefined &&
-    normalized.providerLocationName === undefined
+    normalized.providerLocationName === undefined &&
+    normalized.area === undefined
   ) {
-    return undefined;
+    return {
+      label: area,
+      precision: 'search_area',
+      area,
+      source: 'search_fallback',
+    };
   }
 
   if (!normalized.precision) {
@@ -212,6 +210,14 @@ function normalizeCachedHotelLocation(value: unknown, area: string): HotelLocati
   if (!normalized.label) normalized.label = normalized.address ?? normalized.providerLocationName ?? area;
 
   return normalized;
+}
+
+function applySearchContext(hotel: HotelOffer, context?: HotelSearchContext): HotelOffer {
+  if (!hotel.location) return hotel;
+  return {
+    ...hotel,
+    location: withCalculatedAnchorDistance(hotel.location, context?.anchor),
+  };
 }
 
 function isHotelQualityKind(value: unknown): value is HotelRatingEvidence['kind'] {
@@ -414,7 +420,8 @@ export class HotellookProvider implements HotelProvider {
 
   async searchHotels(
     area: string,
-    range: { checkin: string; checkout: string }
+    range: { checkin: string; checkout: string },
+    context?: HotelSearchContext
   ): Promise<Result<HotelOffer[]>> {
     const token = this.token;
     if (!token) return { ok: false, reason: 'TP_TOKEN not configured' };
@@ -428,7 +435,7 @@ export class HotellookProvider implements HotelProvider {
       if (Array.isArray(cached)) {
         const hotels = cached.map(normalizeCachedHotelOffer);
         if (hotels.every((hotel): hotel is HotelOffer => hotel !== null)) {
-          return { ok: true, data: hotels };
+          return { ok: true, data: hotels.map(hotel => applySearchContext(hotel, context)) };
         }
       }
 
@@ -469,7 +476,6 @@ export class HotellookProvider implements HotelProvider {
           location: normalizeHotelLocation({
             area: entry.location?.name ?? location,
             address: entry.address,
-            distance: entry.distance,
             location: entry.location,
           }),
           stars: Number.isFinite(stars) ? stars : 0,
@@ -496,7 +502,7 @@ export class HotellookProvider implements HotelProvider {
       });
 
       await cache.set(cacheKey, hotels, CACHE_TTL);
-      return { ok: true, data: hotels };
+      return { ok: true, data: hotels.map(hotel => applySearchContext(hotel, context)) };
     } catch (err) {
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     }

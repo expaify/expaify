@@ -150,10 +150,24 @@ export type HotelAccessEvidenceState = 'loading' | 'ready' | 'error';
 
 export type HotelLocationPrecision = 'exact' | 'coordinates' | 'area' | 'search_area' | 'missing';
 
+export type HotelLocationEvidenceSource = 'provider' | 'search_fallback' | 'unavailable';
+export type HotelLocationAnchorKind = 'airport' | 'venue' | 'landmark' | 'city_center';
+export type HotelLocationAnchorSource = 'user_selected' | 'search_linked' | 'provider_declared';
+
+export interface HotelLocationAnchor {
+  kind: HotelLocationAnchorKind;
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  source: HotelLocationAnchorSource;
+}
+
 export interface HotelLocationDistance {
   value: number;
   unit: 'mi' | 'km';
-  referencePoint: string;
+  method: 'straight_line';
+  source: 'expaify_calculated' | 'provider_documented';
 }
 
 export interface HotelLocation {
@@ -164,6 +178,13 @@ export interface HotelLocation {
   lng?: number;
   distance?: HotelLocationDistance;
   providerLocationName?: string;
+  area?: string;
+  source: HotelLocationEvidenceSource;
+  anchor?: HotelLocationAnchor;
+}
+
+export interface HotelSearchContext {
+  anchor?: HotelLocationAnchor;
 }
 
 export interface HotelOffer {
@@ -213,7 +234,8 @@ export interface FlightProvider {
 export interface HotelProvider {
   searchHotels(
     area: string,
-    range: { checkin: string; checkout: string }
+    range: { checkin: string; checkout: string },
+    context?: HotelSearchContext
   ): Promise<Result<HotelOffer[]>>;
 }
 

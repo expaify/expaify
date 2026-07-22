@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { type NextRequest } from 'next/server';
-import { resolveToIATA } from '../../../lib/airports/resolve';
+import { getSearchLinkedAirportAnchor, resolveToIATA } from '../../../lib/airports/resolve';
 import { getNearby } from '../../../lib/airports/nearby';
 import { travelpayouts } from '../../../lib/providers/travelpayouts';
 import { duffel } from '../../../lib/providers/duffel';
@@ -171,10 +171,11 @@ function isTimeoutReason(reason: string): boolean {
 
 async function searchHotelAvailability(
   area: string,
-  range: { checkin: string; checkout: string }
+  range: { checkin: string; checkout: string },
+  anchor: ReturnType<typeof getSearchLinkedAirportAnchor>
 ): Promise<Result<HotelOffer[]>> {
   try {
-    return await hotellook.searchHotels(area, range);
+    return await hotellook.searchHotels(area, range, anchor ? { anchor } : undefined);
   } catch (error) {
     return { ok: false, reason: providerExceptionReason('HotelLook', error) };
   }
@@ -395,7 +396,11 @@ export async function GET(request: NextRequest) {
       // Hotels after all flight providers resolve
       if (destIATA && depart && ret) {
         send({ type: 'hotel-access-status', status: 'loading' });
-        const hotelsResult = await searchHotelAvailability(destIATA, { checkin: depart, checkout: ret });
+        const hotelsResult = await searchHotelAvailability(
+          destIATA,
+          { checkin: depart, checkout: ret },
+          getSearchLinkedAirportAnchor(destIATA)
+        );
         if (hotelsResult.ok && hotelsResult.data.length > 0) {
           send({ type: 'hotel-status', status: 'available' });
           send({ type: 'hotels', source: 'hotellook', data: hotelsResult.data });

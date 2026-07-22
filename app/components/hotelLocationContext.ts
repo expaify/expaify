@@ -1,4 +1,5 @@
 import type { HotelLocation, HotelLocationPrecision } from '@/lib/types'
+import { hasVerifiedHotelLocationComparison } from '@/lib/hotels/locationEvidence'
 
 export type { HotelLocation, HotelLocationPrecision } from '@/lib/types'
 
@@ -21,19 +22,16 @@ function clean(value: unknown): string {
 }
 
 function completeDistance(location: HotelLocation | undefined): string | undefined {
-  const distance = location?.distance
-  if (
-    !distance ||
-    typeof distance.value !== 'number' ||
-    !Number.isFinite(distance.value) ||
-    distance.value < 0 ||
-    (distance.unit !== 'mi' && distance.unit !== 'km') ||
-    !clean(distance.referencePoint)
-  ) {
-    return undefined
-  }
+  if (!hasVerifiedHotelLocationComparison(location)) return undefined
 
-  return `${distance.value} ${distance.unit} from ${clean(distance.referencePoint)}`
+  const miles = location.distance.unit === 'mi'
+    ? location.distance.value
+    : location.distance.value * 0.621371192237334
+  const formatted = miles < 0.1
+    ? '<0.1'
+    : String(miles < 10 ? Math.round(miles * 10) / 10 : Math.round(miles))
+
+  return `${formatted} mi from ${location.anchor.name}`
 }
 
 export function getHotelLocationDisplay(source: HotelLocationSource): HotelLocationDisplay {

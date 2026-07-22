@@ -7,6 +7,7 @@ import {
   validateBookingHotelContext,
 } from '../config';
 import type { HotelOffer, NormalizedFare } from '@/lib/types';
+import { calculateStraightLineDistanceKm } from '@/lib/hotels/locationEvidence';
 
 const fare: NormalizedFare = {
   id: 'off_123',
@@ -26,6 +27,19 @@ const fare: NormalizedFare = {
   fetchedAt: '2026-06-30T00:00:00.000Z',
 };
 
+const hotelAnchor = {
+  kind: 'airport' as const,
+  id: 'JFK',
+  name: 'John F. Kennedy International (JFK)',
+  lat: 40.6413,
+  lng: -73.7781,
+  source: 'search_linked' as const,
+};
+const hotelDistanceKm = calculateStraightLineDistanceKm(
+  { lat: 40.7484, lng: -73.9857 },
+  hotelAnchor
+)!;
+
 const hotel: HotelOffer = {
   id: 'hotel_123',
   name: 'The Example Hotel',
@@ -36,10 +50,14 @@ const hotel: HotelOffer = {
     address: '350 5th Ave, New York, NY',
     lat: 40.7484,
     lng: -73.9857,
+    area: 'Midtown',
+    source: 'provider',
+    anchor: hotelAnchor,
     distance: {
-      value: 0.3,
-      unit: 'mi',
-      referencePoint: 'Times Square',
+      value: hotelDistanceKm,
+      unit: 'km',
+      method: 'straight_line',
+      source: 'expaify_calculated',
     },
     providerLocationName: 'Midtown',
   },
@@ -164,9 +182,19 @@ describe('booking hotel context continuity', () => {
     expect(url.searchParams.get('locationAddress')).toBe('350 5th Ave, New York, NY');
     expect(url.searchParams.get('locationLat')).toBe('40.7484');
     expect(url.searchParams.get('locationLng')).toBe('-73.9857');
-    expect(url.searchParams.get('locationDistanceValue')).toBe('0.3');
-    expect(url.searchParams.get('locationDistanceUnit')).toBe('mi');
-    expect(url.searchParams.get('locationDistanceReferencePoint')).toBe('Times Square');
+    expect(url.searchParams.get('locationArea')).toBe('Midtown');
+    expect(url.searchParams.get('locationSource')).toBe('provider');
+    expect(url.searchParams.get('locationAnchorKind')).toBe('airport');
+    expect(url.searchParams.get('locationAnchorId')).toBe('JFK');
+    expect(url.searchParams.get('locationAnchorName')).toBe('John F. Kennedy International (JFK)');
+    expect(url.searchParams.get('locationAnchorLat')).toBe('40.6413');
+    expect(url.searchParams.get('locationAnchorLng')).toBe('-73.7781');
+    expect(url.searchParams.get('locationAnchorSource')).toBe('search_linked');
+    expect(url.searchParams.get('locationDistanceValue')).toBe(String(hotelDistanceKm));
+    expect(url.searchParams.get('locationDistanceUnit')).toBe('km');
+    expect(url.searchParams.get('locationDistanceMethod')).toBe('straight_line');
+    expect(url.searchParams.get('locationDistanceSource')).toBe('expaify_calculated');
+    expect(url.searchParams.get('locationDistanceReferencePoint')).toBeNull();
     expect(url.searchParams.get('locationProviderName')).toBe('Midtown');
     expect(url.searchParams.get('priceCents')).toBe(String(hotel.pricePerNight.priceCents));
     expect(url.searchParams.get('currency')).toBe(hotel.pricePerNight.currency);
@@ -186,9 +214,18 @@ describe('booking hotel context continuity', () => {
       locationAddress: '350 5th Ave, New York, NY',
       locationLat: '40.7484',
       locationLng: '-73.9857',
-      locationDistanceValue: '0.3',
-      locationDistanceUnit: 'mi',
-      locationDistanceReferencePoint: 'Times Square',
+      locationArea: 'Midtown',
+      locationSource: 'provider',
+      locationAnchorKind: 'airport',
+      locationAnchorId: 'JFK',
+      locationAnchorName: 'John F. Kennedy International (JFK)',
+      locationAnchorLat: '40.6413',
+      locationAnchorLng: '-73.7781',
+      locationAnchorSource: 'search_linked',
+      locationDistanceValue: String(hotelDistanceKm),
+      locationDistanceUnit: 'km',
+      locationDistanceMethod: 'straight_line',
+      locationDistanceSource: 'expaify_calculated',
       locationProviderName: 'Midtown',
       priceCents: '18900',
       currency: 'USD',
@@ -208,10 +245,14 @@ describe('booking hotel context continuity', () => {
         address: '350 5th Ave, New York, NY',
         lat: 40.7484,
         lng: -73.9857,
+        area: 'Midtown',
+        source: 'provider',
+        anchor: hotelAnchor,
         distance: {
-          value: 0.3,
-          unit: 'mi',
-          referencePoint: 'Times Square',
+          value: hotelDistanceKm,
+          unit: 'km',
+          method: 'straight_line',
+          source: 'expaify_calculated',
         },
         providerLocationName: 'Midtown',
       },
@@ -241,7 +282,23 @@ describe('booking hotel context continuity', () => {
     expect(validateBookingHotelContext({ ...baseContext, locationLat: '91', locationLng: '-73' })).toBeNull();
     expect(validateBookingHotelContext({ ...baseContext, locationLat: 'north', locationLng: '-73' })).toBeNull();
     expect(validateBookingHotelContext({ ...baseContext, locationLat: '40', locationLng: 'west' })).toBeNull();
-    expect(validateBookingHotelContext({ ...baseContext, locationDistanceValue: '1', locationDistanceUnit: 'meters', locationDistanceReferencePoint: 'center' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, locationDistanceValue: '1', locationDistanceUnit: 'meters', locationDistanceMethod: 'straight_line', locationDistanceSource: 'expaify_calculated' })).toBeNull();
     expect(validateBookingHotelContext({ ...baseContext, locationDistanceValue: 'near' })).toBeNull();
+  });
+
+  it('does not serialize an unverified legacy-style distance', () => {
+    const unverifiedHotel = {
+      ...hotel,
+      location: {
+        ...hotel.location!,
+        anchor: undefined,
+        distance: undefined,
+      },
+    };
+    const url = new URL(buildHotelBookingHref(unverifiedHotel), 'https://expaify.test');
+
+    expect(url.searchParams.get('locationDistanceValue')).toBeNull();
+    expect(url.searchParams.get('locationAnchorId')).toBeNull();
+    expect(url.searchParams.get('locationDistanceReferencePoint')).toBeNull();
   });
 });

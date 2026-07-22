@@ -140,12 +140,9 @@ describe('HotellookProvider.searchHotels', () => {
           address: '123 Example Street, New York',
           lat: 40.7128,
           lng: -74.006,
-          distance: {
-            value: 1.2,
-            unit: 'km',
-            referencePoint: 'city center',
-          },
           providerLocationName: 'New York',
+          area: 'New York',
+          source: 'provider',
         },
         stars: 4,
         pricePerNight: { priceCents: 12999, currency: 'USD' },
@@ -204,8 +201,53 @@ describe('HotellookProvider.searchHotels', () => {
         lat: 42.3601,
         lng: -71.0589,
         providerLocationName: 'Boston',
+        area: 'Boston',
+        source: 'provider',
       },
     });
+  });
+
+  it('calculates straight-line distance only for a complete search-linked anchor', async () => {
+    const provider = new HotellookProvider();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue([
+        {
+          hotelId: 54321,
+          hotelName: 'Coordinate Hotel',
+          location: { name: 'Boston', geo: { lat: '42.3601', lon: '-71.0589' } },
+          distance: 0.1,
+          priceFrom: 150,
+        },
+      ]),
+    });
+
+    const anchor = {
+      kind: 'airport' as const,
+      id: 'BOS',
+      name: 'Logan International (BOS)',
+      lat: 42.3656,
+      lng: -71.0096,
+      source: 'search_linked' as const,
+    };
+    const result = await provider.searchHotels(
+      'bos',
+      { checkin: '2026-09-22', checkout: '2026-09-29' },
+      { anchor }
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.data[0].location).toMatchObject({
+      anchor,
+      distance: {
+        unit: 'km',
+        method: 'straight_line',
+        source: 'expaify_calculated',
+      },
+    });
+    expect(result.data[0].location?.distance?.value).toBeCloseTo(4.1, 1);
+    expect(JSON.stringify(result.data[0])).not.toContain('city center');
   });
 
   it('excludes zero, missing, non-finite, and invalid HotelLook prices', async () => {
@@ -325,6 +367,11 @@ describe('HotellookProvider.searchHotels', () => {
           label: 'Chicago Loop',
           precision: 'area',
           providerLocationName: 'Chicago Loop',
+          distance: {
+            value: 1.2,
+            unit: 'km',
+            referencePoint: 'city center',
+          },
         },
         pricePerNight: { priceCents: 9999, currency: 'USD' },
         deeplink: 'https://example.com/cached',
@@ -353,6 +400,8 @@ describe('HotellookProvider.searchHotels', () => {
             label: 'Chicago Loop',
             precision: 'area',
             providerLocationName: 'Chicago Loop',
+            area: 'Chicago Loop',
+            source: 'provider',
           },
           pricePerNight: { priceCents: 9999, currency: 'USD' },
           deeplink: 'https://example.com/cached',
@@ -430,9 +479,17 @@ describe('HotellookProvider.searchHotels', () => {
       checkout: '2026-09-29',
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true,
-      data: cached,
+      data: [{
+        ...cached[0],
+        location: {
+          label: 'Paris',
+          precision: 'search_area',
+          area: 'Paris',
+          source: 'search_fallback',
+        },
+      }],
     });
     expect(global.fetch).not.toHaveBeenCalled();
   });
