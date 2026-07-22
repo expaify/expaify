@@ -295,7 +295,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           <section data-hotel-decision-section="hotel_fit" data-hotel-decision-position="3" aria-labelledby="hotel-fit-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="hotel-fit-title" className="text-xl font-bold text-[color:var(--text-1)]">Hotel fit</h2>
             <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Hotel class</dt><dd className="mt-2 text-sm text-[color:var(--text-2)]">{deal.stars && deal.stars > 0 ? `${deal.stars}-star hotel class from saved provider snapshot` : 'Hotel class not provided'}</dd></div>
+              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Hotel class</dt><dd className="mt-2 text-sm text-[color:var(--text-2)]">Hotel class not provided</dd></div>
               <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Guest rating</dt><dd className="mt-2 text-sm text-[color:var(--text-2)]">Guest rating not provided<span className="mt-1 block text-xs text-[color:var(--text-3)]">This provider did not return guest-rating evidence.</span></dd></div>
             </dl>
           </section>

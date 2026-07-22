@@ -504,6 +504,8 @@ describe('Deal score presentation', () => {
 
     expect(source).toContain('<img src={deal.photo_url}')
     expect(source).not.toContain('bg-gradient-to-t')
+    expect(source).not.toContain('deal.stars && deal.stars > 0')
+    expect(source).toContain('Hotel class not provided')
     expect(propertyIndex).toBeLessThan(priceIndex)
     expect(priceIndex).toBeLessThan(fitIndex)
     expect(fitIndex).toBeLessThan(actionIndex)

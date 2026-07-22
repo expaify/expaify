@@ -42,6 +42,7 @@ export function priceFreshnessState(checkedAt?: string | null, expired = false, 
 
 export function HotelDecisionAnalytics({ children, ...context }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
+  const viewedRef = useRef(false)
   const reachedRef = useRef(new Set<string>())
   const timersRef = useRef(new Map<Element, ReturnType<typeof setTimeout>>())
 
@@ -56,7 +57,10 @@ export function HotelDecisionAnalytics({ children, ...context }: Props) {
   })
 
   useEffect(() => {
-    emit('hotel_detail_viewed', baseProps())
+    if (!viewedRef.current) {
+      viewedRef.current = true
+      emit('hotel_detail_viewed', baseProps())
+    }
     const root = rootRef.current
     if (!root || typeof root.querySelectorAll !== 'function' || typeof IntersectionObserver === 'undefined') return
 

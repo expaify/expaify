@@ -204,7 +204,11 @@ export function validateHotelReturnUrl(value: unknown, entrySource: HotelDetailE
   try {
     const parsed = new URL(candidate, 'https://expaify.invalid');
     if (parsed.origin !== 'https://expaify.invalid' || parsed.username || parsed.password) return fallback;
-    const allowed = parsed.pathname === '/' || parsed.pathname === '/deals' || parsed.pathname.startsWith('/destinations/');
+    const allowed = entrySource === 'saved_deals'
+      ? parsed.pathname === '/deals'
+      : entrySource === 'hotel_results'
+        ? parsed.pathname === '/' || parsed.pathname.startsWith('/destinations/')
+        : parsed.pathname === '/';
     return allowed ? `${parsed.pathname}${parsed.search}` : fallback;
   } catch {
     return fallback;

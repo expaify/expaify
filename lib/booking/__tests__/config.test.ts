@@ -416,6 +416,12 @@ describe('booking hotel context continuity', () => {
 
     expect(validateBookingHotelContext({ ...baseContext, returnUrl: 'https://evil.example/steal' })?.returnUrl).toBe('/deals');
     expect(validateBookingHotelContext({ ...baseContext, returnUrl: '/api/admin' })?.returnUrl).toBe('/deals');
+    expect(validateBookingHotelContext({ ...baseContext, returnUrl: '/?destination=NYC' })?.returnUrl).toBe('/deals');
+    expect(validateBookingHotelContext({ ...baseContext, returnUrl: '/destinations/paris?sort=score' })?.returnUrl).toBe('/deals');
     expect(validateBookingHotelContext({ ...baseContext, returnUrl: '/deals?city=Paris&sort=discount' })?.returnUrl).toBe('/deals?city=Paris&sort=discount');
+
+    expect(validateBookingHotelContext({ ...baseContext, entrySource: 'hotel_results', returnUrl: '/deals?city=Paris' })?.returnUrl).toBe('/');
+    expect(validateBookingHotelContext({ ...baseContext, entrySource: 'hotel_results', returnUrl: '/destinations/paris?sort=score' })?.returnUrl).toBe('/destinations/paris?sort=score');
+    expect(validateBookingHotelContext({ ...baseContext, entrySource: 'direct', returnUrl: '/deals' })?.returnUrl).toBe('/');
   });
 });
