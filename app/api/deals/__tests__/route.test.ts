@@ -117,4 +117,11 @@ describe('GET /api/deals sorting', () => {
     expect(response.status).toBe(400)
     expect(mockGetActiveDeals).not.toHaveBeenCalled()
   })
+
+  it('rejects malformed view state before querying deals', async () => {
+    mockGetPaywallContext.mockResolvedValue({ userId: 'premium-user', premium: true, freeUnlockedThisWeek: 0, freeUnlockLimit: 3 })
+    const response = await GET(request('sort=unknown&max_price_cents=not-money'))
+    expect(response.status).toBe(400)
+    expect(mockGetActiveDeals).not.toHaveBeenCalled()
+  })
 })

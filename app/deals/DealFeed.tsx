@@ -329,6 +329,7 @@ type DealFeedProps = {
 }
 
 export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization, initialCriteria, initialView }: DealFeedProps = {}) {
+  const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
   const [confirmedCoverage, setConfirmedCoverage] = useState<ConfirmedCoverage | null>(null)
   const [loading, setLoading] = useState(!initialDeals)
@@ -443,11 +444,10 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     if (opts.minStars > 0) params.set('min_stars', String(opts.minStars))
     if (opts.dateFrom) params.set('date_from', opts.dateFrom)
     if (opts.dateTo) params.set('date_to', opts.dateTo)
-    if (opts.criteriaRequest) {
-      params.set('criteriaSchema', String(opts.criteriaRequest.schemaVersion))
-      params.set('criteriaVersion', opts.criteriaRequest.criteriaVersion)
-      params.set('criteriaSource', opts.criteriaRequest.source)
-    }
+    const requestCriteria = opts.criteriaRequest ?? criteria
+    params.set('criteriaSchema', String(requestCriteria.schemaVersion))
+    params.set('criteriaVersion', requestCriteria.criteriaVersion)
+    params.set('criteriaSource', requestCriteria.source)
     // Outside the personalized view, ask the API to skip stored preferences so
     // later pages match the unpersonalized first paint.
     if (!personalizationActive) params.set('all', '1')
@@ -457,7 +457,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       if (!res.ok) throw new Error('fetch failed')
       const data: DealsResponse = await res.json()
       if (sequence !== requestSequenceRef.current) return false
-      if (opts.criteriaRequest && data.criteriaVersion !== opts.criteriaRequest.criteriaVersion) throw new Error('criteria version mismatch')
+      if (data.criteriaVersion !== requestCriteria.criteriaVersion) throw new Error('criteria version mismatch')
       const requestedFilters: HotelFilterState = {
         city: opts.city,
         minDiscount: opts.minDiscount,
@@ -568,7 +568,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         if (append) continuationPendingRef.current = false
       }
     }
-  }, [defaultCity, personalizationActive])
+  }, [criteria, defaultCity, personalizationActive])
 
   useEffect(() => {
     // Skip initial fetch when deals were pre-fetched server-side
@@ -686,7 +686,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       criteria_version: proposedVersion,
       result_count_bucket: resultCountBucket(response.deals.length),
     })
-    window.history.pushState(null, '', buildHotelResultsUrl(nextCriteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort }))
+    router.push(buildHotelResultsUrl(nextCriteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort }))
     window.requestAnimationFrame(() => resultStatusRef.current?.focus())
   }
 
@@ -763,6 +763,9 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     if (minStars > 0) params.set('min_stars', String(minStars))
     if (dateFrom) params.set('date_from', dateFrom)
     if (dateTo) params.set('date_to', dateTo)
+    params.set('criteriaSchema', String(criteria.schemaVersion))
+    params.set('criteriaVersion', criteria.criteriaVersion)
+    params.set('criteriaSource', criteria.source)
     if (!personalizationActive) params.set('all', '1')
 
     try {
@@ -770,6 +773,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       if (!res.ok) throw new Error('fetch failed')
       const data: DealsResponse = await res.json()
       if (sequence !== requestSequenceRef.current) return
+      if (data.criteriaVersion !== criteria.criteriaVersion) throw new Error('criteria version mismatch')
       const parsedMetadata = parseHotelResultMetadata(data.resultMetadata, {
         city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo,
       }, defaultCity)
