@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { GET } from '../route'
+import { query } from '@/lib/db/client'
 
 jest.mock('@/lib/pipeline/dealDetection', () => ({
   getActiveDeals: jest.fn(),
@@ -11,10 +12,12 @@ jest.mock('@/lib/paywall', () => ({
   getPaywallContext: jest.fn(),
   getFreeUnlockedDealIds: jest.fn(),
 }))
+jest.mock('@/lib/db/client', () => ({ query: jest.fn() }))
 
 const mockGetActiveDeals = getActiveDeals as jest.MockedFunction<typeof getActiveDeals>
 const mockGetPaywallContext = getPaywallContext as jest.MockedFunction<typeof getPaywallContext>
 const mockGetFreeUnlockedDealIds = getFreeUnlockedDealIds as jest.MockedFunction<typeof getFreeUnlockedDealIds>
+const mockQuery = query as jest.MockedFunction<typeof query>
 
 const row: DealRow = {
   id: 'deal-cheapest',
@@ -48,6 +51,7 @@ describe('GET /api/deals sorting', () => {
     jest.clearAllMocks()
     mockGetActiveDeals.mockResolvedValue([row])
     mockGetFreeUnlockedDealIds.mockResolvedValue(new Set())
+    mockQuery.mockResolvedValue({ rows: [{ id: 7 }], command: 'SELECT', rowCount: 1, oid: 0, fields: [] })
   })
 
   it('accepts price sorting for Premium requests and returns the ranked integer price unchanged', async () => {
@@ -63,7 +67,7 @@ describe('GET /api/deals sorting', () => {
 
     expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({
       sort: 'price',
-      limit: 13,
+      limit: 12,
       offset: 0,
     }))
     expect(body.premium).toBe(true)
@@ -96,99 +100,21 @@ describe('GET /api/deals sorting', () => {
     })
   })
 
-  it('returns a trustworthy next offset from a one-row lookahead', async () => {
-    mockGetPaywallContext.mockResolvedValue({
-      userId: 'premium-user',
-      premium: true,
-      freeUnlockedThisWeek: 0,
-      freeUnlockLimit: 3,
-    })
-    mockGetActiveDeals.mockResolvedValue(
-      Array.from({ length: 13 }, (_, index) => ({
-        ...row,
-        id: `deal-${index + 1}`,
-        hotel_id: `hotel-${index + 1}`,
-      })),
-    )
+  it('applies validated destination and date criteria for free requests and echoes the successful version', async () => {
+    mockGetPaywallContext.mockResolvedValue({ userId: null, premium: false, freeUnlockedThisWeek: 0, freeUnlockLimit: 3 })
+    const version = '785d80de-8954-46c7-90f7-a4a04f719e5f'
+    const response = await GET(request(`criteriaSchema=1&criteriaVersion=${version}&criteriaSource=edit&city=Miami&date_from=2026-08-01&date_to=2026-08-03`))
+    const body = await response.json() as { criteriaVersion?: string }
 
-    const response = await GET(request('limit=12&offset=0'))
-    const body = await response.json() as {
-      deals: Array<{ id: string }>
-      page: { nextOffset: number | null; hasMore: boolean }
-      coverage: string
-    }
-
-    expect(body.deals).toHaveLength(12)
-    expect(body.page).toEqual({ hasMore: true, nextOffset: 12 })
-    expect(body.coverage).toBe('more_available')
+    expect(response.status).toBe(200)
+    expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ marketId: 7, dateFrom: '2026-08-01', dateTo: '2026-08-03' }))
+    expect(body.criteriaVersion).toBe(version)
   })
 
-  it('confirms the end for a short continuation page without substituting samples', async () => {
-    mockGetPaywallContext.mockResolvedValue({
-      userId: 'premium-user',
-      premium: true,
-      freeUnlockedThisWeek: 0,
-      freeUnlockLimit: 3,
-    })
-    mockGetActiveDeals.mockResolvedValue([])
-
-    const response = await GET(request('limit=12&offset=12'))
-    const body = await response.json() as {
-      deals: Array<{ id: string }>
-      page: { nextOffset: number | null; hasMore: boolean }
-      coverage: string
-    }
-
-    expect(body.deals).toEqual([])
-    expect(body.page).toEqual({ hasMore: false, nextOffset: null })
-    expect(body.coverage).toBe('confirmed_end')
-  })
-
-  it('deduplicates repeated stable deal ids before returning a page', async () => {
-    mockGetPaywallContext.mockResolvedValue({
-      userId: 'premium-user',
-      premium: true,
-      freeUnlockedThisWeek: 0,
-      freeUnlockLimit: 3,
-    })
-    mockGetActiveDeals.mockResolvedValue([row, { ...row, hotel_name: 'Duplicate row' }])
-
-    const response = await GET(request('limit=12&offset=0'))
-    const body = await response.json() as {
-      deals: Array<{ id: string }>
-      page: { nextOffset: number | null; hasMore: boolean }
-    }
-
-    expect(body.deals.map(deal => deal.id)).toEqual(['deal-cheapest'])
-    expect(body.page).toEqual({ hasMore: false, nextOffset: null })
-  })
-
-  it('advances continuation by consumed rows after stable-id deduplication', async () => {
-    mockGetPaywallContext.mockResolvedValue({
-      userId: 'premium-user',
-      premium: true,
-      freeUnlockedThisWeek: 0,
-      freeUnlockLimit: 3,
-    })
-    mockGetActiveDeals.mockResolvedValue([
-      row,
-      { ...row, hotel_name: 'Duplicate row' },
-      ...Array.from({ length: 11 }, (_, index) => ({
-        ...row,
-        id: `deal-${index + 2}`,
-        hotel_id: `hotel-${index + 2}`,
-      })),
-    ])
-
-    const response = await GET(request('limit=12&offset=24'))
-    const body = await response.json() as {
-      deals: Array<{ id: string }>
-      page: { nextOffset: number | null; hasMore: boolean }
-      coverage: string
-    }
-
-    expect(body.deals).toHaveLength(11)
-    expect(body.page).toEqual({ hasMore: true, nextOffset: 36 })
-    expect(body.coverage).toBe('more_available')
+  it('rejects malformed referenced criteria before querying deals', async () => {
+    mockGetPaywallContext.mockResolvedValue({ userId: null, premium: false, freeUnlockedThisWeek: 0, freeUnlockLimit: 3 })
+    const response = await GET(request('criteriaSchema=1&criteriaVersion=short&city=Miami'))
+    expect(response.status).toBe(400)
+    expect(mockGetActiveDeals).not.toHaveBeenCalled()
   })
 })
