@@ -1,75 +1,28 @@
-import type { Money, HotelEvidenceScope } from '@/lib/types'
+import type { Ref } from 'react'
+import type {
+  HotelFundsBasis,
+  HotelFundsEvidenceRecord,
+  HotelFundsEvidenceScope,
+  HotelFundsMissingField,
+  HotelFundsObligationType,
+  HotelFundsPolicyEvidence,
+  HotelFundsPolicyLoadState,
+  Money,
+} from '@/lib/types'
+import { normalizeHotelFundsPolicyEvidence } from '@/lib/hotels/fundsPolicy'
+import { trackHotelFundsPolicyConfirmation } from './hotelFundsPolicyAnalytics'
 
-export type HotelFundsPolicyState =
-  | 'complete'
-  | 'partial'
-  | 'explicit_none'
-  | 'not_returned'
-  | 'conflicting'
-
-export type HotelFundsObligationType =
-  | 'authorization_hold'
-  | 'refundable_deposit'
-  | 'other_refundable_obligation'
-
-export type HotelFundsAmount =
-  | { kind: 'exact'; money: Money }
-  | { kind: 'range'; min: Money; max: Money }
-  | {
-      kind: 'percentage'
-      percent: number
-      appliesTo: 'stay_price' | 'other_documented_basis'
-      appliesToWording?: string
-    }
-  | { kind: 'variable'; providerWording: string }
-  | { kind: 'not_returned' }
-
-export type HotelFundsBasis =
-  | 'per_stay'
-  | 'per_night'
-  | 'per_room'
-  | 'per_person'
-  | 'provider_defined'
-  | 'not_returned'
-
-export type HotelFundsEvidenceScope = HotelEvidenceScope | 'not_returned'
-
-export type HotelFundsMissingField =
-  | 'mechanism'
-  | 'amount'
-  | 'basis'
-  | 'application_timing'
-  | 'payment_method'
-  | 'return_or_release'
-  | 'scope'
-  | 'source'
-
-export interface HotelFundsEvidenceRecord {
-  type?: HotelFundsObligationType
-  amount?: HotelFundsAmount
-  basis?: HotelFundsBasis
-  applicationWording?: string
-  paymentMethodWording?: string
-  returnOrRelease?: {
-    action: 'refund' | 'release'
-    providerWording?: string
-    issuerProcessingWording?: string
-  }
-  sourceLabel: string
-  scope: HotelFundsEvidenceScope
-}
-
-export interface HotelFundsPolicyEvidence {
-  state: HotelFundsPolicyState
-  obligations: HotelFundsEvidenceRecord[]
-  sourceLabel: string
-  scope: HotelFundsEvidenceScope
-  fetchedAt?: string
-  missingFields?: HotelFundsMissingField[]
-  conflictingRecords?: HotelFundsEvidenceRecord[]
-}
-
-export type HotelFundsPolicyLoadState = 'loading' | 'ready' | 'error'
+export type {
+  HotelFundsAmount,
+  HotelFundsBasis,
+  HotelFundsEvidenceRecord,
+  HotelFundsEvidenceScope,
+  HotelFundsMissingField,
+  HotelFundsObligationType,
+  HotelFundsPolicyEvidence,
+  HotelFundsPolicyLoadState,
+  HotelFundsPolicyState,
+} from '@/lib/types'
 
 type Props = {
   evidence?: HotelFundsPolicyEvidence | null
@@ -80,6 +33,9 @@ type Props = {
   hotelName?: string
   sourceLabel: string
   variant: 'summary' | 'full'
+  offerId?: string
+  provider?: string
+  rootRef?: Ref<HTMLElement>
 }
 
 const mechanismLabels: Record<HotelFundsObligationType, string> = {
@@ -125,31 +81,8 @@ const missingFieldOrder: HotelFundsMissingField[] = [
   'source',
 ]
 
-function defaultEvidence(sourceLabel: string): HotelFundsPolicyEvidence {
-  return {
-    state: 'not_returned',
-    obligations: [],
-    sourceLabel: sourceLabel.trim() || 'Hotel provider',
-    scope: 'not_returned',
-  }
-}
-
 function resolvedEvidence(evidence: HotelFundsPolicyEvidence | null | undefined, sourceLabel: string) {
-  if (!evidence) return defaultEvidence(sourceLabel)
-  if (!['complete', 'partial', 'explicit_none', 'not_returned', 'conflicting'].includes(evidence.state)) {
-    return defaultEvidence(sourceLabel)
-  }
-  if (evidence.state === 'not_returned' && !evidence.sourceLabel.trim()) return defaultEvidence(sourceLabel)
-  if (evidence.state === 'explicit_none') {
-    if (evidence.obligations.length || evidence.scope === 'not_returned' || !evidence.sourceLabel.trim()) {
-      return defaultEvidence(sourceLabel)
-    }
-  }
-  if (evidence.state === 'complete' && evidence.obligations.length === 0) return defaultEvidence(sourceLabel)
-  if (evidence.state === 'conflicting' && (evidence.conflictingRecords?.length ?? 0) < 2) {
-    return evidence.obligations.length ? { ...evidence, state: 'partial' as const } : defaultEvidence(sourceLabel)
-  }
-  return evidence
+  return normalizeHotelFundsPolicyEvidence(evidence, sourceLabel)
 }
 
 function formatPolicyMoney(money: Money): string {
@@ -334,6 +267,9 @@ export default function HotelFundsPolicyPanel({
   hotelName,
   sourceLabel,
   variant,
+  offerId,
+  provider,
+  rootRef,
 }: Props) {
   const resolved = resolvedEvidence(evidence, sourceLabel)
   const displayedState = loadState === 'error' ? 'error' : loadState === 'loading' ? 'loading' : resolved.state
@@ -346,6 +282,7 @@ export default function HotelFundsPolicyPanel({
   if (variant === 'summary') {
     return (
       <div
+        ref={rootRef as Ref<HTMLDivElement>}
         role={loadState === 'loading' || loadState === 'error' ? 'status' : undefined}
         aria-live={loadState === 'loading' || loadState === 'error' ? 'polite' : undefined}
         aria-busy={loadState === 'loading' ? 'true' : undefined}
@@ -380,6 +317,7 @@ export default function HotelFundsPolicyPanel({
 
   return (
     <section
+      ref={rootRef}
       aria-labelledby={headingId}
       role={loadState === 'loading' || loadState === 'error' ? 'status' : undefined}
       aria-live={loadState === 'loading' || loadState === 'error' ? 'polite' : undefined}
@@ -464,6 +402,13 @@ export default function HotelFundsPolicyPanel({
           target="_blank"
           rel="noopener noreferrer sponsored"
           aria-label={`${confirmationLabel} for ${hotelName ?? 'this hotel'}. Opens ${confirmationDestination} in a new tab. Deposit or hold details may still require confirmation with the property.`}
+          onClick={() => trackHotelFundsPolicyConfirmation({
+            evidence: resolved,
+            loadState,
+            offerId,
+            provider: provider ?? sourceLabel,
+            partnerNamed: Boolean(partnerLabel),
+          })}
           className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-4 text-center text-sm font-medium text-[color:var(--text-1)] hover:bg-[color:var(--brand-soft)] focus-visible:border-[color:var(--border-focus)] sm:w-auto"
         >
           {confirmationLabel}

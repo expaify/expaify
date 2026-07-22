@@ -88,6 +88,7 @@ const hotelOffer: HotelOffer = {
     },
   ],
   accessEvidenceState: 'ready',
+  fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
 };
 
 function searchRequest(queryString: string): NextRequest {

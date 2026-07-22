@@ -67,6 +67,7 @@ const hotel: HotelOffer = {
   rating: 8.7,
   deeplink: 'https://tp.media/r?marker=hotel-marker&p=4536&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
   source: 'hotellook',
+  fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
 };
 
 describe('booking fare context continuity', () => {
@@ -231,6 +232,7 @@ describe('booking hotel context continuity', () => {
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
       providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      fundsPolicy: JSON.stringify({ state: 'not_returned', obligations: [], sourceLabel: 'hotellook', scope: 'not_returned' }),
     });
 
     expect(parsed).toEqual({
@@ -260,6 +262,7 @@ describe('booking hotel context continuity', () => {
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
       providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'hotellook', scope: 'not_returned' },
     });
   });
 
@@ -345,5 +348,40 @@ describe('booking hotel context continuity', () => {
     expect(url.searchParams.get('locationDistanceValue')).toBeNull();
     expect(url.searchParams.get('locationAnchorId')).toBeNull();
     expect(url.searchParams.get('locationDistanceReferencePoint')).toBeNull();
+  });
+
+  it('preserves structured funds evidence through the booking URL without truncating provider wording', () => {
+    const providerWording = `after checkout ${'under the documented property conditions '.repeat(20)}`.trim();
+    const fundsPolicy = {
+      state: 'complete' as const,
+      obligations: [{
+        type: 'authorization_hold' as const,
+        amount: { kind: 'exact' as const, money: { priceCents: 25000, currency: 'USD' } },
+        basis: 'per_stay' as const,
+        applicationWording: 'At check-in',
+        paymentMethodWording: 'Credit or debit card',
+        returnOrRelease: { action: 'release' as const, providerWording },
+        sourceLabel: 'Property policy',
+        scope: 'selected_stay' as const,
+      }],
+      sourceLabel: 'Property policy',
+      scope: 'selected_stay' as const,
+      fetchedAt: '2026-07-22T03:00:00.000Z',
+    };
+    const href = buildHotelBookingHref({ ...hotel, fundsPolicy });
+    const url = new URL(href, 'https://expaify.test');
+    const parsed = parseBookingHotelContext(Object.fromEntries(url.searchParams.entries()));
+
+    expect(parsed?.fundsPolicy).toEqual(fundsPolicy);
+    expect(parsed?.fundsPolicy.obligations[0].returnOrRelease?.providerWording).toBe(providerWording);
+  });
+
+  it('normalizes malformed and legacy booking evidence to sourced not-returned', () => {
+    const baseParams = Object.fromEntries(new URL(buildHotelBookingHref(hotel), 'https://expaify.test').searchParams.entries());
+    expect(parseBookingHotelContext({ ...baseParams, fundsPolicy: '{bad json' })?.fundsPolicy).toEqual({
+      state: 'not_returned', obligations: [], sourceLabel: 'hotellook', scope: 'not_returned',
+    });
+    delete baseParams.fundsPolicy;
+    expect(parseBookingHotelContext(baseParams)?.fundsPolicy.state).toBe('not_returned');
   });
 });

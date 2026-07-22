@@ -4,9 +4,11 @@ import type {
   HotelLocationAnchorSource,
   HotelLocationEvidenceSource,
   HotelLocationPrecision,
+  HotelFundsPolicyEvidence,
   HotelOffer,
   NormalizedFare,
 } from '../types';
+import { normalizeHotelFundsPolicyEvidence } from '../hotels/fundsPolicy';
 import {
   hasValidCoordinates,
   hasVerifiedHotelLocationComparison,
@@ -38,6 +40,7 @@ export type BookingHotelContext = {
   currency: string;
   priceBasis: 'per_night_before_taxes_fees';
   providerUrl: string;
+  fundsPolicy: HotelFundsPolicyEvidence;
 };
 
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
@@ -63,6 +66,7 @@ type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
   locationDistanceMethod?: unknown;
   locationDistanceSource?: unknown;
   locationProviderName?: unknown;
+  fundsPolicy?: unknown;
 };
 
 export function isBookingEnabled(): boolean {
@@ -385,6 +389,7 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const priceBasis = cleanRequired(input.priceBasis);
   const providerUrl = cleanRequired(input.providerUrl);
   const location = validateHotelLocation(input);
+  const fundsPolicy = normalizeHotelFundsPolicyEvidence(input.fundsPolicy, provider || 'Hotel provider');
 
   if (
     kind !== 'hotel' ||
@@ -412,6 +417,7 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     currency,
     priceBasis,
     providerUrl,
+    fundsPolicy,
   };
 }
 
@@ -444,7 +450,17 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     currency: firstParam(params.currency),
     priceBasis: firstParam(params.priceBasis),
     providerUrl: firstParam(params.providerUrl),
+    fundsPolicy: parseHotelFundsPolicyParam(firstParam(params.fundsPolicy)),
   });
+}
+
+function parseHotelFundsPolicyParam(value: string): unknown {
+  if (!value) return undefined;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
 }
 
 export function buildBookingHref(fare: NormalizedFare): string {
@@ -477,6 +493,7 @@ export function buildHotelBookingHref(hotel: HotelOffer): string {
     currency: hotel.pricePerNight.currency,
     priceBasis: hotel.priceBasis ?? 'per_night_before_taxes_fees',
     providerUrl: hotel.deeplink,
+    fundsPolicy: JSON.stringify(normalizeHotelFundsPolicyEvidence(hotel.fundsPolicy, hotel.source)),
   });
 
   if (hotel.area) params.set('area', hotel.area);

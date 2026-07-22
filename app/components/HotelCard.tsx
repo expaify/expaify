@@ -11,6 +11,10 @@ import HotelFundsPolicyPanel, {
   type HotelFundsPolicyEvidence,
   type HotelFundsPolicyLoadState,
 } from './HotelFundsPolicyPanel'
+import {
+  trackHotelFundsPolicyDetailsOpened,
+  useHotelFundsPolicyExposure,
+} from './hotelFundsPolicyAnalytics'
 import { getHotelLocationDisplay } from './hotelLocationContext'
 import { PropertyPhoto } from './ui/PropertyPhoto'
 import {
@@ -743,13 +747,10 @@ export default function HotelCard({
   const rateCheckCopy = `Rate from ${providerName}. Last-checked time unavailable.`
   const providerConfirmationCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
   const reviewDisclosure = providerConfirmationCopy
-<<<<<<< HEAD
+  const resolvedFundsPolicy = fundsPolicy ?? hotel.fundsPolicy
   const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(RATE_ELIGIBILITY_NOT_PROVIDED, providerName, 'card')
-  const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy}`
-=======
-  const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(fundsPolicy, fundsPolicyLoadState, providerName)
-  const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${providerConfirmationCopy} ${policyAriaSuffix}`
->>>>>>> 92e4430 (UI-HOTEL-DEPOSIT-HOLDS-01: clarify hotel deposits and holds)
+  const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(resolvedFundsPolicy, fundsPolicyLoadState, providerName)
+  const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy} ${policyAriaSuffix}`
   const unavailableAriaLabel = hasValidPrice
     ? `Provider link unavailable for ${hotel.name}. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
     : `Hotel price unavailable. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
@@ -769,6 +770,25 @@ export default function HotelCard({
     : collapsedAccessFact?.id === 'on_site_parking'
       ? `On-site parking. ${collapsedAccessFact.sourceLabel.trim()} confirms this property has on-site parking. Review parking fees and space availability in details.`
       : undefined
+  const fundsPolicyExposureRef = useHotelFundsPolicyExposure({
+    evidence: resolvedFundsPolicy,
+    loadState: fundsPolicyLoadState,
+    offerId: hotel.id,
+    provider: hotel.source,
+    surface: 'hotel_card',
+  })
+
+  const handleDetailsToggle = () => {
+    if (!isExpanded && canBook) {
+      trackHotelFundsPolicyDetailsOpened({
+        evidence: resolvedFundsPolicy,
+        loadState: fundsPolicyLoadState,
+        offerId: hotel.id,
+        provider: hotel.source,
+      })
+    }
+    setIsExpanded(value => !value)
+  }
 
   return (
     <article className="card @container overflow-hidden rounded-[var(--radius-card)]">
@@ -838,23 +858,22 @@ export default function HotelCard({
           )}
         </div>
 
-<<<<<<< HEAD
         <HotelCardEligibilityLine eligibility={RATE_ELIGIBILITY_NOT_PROVIDED} />
 
-        <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-=======
         {canBook ? (
           <HotelFundsPolicyPanel
-            evidence={fundsPolicy}
+            evidence={resolvedFundsPolicy}
             loadState={fundsPolicyLoadState}
             surface="hotel_detail"
             sourceLabel={providerName}
             variant="summary"
+            offerId={hotel.id}
+            provider={hotel.source}
+            rootRef={fundsPolicyExposureRef}
           />
         ) : null}
 
         <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
->>>>>>> 92e4430 (UI-HOTEL-DEPOSIT-HOLDS-01: clarify hotel deposits and holds)
           <div className="min-w-0">
             <ScoreChip score={score} loading={loading} />
           </div>
@@ -884,7 +903,7 @@ export default function HotelCard({
           type="button"
           aria-expanded={isExpanded}
           aria-controls={detailsId}
-          onClick={() => setIsExpanded(value => !value)}
+          onClick={handleDetailsToggle}
           className="mt-3 flex min-h-10 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] text-sm font-bold text-[color:var(--text-1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
         >
           {isExpanded ? 'Hide details' : 'Details'}
@@ -943,12 +962,14 @@ export default function HotelCard({
 
             {canBook ? (
               <HotelFundsPolicyPanel
-                evidence={fundsPolicy}
+                evidence={resolvedFundsPolicy}
                 loadState={fundsPolicyLoadState}
                 surface="hotel_detail"
                 sourceLabel={providerName}
                 hotelName={hotel.name}
                 variant="full"
+                offerId={hotel.id}
+                provider={hotel.source}
               />
             ) : null}
 

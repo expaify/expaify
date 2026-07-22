@@ -15,7 +15,7 @@ import { TrackOnMount } from '@/app/components/TrackOnMount'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
 import { scoreDeal } from '@/lib/scoring/scoreDeal'
-import type { DealScore } from '@/lib/types'
+import type { DealScore, HotelOffer } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
 
 type PageProps = { params: Promise<{ dealId: string }> }
@@ -175,7 +175,7 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
 
   let score: DealScore | null = null
   if (pricePoints.length > 0) {
-    const offer = {
+    const offer: HotelOffer = {
       id: deal.id,
       name: deal.hotel_name,
       area: deal.city,
@@ -183,6 +183,7 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
       pricePerNight: { priceCents: deal.deal_price_cents, currency: 'USD' as const },
       deeplink: '',
       source: 'expaify',
+      fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'expaify', scope: 'not_returned' },
     }
     score = scoreDeal(offer, pricePoints)
   }

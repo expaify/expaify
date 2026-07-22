@@ -8,6 +8,8 @@ jest.mock('react', () => {
 
   return {
     ...actual,
+    useEffect: jest.fn(),
+    useRef: jest.fn(() => ({ current: null })),
     useState: jest.fn((initialValue: unknown) => [initialValue, jest.fn()]),
   }
 })
@@ -115,6 +117,7 @@ const hotel: HotelOffer = {
   rating: 8.7,
   deeplink: 'https://example.com/hotel',
   source: 'hotellook',
+  fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
 }
 
 describe('Deal score presentation', () => {

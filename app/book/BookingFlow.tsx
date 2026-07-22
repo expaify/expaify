@@ -6,19 +6,18 @@ import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
 import { track } from '@/lib/analytics'
 import { providerDisplayName } from '@/lib/providerFreshness'
-<<<<<<< HEAD
 import {
   getRateRestrictionsAccessibleSummary,
   HotelRateRestrictionsSection,
   RATE_ELIGIBILITY_NOT_PROVIDED,
 } from '@/app/components/HotelRateRestrictions'
-=======
 import HotelFundsPolicyPanel, {
   getHotelFundsPolicyAccessibleSuffix,
   type HotelFundsPolicyEvidence,
   type HotelFundsPolicyLoadState,
 } from '@/app/components/HotelFundsPolicyPanel'
->>>>>>> 92e4430 (UI-HOTEL-DEPOSIT-HOLDS-01: clarify hotel deposits and holds)
+import { useHotelFundsPolicyExposure } from '@/app/components/hotelFundsPolicyAnalytics'
+import { getHotelFundsAnalyticsDimensions } from '@/lib/hotels/fundsPolicy'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -598,6 +597,13 @@ function HotelHandoffReview({
 }) {
   const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
   const location = getHotelLocationDisplay(hotelContext)
+  const resolvedFundsPolicy = fundsPolicy ?? hotelContext.fundsPolicy
+  const policyDimensions = getHotelFundsAnalyticsDimensions({
+    evidence: resolvedFundsPolicy,
+    loadState: fundsPolicyLoadState,
+    provider: hotelContext.provider,
+    surface: 'book_handoff',
+  })
   const analyticsProps = useMemo(() => ({
     source: hotelContext.provider,
     partnerHost: partner.host,
@@ -605,7 +611,9 @@ function HotelHandoffReview({
     priceCents: hotelContext.priceCents,
     priceBasis: hotelContext.priceBasis,
     locationPrecision: location.precision,
-  }), [hotelContext.currency, hotelContext.priceBasis, hotelContext.priceCents, hotelContext.provider, location.precision, partner.host])
+    policyState: policyDimensions.policyState,
+    obligationTypes: policyDimensions.obligationTypes,
+  }), [hotelContext.currency, hotelContext.priceBasis, hotelContext.priceCents, hotelContext.provider, location.precision, partner.host, policyDimensions.obligationTypes, policyDimensions.policyState])
   const didContinueRef = useRef(false)
   const guidanceBlockRef = useRef<HTMLElement>(null)
   const guidanceViewedRef = useRef(false)
@@ -613,6 +621,13 @@ function HotelHandoffReview({
   const returnArmedRef = useRef(false)
   const hiddenAfterContinueRef = useRef(false)
   const continueStartedAtRef = useRef<number | undefined>(undefined)
+  const fundsPolicyExposureRef = useHotelFundsPolicyExposure({
+    evidence: resolvedFundsPolicy,
+    loadState: fundsPolicyLoadState,
+    offerId: hotelContext.offerId,
+    provider: hotelContext.provider,
+    surface: 'book_handoff',
+  })
 
   useEffect(() => {
     const guidanceBlock = guidanceBlockRef.current
@@ -673,6 +688,8 @@ function HotelHandoffReview({
         source: hotelContext.provider,
         partnerHost: partner.host,
         awayDurationBucket: getAwayDurationBucket(durationMs),
+        policyState: policyDimensions.policyState,
+        obligationTypes: policyDimensions.obligationTypes,
       })
       returnArmedRef.current = false
       hiddenAfterContinueRef.current = false
@@ -681,7 +698,7 @@ function HotelHandoffReview({
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [hotelContext.provider, partner.host])
+  }, [hotelContext.provider, partner.host, policyDimensions.obligationTypes, policyDimensions.policyState])
 
   const handleContinue = () => {
     didContinueRef.current = true
@@ -718,6 +735,8 @@ function HotelHandoffReview({
     emitAnalytics('hotel_handoff_back_clicked', {
       source: hotelContext.provider,
       partnerHost: partner.host,
+      policyState: policyDimensions.policyState,
+      obligationTypes: policyDimensions.obligationTypes,
     })
   }
 
@@ -732,17 +751,13 @@ function HotelHandoffReview({
     ? `Opens ${partner.label} in a new tab. Your expaify search stays open here.`
     : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
   const accessiblePartner = partner.named ? partner.label : 'the booking partner’s site'
-<<<<<<< HEAD
   const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(
     RATE_ELIGIBILITY_NOT_PROVIDED,
     providerDisplayName(hotelContext.provider),
     'handoff',
   )
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${eligibilityAriaSummary}`
-=======
-  const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(fundsPolicy, fundsPolicyLoadState, providerDisplayName(hotelContext.provider))
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${policyAriaSuffix}`
->>>>>>> 92e4430 (UI-HOTEL-DEPOSIT-HOLDS-01: clarify hotel deposits and holds)
+  const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(resolvedFundsPolicy, fundsPolicyLoadState, providerDisplayName(hotelContext.provider))
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${eligibilityAriaSummary} ${policyAriaSuffix}`
 
   return (
     <ReviewShell
@@ -804,7 +819,7 @@ function HotelHandoffReview({
         </section>
         <div className="mt-5">
           <HotelFundsPolicyPanel
-            evidence={fundsPolicy}
+            evidence={resolvedFundsPolicy}
             loadState={fundsPolicyLoadState}
             surface="book_handoff"
             partnerLabel={partner.named ? partner.label : undefined}
@@ -812,6 +827,9 @@ function HotelHandoffReview({
             hotelName={hotelContext.name}
             sourceLabel={providerDisplayName(hotelContext.provider)}
             variant="full"
+            offerId={hotelContext.offerId}
+            provider={hotelContext.provider}
+            rootRef={fundsPolicyExposureRef}
           />
         </div>
         <div className="mt-5 flex flex-col gap-3">

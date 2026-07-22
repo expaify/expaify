@@ -148,6 +148,77 @@ export interface HotelAmenityEvidence {
 
 export type HotelAccessEvidenceState = 'loading' | 'ready' | 'error';
 
+export type HotelFundsPolicyState =
+  | 'complete'
+  | 'partial'
+  | 'explicit_none'
+  | 'not_returned'
+  | 'conflicting';
+
+export type HotelFundsObligationType =
+  | 'authorization_hold'
+  | 'refundable_deposit'
+  | 'other_refundable_obligation';
+
+export type HotelFundsAmount =
+  | { kind: 'exact'; money: Money }
+  | { kind: 'range'; min: Money; max: Money }
+  | {
+      kind: 'percentage';
+      percent: number;
+      appliesTo: 'stay_price' | 'other_documented_basis';
+      appliesToWording?: string;
+    }
+  | { kind: 'variable'; providerWording: string }
+  | { kind: 'not_returned' };
+
+export type HotelFundsBasis =
+  | 'per_stay'
+  | 'per_night'
+  | 'per_room'
+  | 'per_person'
+  | 'provider_defined'
+  | 'not_returned';
+
+export type HotelFundsEvidenceScope = HotelEvidenceScope | 'not_returned';
+
+export type HotelFundsMissingField =
+  | 'mechanism'
+  | 'amount'
+  | 'basis'
+  | 'application_timing'
+  | 'payment_method'
+  | 'return_or_release'
+  | 'scope'
+  | 'source';
+
+export interface HotelFundsEvidenceRecord {
+  type?: HotelFundsObligationType;
+  amount?: HotelFundsAmount;
+  basis?: HotelFundsBasis;
+  applicationWording?: string;
+  paymentMethodWording?: string;
+  returnOrRelease?: {
+    action: 'refund' | 'release';
+    providerWording?: string;
+    issuerProcessingWording?: string;
+  };
+  sourceLabel: string;
+  scope: HotelFundsEvidenceScope;
+}
+
+export interface HotelFundsPolicyEvidence {
+  state: HotelFundsPolicyState;
+  obligations: HotelFundsEvidenceRecord[];
+  sourceLabel: string;
+  scope: HotelFundsEvidenceScope;
+  fetchedAt?: string;
+  missingFields?: HotelFundsMissingField[];
+  conflictingRecords?: HotelFundsEvidenceRecord[];
+}
+
+export type HotelFundsPolicyLoadState = 'loading' | 'ready' | 'error';
+
 export type HotelLocationPrecision = 'exact' | 'coordinates' | 'area' | 'search_area' | 'missing';
 
 export type HotelLocationEvidenceSource = 'provider' | 'search_fallback' | 'unavailable';
@@ -203,6 +274,7 @@ export interface HotelOffer {
   guestRating?: HotelRatingEvidence;
   amenityEvidence?: HotelAmenityEvidence[];
   accessEvidenceState?: HotelAccessEvidenceState;
+  fundsPolicy: HotelFundsPolicyEvidence;
 }
 
 export type NormalizedHotelOffer = HotelOffer;

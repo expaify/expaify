@@ -136,7 +136,7 @@ describe('HotelFundsPolicyPanel', () => {
 
     expect(text).toContain('policy is incomplete')
     expect(text).toContain('When the deposit is collectedAt arrival')
-    expect(text).toContain('the amount or calculation rule, which payment methods it applies to, and the refund or authorization-release conditions')
+    expect(text).toContain('the amount or calculation rule, what the amount applies to, which payment methods it applies to, and the refund or authorization-release conditions')
     expect(text).not.toContain('AmountAmount not provided')
   })
 

@@ -73,6 +73,7 @@ function makeHotel(priceCents: number): NormalizedHotelOffer {
     pricePerNight: { priceCents, currency: 'USD' },
     deeplink: 'https://example.com/hotel',
     source: 'hotellook',
+    fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
   };
 }
 

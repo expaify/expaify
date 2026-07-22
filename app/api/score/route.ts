@@ -80,6 +80,7 @@ export async function GET(request: Request) {
     pricePerNight: { priceCents: pricePerNightCents, currency },
     deeplink: '',
     source: 'score-api',
+    fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotel provider', scope: 'not_returned' },
   };
 
   const dealScore = scoreDeal(hotel, history);

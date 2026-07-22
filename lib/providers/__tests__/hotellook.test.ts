@@ -165,6 +165,7 @@ describe('HotellookProvider.searchHotels', () => {
         },
         amenityEvidence: notReturnedEvidence,
         accessEvidenceState: 'ready',
+        fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
       },
     ]);
   });
@@ -412,6 +413,7 @@ describe('HotellookProvider.searchHotels', () => {
             scaleMax: 5,
             sourceLabel: 'Hotellook',
             confidence: 'provider_only',
+            fetchedAt: undefined,
           },
           guestRating: {
             kind: 'inferred',
@@ -419,12 +421,33 @@ describe('HotellookProvider.searchHotels', () => {
             scaleMax: 5,
             sourceLabel: 'Hotellook',
             confidence: 'inferred',
+            fetchedAt: undefined,
           },
           amenityEvidence: notReturnedEvidence,
           accessEvidenceState: 'ready',
+          fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
+          photoUrl: undefined,
         },
       ],
     });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('normalizes legacy or unsupported cached policy claims to Hotellook not-returned', async () => {
+    cacheGetMock.mockResolvedValueOnce([{
+      id: 'cached-policy', name: 'Cached Policy Hotel', area: 'Rome', stars: 4,
+      pricePerNight: { priceCents: 15000, currency: 'USD' },
+      deeplink: 'https://example.com/cached', source: 'hotellook',
+      fundsPolicy: {
+        state: 'complete', sourceLabel: 'Unverified cache field', scope: 'selected_stay',
+        obligations: [{ type: 'authorization_hold', amount: { kind: 'exact', money: { priceCents: 50000, currency: 'USD' } } }],
+      },
+    }]);
+
+    const result = await new HotellookProvider().searchHotels('ROM', { checkin: '2026-09-22', checkout: '2026-09-29' });
+    expect(result).toMatchObject({ ok: true, data: [{
+      fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
+    }] });
     expect(global.fetch).not.toHaveBeenCalled();
   });
 

@@ -10,6 +10,8 @@ jest.mock('react', () => {
 
   return {
     ...actual,
+    useEffect: jest.fn(),
+    useRef: jest.fn(() => ({ current: null })),
     useState: jest.fn(() => [expanded, jest.fn()]),
   }
 })
@@ -24,6 +26,7 @@ const hotel: HotelOffer = {
   pricePerNight: { priceCents: 17900, currency: 'USD' },
   deeplink: 'https://example.com/hotel',
   source: 'hotellook',
+  fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
 }
 
 function evidence(overrides: Partial<HotelAmenityEvidence> = {}): HotelAmenityEvidence {
