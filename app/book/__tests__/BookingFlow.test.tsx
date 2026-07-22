@@ -177,6 +177,10 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('You’ll book with an external booking partner.');
     expect(text).toContain('Continue to booking partner');
     expect(text).toContain('Rate freshness not available from this provider.');
+    expect(text).toContain('Rate restrictions');
+    expect(text).toContain('Restrictions not provided');
+    expect(text).toContain('Hotellook did not provide complete rate restrictions. Check membership, residency, age, and refund terms before paying.');
+    expect(text).toContain('Source: Hotellook. Rate-detail freshness not available.');
     expect(text).toContain('the total you see there may differ.');
     expect(text).toContain('expaify shows');
     expect(text).toContain('Booking partner confirms');
@@ -198,7 +202,7 @@ describe('BookingFlow fare context review', () => {
     const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
     expect(outbound.props.href).toBe(hotelContext.providerUrl);
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
-    expect(outbound.props['aria-label']).toBe('Continue to booking partner for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ.');
+    expect(outbound.props['aria-label']).toBe("Continue to booking partner for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ. Hotellook did not provide complete rate restrictions. Check the partner's terms before paying.");
   });
 
   it('names a resolved destination without changing its affiliate URL', () => {

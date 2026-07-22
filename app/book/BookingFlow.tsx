@@ -6,6 +6,11 @@ import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
 import { track } from '@/lib/analytics'
 import { providerDisplayName } from '@/lib/providerFreshness'
+import {
+  getRateRestrictionsAccessibleSummary,
+  HotelRateRestrictionsSection,
+  RATE_ELIGIBILITY_NOT_PROVIDED,
+} from '@/app/components/HotelRateRestrictions'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -266,6 +271,10 @@ function HotelSummary({ hotelContext, partner }: { hotelContext: BookingHotelCon
           Rate freshness not available from this provider.
         </p>
       </div>
+      <HotelRateRestrictionsSection
+        eligibility={RATE_ELIGIBILITY_NOT_PROVIDED}
+        providerName={rateSource}
+      />
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <FareFact label="Hotel" value={hotelContext.name} />
         <FareFact label="Location" value={location.value} />
@@ -703,7 +712,12 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
     ? `Opens ${partner.label} in a new tab. Your expaify search stays open here.`
     : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
   const accessiblePartner = partner.named ? partner.label : 'the booking partner’s site'
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ.`
+  const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(
+    RATE_ELIGIBILITY_NOT_PROVIDED,
+    providerDisplayName(hotelContext.provider),
+    'handoff',
+  )
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${eligibilityAriaSummary}`
 
   return (
     <ReviewShell
