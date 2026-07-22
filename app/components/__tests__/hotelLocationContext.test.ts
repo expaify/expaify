@@ -129,7 +129,7 @@ describe('hotel location evidence presentation', () => {
     expect(getHotelLocationImpressionKey(analytics)).toBe('hotel-123:provider_pin:none')
   })
 
-  it('does not present a searched destination as a provider-supplied pin label', () => {
+  it('does not promote searched-destination coordinates to a property pin', () => {
     const display = getHotelLocationDisplay({
       area: 'Los Angeles',
       location: {
@@ -140,8 +140,8 @@ describe('hotel location evidence presentation', () => {
       },
     })
 
-    expect(display.evidenceState).toBe('provider_pin')
-    expect(display.value).toBe('Map position provided')
-    expect(display.value).not.toBe('Los Angeles')
+    expect(display.evidenceState).toBe('search_area_only')
+    expect(display.value).toBe('Los Angeles')
+    expect(display.mapUrl).toBeUndefined()
   })
 })

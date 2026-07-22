@@ -85,7 +85,9 @@ export function getHotelLocationDisplay(source: HotelLocationSource): HotelLocat
   const providerLocationName = clean(location?.providerLocationName)
   const locationLabel = clean(location?.label)
   const address = clean(location?.address)
-  const mapUrl = buildCoordinateMapUrl(location)
+  // Search-area coordinates describe the destination fallback, not a verified
+  // property position. They must never unlock property-pin inspection.
+  const mapUrl = location?.precision === 'search_area' ? undefined : buildCoordinateMapUrl(location)
 
   // The legacy distance has no anchor kind, provenance, coordinates, source, or
   // measurement method. It is deliberately suppressed until DEV supplies the
