@@ -7,6 +7,7 @@ import { generateMockDeals } from '@/lib/pipeline/mock'
 import { redirect } from 'next/navigation'
 import { LandingNav } from '../components/LandingNav'
 import { DealFeed, type ApiDeal } from './DealFeed'
+import { HOTEL_DEAL_PAGE_SIZE } from '@/lib/deals/feedContract'
 
 export const metadata: Metadata = {
   title: 'Hotel deals today — expaify',
@@ -45,7 +46,7 @@ export default async function DealsPage() {
 
   // Pre-fetch initial deals server-side so the page renders immediately without a client round-trip
   const [rows, pwCtx, unlockedIds] = await Promise.all([
-    getActiveDeals({ limit: 20, sort: 'newest', includeMock: false, minDiscount: 20 }).catch(() => [] as DealRow[]),
+    getActiveDeals({ limit: HOTEL_DEAL_PAGE_SIZE, sort: 'newest', includeMock: false, minDiscount: 20 }).catch(() => [] as DealRow[]),
     getPaywallContext(),
     getFreeUnlockedDealIds(),
   ])
@@ -84,7 +85,7 @@ export default async function DealsPage() {
     <>
       <LandingNav />
       <main className="mx-auto max-w-[1140px] px-5 pb-24 pt-10">
-        <DealFeed initialDeals={initialDeals} />
+        <DealFeed initialDeals={initialDeals} premium={pwCtx.premium} />
       </main>
     </>
   )

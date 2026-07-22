@@ -8,6 +8,7 @@ import { SearchBar } from '../components/ui/SearchBar'
 import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 import { track } from '@/lib/analytics'
+import { HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
 
 const CITIES = [
   'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
@@ -16,6 +17,39 @@ const CITIES = [
 ]
 
 const DEFAULT_MIN_DISCOUNT = 20
+
+type SortKey = HotelDealSort
+type SortAnalyticsValue = 'recently_found' | 'biggest_discount' | 'lowest_nightly_price'
+
+const SORT_OPTIONS: ReadonlyArray<{
+  key: SortKey
+  label: string
+  description: string
+  analyticsValue: SortAnalyticsValue
+}> = [
+  {
+    key: 'newest',
+    label: 'Recently found',
+    description: 'Deals expaify detected most recently',
+    analyticsValue: 'recently_found',
+  },
+  {
+    key: 'discount',
+    label: 'Biggest discount',
+    description: 'Largest drop from the usual nightly price',
+    analyticsValue: 'biggest_discount',
+  },
+  {
+    key: 'price',
+    label: 'Lowest nightly price',
+    description: 'Lowest current rate per night',
+    analyticsValue: 'lowest_nightly_price',
+  },
+]
+
+function getSortOption(key: SortKey) {
+  return SORT_OPTIONS.find(option => option.key === key) ?? SORT_OPTIONS[0]
+}
 
 const DISCOUNT_OPTIONS = [
   { label: 'Any discount', value: 0 },
@@ -67,7 +101,7 @@ type DealFetchOpts = {
   minStars: number
   dateFrom: string
   dateTo: string
-  sort: 'newest' | 'discount'
+  sort: SortKey
   offset: number
   append: boolean
 }
@@ -199,8 +233,6 @@ function FilterPill({ label, activeLabel, disabled, options, onClear }: FilterPi
   )
 }
 
-const PAGE_SIZE = 12
-
 type Personalization = {
   active: boolean
   watchlist: string[]
@@ -218,7 +250,7 @@ type DealFeedProps = {
 export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = false, personalization }: DealFeedProps = {}) {
   const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
-  const [hasMore, setHasMore] = useState(false)
+  const [hasMore, setHasMore] = useState((initialDeals?.length ?? 0) === HOTEL_DEAL_PAGE_SIZE)
   const [loading, setLoading] = useState(!initialDeals)
   const [error, setError] = useState(false)
   const [activeTab, setActiveTab] = useState<'hotels' | 'flights'>('hotels')
@@ -228,12 +260,24 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
   const [minStars, setMinStars] = useState(0)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [sort, setSort] = useState<'newest' | 'discount'>('newest')
+  const [appliedSort, setAppliedSort] = useState<SortKey>('newest')
+  const [previousSort, setPreviousSort] = useState<SortKey>('newest')
+  const [pendingSort, setPendingSort] = useState<SortKey | null>(null)
+  const [failedSort, setFailedSort] = useState<SortKey | null>(null)
+  const [sortMenuOpen, setSortMenuOpen] = useState(false)
+  const [premiumExplanationOpen, setPremiumExplanationOpen] = useState(false)
   const [offset, setOffset] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [premium, setPremium] = useState(premiumProp)
   const [unfilteredTotal, setUnfilteredTotal] = useState<number | undefined>(undefined)
   const gridRef = useRef<HTMLDivElement>(null)
+  const sortControlRef = useRef<HTMLElement>(null)
+  const sortTriggerRef = useRef<HTMLButtonElement>(null)
+  const sortMenuRef = useRef<HTMLDivElement>(null)
+  const sortOptionRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const premiumExplanationRef = useRef<HTMLDivElement>(null)
+  const sortViewedRef = useRef(false)
+  const pendingSortEventRef = useRef<{ from: SortKey; to: SortKey; startedAt: number } | null>(null)
 
   const personalizationActive = Boolean(personalization?.active)
 
@@ -244,7 +288,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     setError(false)
 
     const params = new URLSearchParams({
-      limit: String(PAGE_SIZE),
+      limit: String(HOTEL_DEAL_PAGE_SIZE),
       offset: String(opts.offset),
       min_discount: String(opts.minDiscount),
       sort: opts.sort,
@@ -266,7 +310,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
       setUnfilteredTotal(typeof data.unfilteredTotal === 'number' ? data.unfilteredTotal : undefined)
       // The API reports the page count, not the full set, so a full page is
       // the only reliable "there may be more" signal.
-      setHasMore(data.deals.length === PAGE_SIZE)
+      setHasMore(data.deals.length === HOTEL_DEAL_PAGE_SIZE)
       setPremium(Boolean(data.premium))
     } catch {
       setError(true)
@@ -279,7 +323,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
   useEffect(() => {
     // Skip initial fetch when deals were pre-fetched server-side
     if (initialDeals) return
-    fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort, offset: 0, append: false })
+    fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort: appliedSort, offset: 0, append: false })
     // Initial feed load only; filter changes call fetchDeals through applyFilter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -291,7 +335,6 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     minStars?: number
     dateFrom?: string
     dateTo?: string
-    sort?: 'newest' | 'discount'
   }) {
     const nextCity = next.city ?? city
     const nextDiscount = next.minDiscount ?? minDiscount
@@ -299,14 +342,15 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     const nextStars = next.minStars !== undefined ? next.minStars : minStars
     const nextDateFrom = next.dateFrom !== undefined ? next.dateFrom : dateFrom
     const nextDateTo = next.dateTo !== undefined ? next.dateTo : dateTo
-    const nextSort = next.sort ?? sort
+    setSortMenuOpen(false)
+    setPremiumExplanationOpen(false)
+    setFailedSort(null)
     setCity(nextCity)
     setMinDiscount(nextDiscount)
     setMaxPriceCents(nextMax)
     setMinStars(nextStars)
     setDateFrom(nextDateFrom)
     setDateTo(nextDateTo)
-    setSort(nextSort)
     setOffset(0)
     fetchDeals({
       city: nextCity,
@@ -315,7 +359,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
       minStars: nextStars,
       dateFrom: nextDateFrom,
       dateTo: nextDateTo,
-      sort: nextSort,
+      sort: appliedSort,
       offset: 0,
       append: false,
     })
@@ -348,11 +392,54 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     applyFilter(next)
   }
 
+  async function requestSort(target: SortKey) {
+    if (pendingSort || target === appliedSort) return
+
+    const sortFrom = appliedSort
+    const startedAt = window.performance.now()
+    setSortMenuOpen(false)
+    setPremiumExplanationOpen(false)
+    setFailedSort(null)
+    setPendingSort(target)
+    setOffset(0)
+    sortTriggerRef.current?.focus()
+
+    const params = new URLSearchParams({
+      limit: String(HOTEL_DEAL_PAGE_SIZE),
+      offset: '0',
+      min_discount: String(minDiscount),
+      sort: target,
+    })
+    if (city) params.set('city', city)
+    if (maxPriceCents) params.set('max_price_cents', String(maxPriceCents))
+    if (minStars > 0) params.set('min_stars', String(minStars))
+    if (dateFrom) params.set('date_from', dateFrom)
+    if (dateTo) params.set('date_to', dateTo)
+    if (!personalizationActive) params.set('all', '1')
+
+    try {
+      const res = await fetch(`/api/deals?${params}`)
+      if (!res.ok) throw new Error('fetch failed')
+      const data: { deals: ApiDeal[]; total: number; premium?: boolean; unfilteredTotal?: number } = await res.json()
+      setDeals(data.deals)
+      setUnfilteredTotal(typeof data.unfilteredTotal === 'number' ? data.unfilteredTotal : undefined)
+      setHasMore(data.deals.length === HOTEL_DEAL_PAGE_SIZE)
+      setPremium(Boolean(data.premium))
+      setPreviousSort(sortFrom)
+      pendingSortEventRef.current = { from: sortFrom, to: target, startedAt }
+      setAppliedSort(target)
+      setPendingSort(null)
+    } catch {
+      setFailedSort(target)
+      setPendingSort(null)
+    }
+  }
+
   function loadMore() {
     if (loading || loadingMore || error || !hasMore) return
-    const nextOffset = offset + PAGE_SIZE
+    const nextOffset = offset + HOTEL_DEAL_PAGE_SIZE
     setOffset(nextOffset)
-    fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort, offset: nextOffset, append: true })
+    fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort: appliedSort, offset: nextOffset, append: true })
   }
 
   // Infinite scroll: a sentinel below the grid loads the next page when it
@@ -385,8 +472,6 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
   const activeDiscount = DISCOUNT_OPTIONS.find(o => o.value === minDiscount)
   const activeStars = STARS_OPTIONS.find(o => o.value === minStars)
 
-  const sortSegBase = 'rounded-[var(--radius-pill)] px-4 py-1.5 text-[13px] font-medium transition-colors duration-100 disabled:cursor-not-allowed disabled:opacity-50'
-
   const gridClass = 'grid grid-cols-1 gap-6 min-[680px]:grid-cols-2 min-[1024px]:grid-cols-3'
 
   const echoLinkClass = 'font-medium text-[color:var(--primary)] no-underline hover:underline'
@@ -411,6 +496,127 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     activeFilterChips.push({ key: 'dateTo', label: `To ${dateTo}`, onRemove: () => removeFilter('dateTo', { dateTo: '' }) })
   }
 
+  const realDealCount = deals.filter(deal => !deal.isMock).length
+  const isMockFeed = deals.length > 0 && realDealCount === 0
+  const displayedSort = pendingSort ?? appliedSort
+  const appliedSortOption = getSortOption(appliedSort)
+  const displayedSortOption = getSortOption(displayedSort)
+  const sortControlDisabled = loading || error || deals.length === 0 || isMockFeed
+
+  function viewportBand(): 'mobile_375' | 'desktop_1280' | 'other' {
+    if (window.innerWidth <= 479) return 'mobile_375'
+    if (window.innerWidth >= 1024) return 'desktop_1280'
+    return 'other'
+  }
+
+  function serializedFilterState(): string {
+    const discountBucket = [0, 20, 30, 40].includes(minDiscount) ? minDiscount : 'other'
+    let maxPriceBucket: 'any' | 'under_100' | 'under_150' | 'under_200' | 'under_300' | 'other' = 'other'
+    if (maxPriceCents === null) maxPriceBucket = 'any'
+    else if (maxPriceCents === 100_00) maxPriceBucket = 'under_100'
+    else if (maxPriceCents === 150_00) maxPriceBucket = 'under_150'
+    else if (maxPriceCents === 200_00) maxPriceBucket = 'under_200'
+    else if (maxPriceCents === 300_00) maxPriceBucket = 'under_300'
+    const starsBucket = [0, 3, 4, 5].includes(minStars) ? minStars : 'other'
+
+    return JSON.stringify({
+      city_active: Boolean(city),
+      min_discount: discountBucket,
+      max_price_bucket: maxPriceBucket,
+      min_stars: starsBucket,
+      date_from_active: Boolean(dateFrom),
+      date_to_active: Boolean(dateTo),
+      personalization_active: personalizationActive,
+    })
+  }
+
+  function sharedSortAnalytics() {
+    return {
+      premium_eligible: premium,
+      loaded_result_count: realDealCount,
+      viewport_band: viewportBand(),
+      filter_state: serializedFilterState(),
+    }
+  }
+
+  function sortTransition(from: SortKey, to: SortKey) {
+    return `${getSortOption(from).analyticsValue}>${getSortOption(to).analyticsValue}`
+  }
+
+  function openSortMenu(focus: 'checked' | 'last' = 'checked') {
+    if (sortControlDisabled || pendingSort) return
+    setPremiumExplanationOpen(false)
+    setSortMenuOpen(true)
+    window.setTimeout(() => {
+      const index = focus === 'last' ? SORT_OPTIONS.length - 1 : SORT_OPTIONS.findIndex(option => option.key === displayedSort)
+      sortOptionRefs.current[index]?.focus()
+    }, 0)
+  }
+
+  function closeSortMenu(returnFocus: boolean) {
+    setSortMenuOpen(false)
+    if (returnFocus) window.setTimeout(() => sortTriggerRef.current?.focus(), 0)
+  }
+
+  function activateSortOption(target: SortKey) {
+    if (target === appliedSort) {
+      closeSortMenu(true)
+      return
+    }
+    if (!premium) {
+      const from = appliedSort
+      track('hotel_sort_disabled_attempted', {
+        sort_from: getSortOption(from).analyticsValue,
+        sort_to: getSortOption(target).analyticsValue,
+        sort_transition: sortTransition(from, target),
+        ...sharedSortAnalytics(),
+        premium_eligible: false,
+      })
+      setSortMenuOpen(false)
+      setPremiumExplanationOpen(true)
+      window.setTimeout(() => premiumExplanationRef.current?.focus(), 0)
+      return
+    }
+    void requestSort(target)
+  }
+
+  function handleSortOptionKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    let nextIndex: number | null = null
+    if (event.key === 'ArrowDown') nextIndex = (index + 1) % SORT_OPTIONS.length
+    else if (event.key === 'ArrowUp') nextIndex = (index - 1 + SORT_OPTIONS.length) % SORT_OPTIONS.length
+    else if (event.key === 'Home') nextIndex = 0
+    else if (event.key === 'End') nextIndex = SORT_OPTIONS.length - 1
+    else if (event.key === 'Escape') {
+      event.preventDefault()
+      closeSortMenu(true)
+      return
+    } else if (event.key === 'Tab') {
+      setSortMenuOpen(false)
+      return
+    }
+    if (nextIndex !== null) {
+      event.preventDefault()
+      sortOptionRefs.current[nextIndex]?.focus()
+    }
+  }
+
+  function dismissPremiumExplanation() {
+    setPremiumExplanationOpen(false)
+    window.setTimeout(() => sortTriggerRef.current?.focus(), 0)
+  }
+
+  function trackCardOpen(position: number) {
+    const current = getSortOption(appliedSort).analyticsValue
+    const previous = getSortOption(previousSort).analyticsValue
+    track('hotel_result_card_opened', {
+      current_sort: current,
+      previous_sort: previous,
+      sort_transition: `${previous}>${current}`,
+      ...sharedSortAnalytics(),
+      card_position: position,
+    })
+  }
+
   useEffect(() => {
     if (!loading && !error && deals.length === 0 && hasActiveFilters) {
       track('feed_empty_filtered_viewed')
@@ -422,6 +628,62 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
       track('feed_empty_cold_viewed')
     }
   }, [error, isColdSampleFeed, loading])
+
+  useEffect(() => {
+    if (!sortMenuOpen) return
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      if (sortControlRef.current && !sortControlRef.current.contains(event.target as Node)) {
+        setSortMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
+    }
+  }, [sortMenuOpen])
+
+  useEffect(() => {
+    if (!premiumExplanationOpen) return
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') dismissPremiumExplanation()
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  })
+
+  useEffect(() => {
+    const element = sortControlRef.current
+    if (!element || sortViewedRef.current || activeTab !== 'hotels' || loading || error || isMockFeed || realDealCount === 0) return
+    const observer = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting) || sortViewedRef.current) return
+      sortViewedRef.current = true
+      track('hotel_sort_control_viewed', {
+        current_sort: getSortOption(appliedSort).analyticsValue,
+        ...sharedSortAnalytics(),
+      })
+      observer.disconnect()
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [activeTab, appliedSort, error, isMockFeed, loading, realDealCount])
+
+  useEffect(() => {
+    const pendingEvent = pendingSortEventRef.current
+    if (!pendingEvent || pendingSort !== null || pendingEvent.to !== appliedSort) return
+    const animationFrame = window.requestAnimationFrame(() => {
+      pendingSortEventRef.current = null
+      track('hotel_sort_changed', {
+        sort_from: getSortOption(pendingEvent.from).analyticsValue,
+        sort_to: getSortOption(pendingEvent.to).analyticsValue,
+        sort_transition: sortTransition(pendingEvent.from, pendingEvent.to),
+        ...sharedSortAnalytics(),
+        request_ms: Math.max(0, Math.round(window.performance.now() - pendingEvent.startedAt)),
+      })
+    })
+    return () => window.cancelAnimationFrame(animationFrame)
+  }, [appliedSort, deals, pendingSort])
 
   // Preference echo: the subtitle reflects the onboarded user's stored
   // watchlist and threshold; plain text + link, never styled as a filter pill.
@@ -560,50 +822,145 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
             <SearchBar premium={premium} onResult={handleSearchResult} onClear={clearSearch} />
           </div>
 
-          {/* Sort: segmented pill */}
-          <div className={`flex flex-wrap items-center gap-3 ${!premium && !loading ? 'mb-2' : 'mb-8'}`}>
-            <div
-              role="group"
-              aria-label="Sort deals"
-              className="inline-flex rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--line-white)] bg-[color:var(--surface)] p-[3px]"
-            >
+          <section
+            ref={sortControlRef}
+            aria-labelledby="hotel-sort-label"
+            className="relative mb-8 grid min-w-0 grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr] sm:items-start"
+          >
+            <div className="relative w-full sm:w-auto">
+              <span id="hotel-sort-label" className="mb-1.5 block text-[12px] font-bold leading-5 text-[var(--text-1)]">
+                Sort hotel deals
+              </span>
               <button
+                ref={sortTriggerRef}
                 type="button"
-                disabled={!premium}
-                aria-pressed={sort === 'newest'}
-                onClick={() => applyFilter({ sort: 'newest' })}
-                className={`${sortSegBase} ${sort === 'newest' ? 'bg-[color:var(--primary)] text-white' : 'text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]'}`}
+                disabled={sortControlDisabled}
+                aria-disabled={pendingSort ? true : undefined}
+                aria-haspopup="menu"
+                aria-expanded={sortMenuOpen}
+                aria-controls="hotel-sort-menu"
+                aria-describedby="hotel-sort-status"
+                onClick={() => {
+                  if (pendingSort) return
+                  if (sortMenuOpen) closeSortMenu(false)
+                  else openSortMenu()
+                }}
+                onKeyDown={event => {
+                  if (pendingSort) return
+                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    event.preventDefault()
+                    openSortMenu(event.key === 'ArrowUp' ? 'last' : 'checked')
+                  }
+                }}
+                className={`flex min-h-11 w-full min-w-0 items-center justify-between gap-3 rounded-[var(--radius-control)] border bg-[var(--bg-surface)] px-4 text-left text-sm font-bold text-[var(--text-1)] hover:border-[var(--border-hover)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-[17rem] ${sortMenuOpen ? 'border-[var(--border-focus)]' : 'border-[var(--border-strong)]'}`}
               >
-                Newest
+                <span className="min-w-0">Sort by: {displayedSortOption.label}</span>
+                {pendingSort ? (
+                  <svg className="h-4 w-4 shrink-0 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+                    <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                ) : (
+                  <svg className={`h-4 w-4 shrink-0 transition-transform ${sortMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                )}
               </button>
-              <button
-                type="button"
-                disabled={!premium}
-                aria-pressed={sort === 'discount'}
-                onClick={() => applyFilter({ sort: 'discount' })}
-                className={`${sortSegBase} ${sort === 'discount' ? 'bg-[color:var(--primary)] text-white' : 'text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]'}`}
-              >
-                Biggest discount
-              </button>
-            </div>
-          </div>
 
-          {!premium && !loading && (
-            <p className="mb-8 flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--ink-soft)]">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <rect x="5" y="11" width="14" height="10" rx="2" />
-                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-              </svg>
-              Filters and sorting are included with Premium.{' '}
-              <a href="/join" className="font-bold text-[color:var(--primary)] no-underline hover:underline">
-                Unlock with Premium
-              </a>
-            </p>
-          )}
+              {sortMenuOpen ? (
+                <div
+                  ref={sortMenuRef}
+                  id="hotel-sort-menu"
+                  role="menu"
+                  aria-label="Sort hotel deals"
+                  className="absolute left-0 top-full z-30 mt-2 w-full min-w-0 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-raised)] p-1 shadow-[var(--shadow-lift)] sm:w-[22rem]"
+                >
+                  {SORT_OPTIONS.map((option, index) => {
+                    const selected = displayedSort === option.key
+                    const locked = !premium && option.key !== 'newest'
+                    return (
+                      <button
+                        key={option.key}
+                        ref={element => { sortOptionRefs.current[index] = element }}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={selected}
+                        aria-disabled={locked ? true : undefined}
+                        onClick={() => activateSortOption(option.key)}
+                        onKeyDown={event => handleSortOptionKeyDown(event, index)}
+                        className={`flex min-h-11 w-full items-start gap-3 rounded-[calc(var(--radius-control)-0.125rem)] px-3 py-2.5 text-left hover:bg-[var(--bg-muted)] focus-visible:outline-offset-[-2px] ${selected ? 'bg-[var(--brand-soft)]' : ''}`}
+                      >
+                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[var(--border-strong)] text-[var(--brand)]" aria-hidden="true">
+                          {selected ? <span className="h-2 w-2 rounded-full bg-current" /> : null}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-bold leading-5 text-[var(--text-1)]">{option.label}</span>
+                          <span className="block text-[12px] leading-5 text-[var(--text-2)]">{option.description}</span>
+                        </span>
+                        {locked ? (
+                          <span className="flex shrink-0 items-center gap-1 pt-0.5 text-[12px] font-bold leading-5 text-[var(--text-1)]">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <rect x="5" y="11" width="14" height="10" rx="2" />
+                              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                            </svg>
+                            Premium
+                          </span>
+                        ) : null}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : null}
+            </div>
+
+            <div id="hotel-sort-status" role="status" aria-live="polite" aria-atomic="true" className="min-h-5 text-[12px] leading-5 text-[var(--text-2)] sm:pt-6 sm:text-right">
+              {loading && deals.length === 0 ? (
+                <p>Loading hotel deals…</p>
+              ) : pendingSort ? (
+                <p>Sorting by {displayedSortOption.label}…</p>
+              ) : isMockFeed ? (
+                <p>Sorting is available with live deals.</p>
+              ) : deals.length === 0 && !error ? (
+                <p>No deals to sort.</p>
+              ) : realDealCount > 0 ? (
+                <>
+                  <p>Sorted by {appliedSortOption.label} · {realDealCount} {realDealCount === 1 ? 'deal' : 'deals'} loaded</p>
+                  {appliedSort === 'price' ? <p className="font-medium text-[var(--text-1)]">Nightly prices before taxes and fees</p> : null}
+                </>
+              ) : null}
+            </div>
+
+            {premiumExplanationOpen ? (
+              <div
+                ref={premiumExplanationRef}
+                tabIndex={-1}
+                role="region"
+                aria-label="Premium sorting"
+                className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-muted)] p-3 text-[var(--text-1)] sm:col-start-1 sm:w-[22rem]"
+              >
+                <p className="text-sm font-bold">Premium sorting</p>
+                <p className="mt-1 text-[13px] leading-5">Sorting options are included with Premium. Your results are currently sorted by Recently found.</p>
+                <div className="mt-3 flex flex-col items-stretch gap-2 min-[420px]:flex-row">
+                  <a href="/join" className="btn btn-primary min-h-11 px-5">See Premium</a>
+                  <button type="button" onClick={dismissPremiumExplanation} className="btn btn-outline min-h-11 px-5">Not now</button>
+                </div>
+              </div>
+            ) : failedSort ? (
+              <div role="alert" className="rounded-[var(--radius-control)] border border-[var(--error)] bg-[var(--error-soft)] p-3 text-[var(--text-1)] sm:col-start-1 sm:w-[22rem]">
+                <p className="text-sm font-bold">Couldn&apos;t apply that sort. Try again.</p>
+                <p className="mt-1 text-[13px] leading-5">Your results are still sorted by {appliedSortOption.label}.</p>
+                <button type="button" onClick={() => void requestSort(failedSort)} className="btn btn-outline mt-3 min-h-11 px-5">Retry</button>
+              </div>
+            ) : null}
+          </section>
 
           {/* Grid */}
-          {loading ? (
-            <div className={gridClass}>
+          {pendingSort ? (
+            <div className={gridClass} aria-busy="true" aria-label="Hotel deals">
+              {Array.from({ length: Math.min(Math.max(deals.length, 1), 6) }).map((_, i) => <SkeletonCard key={`sort-${i}`} />)}
+            </div>
+          ) : loading ? (
+            <div className={gridClass} aria-busy="true" aria-label="Hotel deals">
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           ) : error ? (
@@ -611,7 +968,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
               <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">Couldn&apos;t load deals right now.</p>
               <button
                 type="button"
-                onClick={() => fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort, offset: 0, append: false })}
+                onClick={() => fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort: appliedSort, offset: 0, append: false })}
                 className="btn btn-primary mt-4 px-8"
               >
                 Retry
@@ -677,8 +1034,8 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
                   </div>
                 </div>
               ) : null}
-              <div ref={gridRef} tabIndex={-1} className={`${gridClass} outline-none`}>
-                {deals.map(deal =>
+              <div ref={gridRef} tabIndex={-1} aria-busy="false" className={`${gridClass} outline-none`}>
+                {deals.map((deal, index) =>
                   deal.locked ? (
                     <LockedDealCard
                       key={deal.id}
@@ -692,6 +1049,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
                     <DealCard
                       key={deal.id}
                       href={deal.isMock ? undefined : `/deals/${deal.id}`}
+                      onOpen={deal.isMock ? undefined : () => trackCardOpen(index + 1)}
                       deal={{
                         id: deal.id,
                         hotelName: deal.hotelName,

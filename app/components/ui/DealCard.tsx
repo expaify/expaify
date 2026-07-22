@@ -33,6 +33,7 @@ type DealCardDeal = {
 type DealCardProps = {
   deal: DealCardDeal
   href?: string
+  onOpen?: () => void
 }
 
 function starChars(stars: number): string {
@@ -40,7 +41,7 @@ function starChars(stars: number): string {
   return '★'.repeat(n) + '☆'.repeat(5 - n)
 }
 
-export function DealCard({ deal, href }: DealCardProps) {
+export function DealCard({ deal, href, onOpen }: DealCardProps) {
   const savings = deal.medianPrice.priceCents - deal.dealPrice.priceCents
   const showSavings = savings >= 2000
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
@@ -109,7 +110,14 @@ export function DealCard({ deal, href }: DealCardProps) {
   if (!href) return content
 
   return (
-    <a href={href} className="block text-inherit no-underline" aria-label={`View deal: ${deal.hotelName}`}>
+    <a
+      href={href}
+      onClick={(event) => {
+        if ((event.target as Element).closest('a') === event.currentTarget) onOpen?.()
+      }}
+      className="block text-inherit no-underline"
+      aria-label={`View deal: ${deal.hotelName}`}
+    >
       {content}
     </a>
   )
