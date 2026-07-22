@@ -22,6 +22,25 @@ const completeHold: HotelFundsPolicyEvidence = {
   }],
 };
 
+const completeDeposit: HotelFundsPolicyEvidence = {
+  ...completeHold,
+  obligations: [{
+    type: 'refundable_deposit',
+    amount: { kind: 'range', min: { priceCents: 10_000, currency: 'USD' }, max: { priceCents: 20_000, currency: 'USD' } },
+    basis: 'per_room',
+    applicationWording: 'Collected at check-in',
+    paymentMethodWording: 'Credit or debit card',
+    returnOrRelease: { action: 'refund', providerWording: 'after the room inspection' },
+    sourceLabel: 'Provider policy',
+    scope: 'selected_stay',
+  }],
+};
+
+const mixedObligations: HotelFundsPolicyEvidence = {
+  ...completeHold,
+  obligations: [completeHold.obligations[0], completeDeposit.obligations[0]],
+};
+
 describe('hotel funds policy normalization', () => {
   it('is semantically stable across serialized cache-style replay', () => {
     const live = normalizeHotelFundsPolicyEvidence(completeHold, 'Fallback');
@@ -31,25 +50,27 @@ describe('hotel funds policy normalization', () => {
   });
 
   it.each([
-    ['complete', completeHold],
-    ['partial', { ...completeHold, state: 'partial', obligations: [{ ...completeHold.obligations[0], amount: undefined }] }],
-    ['explicit_none', { state: 'explicit_none', obligations: [], sourceLabel: 'Provider policy', scope: 'rate' }],
-    ['not_returned', createNotReturnedHotelFundsPolicy('Provider policy')],
+    ['complete hold', completeHold, 'complete'],
+    ['complete deposit', completeDeposit, 'complete'],
+    ['mixed obligations', mixedObligations, 'complete'],
+    ['partial', { ...completeHold, state: 'partial', obligations: [{ ...completeHold.obligations[0], amount: undefined }] }, 'partial'],
+    ['explicit none', { state: 'explicit_none', obligations: [], sourceLabel: 'Provider policy', scope: 'rate' }, 'explicit_none'],
+    ['not returned', createNotReturnedHotelFundsPolicy('Provider policy'), 'not_returned'],
     ['conflicting', {
       state: 'conflicting', obligations: [], sourceLabel: 'Provider policy', scope: 'property',
       conflictingRecords: [
         completeHold.obligations[0],
         { ...completeHold.obligations[0], amount: { kind: 'exact', money: { priceCents: 30000, currency: 'USD' } } },
       ],
-    }],
+    }, 'conflicting'],
     ['variable', {
       ...completeHold,
       obligations: [{ ...completeHold.obligations[0], amount: { kind: 'variable', providerWording: 'Based on room type' } }],
-    }],
-  ] as const)('preserves valid %s evidence through normalization', (label, input) => {
+    }, 'complete'],
+  ] as const)('preserves valid %s evidence through normalization and cache replay', (_label, input, expectedState) => {
     const normalized = normalizeHotelFundsPolicyEvidence(input, 'Fallback');
     expect(normalizeHotelFundsPolicyEvidence(JSON.parse(JSON.stringify(normalized)), 'Fallback')).toEqual(normalized);
-    expect(normalized.state).toBe(label === 'variable' ? 'complete' : label);
+    expect(normalized.state).toBe(expectedState);
   });
 
   it.each([

@@ -170,6 +170,41 @@ describe('HotellookProvider.searchHotels', () => {
     ]);
   });
 
+  it('ignores unsupported policy-shaped fields in live Hotellook payloads', async () => {
+    const provider = new HotellookProvider();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue([{
+        hotelId: 24680,
+        hotelName: 'Unverified Policy Hotel',
+        priceFrom: 175,
+        fundsPolicy: {
+          state: 'explicit_none',
+          obligations: [],
+          sourceLabel: 'Undocumented payload field',
+          scope: 'selected_stay',
+        },
+      }]),
+    });
+
+    const result = await provider.searchHotels('LAX', {
+      checkin: '2026-09-22',
+      checkout: '2026-09-29',
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: [{
+        fundsPolicy: {
+          state: 'not_returned',
+          obligations: [],
+          sourceLabel: 'Hotellook',
+          scope: 'not_returned',
+        },
+      }],
+    });
+  });
+
   it('preserves provider coordinates without promoting them to a street address', async () => {
     const provider = new HotellookProvider();
     (global.fetch as jest.Mock).mockResolvedValue({
