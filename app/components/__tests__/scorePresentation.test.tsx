@@ -364,6 +364,17 @@ describe('Deal score presentation', () => {
     expect(text).not.toMatch(/verified photo|recent photo|room photo/i)
   })
 
+  it('reflows the HotelCard rate below identity in containers narrower than 351px', () => {
+    const card = HotelCard({ hotel: { ...hotel, photoUrl: 'https://example.com/property.jpg' }, score: null, loading: false })
+    const containerClass = findFirstProp(card, 'className', value => typeof value === 'string' && value.includes('@container'))
+    const summaryGridClass = findFirstProp(card, 'className', value => typeof value === 'string' && value.includes('@max-[351px]:grid-cols-[5rem_minmax(0,1fr)]'))
+    const rateClass = findFirstProp(card, 'className', value => typeof value === 'string' && value.includes('@max-[351px]:col-span-2'))
+
+    expect(containerClass).toEqual(expect.stringContaining('@container'))
+    expect(summaryGridClass).toEqual(expect.stringContaining('@max-[351px]:grid-cols-[5rem_minmax(0,1fr)]'))
+    expect(rateClass).toEqual(expect.stringContaining('@max-[351px]:text-left'))
+  })
+
   it('keeps the expanded HotelCard photo after score and evidence with empty alt text', () => {
     const useStateMock = jest.requireMock('react').useState as jest.Mock
     useStateMock.mockImplementationOnce(() => [true, jest.fn()])
@@ -410,6 +421,30 @@ describe('Deal score presentation', () => {
     expect(text).toContain('Price checked 2h ago')
     expect(findFirstProp(card, 'alt', value => value === '')).toBe('')
     expect(collectText(figure)).toBe('Property photo')
+  })
+
+  it('keeps DealCard identity before its optional deal headline and photo', () => {
+    const card = DealCard({
+      deal: {
+        id: 'deal-order',
+        hotelName: 'Identity First Hotel',
+        city: 'Lisbon',
+        stars: 4,
+        photoUrl: 'https://example.com/property.jpg',
+        dealPrice: { priceCents: 14000, currency: 'USD' },
+        medianPrice: { priceCents: 20000, currency: 'USD' },
+        discountPct: 30,
+        checkInWindow: 'Sep 1–8',
+        snapshotCount: 20,
+        links: {},
+        headline: '43% below usual',
+      },
+    })
+    const text = collectText(card)
+
+    expect(text.indexOf('Identity First Hotel')).toBeLessThan(text.indexOf('$140 USD'))
+    expect(text.indexOf('$140 USD')).toBeLessThan(text.indexOf('43% below usual'))
+    expect(text.indexOf('43% below usual')).toBeLessThan(text.indexOf('Property photo'))
   })
 
   it('uses the honest DealCard no-photo state without a scope caption', () => {

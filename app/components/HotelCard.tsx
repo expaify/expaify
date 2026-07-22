@@ -32,9 +32,9 @@ function StarRow({ stars }: { stars: number }) {
   )
 }
 
-function Price({ price, providerName }: { price: HotelOffer['pricePerNight']; providerName: string }) {
+function Price({ price, providerName, className = '' }: { price: HotelOffer['pricePerNight']; providerName: string; className?: string }) {
   return (
-    <div className="min-w-[6.75rem] max-w-[9.5rem] text-right">
+    <div className={`min-w-[6.75rem] max-w-[9.5rem] text-right ${className}`}>
       <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
         Nightly rate
       </p>
@@ -50,9 +50,9 @@ function Price({ price, providerName }: { price: HotelOffer['pricePerNight']; pr
   )
 }
 
-function PriceUnavailable({ reason, providerName, showProvider }: { reason: string; providerName: string; showProvider: boolean }) {
+function PriceUnavailable({ reason, providerName, showProvider, className = '' }: { reason: string; providerName: string; showProvider: boolean; className?: string }) {
   return (
-    <div className="min-w-[6.75rem] max-w-[9.5rem] text-right" role="status" aria-label={`Hotel price unavailable. ${reason}${showProvider ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`}>
+    <div className={`min-w-[6.75rem] max-w-[9.5rem] text-right ${className}`} role="status" aria-label={`Hotel price unavailable. ${reason}${showProvider ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`}>
       <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
         Nightly rate
       </p>
@@ -425,9 +425,9 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
   const detailsId = `hotel-details-${hotel.id}`
 
   return (
-    <article className="card overflow-hidden rounded-[var(--radius-card)]">
+    <article className="card @container overflow-hidden rounded-[var(--radius-card)]">
       <div className="p-3 sm:p-5">
-        <div className="grid grid-cols-[5rem_minmax(0,1fr)_minmax(6.75rem,auto)] gap-2 sm:gap-3">
+        <div className="grid grid-cols-[5rem_minmax(0,1fr)_minmax(6.75rem,auto)] gap-2 @max-[351px]:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3">
           <PropertyPhoto
             src={photoFailed ? undefined : hotel.photoUrl}
             size="thumbnail"
@@ -469,9 +469,18 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
           </div>
 
           {hasValidPrice ? (
-            <Price price={hotel.pricePerNight} providerName={providerName} />
+            <Price
+              price={hotel.pricePerNight}
+              providerName={providerName}
+              className="@max-[351px]:col-span-2 @max-[351px]:min-w-0 @max-[351px]:max-w-none @max-[351px]:pt-1 @max-[351px]:text-left"
+            />
           ) : (
-            <PriceUnavailable reason={unavailableReason} providerName={providerName} showProvider={hasHotelProviderName} />
+            <PriceUnavailable
+              reason={unavailableReason}
+              providerName={providerName}
+              showProvider={hasHotelProviderName}
+              className="@max-[351px]:col-span-2 @max-[351px]:min-w-0 @max-[351px]:max-w-none @max-[351px]:pt-1 @max-[351px]:text-left"
+            />
           )}
         </div>
 

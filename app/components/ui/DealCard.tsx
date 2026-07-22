@@ -48,10 +48,6 @@ export function DealCard({ deal, href }: DealCardProps) {
   const content = (
     <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
       <div className="space-y-3 px-4 pb-4 pt-3">
-        {deal.headline ? (
-          <p className="text-[12px] font-medium leading-snug text-[color:var(--primary)]">{deal.headline}</p>
-        ) : null}
-
         <div>
           {deal.isMock ? (
             <span className="mb-2 inline-flex rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-2 py-1 font-display text-[11px] font-bold leading-none text-[color:var(--gold-text)]">
@@ -78,6 +74,9 @@ export function DealCard({ deal, href }: DealCardProps) {
             </span>
             <DealChip discountPct={deal.discountPct} />
           </div>
+          {deal.headline ? (
+            <p className="text-[12px] font-medium leading-snug text-[color:var(--primary)]">{deal.headline}</p>
+          ) : null}
           {showSavings ? (
             <p className="text-[12px] font-medium text-[color:var(--primary)]">
               Save {formatMoney({ priceCents: savings, currency: deal.dealPrice.currency })}/night
