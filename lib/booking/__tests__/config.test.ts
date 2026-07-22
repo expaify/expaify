@@ -279,11 +279,56 @@ describe('booking hotel context continuity', () => {
     expect(validateBookingHotelContext({ ...baseContext, currency: 'US Dollars' })).toBeNull();
     expect(validateBookingHotelContext({ ...baseContext, priceBasis: 'total' })).toBeNull();
     expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'javascript:alert(1)' })).toBeNull();
-    expect(validateBookingHotelContext({ ...baseContext, locationLat: '91', locationLng: '-73' })).toBeNull();
-    expect(validateBookingHotelContext({ ...baseContext, locationLat: 'north', locationLng: '-73' })).toBeNull();
-    expect(validateBookingHotelContext({ ...baseContext, locationLat: '40', locationLng: 'west' })).toBeNull();
-    expect(validateBookingHotelContext({ ...baseContext, locationDistanceValue: '1', locationDistanceUnit: 'meters', locationDistanceMethod: 'straight_line', locationDistanceSource: 'expaify_calculated' })).toBeNull();
-    expect(validateBookingHotelContext({ ...baseContext, locationDistanceValue: 'near' })).toBeNull();
+  });
+
+  it('drops invalid optional location evidence without blocking the hotel handoff', () => {
+    const baseContext = {
+      kind: 'hotel',
+      offerId: 'hotel_123',
+      provider: 'hotellook',
+      name: 'The Example Hotel',
+      area: 'New York',
+      locationPrecision: 'exact',
+      locationAddress: '350 5th Ave, New York, NY',
+      locationSource: 'provider',
+      priceCents: 18900,
+      currency: 'USD',
+      priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+    } as const;
+
+    const invalidCoordinates = validateBookingHotelContext({
+      ...baseContext,
+      locationLat: '91',
+      locationLng: '-73',
+    });
+    expect(invalidCoordinates).toMatchObject({
+      location: {
+        address: '350 5th Ave, New York, NY',
+        source: 'provider',
+      },
+    });
+    expect(invalidCoordinates?.location).not.toHaveProperty('lat');
+    expect(invalidCoordinates?.location).not.toHaveProperty('lng');
+
+    const unverifiedComparison = validateBookingHotelContext({
+      ...baseContext,
+      locationLat: '40.7484',
+      locationLng: '-73.9857',
+      locationAnchorKind: 'airport',
+      locationAnchorId: 'JFK',
+      locationAnchorName: 'John F. Kennedy International (JFK)',
+      locationAnchorLat: '40.6413',
+      locationAnchorLng: '-73.7781',
+      locationAnchorSource: 'search_linked',
+      locationDistanceValue: '1',
+      locationDistanceUnit: 'km',
+      locationDistanceMethod: 'straight_line',
+      locationDistanceSource: 'expaify_calculated',
+    });
+    expect(unverifiedComparison).not.toBeNull();
+    expect(unverifiedComparison?.location).not.toHaveProperty('anchor');
+    expect(unverifiedComparison?.location).not.toHaveProperty('distance');
   });
 
   it('does not serialize an unverified legacy-style distance', () => {

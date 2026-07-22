@@ -59,6 +59,12 @@ describe('hotel location evidence', () => {
     expect(withCalculatedAnchorDistance(property, invalidAnchor)).not.toHaveProperty('anchor');
   });
 
+  it('requires provider provenance for property coordinates', () => {
+    const searchFallbackProperty = { ...property, source: 'search_fallback' as const };
+
+    expect(withCalculatedAnchorDistance(searchFallbackProperty, anchor)).not.toHaveProperty('distance');
+  });
+
   it('rejects a tampered calculated distance during continuity validation', () => {
     const location = withCalculatedAnchorDistance(property, anchor);
     const tampered = {
@@ -67,5 +73,24 @@ describe('hotel location evidence', () => {
     };
 
     expect(hasVerifiedHotelLocationComparison(tampered)).toBe(false);
+  });
+
+  it('accepts documented provider comparisons only for provider-declared anchors', () => {
+    const providerDistance = {
+      ...property,
+      anchor: { ...anchor, kind: 'landmark' as const, source: 'provider_declared' as const },
+      distance: {
+        value: 2.5,
+        unit: 'km' as const,
+        method: 'straight_line' as const,
+        source: 'provider_documented' as const,
+      },
+    };
+
+    expect(hasVerifiedHotelLocationComparison(providerDistance)).toBe(true);
+    expect(hasVerifiedHotelLocationComparison({
+      ...providerDistance,
+      anchor,
+    })).toBe(false);
   });
 });

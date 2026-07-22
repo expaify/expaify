@@ -56,7 +56,11 @@ export function withCalculatedAnchorDistance(
 ): HotelLocation {
   if (anchor === undefined) return location;
 
-  if (!hasValidCoordinates(location) || !isValidHotelLocationAnchor(anchor)) {
+  if (
+    location.source !== 'provider' ||
+    !hasValidCoordinates(location) ||
+    !isValidHotelLocationAnchor(anchor)
+  ) {
     const { anchor: _anchor, distance: _distance, ...propertyEvidence } = location;
     return propertyEvidence;
   }
@@ -94,6 +98,7 @@ export function hasVerifiedHotelLocationComparison(
 ): location is HotelLocation & { anchor: HotelLocationAnchor; distance: HotelLocationDistance; lat: number; lng: number } {
   if (
     !location ||
+    location.source !== 'provider' ||
     !hasValidCoordinates(location) ||
     !isValidHotelLocationAnchor(location.anchor) ||
     !isValidDistance(location.distance)
@@ -101,7 +106,9 @@ export function hasVerifiedHotelLocationComparison(
     return false;
   }
 
-  if (location.distance.source === 'provider_documented') return true;
+  if (location.distance.source === 'provider_documented') {
+    return location.anchor.source === 'provider_declared';
+  }
 
   const calculatedKm = calculateStraightLineDistanceKm(location, location.anchor);
   if (calculatedKm === undefined) return false;
