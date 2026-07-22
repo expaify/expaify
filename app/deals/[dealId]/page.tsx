@@ -9,6 +9,7 @@ import { PriceSparkline } from '@/app/components/ui/PriceSparkline'
 import { CompareRow } from '@/app/components/ui/CompareRow'
 import { ShareButton } from '@/app/components/ui/ShareButton'
 import DealScorePanel from '@/app/components/DealScorePanel'
+import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 import { scoreDeal } from '@/lib/scoring/scoreDeal'
 import type { DealScore } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
@@ -249,6 +250,11 @@ export default async function DealDetailPage({ params }: PageProps) {
   const checkInDisplay = deal.check_in_date ? fmtShort(deal.check_in_date) : null
   const checkOutDisplay = deal.check_in_date && Number.isInteger(deal.nights) && deal.nights > 0 ? addNights(deal.check_in_date, deal.nights) : null
   const hasCompleteStay = Boolean(checkInDisplay && checkOutDisplay && deal.nights > 0)
+  const location = getHotelLocationDisplay({
+    location: deal.city?.trim()
+      ? { precision: 'search_area', label: deal.city }
+      : { precision: 'missing' },
+  })
 
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
@@ -268,9 +274,9 @@ export default async function DealDetailPage({ params }: PageProps) {
             <p className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
             <h1 id="property-stay-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name}</h1>
             <div className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
-              <p className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Search area</p>
-              <p className="mt-1 font-medium text-[color:var(--text-1)]">{deal.city || 'Confirm with provider'}</p>
-              <p className="mt-1 text-xs leading-5 text-[color:var(--warning)]">Only the searched destination is available. Confirm the property location with the provider.</p>
+              <p className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">{location.label}</p>
+              <p className="mt-1 break-words font-medium text-[color:var(--text-1)]">{location.value}</p>
+              <p className="mt-1 text-xs leading-5 text-[color:var(--warning)]">{location.note}</p>
             </div>
             {checkInDisplay || checkOutDisplay || deal.nights ? (
               <dl className="mt-3 grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
@@ -308,7 +314,7 @@ export default async function DealDetailPage({ params }: PageProps) {
               Search current deals
             </a></div>
         ) : hasValidPrice && hasOtaLinks ? (
-          <div className="mt-3"><p className="text-sm leading-6 text-[color:var(--text-2)]">The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.{!hasCompleteStay ? ' Choose or confirm your dates there before comparing room options.' : ''} Confirm the property location there before choosing a room.</p><div className="mt-4"><CompareRow links={validOtaLinks} size="primary" hotelName={deal.hotel_name} /></div></div>
+          <div className="mt-3"><p className="text-sm leading-6 text-[color:var(--text-2)]">The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.{!hasCompleteStay ? ' Choose or confirm your dates there before comparing room options.' : ''}{location.precision === 'missing' ? ' Confirm the property location there before choosing a room.' : ''}</p><div className="mt-4"><CompareRow links={validOtaLinks} size="primary" hotelName={deal.hotel_name} /></div></div>
         ) : (
           <div className="mt-3" role="status"><p className="font-bold text-[color:var(--text-1)]">{hasValidPrice ? 'Provider link unavailable' : 'Room check unavailable'}</p><p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">{hasValidPrice ? 'You can review this hotel here, but expaify does not have a valid provider link for room inspection.' : 'A trustworthy nightly rate is required before expaify can send this hotel selection to a provider.'}</p><a href="/deals" className="mt-3 inline-flex min-h-11 items-center font-medium text-[color:var(--brand)]">Search current deals</a></div>
         )}

@@ -239,7 +239,7 @@ describe('BookingFlow fare context review', () => {
       hotelContext,
     });
     const anchors = findElements(tree, element => element.type === 'a');
-    const backLink = anchors.find(element => element.props.href === '/deals' && typeof element.props.onClick === 'function');
+    const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function');
 
     expect(trackMock).toHaveBeenCalledWith('hotel_handoff_viewed', {
       source: 'hotellook',
@@ -282,7 +282,7 @@ describe('BookingFlow fare context review', () => {
       });
       const anchors = findElements(tree, element => element.type === 'a');
       const outbound = anchors.find(element => element.props.target === '_blank');
-      const backLink = anchors.find(element => element.props.href === '/deals' && typeof element.props.onClick === 'function');
+      const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function');
 
       (outbound?.props.onClick as (() => void))();
       expect(trackMock).toHaveBeenCalledWith('hotel_handoff_continue_clicked', expect.objectContaining({
@@ -314,17 +314,20 @@ describe('BookingFlow fare context review', () => {
   });
 
   it('shows a recoverable hotel-specific error for malformed hotel handoff links', () => {
-    const text = collectText(BookingFlow({
+    const tree = BookingFlow({
       bookingEnabled: false,
       duffelSandbox: true,
       fareContext: null,
       hotelContext: null,
       invalidHotelSelection: true,
-    }));
+    });
+    const text = collectText(tree);
+    const searchLink = findElements(tree, element => element.type === 'a' && element.props.href === '/')[0];
 
     expect(text).toContain('Hotel review unavailable');
     expect(text).toContain('This hotel link is incomplete, so expaify cannot show a trustworthy property and nightly rate.');
     expect(text).toContain('Search hotels');
+    expect(searchLink).toBeDefined();
     expect(text).not.toContain("We can't identify this fare");
   });
 });

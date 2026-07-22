@@ -528,7 +528,7 @@ function InvalidHotelState() {
         <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
           This hotel link is incomplete, so expaify cannot show a trustworthy property and nightly rate.
         </p>
-        <a href="/deals" className="btn btn-primary mt-6 inline-flex min-h-11 w-full items-center justify-center">
+        <a href="/" className="btn btn-primary mt-6 inline-flex min-h-11 w-full items-center justify-center">
           Search hotels
         </a>
       </section>
@@ -606,7 +606,7 @@ function HotelHandoffReview({ hotelContext }: { hotelContext: BookingHotelContex
   return (
     <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
       <TrackOnMount event="hotel_handoff_viewed" props={analyticsProps} />
-      <a href="/deals" onClick={handleBack} className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)] focus-visible:rounded-[var(--radius-control)]">
+      <a href="/" onClick={handleBack} className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)] focus-visible:rounded-[var(--radius-control)]">
         ← Back to hotel search
       </a>
       <div className="mt-4 space-y-4 sm:mt-6">
