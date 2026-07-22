@@ -17,8 +17,16 @@ import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
 import { scoreDeal } from '@/lib/scoring/scoreDeal'
 import type { DealScore } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
+import { HotelContinuityPrototype } from '@/app/components/research/HotelContinuityPrototype'
+import { createContinuityFixture, parseContinuityFixture } from '@/app/components/research/hotelContinuityFixtures'
 
-type PageProps = { params: Promise<{ dealId: string }> }
+type PageProps = {
+  params: Promise<{ dealId: string }>
+  searchParams: Promise<{
+    continuityFixture?: string | string[]
+    continuityDisclosure?: string | string[]
+  }>
+}
 
 function fmtDate(iso?: string | null): string {
   if (!iso) return ''
@@ -200,8 +208,9 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
   )
 }
 
-export default async function DealDetailPage({ params }: PageProps) {
+export default async function DealDetailPage({ params, searchParams }: PageProps) {
   const { dealId } = await params
+  const researchParams = await searchParams
 
   const deal = await getDealById(dealId).catch(() => null)
   if (!deal) notFound()
@@ -233,6 +242,17 @@ export default async function DealDetailPage({ params }: PageProps) {
   // check-in / check-out derived
   const checkInDisplay = deal.check_in_date ? fmtShort(deal.check_in_date) : null
   const checkOutDisplay = deal.check_in_date ? addNights(deal.check_in_date, deal.nights ?? 1) : null
+  const continuityFixtureId = parseContinuityFixture(researchParams.continuityFixture)
+  const checkInMs = deal.check_in_date ? Date.parse(deal.check_in_date) : NaN
+  const checkOutIso = Number.isFinite(checkInMs)
+    ? new Date(checkInMs + (deal.nights ?? 1) * 86400000).toISOString()
+    : null
+  const continuityDisclosure = continuityFixtureId === 'control'
+    ? null
+    : createContinuityFixture(continuityFixtureId, deal.check_in_date, checkOutIso, now)
+  const disclosureParam = Array.isArray(researchParams.continuityDisclosure)
+    ? researchParams.continuityDisclosure[0]
+    : researchParams.continuityDisclosure
 
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
@@ -349,6 +369,14 @@ export default async function DealDetailPage({ params }: PageProps) {
             </p>
           </div>
         )}
+
+        <HotelContinuityPrototype
+          dealId={deal.id}
+          hotelName={deal.hotel_name}
+          fixtureId={continuityFixtureId}
+          disclosure={continuityDisclosure}
+          initiallyExpanded={disclosureParam === 'expanded'}
+        />
 
         {/* Price history — streams in after the content above renders */}
         <Suspense fallback={<PriceHistorySkeleton />}>
