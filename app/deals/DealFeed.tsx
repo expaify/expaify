@@ -9,6 +9,18 @@ import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 import { track } from '@/lib/analytics'
 import { HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
+import {
+  HotelFilterRecoveryPanel,
+  HotelResultStatus,
+  HotelShortListHelper,
+} from './HotelRecoveryUI'
+import {
+  formatDealCount,
+  parseHotelResultMetadata,
+  type HotelFilterKey,
+  type HotelFilterState,
+  type HotelResultMetadata,
+} from './hotelFilterRecovery'
 
 const CITIES = [
   'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
@@ -106,9 +118,31 @@ type DealFetchOpts = {
   append: boolean
 }
 
+type FeedSnapshot = HotelFilterState & { sort: SortKey; queryId?: string }
+
+type UndoSnapshot = {
+  target: FeedSnapshot
+  kind: 'single' | 'reset'
+}
+
+type RequestBehavior = {
+  focusOnSuccess?: boolean
+  successKind?: 'single' | 'reset' | 'undo'
+  undoOnSuccess?: UndoSnapshot
+  preserveResultsOnFailure?: boolean
+}
+
+type DealsResponse = {
+  deals: ApiDeal[]
+  total: number
+  premium?: boolean
+  unfilteredTotal?: number
+  resultMetadata?: unknown
+}
+
 function SkeletonCard() {
   return (
-    <div className="overflow-hidden rounded-[var(--radius-card)] bg-[color:var(--surface)]">
+    <div aria-hidden="true" className="overflow-hidden rounded-[var(--radius-card)] bg-[color:var(--surface)]">
       <div className="skeleton aspect-[3/2]" />
       <div className="space-y-3 p-4">
         <div className="skeleton h-4 w-16 rounded-full" />
@@ -242,12 +276,13 @@ type Personalization = {
 
 type DealFeedProps = {
   initialDeals?: ApiDeal[]
+  initialResultMetadata?: HotelResultMetadata | null
   defaultCity?: string
   premium?: boolean
   personalization?: Personalization
 }
 
-export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = false, personalization }: DealFeedProps = {}) {
+export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization }: DealFeedProps = {}) {
   const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
   const [hasMore, setHasMore] = useState((initialDeals?.length ?? 0) === HOTEL_DEAL_PAGE_SIZE)
@@ -269,8 +304,24 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
   const [offset, setOffset] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [premium, setPremium] = useState(premiumProp)
-  const [unfilteredTotal, setUnfilteredTotal] = useState<number | undefined>(undefined)
+  const [resultMetadata, setResultMetadata] = useState<HotelResultMetadata | null>(() => {
+    if (!initialResultMetadata) return null
+    return parseHotelResultMetadata(initialResultMetadata, {
+      city: defaultCity ?? '',
+      minDiscount: DEFAULT_MIN_DISCOUNT,
+      minStars: 0,
+      maxPriceCents: null,
+      dateFrom: '',
+      dateTo: '',
+    }, defaultCity)
+  })
+  const [lastChangedKey, setLastChangedKey] = useState<HotelFilterKey | null>(null)
+  const [pendingRecoveryKey, setPendingRecoveryKey] = useState<HotelFilterKey | 'reset' | 'undo' | 'retry' | null>(null)
+  const [undoSnapshot, setUndoSnapshot] = useState<UndoSnapshot | null>(null)
+  const [undoError, setUndoError] = useState(false)
+  const [statusAnnouncement, setStatusAnnouncement] = useState('')
   const gridRef = useRef<HTMLDivElement>(null)
+  const resultStatusRef = useRef<HTMLDivElement>(null)
   const sortControlRef = useRef<HTMLElement>(null)
   const sortTriggerRef = useRef<HTMLButtonElement>(null)
   const sortMenuRef = useRef<HTMLDivElement>(null)
@@ -278,14 +329,24 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
   const premiumExplanationRef = useRef<HTMLDivElement>(null)
   const sortViewedRef = useRef(false)
   const pendingSortEventRef = useRef<{ from: SortKey; to: SortKey; startedAt: number } | null>(null)
+  const requestSequenceRef = useRef(0)
+  const requestAbortRef = useRef<AbortController | null>(null)
+  const retryBehaviorRef = useRef<RequestBehavior | null>(null)
 
   const personalizationActive = Boolean(personalization?.active)
 
-  const fetchDeals = useCallback(async (opts: DealFetchOpts) => {
+  const fetchDeals = useCallback(async (opts: DealFetchOpts, behavior: RequestBehavior = {}) => {
     const { append } = opts
-    if (!append) setLoading(true)
-    else setLoadingMore(true)
+    const sequence = ++requestSequenceRef.current
+    requestAbortRef.current?.abort()
+    const controller = new AbortController()
+    requestAbortRef.current = controller
+    if (!append) {
+      setLoading(true)
+      setResultMetadata(null)
+    } else setLoadingMore(true)
     setError(false)
+    setUndoError(false)
 
     const params = new URLSearchParams({
       limit: String(HOTEL_DEAL_PAGE_SIZE),
@@ -303,22 +364,71 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     if (!personalizationActive) params.set('all', '1')
 
     try {
-      const res = await fetch(`/api/deals?${params}`)
+      const res = await fetch(`/api/deals?${params}`, { signal: controller.signal })
       if (!res.ok) throw new Error('fetch failed')
-      const data: { deals: ApiDeal[]; total: number; premium?: boolean; unfilteredTotal?: number } = await res.json()
+      const data: DealsResponse = await res.json()
+      if (sequence !== requestSequenceRef.current) return false
+      const requestedFilters: HotelFilterState = {
+        city: opts.city,
+        minDiscount: opts.minDiscount,
+        minStars: opts.minStars,
+        maxPriceCents: opts.maxPriceCents,
+        dateFrom: opts.dateFrom,
+        dateTo: opts.dateTo,
+      }
+      const parsedMetadata = parseHotelResultMetadata(data.resultMetadata, requestedFilters, defaultCity)
+      if (parsedMetadata?.inventoryKind === 'live') {
+        if (parsedMetadata.filteredTotal === 0 && data.deals.length > 0) throw new Error('invalid result metadata')
+        if (parsedMetadata.filteredTotal > 0 && parsedMetadata.filteredTotal <= 3 && data.deals.length === 0) throw new Error('invalid result metadata')
+      }
       setDeals(prev => append ? [...prev, ...data.deals] : data.deals)
-      setUnfilteredTotal(typeof data.unfilteredTotal === 'number' ? data.unfilteredTotal : undefined)
+      if (!append) setResultMetadata(parsedMetadata)
       // The API reports the page count, not the full set, so a full page is
       // the only reliable "there may be more" signal.
       setHasMore(data.deals.length === HOTEL_DEAL_PAGE_SIZE)
       setPremium(Boolean(data.premium))
-    } catch {
-      setError(true)
+      if (behavior.undoOnSuccess) setUndoSnapshot(behavior.undoOnSuccess)
+      if (behavior.successKind === 'undo') {
+        setCity(opts.city)
+        setMinDiscount(opts.minDiscount)
+        setMinStars(opts.minStars)
+        setMaxPriceCents(opts.maxPriceCents)
+        setDateFrom(opts.dateFrom)
+        setDateTo(opts.dateTo)
+        setAppliedSort(opts.sort)
+        setUndoSnapshot(null)
+      }
+      if (!append) {
+        const count = parsedMetadata?.inventoryKind === 'live' ? parsedMetadata.filteredTotal : null
+        const countCopy = count === null ? null : `${formatDealCount(count)} ${count === 1 ? 'matches' : 'match'}.`
+        if (behavior.successKind === 'single') setStatusAnnouncement(countCopy ? `Filter removed. ${countCopy}` : 'Deals updated.')
+        else if (behavior.successKind === 'reset') setStatusAnnouncement(countCopy ? `Filters reset. ${countCopy}` : 'Filters reset.')
+        else if (behavior.successKind === 'undo') setStatusAnnouncement(countCopy ? `Filter change undone. ${countCopy}` : 'Filter change undone.')
+        else setStatusAnnouncement(countCopy ?? '')
+        retryBehaviorRef.current = null
+      }
+      if (behavior.focusOnSuccess) window.requestAnimationFrame(() => resultStatusRef.current?.focus())
+      return true
+    } catch (caught) {
+      if (sequence !== requestSequenceRef.current || (caught instanceof DOMException && caught.name === 'AbortError')) return false
+      if (behavior.preserveResultsOnFailure) {
+        setUndoError(true)
+        setStatusAnnouncement('')
+      } else {
+        setError(true)
+        setResultMetadata(null)
+        setStatusAnnouncement('Deals couldn’t be updated. Your selected filters are still shown.')
+        retryBehaviorRef.current = behavior
+      }
+      return false
     } finally {
-      setLoading(false)
-      setLoadingMore(false)
+      if (sequence === requestSequenceRef.current) {
+        setLoading(false)
+        setLoadingMore(false)
+        setPendingRecoveryKey(null)
+      }
     }
-  }, [personalizationActive])
+  }, [defaultCity, personalizationActive])
 
   useEffect(() => {
     // Skip initial fetch when deals were pre-fetched server-side
@@ -335,13 +445,29 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     minStars?: number
     dateFrom?: string
     dateTo?: string
-  }) {
+  }, recovery?: { key: HotelFilterKey | 'reset'; kind: 'single' | 'reset' }) {
+    const currentFilters: HotelFilterState = { city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo }
     const nextCity = next.city ?? city
     const nextDiscount = next.minDiscount ?? minDiscount
     const nextMax = next.maxPriceCents !== undefined ? next.maxPriceCents : maxPriceCents
     const nextStars = next.minStars !== undefined ? next.minStars : minStars
     const nextDateFrom = next.dateFrom !== undefined ? next.dateFrom : dateFrom
     const nextDateTo = next.dateTo !== undefined ? next.dateTo : dateTo
+    const nextFilters: HotelFilterState = {
+      city: nextCity,
+      minDiscount: nextDiscount,
+      maxPriceCents: nextMax,
+      minStars: nextStars,
+      dateFrom: nextDateFrom,
+      dateTo: nextDateTo,
+    }
+    const changedKeys: HotelFilterKey[] = []
+    if (nextCity !== city) changedKeys.push('city')
+    if (nextDiscount !== minDiscount) changedKeys.push('minDiscount')
+    if (nextStars !== minStars) changedKeys.push('minStars')
+    if (nextMax !== maxPriceCents) changedKeys.push('maxPrice')
+    if (nextDateFrom !== dateFrom) changedKeys.push('dateFrom')
+    if (nextDateTo !== dateTo) changedKeys.push('dateTo')
     setSortMenuOpen(false)
     setPremiumExplanationOpen(false)
     setFailedSort(null)
@@ -352,17 +478,19 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     setDateFrom(nextDateFrom)
     setDateTo(nextDateTo)
     setOffset(0)
-    fetchDeals({
-      city: nextCity,
-      minDiscount: nextDiscount,
-      maxPriceCents: nextMax,
-      minStars: nextStars,
-      dateFrom: nextDateFrom,
-      dateTo: nextDateTo,
-      sort: appliedSort,
-      offset: 0,
-      append: false,
-    })
+    setLastChangedKey(changedKeys.length === 1 ? changedKeys[0] : null)
+    setStatusAnnouncement('')
+    setUndoError(false)
+    if (recovery) setPendingRecoveryKey(recovery.key)
+    else setUndoSnapshot(null)
+    void fetchDeals({ ...nextFilters, sort: appliedSort, offset: 0, append: false }, recovery ? {
+      focusOnSuccess: true,
+      successKind: recovery.kind,
+      undoOnSuccess: {
+        target: { ...currentFilters, sort: appliedSort, queryId: resultMetadata?.queryId },
+        kind: recovery.kind,
+      },
+    } : {})
   }
 
   function handleSearchResult(result: DealSearchFilters) {
@@ -383,24 +511,64 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
   function resetFilters() {
     track('feed_clear_all_clicked')
     const nextCity = defaultCity ?? ''
-    applyFilter({ city: nextCity, minDiscount: DEFAULT_MIN_DISCOUNT, maxPriceCents: null, minStars: 0, dateFrom: '', dateTo: '' })
-    window.setTimeout(() => gridRef.current?.focus(), 0)
+    applyFilter(
+      { city: nextCity, minDiscount: DEFAULT_MIN_DISCOUNT, maxPriceCents: null, minStars: 0, dateFrom: '', dateTo: '' },
+      { key: 'reset', kind: 'reset' },
+    )
   }
 
-  function removeFilter(name: string, next: Parameters<typeof applyFilter>[0]) {
-    track('feed_filter_chip_removed', { filter: name })
-    applyFilter(next)
+  function removeRecoveryFilter(key: HotelFilterKey, source: 'promoted' | 'review_filters') {
+    track('feed_filter_chip_removed', { filter: key, source })
+    const next: Parameters<typeof applyFilter>[0] = {}
+    if (key === 'city') next.city = defaultCity ?? ''
+    else if (key === 'minDiscount') next.minDiscount = DEFAULT_MIN_DISCOUNT
+    else if (key === 'minStars') next.minStars = 0
+    else if (key === 'maxPrice') next.maxPriceCents = null
+    else if (key === 'dateFrom') next.dateFrom = ''
+    else next.dateTo = ''
+    applyFilter(next, { key, kind: 'single' })
+  }
+
+  function undoRecovery() {
+    if (!undoSnapshot || pendingRecoveryKey) return
+    setPendingRecoveryKey('undo')
+    setUndoError(false)
+    const target = undoSnapshot.target
+    void fetchDeals({ ...target, offset: 0, append: false }, {
+      focusOnSuccess: true,
+      successKind: 'undo',
+      preserveResultsOnFailure: true,
+    })
+  }
+
+  function retryFilters() {
+    if (pendingRecoveryKey) return
+    setPendingRecoveryKey('retry')
+    const behavior = retryBehaviorRef.current ?? { focusOnSuccess: true }
+    void fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort: appliedSort, offset: 0, append: false }, {
+      ...behavior,
+      focusOnSuccess: true,
+    })
   }
 
   async function requestSort(target: SortKey) {
     if (pendingSort || target === appliedSort) return
 
+    const sequence = ++requestSequenceRef.current
+    requestAbortRef.current?.abort()
+    const controller = new AbortController()
+    requestAbortRef.current = controller
     const sortFrom = appliedSort
     const startedAt = window.performance.now()
     setSortMenuOpen(false)
     setPremiumExplanationOpen(false)
     setFailedSort(null)
     setPendingSort(target)
+    setResultMetadata(null)
+    setUndoSnapshot(null)
+    setUndoError(false)
+    setStatusAnnouncement('')
+    setLastChangedKey(null)
     setOffset(0)
     sortTriggerRef.current?.focus()
 
@@ -418,18 +586,27 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     if (!personalizationActive) params.set('all', '1')
 
     try {
-      const res = await fetch(`/api/deals?${params}`)
+      const res = await fetch(`/api/deals?${params}`, { signal: controller.signal })
       if (!res.ok) throw new Error('fetch failed')
-      const data: { deals: ApiDeal[]; total: number; premium?: boolean; unfilteredTotal?: number } = await res.json()
+      const data: DealsResponse = await res.json()
+      if (sequence !== requestSequenceRef.current) return
+      const parsedMetadata = parseHotelResultMetadata(data.resultMetadata, {
+        city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo,
+      }, defaultCity)
+      if (parsedMetadata?.inventoryKind === 'live') {
+        if (parsedMetadata.filteredTotal === 0 && data.deals.length > 0) throw new Error('invalid result metadata')
+        if (parsedMetadata.filteredTotal > 0 && parsedMetadata.filteredTotal <= 3 && data.deals.length === 0) throw new Error('invalid result metadata')
+      }
       setDeals(data.deals)
-      setUnfilteredTotal(typeof data.unfilteredTotal === 'number' ? data.unfilteredTotal : undefined)
+      setResultMetadata(parsedMetadata)
       setHasMore(data.deals.length === HOTEL_DEAL_PAGE_SIZE)
       setPremium(Boolean(data.premium))
       setPreviousSort(sortFrom)
       pendingSortEventRef.current = { from: sortFrom, to: target, startedAt }
       setAppliedSort(target)
       setPendingSort(null)
-    } catch {
+    } catch (caught) {
+      if (sequence !== requestSequenceRef.current || (caught instanceof DOMException && caught.name === 'AbortError')) return
       setFailedSort(target)
       setPendingSort(null)
     }
@@ -471,37 +648,34 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
     : null
   const activeDiscount = DISCOUNT_OPTIONS.find(o => o.value === minDiscount)
   const activeStars = STARS_OPTIONS.find(o => o.value === minStars)
+  const activeFilters: HotelFilterState = { city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo }
 
   const gridClass = 'grid grid-cols-1 gap-6 min-[680px]:grid-cols-2 min-[1024px]:grid-cols-3'
 
   const echoLinkClass = 'font-medium text-[color:var(--primary)] no-underline hover:underline'
 
-  const activeFilterChips: Array<{ key: string; label: string; onRemove: () => void }> = []
-  if (!defaultCity && city) {
-    activeFilterChips.push({ key: 'city', label: city, onRemove: () => removeFilter('city', { city: '' }) })
-  }
-  if (minDiscount !== DEFAULT_MIN_DISCOUNT) {
-    activeFilterChips.push({ key: 'minDiscount', label: activeDiscount?.label ?? `${minDiscount}%+ off`, onRemove: () => removeFilter('minDiscount', { minDiscount: DEFAULT_MIN_DISCOUNT }) })
-  }
-  if (minStars) {
-    activeFilterChips.push({ key: 'minStars', label: activeStars?.label ?? `${minStars}★ & up`, onRemove: () => removeFilter('minStars', { minStars: 0 }) })
-  }
-  if (maxPriceLabel) {
-    activeFilterChips.push({ key: 'maxPrice', label: maxPriceLabel, onRemove: () => removeFilter('maxPrice', { maxPriceCents: null }) })
-  }
-  if (dateFrom) {
-    activeFilterChips.push({ key: 'dateFrom', label: `From ${dateFrom}`, onRemove: () => removeFilter('dateFrom', { dateFrom: '' }) })
-  }
-  if (dateTo) {
-    activeFilterChips.push({ key: 'dateTo', label: `To ${dateTo}`, onRemove: () => removeFilter('dateTo', { dateTo: '' }) })
-  }
-
   const realDealCount = deals.filter(deal => !deal.isMock).length
   const isMockFeed = deals.length > 0 && realDealCount === 0
+  const trustedMetadata = resultMetadata?.inventoryKind === 'live' && premium && !isMockFeed
+    ? resultMetadata
+    : null
+  const recoveryOptions = trustedMetadata?.recoveryOptions ?? []
+  const promotedOption = lastChangedKey && ['minDiscount', 'minStars', 'maxPrice'].includes(lastChangedKey)
+    ? recoveryOptions.find(option => option.filterKey === lastChangedKey) ?? null
+    : null
+  const verifiedShortList = trustedMetadata && trustedMetadata.filteredTotal >= 1 && trustedMetadata.filteredTotal <= 3
+  const showShortListHelper = Boolean(verifiedShortList && promotedOption)
   const displayedSort = pendingSort ?? appliedSort
   const appliedSortOption = getSortOption(appliedSort)
   const displayedSortOption = getSortOption(displayedSort)
   const sortControlDisabled = loading || error || deals.length === 0 || isMockFeed
+  const resultStatusMessage = loading
+    ? (initialDeals && deals.length > 0 ? 'Updating deals for these filters.' : 'Loading hotel deals.')
+    : error
+      ? ''
+      : statusAnnouncement || (trustedMetadata && hasActiveFilters
+        ? `${formatDealCount(trustedMetadata.filteredTotal)} ${trustedMetadata.filteredTotal === 1 ? 'matches' : 'match'} your filters.`
+        : '')
 
   function viewportBand(): 'mobile_375' | 'desktop_1280' | 'other' {
     if (window.innerWidth <= 479) return 'mobile_375'
@@ -784,7 +958,11 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
         <button
           type="button"
           aria-pressed={activeTab === 'hotels'}
-          onClick={() => setActiveTab('hotels')}
+          onClick={() => {
+            setUndoSnapshot(null)
+            setUndoError(false)
+            setActiveTab('hotels')
+          }}
           className={
             activeTab === 'hotels'
               ? 'rounded-[var(--radius-pill)] bg-[color:var(--primary)] px-5 py-2 text-[13px] font-medium text-white'
@@ -796,7 +974,11 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
         <button
           type="button"
           aria-pressed={activeTab === 'flights'}
-          onClick={() => setActiveTab('flights')}
+          onClick={() => {
+            setUndoSnapshot(null)
+            setUndoError(false)
+            setActiveTab('flights')
+          }}
           className={
             activeTab === 'flights'
               ? 'rounded-[var(--radius-pill)] bg-[color:var(--primary)] px-5 py-2 text-[13px] font-medium text-white'
@@ -954,7 +1136,16 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
             ) : null}
           </section>
 
-          {/* Grid */}
+          <div aria-busy={loading || Boolean(pendingSort)}>
+            <HotelResultStatus
+              statusRef={resultStatusRef}
+              message={resultStatusMessage}
+              undoLabel={undoSnapshot?.kind === 'reset' ? 'Undo filter reset' : undoSnapshot ? 'Undo filter change' : undefined}
+              undoPending={pendingRecoveryKey === 'undo'}
+              undoError={undoError}
+              onUndo={undoSnapshot ? undoRecovery : undefined}
+            />
+
           {pendingSort ? (
             <div className={gridClass} aria-busy="true" aria-label="Hotel deals">
               {Array.from({ length: Math.min(Math.max(deals.length, 1), 6) }).map((_, i) => <SkeletonCard key={`sort-${i}`} />)}
@@ -964,75 +1155,60 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           ) : error ? (
-            <div className="py-20 text-center">
-              <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">Couldn&apos;t load deals right now.</p>
+            <section role="alert" className="mx-auto max-w-[640px] rounded-[var(--radius-card)] border border-[color:var(--error)] bg-[color:var(--error-soft)] px-5 py-8 text-left sm:px-8 sm:py-10">
+              <h3 ref={gridRef} tabIndex={-1} className="text-h3 text-[color:var(--text-1)] focus:outline-none">We couldn&apos;t update these deals</h3>
+              <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">We couldn&apos;t check this filter combination. Try the same filters again.</p>
               <button
                 type="button"
-                onClick={() => fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort: appliedSort, offset: 0, append: false })}
-                className="btn btn-primary mt-4 px-8"
+                disabled={pendingRecoveryKey === 'retry'}
+                onClick={retryFilters}
+                className="btn btn-primary mt-5 min-h-11 px-8"
               >
-                Retry
+                {pendingRecoveryKey === 'retry' ? 'Retrying…' : 'Retry'}
               </button>
-            </div>
+            </section>
           ) : deals.length === 0 && personalization?.active && !hasActiveFilters ? (
             <PersonalizedEmpty personalization={personalization} premium={premium} />
           ) : deals.length === 0 && hasActiveFilters ? (
-            <div ref={gridRef} tabIndex={-1} className="outline-none">
-              <div role="status" className="mx-auto max-w-[640px] rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] px-5 py-10 text-center">
-                <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">No deals match your filters</p>
-                {typeof unfilteredTotal === 'number' && unfilteredTotal > 0 ? (
-                  <p className="mt-2 text-[13px] font-medium text-[color:var(--primary)]">
-                    {unfilteredTotal} {unfilteredTotal === 1 ? 'deal is' : 'deals are'} hidden by your filters
-                  </p>
-                ) : null}
-                <p className="mt-2 text-[14px] text-[color:var(--ink-soft)]">
-                  Remove a filter, or clear them all to see everything that&apos;s live.
-                </p>
-                {activeFilterChips.length > 0 ? (
-                  <div className="mt-5 flex flex-wrap justify-center gap-2">
-                    {activeFilterChips.map(chip => (
-                      <button
-                        key={chip.key}
-                        type="button"
-                        aria-label={`Remove filter: ${chip.label}`}
-                        onClick={chip.onRemove}
-                        className="inline-flex min-h-[36px] items-center gap-1.5 rounded-[var(--radius-pill)] border border-[color:var(--line-white)] bg-[color:var(--bg)] px-3 text-[13px] font-medium text-[color:var(--ink)] hover:border-[color:var(--primary)]"
-                      >
-                        {chip.label}
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
-                          <path d="M18 6 6 18M6 6l12 12" />
-                        </svg>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                  <button type="button" onClick={resetFilters} className="btn btn-primary min-h-[44px] px-8">
-                    Clear all filters
-                  </button>
-                  <a href="/deals" className="text-[13px] font-medium text-[color:var(--primary)] no-underline hover:underline">
-                    See all destinations
-                  </a>
-                </div>
-              </div>
-            </div>
+            <HotelFilterRecoveryPanel
+              filters={activeFilters}
+              defaultCity={defaultCity}
+              options={recoveryOptions}
+              promotedOption={promotedOption}
+              pendingKey={pendingRecoveryKey === 'undo' || pendingRecoveryKey === 'retry' ? null : pendingRecoveryKey}
+              onRemove={removeRecoveryFilter}
+              onReset={resetFilters}
+            />
+          ) : deals.length === 0 ? (
+            <section className="mx-auto max-w-[640px] rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-5 py-8 text-left sm:px-8 sm:py-10">
+              <h3 className="text-h3 text-[color:var(--text-1)]">No current hotel deals yet</h3>
+              <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">We check tracked hotel prices daily. New current deals will appear here after the next sweep.</p>
+            </section>
           ) : (
             <>
               {isColdSampleFeed ? (
                 <div className="mb-8 space-y-6">
                   <section role="status" className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] px-5 py-6">
-                    <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">We&apos;re building your feed.</p>
+                    <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">We&apos;re building your feed</p>
                     <p className="mt-2 max-w-[720px] text-[14px] leading-6 text-[color:var(--ink-soft)]">
-                      Our tracker sweeps hotel prices across 20 destinations once a day. Real deals appear here after the next sweep — check back soon.
+                      These example deals show what expaify will surface after tracking completes. They use sample hotels and prices and aren&apos;t bookable.
                     </p>
                   </section>
                   <div className="border-t border-[color:var(--line-ivory)] pt-6">
                     <h3 className="text-h3 text-[color:var(--ink)]">Example deals</h3>
                     <p className="mt-1 text-[13px] leading-5 text-[color:var(--ink-soft)]">
-                      Here&apos;s what expaify surfaces once tracking completes. These use sample hotels and prices — they&apos;re not bookable.
+                      Example deals
                     </p>
                   </div>
                 </div>
+              ) : null}
+              {showShortListHelper && promotedOption ? (
+                <HotelShortListHelper
+                  filters={activeFilters}
+                  option={promotedOption}
+                  pending={pendingRecoveryKey === promotedOption.filterKey}
+                  onRemove={() => removeRecoveryFilter(promotedOption.filterKey, 'promoted')}
+                />
               ) : null}
               <div ref={gridRef} tabIndex={-1} aria-busy="false" className={`${gridClass} outline-none`}>
                 {deals.map((deal, index) =>
@@ -1075,6 +1251,7 @@ export function DealFeed({ initialDeals, defaultCity, premium: premiumProp = fal
               <div ref={sentinelRef} aria-hidden className="h-px" />
             </>
           )}
+          </div>
         </>
       )}
     </>
