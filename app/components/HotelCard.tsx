@@ -381,7 +381,7 @@ function getUnavailableReason(hasBookingUrl: boolean, hasValidPrice: boolean) {
     return 'No confirmed nightly price was returned.'
   }
 
-  return 'No valid booking link was returned.'
+  return 'No valid provider link was returned.'
 }
 
 function isValidBookingUrl(value: string): boolean {
@@ -715,7 +715,7 @@ export default function HotelCard({
   const hasValidPrice = isValidMoney(hotel.pricePerNight)
   const canBook = hasBookingUrl && hasValidPrice
   const unavailableReason = getUnavailableReason(hasBookingUrl, hasValidPrice)
-  const unavailableLabel = 'Booking unavailable'
+  const unavailableLabel = 'Room check unavailable'
   const hotelClass = getHotelClassEvidence(hotel)
   const legacyRatingPresent = !hotel.guestRating && hasPositiveNumber(hotel.rating)
   const collapsedGuestRating = getGuestRatingCollapsedText(hotel.guestRating)
@@ -756,7 +756,7 @@ export default function HotelCard({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={hotel.photoUrl}
-                alt={hotel.name}
+                alt=""
                 loading="lazy"
                 className="absolute inset-0 h-full w-full object-cover"
               />
@@ -861,7 +861,7 @@ export default function HotelCard({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={hotel.photoUrl}
-                  alt={hotel.name}
+                  alt=""
                   loading="lazy"
                   className="absolute inset-0 h-full w-full object-cover"
                 />

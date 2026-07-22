@@ -163,27 +163,24 @@ describe('BookingFlow fare context review', () => {
     });
     const text = collectText(tree);
 
-    expect(text).toContain('Review selected hotel');
+    expect(text).toContain('Hotel review');
     expect(text).toContain('The Example Hotel');
     expect(text).toContain('Area');
     expect(text).toContain('Midtown');
     expect(text).toContain('Provider supplied an area, not a street address.');
-    expect(text).toContain('Location precision');
-    expect(text).toContain('Rate source');
     expect(text).toContain('Hotellook');
     expect(text).toContain('$189.00');
-    expect(text).toContain('USD');
     expect(text).toContain('per night before taxes and fees');
-    expect(text).toContain('You’ll book with an external booking partner.');
-    expect(text).toContain('Continue to booking partner');
-    expect(text).toContain('Rate freshness not available from this provider.');
-    expect(text).toContain('the total you see there may differ.');
-    expect(text).toContain('expaify shows');
-    expect(text).toContain('Booking partner confirms');
+    expect(text).toContain('Stay dates not provided');
+    expect(text).toContain('Deal Score unavailable');
+    expect(text).toContain('Hotel class not provided');
+    expect(text).toContain('Guest rating not provided');
+    expect(text).toContain('Check rooms at provider');
+    expect(text).toContain('The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.');
     expect(text).toContain('Opens the booking partner’s site in a new tab. Your expaify search stays open here.');
     expect(text).not.toContain('Provider confirmation required');
     expect(text).not.toContain('Before you continue');
-    expect(text).not.toContain('Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.');
+    expect(text).not.toContain('Continue to');
     expect(text).not.toContain('tp.media takes payment');
     expect(text).not.toContain('Traveler details');
     expect(text).not.toContain('Confirm booking');
@@ -191,7 +188,7 @@ describe('BookingFlow fare context review', () => {
     const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
     expect(outbound.props.href).toBe(hotelContext.providerUrl);
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
-    expect(outbound.props['aria-label']).toBe('Continue to booking partner for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ.');
+    expect(outbound.props['aria-label']).toBe('Check rooms at provider for The Example Hotel. Opens in a new tab. The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.');
   });
 
   it('names a resolved destination without changing its affiliate URL', () => {
@@ -205,9 +202,8 @@ describe('BookingFlow fare context review', () => {
     const text = collectText(tree);
     const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
 
-    expect(text).toContain('You’ll book with Booking.com.');
-    expect(text).toContain('Continue to Booking.com');
-    expect(text).toContain('Booking.com confirms');
+    expect(text).toContain('Check rooms at Booking.com');
+    expect(text).toContain('The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.');
     expect(outbound.props.href).toBe(providerUrl);
     expect(outbound.props.target).toBe('_blank');
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
