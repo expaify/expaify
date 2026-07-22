@@ -2,6 +2,11 @@ import type { ReactElement } from 'react';
 import type { BookingFareContext, BookingHotelContext } from '@/lib/booking/config';
 
 type TestElement = ReactElement<Record<string, unknown>>;
+const trackMock = jest.fn();
+
+jest.mock('@/lib/analytics', () => ({
+  track: (...args: unknown[]) => trackMock(...args),
+}));
 
 jest.mock('react', () => {
   const actual = jest.requireActual('react') as typeof import('react');
@@ -9,7 +14,8 @@ jest.mock('react', () => {
   return {
     ...actual,
     useEffect: jest.fn((effect: () => void) => effect()),
-    useRef: jest.fn(() => ({ current: { focus: jest.fn() } })),
+    useMemo: jest.fn((factory: () => unknown) => factory()),
+    useRef: jest.fn((initialValue: unknown) => ({ current: initialValue === null ? { focus: jest.fn() } : initialValue })),
     useState: jest.fn((initialValue: unknown) => [initialValue, jest.fn()]),
   };
 });
@@ -21,11 +27,12 @@ function childrenOf(node: TestElement): unknown[] {
   return Array.isArray(children) ? children : [children].filter(Boolean);
 }
 
-function resolveFunctionElement(node: TestElement): TestElement {
-  let current = node;
+function resolveFunctionElement(node: TestElement): unknown {
+  let current: unknown = node;
 
-  while (typeof current.type === 'function') {
-    current = (current.type as (props: Record<string, unknown>) => TestElement)(current.props);
+  while (current && typeof current === 'object' && typeof (current as TestElement).type === 'function') {
+    const element = current as TestElement;
+    current = (element.type as (props: Record<string, unknown>) => unknown)(element.props);
   }
 
   return current;
@@ -36,9 +43,24 @@ function collectText(node: unknown): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node);
   if (Array.isArray(node)) return node.map(collectText).join('');
   if (typeof node === 'object') {
-    return childrenOf(resolveFunctionElement(node as TestElement)).map(collectText).join('');
+    const resolved = resolveFunctionElement(node as TestElement);
+    if (!resolved || typeof resolved !== 'object') return collectText(resolved);
+    return childrenOf(resolved as TestElement).map(collectText).join('');
   }
   return '';
+}
+
+function findElements(node: unknown, predicate: (element: TestElement) => boolean): TestElement[] {
+  if (!node || typeof node !== 'object') return [];
+  if (Array.isArray(node)) return node.flatMap(child => findElements(child, predicate));
+
+  const resolved = resolveFunctionElement(node as TestElement);
+  if (!resolved || typeof resolved !== 'object') return [];
+  const element = resolved as TestElement;
+  return [
+    ...(predicate(element) ? [element] : []),
+    ...childrenOf(element).flatMap(child => findElements(child, predicate)),
+  ];
 }
 
 const fareContext: BookingFareContext = {
@@ -75,6 +97,10 @@ const hotelContext: BookingHotelContext = {
 };
 
 describe('BookingFlow fare context review', () => {
+  beforeEach(() => {
+    trackMock.mockClear();
+  });
+
   it('blocks review when selected fare context is missing', () => {
     const text = collectText(BookingFlow({
       bookingEnabled: true,
@@ -128,13 +154,14 @@ describe('BookingFlow fare context review', () => {
     expect(text).not.toContain('Confirm booking');
   });
 
-  it('shows selected hotel identity, provider, currency, price basis, and provider confirmation copy', () => {
-    const text = collectText(BookingFlow({
+  it('shows the unresolved-partner handoff with honest rate and responsibility context', () => {
+    const tree = BookingFlow({
       bookingEnabled: false,
       duffelSandbox: true,
       fareContext: null,
       hotelContext,
-    }));
+    });
+    const text = collectText(tree);
 
     expect(text).toContain('Review selected hotel');
     expect(text).toContain('The Example Hotel');
@@ -142,14 +169,152 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Midtown');
     expect(text).toContain('Provider supplied an area, not a street address.');
     expect(text).toContain('Location precision');
-    expect(text).toContain('hotellook');
+    expect(text).toContain('Rate source');
+    expect(text).toContain('Hotellook');
     expect(text).toContain('$189.00');
     expect(text).toContain('USD');
     expect(text).toContain('per night before taxes and fees');
-    expect(text).toContain('Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.');
-    expect(text).toContain('Continue to provider');
+    expect(text).toContain('You’ll book with an external booking partner.');
+    expect(text).toContain('Continue to booking partner');
+    expect(text).toContain('Rate freshness not available from this provider.');
+    expect(text).toContain('the total you see there may differ.');
+    expect(text).toContain('expaify shows');
+    expect(text).toContain('Booking partner confirms');
+    expect(text).toContain('Opens the booking partner’s site in a new tab. Your expaify search stays open here.');
+    expect(text).not.toContain('Provider confirmation required');
+    expect(text).not.toContain('Before you continue');
+    expect(text).not.toContain('Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.');
+    expect(text).not.toContain('tp.media takes payment');
     expect(text).not.toContain('Traveler details');
     expect(text).not.toContain('Confirm booking');
+
+    const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
+    expect(outbound.props.href).toBe(hotelContext.providerUrl);
+    expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
+    expect(outbound.props['aria-label']).toBe('Continue to booking partner for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ.');
+  });
+
+  it('names a resolved destination without changing its affiliate URL', () => {
+    const providerUrl = 'https://www.booking.com/hotel/x?aid=123&label=a%2Bb';
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext: { ...hotelContext, providerUrl },
+    });
+    const text = collectText(tree);
+    const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
+
+    expect(text).toContain('You’ll book with Booking.com.');
+    expect(text).toContain('Continue to Booking.com');
+    expect(text).toContain('Booking.com confirms');
+    expect(outbound.props.href).toBe(providerUrl);
+    expect(outbound.props.target).toBe('_blank');
+    expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
+  });
+
+  it.each([
+    ['search_area', 'Only the searched destination is available. Confirm location with the provider.'],
+    ['missing', 'No provider location details were returned.'],
+  ] as const)('preserves the %s location warning without disabling handoff', (precision, warning) => {
+    const contextualHotel: BookingHotelContext = {
+      ...hotelContext,
+      area: undefined,
+      location: precision === 'search_area'
+        ? { precision, label: 'New York' }
+        : { precision },
+    };
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext: contextualHotel,
+    });
+
+    expect(collectText(tree)).toContain(warning);
+    expect(findElements(tree, element => element.type === 'a' && element.props.target === '_blank')).toHaveLength(1);
+  });
+
+  it('emits the viewed and guarded back analytics events with hostname-only props', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext,
+    });
+    const anchors = findElements(tree, element => element.type === 'a');
+    const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function');
+
+    expect(trackMock).toHaveBeenCalledWith('hotel_handoff_viewed', {
+      source: 'hotellook',
+      partnerHost: 'tp.media',
+      currency: 'USD',
+      priceCents: 18900,
+      priceBasis: 'per_night_before_taxes_fees',
+      locationPrecision: 'area',
+    });
+
+    (backLink?.props.onClick as (() => void))();
+    expect(trackMock).toHaveBeenCalledWith('hotel_handoff_back_clicked', {
+      source: 'hotellook',
+      partnerHost: 'tp.media',
+    });
+  });
+
+  it('emits continue and one bucketed return after a hidden-visible cycle', () => {
+    let visibilityState: 'visible' | 'hidden' = 'visible';
+    let visibilityListener: (() => void) | undefined;
+    const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+    Object.defineProperty(globalThis, 'document', {
+      configurable: true,
+      value: {
+        get visibilityState() { return visibilityState; },
+        addEventListener: jest.fn((event: string, listener: () => void) => {
+          if (event === 'visibilitychange') visibilityListener = listener;
+        }),
+        removeEventListener: jest.fn(),
+      },
+    });
+    const nowSpy = jest.spyOn(performance, 'now').mockReturnValueOnce(1_000).mockReturnValueOnce(9_000);
+
+    try {
+      const tree = BookingFlow({
+        bookingEnabled: false,
+        duffelSandbox: false,
+        fareContext: null,
+        hotelContext: { ...hotelContext, providerUrl: 'https://www.booking.com/hotel/x?aid=123' },
+      });
+      const anchors = findElements(tree, element => element.type === 'a');
+      const outbound = anchors.find(element => element.props.target === '_blank');
+      const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function');
+
+      (outbound?.props.onClick as (() => void))();
+      expect(trackMock).toHaveBeenCalledWith('hotel_handoff_continue_clicked', expect.objectContaining({
+        source: 'hotellook',
+        partnerHost: 'www.booking.com',
+        partnerNamed: true,
+      }));
+
+      visibilityState = 'hidden';
+      visibilityListener?.();
+      visibilityState = 'visible';
+      visibilityListener?.();
+      visibilityListener?.();
+
+      expect(trackMock).toHaveBeenCalledWith('hotel_handoff_returned', {
+        source: 'hotellook',
+        partnerHost: 'www.booking.com',
+        awayDurationBucket: '5–30s',
+      });
+      expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_handoff_returned')).toHaveLength(1);
+
+      (backLink?.props.onClick as (() => void))();
+      expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_handoff_back_clicked')).toHaveLength(0);
+    } finally {
+      nowSpy.mockRestore();
+      if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument);
+      else delete (globalThis as { document?: unknown }).document;
+    }
   });
 
   it('shows a recoverable hotel-specific error for malformed hotel handoff links', () => {
