@@ -800,6 +800,23 @@ function HotelHandoffReview({
           />
         ) : null}
         <section
+          aria-labelledby="hotel-traveler-readiness-title"
+          className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 sm:px-4 sm:py-4"
+        >
+          <h3
+            id="hotel-traveler-readiness-title"
+            className="text-sm font-bold leading-5 text-[color:var(--text-1)]"
+          >
+            What you may need
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+            Have the lead guest’s full name, a confirmation email, and a reachable phone number ready. The booking partner will show exactly what is required.
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+            Booking for someone else? Use the name of the person checking in as the lead guest. The booking partner will tell you whose email and phone it needs.
+          </p>
+        </section>
+        <section
           ref={guidanceBlockRef}
           aria-labelledby="hotel-special-requests-title"
           className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3"

@@ -187,6 +187,9 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('I need an invoice or receipt for this stay');
     expect(text).toContain('We’ll show what the provider supplied before you continue.');
     expect(text).not.toContain('Hotellook did not provide invoice or receipt information for this rate.');
+    expect(text).toContain('What you may need');
+    expect(text).toContain('Have the lead guest’s full name, a confirmation email, and a reachable phone number ready. The booking partner will show exactly what is required.');
+    expect(text).toContain('Booking for someone else? Use the name of the person checking in as the lead guest. The booking partner will tell you whose email and phone it needs.');
     expect(text).toContain('Special requests');
     expect(text).toContain('Need a quiet room, high floor, or early check-in?');
     expect(text).toContain('Add your request on the booking partner’s site while booking. Nothing is selected or sent by expaify.');
@@ -200,6 +203,7 @@ describe('BookingFlow fare context review', () => {
     expect(text).not.toContain('rooms near each other');
     expect(text).not.toContain('connecting rooms');
     expect(text).not.toContain('Traveler details');
+    expect(text).not.toContain('What you’ll need');
     expect(text).not.toContain('Confirm booking');
 
     const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
@@ -223,6 +227,9 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Continue to Booking.com');
     expect(text).toContain('Booking.com confirms');
     expect(text).toContain('Add your request on Booking.com while booking. Nothing is selected or sent by expaify.');
+    expect(text).toContain('The booking partner will show exactly what is required.');
+    expect(text).not.toContain('Booking.com requires');
+    expect(text).not.toContain('What you’ll need');
     expect(outbound.props.href).toBe(providerUrl);
     expect(outbound.props.target).toBe('_blank');
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
@@ -253,7 +260,7 @@ describe('BookingFlow fare context review', () => {
     expect(summary.props.className).toContain('min-h-11');
   });
 
-  it('keeps invoice intent and Special requests between responsibility and the provider CTA', () => {
+  it('keeps invoice intent and traveler readiness before Special requests and the provider CTA', () => {
     const tree = BookingFlow({
       bookingEnabled: false,
       duffelSandbox: false,
@@ -269,13 +276,40 @@ describe('BookingFlow fare context review', () => {
     const directChildren = childrenOf(panel).filter(child => child && typeof child === 'object') as TestElement[];
     const responsibilityIndex = directChildren.findIndex(child => collectText(child).includes('expaify shows'));
     const invoiceIntentIndex = directChildren.findIndex(child => collectText(child).includes('I need an invoice or receipt for this stay'));
+    const readinessIndex = directChildren.findIndex(child => child.type === 'section' && child.props['aria-labelledby'] === 'hotel-traveler-readiness-title');
     const guidanceIndex = directChildren.findIndex(child => child.type === 'section' && collectText(child).includes('Special requests'));
     const actionsIndex = directChildren.findIndex(child => collectText(child).includes('Continue to booking partner'));
 
     expect(responsibilityIndex).toBeGreaterThanOrEqual(0);
     expect(invoiceIntentIndex).toBeGreaterThan(responsibilityIndex);
-    expect(guidanceIndex).toBeGreaterThan(invoiceIntentIndex);
+    expect(readinessIndex).toBeGreaterThan(invoiceIntentIndex);
+    expect(guidanceIndex).toBeGreaterThan(readinessIndex);
     expect(actionsIndex).toBeGreaterThan(guidanceIndex);
+  });
+
+  it('renders traveler readiness as static, neutrally styled supporting guidance', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext,
+    });
+    const readiness = findElements(tree, element => (
+      element.type === 'section'
+      && element.props['aria-labelledby'] === 'hotel-traveler-readiness-title'
+    ))[0];
+    const headings = findElements(readiness, element => element.type === 'h3');
+
+    expect(readiness).toBeDefined();
+    expect(readiness.props.className).toContain('bg-[color:var(--bg-raised)]');
+    expect(readiness.props.className).toContain('sm:px-4');
+    expect(readiness.props.className).toContain('sm:py-4');
+    expect(readiness.props.role).toBeUndefined();
+    expect(readiness.props['aria-live']).toBeUndefined();
+    expect(readiness.props.tabIndex).toBeUndefined();
+    expect(headings).toHaveLength(1);
+    expect(headings[0].props.id).toBe('hotel-traveler-readiness-title');
+    expect(findElements(readiness, element => ['input', 'button', 'a', 'details'].includes(String(element.type)))).toHaveLength(0);
   });
 
   it.each([
@@ -523,6 +557,7 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('integer-cent price, currency, price basis, and provider handoff URL');
     expect(text).toContain('Back to search');
     expect(text).not.toContain("We can't identify this fare");
+    expect(text).not.toContain('What you may need');
     expect(text).not.toContain('Special requests');
     expect(findElements(tree, element => element.type === 'details')).toHaveLength(0);
     expect(findElements(tree, element => element.type === 'a' && element.props.target === '_blank')).toHaveLength(0);
