@@ -437,16 +437,24 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         if (parsedMetadata.filteredTotal > 0 && parsedMetadata.filteredTotal <= 3 && data.deals.length === 0) throw new Error('invalid result metadata')
       }
       const coverage = readConfirmedCoverage(data)
+      const filteredRequest = Boolean(
+        (defaultCity ? opts.city !== defaultCity : opts.city) ||
+        opts.minDiscount !== DEFAULT_MIN_DISCOUNT ||
+        opts.maxPriceCents || opts.minStars || opts.dateFrom || opts.dateTo
+      )
       if (append) {
         const appended = appendUniqueDeals(opts.existingDeals ?? [], data.deals)
         setDeals(appended.deals)
         setConfirmedCoverage(coverage)
         failedContinuationOffsetRef.current = null
         if (appended.uniqueCount === 0 && coverage?.state !== 'confirmed_end') {
+          // Retain the attempted server-authored offset so the visible
+          // zero-new recovery control can retry the same continuation.
+          failedContinuationOffsetRef.current = opts.offset
           setZeroNewUnconfirmed(true)
           setCoverageAnnouncement('No additional unique deals were returned. Coverage is still unconfirmed.')
         } else if (coverage?.state === 'confirmed_end') {
-          setCoverageAnnouncement('You’ve reached the end of current expaify deals.')
+          setCoverageAnnouncement(`You’ve reached the end of current expaify deals${filteredRequest ? ' matching these filters' : ''}.`)
         } else {
           setCoverageAnnouncement(`${appended.uniqueCount} more ${appended.uniqueCount === 1 ? 'deal' : 'deals'} loaded. ${appended.deals.length} shown.`)
         }
@@ -455,11 +463,6 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         setConfirmedCoverage(coverage)
         setZeroNewUnconfirmed(false)
         const liveDeals = data.deals.filter(deal => !deal.isMock)
-        const filteredRequest = Boolean(
-          (defaultCity ? opts.city !== defaultCity : opts.city) ||
-          opts.minDiscount !== DEFAULT_MIN_DISCOUNT ||
-          opts.maxPriceCents || opts.minStars || opts.dateFrom || opts.dateTo
-        )
         if (liveDeals.length === 0 && data.deals.length > 0) setCoverageAnnouncement('')
         else if (liveDeals.length === 0) {
           setCoverageAnnouncement(filteredRequest
