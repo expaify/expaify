@@ -108,6 +108,9 @@ describe('PetProfilePanel', () => {
     expect(controls.length).toBeGreaterThan(8)
     expect(controls.every(control => control.props.disabled === true)).toBe(true)
     expect(collectElements(panel).find(node => node.type === 'form')?.props.noValidate).toBe(true)
+
+    const labels = collectElements(panel).filter(node => node.type === 'label').map(collectText)
+    expect(labels.indexOf('Animal type')).toBeLessThan(labels.indexOf('Number of pets'))
   })
 
   it('validates required, bounded count, conditional animal type, and weight limits', () => {
