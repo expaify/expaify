@@ -9,6 +9,7 @@ type CompareRowProps = {
   links: CompareLinks;
   /** compact: inside cards (default). primary: full-width action zone on the deal detail page. */
   size?: "compact" | "primary";
+  hotelName?: string;
 };
 
 const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
@@ -18,7 +19,7 @@ const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
   { key: "trip", label: "Trip.com" },
 ];
 
-export function CompareRow({ links, size = "compact" }: CompareRowProps) {
+export function CompareRow({ links, size = "compact", hotelName }: CompareRowProps) {
   const primary = size === "primary";
 
   const base = primary
@@ -27,7 +28,9 @@ export function CompareRow({ links, size = "compact" }: CompareRowProps) {
 
   return (
     <div className={primary ? "w-full space-y-2" : "space-y-2"}>
-      <p className="text-[11px] leading-none text-[color:var(--ink-faint)]">Compare and book on:</p>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--ink-faint)]">
+        {primary ? "Provider options" : "Compare on"}
+      </p>
       <div className={primary ? "grid grid-cols-2 gap-2 min-[480px]:grid-cols-4" : "grid grid-cols-2 gap-2 min-[420px]:grid-cols-4"}>
         {PROVIDERS.map(({ key, label }) => {
           const href = links[key];
@@ -38,13 +41,14 @@ export function CompareRow({ links, size = "compact" }: CompareRowProps) {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
+                aria-label={primary && hotelName ? `Check rooms at ${label} for ${hotelName}. Opens in a new tab. The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.` : undefined}
                 className={`${base} hover:border-[color:var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_4%,transparent)]`}
               >
-                {label}
+                {primary ? `Check rooms at ${label}` : label}
               </a>
             );
           }
-          return (
+          return primary ? null : (
             <span
               key={key}
               className={`${base} cursor-default opacity-40`}

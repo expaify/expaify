@@ -4,14 +4,10 @@ import { getDealById, getPriceHistory, type DealRow } from '@/lib/pipeline/dealD
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { query } from '@/lib/db/client'
 import { formatMoney } from '@/lib/money'
-import { DealChip } from '@/app/components/ui/DealChip'
 import { TrustLine } from '@/app/components/ui/TrustLine'
 import { PriceSparkline } from '@/app/components/ui/PriceSparkline'
-import { PriceBlock } from '@/app/components/ui/PriceBlock'
 import { CompareRow } from '@/app/components/ui/CompareRow'
-import { StarRow } from '@/app/components/ui/StarRow'
 import { ShareButton } from '@/app/components/ui/ShareButton'
-import { TrackOnMount } from '@/app/components/TrackOnMount'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
 import { scoreDeal } from '@/lib/scoring/scoreDeal'
@@ -56,6 +52,18 @@ function Fact({ label, value, muted }: { label: string; value: string; muted?: b
         {value}
       </p>
     </div>
+  )
+}
+
+function PropertyUnavailable() {
+  return (
+    <main className="mx-auto flex min-h-[70vh] w-full max-w-[560px] items-center px-4 py-8 sm:px-6">
+      <section className="w-full rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-6 sm:p-8">
+        <h1 className="font-display text-2xl font-bold text-[color:var(--text-1)]">Property details unavailable</h1>
+        <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">The provider did not return a property name, so expaify cannot confirm which hotel this rate belongs to.</p>
+        <a href="/deals" className="btn btn-primary mt-6 inline-flex min-h-11 w-full items-center justify-center">Back to saved deals</a>
+      </section>
+    </main>
   )
 }
 
@@ -131,6 +139,8 @@ async function PriceHistorySection({ deal }: { deal: DealRow }) {
   if (history.length < 3) {
     return (
       <section className="mt-8">
+        <h3 className="text-h3 text-[color:var(--ink)]">Price history unavailable</h3>
+        <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">Not enough historical checks are available to draw a chart.</p>
         <TrustLine snapshotCount={deal.snapshot_count} />
       </section>
     )
@@ -155,10 +165,9 @@ async function PriceHistorySection({ deal }: { deal: DealRow }) {
 
 function PriceHistorySkeleton() {
   return (
-    <section className="mt-8" aria-hidden>
-      <div className="skeleton h-6 w-44 rounded-[var(--radius-input)]" />
-      <div className="skeleton mt-4 h-[80px] w-full rounded-[var(--radius-input)]" />
-      <div className="skeleton mt-3 h-3 w-64 rounded-full" />
+    <section className="mt-8" role="status" aria-live="polite">
+      <span className="sr-only">Loading price history</span>
+      <div aria-hidden="true"><div className="skeleton h-6 w-44 rounded-[var(--radius-input)]" /><div className="skeleton mt-4 h-[80px] w-full rounded-[var(--radius-input)]" /><div className="skeleton mt-3 h-3 w-64 rounded-full" /></div>
     </section>
   )
 }
@@ -187,17 +196,7 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
     score = scoreDeal(offer, pricePoints)
   }
 
-  return (
-    <section className="mt-8">
-      <DealScorePanel
-        score={score}
-        loading={false}
-        scope="hotel"
-        priceNoun="nightly rate"
-        unavailableCopy="Not enough price history to score this deal yet."
-      />
-    </section>
-  )
+  return <DealScorePanel score={score} loading={false} scope="hotel" priceNoun="nightly rate" unavailableCopy="We could not compare this nightly rate with enough recent hotel prices." />
 }
 
 export default async function DealDetailPage({ params }: PageProps) {
@@ -205,6 +204,7 @@ export default async function DealDetailPage({ params }: PageProps) {
 
   const deal = await getDealById(dealId).catch(() => null)
   if (!deal) notFound()
+  if (!deal.hotel_name?.trim()) return <PropertyUnavailable />
 
   // Server-side paywall: render the locked state instead of the deal for
   // free/anonymous visitors when this deal is outside the weekly unlock set.
@@ -216,9 +216,6 @@ export default async function DealDetailPage({ params }: PageProps) {
     }
   }
 
-  const savings = deal.median_price_cents - deal.deal_price_cents
-  const showSavings = savings >= 2000
-
   const now = Date.now()
   const isExpired = deal.expires_at ? new Date(deal.expires_at).getTime() < now : false
   const updatedAtMs = deal.updated_at ? new Date(deal.updated_at).getTime() : NaN
@@ -226,179 +223,95 @@ export default async function DealDetailPage({ params }: PageProps) {
   const checkedAgo = timeAgo(deal.updated_at)
   const isAging = !isExpired && updatedAgeHours !== null && updatedAgeHours >= 30 && updatedAgeHours < 48
   const isStale = !isExpired && updatedAgeHours !== null && updatedAgeHours >= 48
-  const foundAgo = timeAgo(deal.first_seen)
-
-  const hasOtaLinks = Object.keys(deal.ota_links ?? {}).length > 0
+  const validOtaLinks = Object.fromEntries(Object.entries(deal.ota_links ?? {}).filter(([, href]) => {
+    try { return ['http:', 'https:'].includes(new URL(href).protocol) } catch { return false }
+  }))
+  const hasOtaLinks = Object.keys(validOtaLinks).length > 0
+  const hasValidPrice = Number.isInteger(deal.deal_price_cents) && deal.deal_price_cents > 0
 
   // check-in / check-out derived
   const checkInDisplay = deal.check_in_date ? fmtShort(deal.check_in_date) : null
-  const checkOutDisplay = deal.check_in_date ? addNights(deal.check_in_date, deal.nights ?? 1) : null
+  const checkOutDisplay = deal.check_in_date && Number.isInteger(deal.nights) && deal.nights > 0 ? addNights(deal.check_in_date, deal.nights) : null
 
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
 
-      {/* Nav */}
       <nav className="border-b border-[color:var(--line-ivory)] bg-[color:var(--bg)]">
         <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">
           <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
             expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
           </a>
-          <a href="/deals" className="flex min-h-[44px] items-center text-caption font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
-            ← Back to deals
-          </a>
         </div>
       </nav>
 
-      <main className="mx-auto max-w-[760px] px-5 py-8">
-
-        {/* Stale deal banner */}
-        {isStale && (
-          <div className="mb-4 rounded-[var(--radius-card)] border border-[color:var(--gold)] bg-[color:var(--surface)] px-4 py-3" role="status">
-            <TrackOnMount event="deal_stale_banner_viewed" props={{ dealId: deal.id }} />
-            <p className="text-[13px] font-bold text-[color:var(--ink)]">Price may be out of date</p>
-            <p className="mt-0.5 text-[12px] leading-5 text-[color:var(--ink-soft)]">
-              We haven&apos;t been able to re-verify this price since {fmtCheckedDate(deal.updated_at)}. Check the provider for the current price and availability.
-            </p>
-          </div>
-        )}
-
-        {/* Title block */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h2 className="text-h2 text-[color:var(--ink)]">{deal.hotel_name}</h2>
-            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption font-medium text-[color:var(--ink-soft)]">
-              <StarRow stars={deal.stars ?? 0} />
-              <span aria-hidden>·</span>
-              <span>{deal.city}</span>
-              <span aria-hidden>·</span>
-              <span>{deal.check_in_window}</span>
-              {foundAgo ? (
-                <>
-                  <span aria-hidden>·</span>
-                  <span>Deal found {foundAgo}</span>
-                </>
-              ) : null}
-              {isExpired && deal.expires_at && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span className="text-[color:var(--error)]">Expired {fmtDate(deal.expires_at)}</span>
-                </>
-              )}
+      <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
+        <a href="/deals" className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)]">← Back to saved deals</a>
+        <div className="mt-4 space-y-4">
+          <section aria-labelledby="property-stay-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
+            <h1 id="property-stay-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name}</h1>
+            <div className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
+              <p className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Search area</p>
+              <p className="mt-1 font-medium text-[color:var(--text-1)]">{deal.city || 'Confirm with provider'}</p>
+              <p className="mt-1 text-xs leading-5 text-[color:var(--warning)]">Only the searched destination is available. Confirm the property location with the provider.</p>
             </div>
-          </div>
-          <ShareButton />
-        </div>
+            {checkInDisplay || checkOutDisplay || deal.nights ? (
+              <dl className="mt-3 grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
+                <Fact label="Check-in" value={checkInDisplay ?? 'Check-in not provided'} muted={!checkInDisplay} />
+                <Fact label="Check-out" value={checkOutDisplay ?? 'Check-out not provided'} muted={!checkOutDisplay} />
+                <Fact label="Nights" value={deal.nights > 0 ? `${deal.nights} night${deal.nights === 1 ? '' : 's'}` : 'Night count not provided'} muted={!deal.nights} />
+              </dl>
+            ) : <div className="mt-3 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><p className="font-medium text-[color:var(--text-1)]">Stay dates not provided</p></div>}
+            <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">{checkInDisplay && checkOutDisplay && deal.nights > 0 ? 'Rate shown for this stay context; the provider confirms room-level details.' : 'Stay dates are incomplete. Choose or confirm dates with the provider before comparing room options.'}</p>
+          </section>
 
-        {/* Price */}
-        <section className="mt-6">
-          <PriceBlock
-            size="display"
-            dealPrice={{ priceCents: deal.deal_price_cents, currency: 'USD' }}
-            medianPrice={{ priceCents: deal.median_price_cents, currency: 'USD' }}
-          />
-          <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2">
-            <DealChip discountPct={deal.discount_pct} />
-          </div>
-          {showSavings && (
-            <p className="mt-2 text-[13px] font-medium text-[color:var(--primary)]">
-              Save {formatMoney({ priceCents: savings, currency: 'USD' })}/night vs the usual price
-            </p>
-          )}
-          {checkedAgo ? (
-            <p className={`mt-2 text-caption leading-5 ${isAging ? 'font-semibold text-[color:var(--gold-text)]' : 'font-medium text-[color:var(--ink-soft)]'}`}>
-              Price checked {checkedAgo}{isAging ? ' — verify with the provider' : ''}
-            </p>
-          ) : null}
-          <p className="mt-2 text-caption font-medium leading-5 text-[color:var(--ink-soft)]">
-            Nightly rate before taxes and fees. Taxes, fees, cancellation policy, and final total are confirmed by the provider.
-          </p>
-        </section>
+          <section aria-labelledby="price-score-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+            <h2 id="price-score-title" className="text-xl font-bold text-[color:var(--text-1)]">Price and Deal Score</h2>
+            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">
+                <p className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Observed nightly rate</p>
+                {hasValidPrice ? <p className="mt-2 font-display text-3xl font-bold tabular-nums text-[color:var(--text-1)] sm:text-4xl">{formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}</p> : <p className="mt-2 text-xl font-bold text-[color:var(--error)]">Price unavailable</p>}
+                <p className="mt-1 text-xs text-[color:var(--text-2)]">per night before taxes and fees</p>
+                <p className="mt-2 text-sm text-[color:var(--text-2)]">Rate observed from a booking partner</p>
+                <p className={`mt-1 text-sm leading-6 ${isExpired ? 'font-medium text-[color:var(--error)]' : isAging || isStale || !checkedAgo ? 'font-medium text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
+                  {isExpired && deal.expires_at ? `This saved rate expired ${fmtDate(deal.expires_at)}. It is shown for reference only.` : isStale ? `Price may be out of date. We have not rechecked it since ${fmtCheckedDate(deal.updated_at)}.` : checkedAgo ? `Price checked ${checkedAgo}.${isAging ? ' Confirm the current rate with the provider.' : ''}` : 'Last-checked time not provided.'}
+                </p>
+              </div>
+              <Suspense fallback={<div role="status" aria-live="polite" className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">Checking recent price history</div>}>
+                <DealScoreSection deal={deal} />
+              </Suspense>
+            </div>
+          </section>
 
-        {/* Deal score — computed from price history */}
-        <Suspense fallback={null}>
-          <DealScoreSection deal={deal} />
-        </Suspense>
+          <section aria-labelledby="hotel-fit-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+            <h2 id="hotel-fit-title" className="text-xl font-bold text-[color:var(--text-1)]">Hotel fit</h2>
+            <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Hotel class</dt><dd className="mt-2 text-sm text-[color:var(--text-2)]">Hotel class not provided</dd></div>
+              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Guest rating</dt><dd className="mt-2 text-sm text-[color:var(--text-2)]">Guest rating not provided<span className="mt-1 block text-xs text-[color:var(--text-3)]">This provider did not return guest-rating evidence.</span></dd></div>
+            </dl>
+          </section>
 
-        <div className="mt-8">
-          <PropertyPhoto src={deal.photo_url} size="detail" loading="eager" />
-        </div>
-
-        {/* Primary action zone */}
+          <section aria-labelledby="room-check-title" className="rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+            <h2 id="room-check-title" className="text-xl font-bold text-[color:var(--text-1)]">Check rooms with provider</h2>
         {isExpired ? (
-          <div className="my-8 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-4" role="status">
-            <p className="text-[13px] font-bold text-[color:var(--ink)]">Deal expired</p>
-            <p className="mt-1 text-[12px] leading-5 text-[color:var(--ink-soft)]">
-              This saved deal may no longer be available at the shown price. Search again to find current options.
-            </p>
-            <a href="/deals" className="btn btn-primary mt-3 block w-full text-center">
+          <div className="mt-3" role="status"><p className="font-bold text-[color:var(--error)]">Saved rate expired</p><p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">This observed nightly rate is no longer current. Search again before inspecting room options.</p><a href="/deals" className="btn btn-primary mt-4 block min-h-11 w-full text-center">
               Search current deals
-            </a>
-          </div>
-        ) : hasOtaLinks ? (
-          <div className="my-8">
-            <CompareRow links={deal.ota_links} size="primary" />
-            <p className="mt-2 text-caption leading-5 text-[color:var(--ink-faint)]">
-              Opens the provider site. Prices and availability can change.
-            </p>
-          </div>
+            </a></div>
+        ) : hasValidPrice && hasOtaLinks ? (
+          <div className="mt-3"><p className="text-sm leading-6 text-[color:var(--text-2)]">The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms. Confirm the property location there before choosing a room.</p><div className="mt-4"><CompareRow links={validOtaLinks} size="primary" hotelName={deal.hotel_name} /></div><p className="mt-3 text-xs leading-5 text-[color:var(--text-3)]">Opens the provider in a new tab. Your expaify page stays open.</p></div>
         ) : (
-          <div className="my-8 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-4" role="status">
-            <p className="text-[13px] font-bold text-[color:var(--ink)]">Provider link unavailable</p>
-            <p className="mt-1 text-[12px] leading-5 text-[color:var(--ink-soft)]">
-              This saved deal can be reviewed here, but expaify does not have a current external booking link.
-            </p>
-          </div>
+          <div className="mt-3" role="status"><p className="font-bold text-[color:var(--text-1)]">{hasValidPrice ? 'Provider link unavailable' : 'Room check unavailable'}</p><p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">{hasValidPrice ? 'You can review this hotel here, but expaify does not have a valid provider link for room inspection.' : 'A trustworthy nightly rate is required before expaify can send this hotel selection to a provider.'}</p><a href="/deals" className="mt-3 inline-flex min-h-11 items-center font-medium text-[color:var(--brand)]">Search current deals</a></div>
         )}
+          </section>
 
-        {/* Price history — streams in after the content above renders */}
-        <Suspense fallback={<PriceHistorySkeleton />}>
-          <PriceHistorySection deal={deal} />
-        </Suspense>
-
-        {/* Why this is a deal */}
-        <section className="card mt-8 p-5">
-          <h3 className="text-h3 text-[color:var(--ink)]">Why this is a deal</h3>
-          <dl className="mt-4 space-y-3">
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-[13px] text-[color:var(--ink-soft)]">Usual nightly rate</dt>
-              <dd className="text-[15px] font-medium text-[color:var(--ink)]">
-                {formatMoney({ priceCents: deal.median_price_cents, currency: 'USD' })}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-[13px] text-[color:var(--ink-soft)]">Today&rsquo;s rate</dt>
-              <dd className="font-display text-[18px] font-bold text-[color:var(--primary)]">
-                {formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-[13px] text-[color:var(--ink-soft)]">Price checks</dt>
-              <dd className="text-[15px] font-medium text-[color:var(--ink)]">
-                {deal.snapshot_count} snapshots over 60 days
-              </dd>
-            </div>
-          </dl>
-          {!isExpired && deal.expires_at ? (
-            <p className="mt-4 border-t border-[color:var(--line-ivory)] pt-3 text-caption text-[color:var(--ink-faint)]">
-              Expires {fmtDate(deal.expires_at)}
-            </p>
-          ) : null}
-        </section>
-
-        {/* Hotel continuity facts */}
-        <section className="card mt-4 p-5">
-          <h3 className="mb-3 text-[13px] font-bold text-[color:var(--ink)]">Stay details</h3>
-          <div className="grid grid-cols-2 gap-3 min-[680px]:grid-cols-4">
-            <Fact label="Hotel" value={deal.hotel_name} />
-            <Fact label="Area" value={deal.city ?? 'Area unavailable'} muted={!deal.city} />
-            <Fact label="Check-in" value={checkInDisplay ?? 'Check-in unavailable'} muted={!checkInDisplay} />
-            <Fact label="Check-out" value={checkOutDisplay ?? 'Check-out unavailable'} muted={!checkOutDisplay} />
-            <Fact label="Nights" value={deal.nights != null ? String(deal.nights) : 'Nights unavailable'} muted={deal.nights == null} />
-            <Fact label="Guests" value="Guest count unavailable" muted />
-            <Fact label="Room or rate" value="Room or rate unavailable" muted />
-            <Fact label="Price basis" value="Provider confirms final price and availability." />
-          </div>
-        </section>
+          <section aria-labelledby="supporting-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+            <h2 id="supporting-title" className="text-xl font-bold text-[color:var(--text-1)]">Supporting evidence</h2>
+            {deal.photo_url ? <img src={deal.photo_url} alt="" className="mt-4 h-44 w-full rounded-[var(--radius-card)] object-cover sm:h-64" decoding="async" /> : null}
+            <Suspense fallback={<PriceHistorySkeleton />}><PriceHistorySection deal={deal} /></Suspense>
+            <details className="mt-6 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><summary className="min-h-11 cursor-pointer font-medium text-[color:var(--text-1)]">Show offer details</summary><p className="mt-3 text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p><p className="mt-1 break-all font-mono text-xs text-[color:var(--text-2)]">{deal.id}</p><p className="mt-2 text-xs text-[color:var(--text-3)]">Use this reference if you contact expaify support.</p></details>
+            <div className="mt-4"><ShareButton /></div>
+          </section>
+        </div>
       </main>
     </div>
   )
