@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEventHandler, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEventHandler, type ReactNode, type SyntheticEvent } from 'react'
 import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext, type BookingHotelContext } from '@/lib/booking/config'
 import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
@@ -405,7 +405,7 @@ function ReviewShell({
 }) {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-10 lg:px-8">
-      <a href="/" onClick={onBackClick} className="inline-flex min-h-10 items-center rounded-lg px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
+      <a href="/" onClick={onBackClick} className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
         ← Back to search
       </a>
       <div className="mt-4 grid gap-5 lg:mt-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
@@ -578,9 +578,52 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
     locationPrecision: location.precision,
   }), [hotelContext.currency, hotelContext.priceBasis, hotelContext.priceCents, hotelContext.provider, location.precision, partner.host])
   const didContinueRef = useRef(false)
+  const guidanceBlockRef = useRef<HTMLElement>(null)
+  const guidanceViewedRef = useRef(false)
+  const helpOpenRef = useRef(false)
   const returnArmedRef = useRef(false)
   const hiddenAfterContinueRef = useRef(false)
   const continueStartedAtRef = useRef<number | undefined>(undefined)
+
+  useEffect(() => {
+    const guidanceBlock = guidanceBlockRef.current
+    if (!guidanceBlock || typeof IntersectionObserver === 'undefined') return
+
+    let exposureTimer: ReturnType<typeof setTimeout> | undefined
+    const clearExposureTimer = () => {
+      if (exposureTimer === undefined) return
+      clearTimeout(exposureTimer)
+      exposureTimer = undefined
+    }
+    const observer = new IntersectionObserver((entries) => {
+      const isExposed = entries.some((entry) => (
+        entry.target === guidanceBlock && entry.isIntersecting && entry.intersectionRatio >= 0.5
+      ))
+
+      if (!isExposed) {
+        clearExposureTimer()
+        return
+      }
+      if (guidanceViewedRef.current || exposureTimer !== undefined) return
+
+      exposureTimer = setTimeout(() => {
+        exposureTimer = undefined
+        guidanceViewedRef.current = true
+        emitAnalytics('hotel_request_guidance_viewed', {
+          source: hotelContext.provider,
+          partnerHost: partner.host,
+          capabilityState: 'provider_directed_only',
+          eligibleRequestCount: 3,
+        })
+      }, 1_000)
+    }, { threshold: 0.5 })
+
+    observer.observe(guidanceBlock)
+    return () => {
+      clearExposureTimer()
+      observer.disconnect()
+    }
+  }, [hotelContext.provider, partner.host])
 
   useEffect(() => {
     if (typeof document === 'undefined') return
@@ -617,6 +660,28 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
     hiddenAfterContinueRef.current = false
     continueStartedAtRef.current = performance.now()
     emitAnalytics('hotel_handoff_continue_clicked', { ...analyticsProps, partnerNamed: partner.named })
+    if (guidanceViewedRef.current) {
+      emitAnalytics('hotel_request_handoff_continued', {
+        source: hotelContext.provider,
+        partnerHost: partner.host,
+        capabilityState: 'provider_directed_only',
+        eligibleRequestCount: 3,
+        selectedRequestCount: 0,
+        guidanceSeen: true,
+      })
+    }
+  }
+
+  const handleHelpToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
+    const isOpen = event.currentTarget.open
+    if (isOpen && !helpOpenRef.current) {
+      emitAnalytics('hotel_request_help_opened', {
+        source: hotelContext.provider,
+        partnerHost: partner.host,
+        capabilityState: 'provider_directed_only',
+      })
+    }
+    helpOpenRef.current = isOpen
   }
 
   const handleBack = () => {
@@ -667,6 +732,37 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
             <p className="mt-2 text-sm leading-5 text-[color:var(--text-2)]">Final total, taxes, fees, room availability, and cancellation policy.</p>
           </div>
         </div>
+        <section
+          ref={guidanceBlockRef}
+          aria-labelledby="hotel-special-requests-title"
+          className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3"
+        >
+          <h3 id="hotel-special-requests-title" className="text-sm font-bold leading-5 text-[color:var(--text-1)]">
+            Special requests
+          </h3>
+          <p className="mt-2 text-sm font-medium leading-5 text-[color:var(--text-1)]">
+            Need a quiet room, high floor, or early check-in?
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+            {partner.named
+              ? `Add your request on ${partner.label} while booking. Nothing is selected or sent by expaify.`
+              : 'Add your request on the booking partner’s site while booking. Nothing is selected or sent by expaify.'}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+            Requests depend on availability and are not guaranteed. After booking, use your confirmation or itinerary to contact the property and ask it to confirm what it can provide.
+          </p>
+          <details onToggle={handleHelpToggle} className="mt-3 border-t border-[color:var(--border)] pt-3">
+            <summary className="min-h-11 cursor-pointer select-none py-2 text-sm font-medium leading-6 text-[color:var(--brand)]">
+              How requests work
+            </summary>
+            <ul className="mt-2 space-y-2 pl-5 text-sm leading-6 text-[color:var(--text-2)]">
+              <li><span className="font-semibold text-[color:var(--text-1)]">Selected:</span> You have chosen a preference. expaify does not offer this step.</li>
+              <li><span className="font-semibold text-[color:var(--text-1)]">Sent:</span> The booking service says it submitted the request. Continuing from expaify does not send one.</li>
+              <li><span className="font-semibold text-[color:var(--text-1)]">Acknowledged:</span> The property has replied about the request.</li>
+              <li><span className="font-semibold text-[color:var(--text-1)]">Guaranteed:</span> The property explicitly confirms it for this stay. Until then, treat it as a preference.</li>
+            </ul>
+          </details>
+        </section>
         <div className="mt-5 flex flex-col gap-3">
           <a
             href={hotelContext.providerUrl}
