@@ -838,7 +838,7 @@ export default function HotelCard({
             <a
               href={bookingHref}
               aria-label={reviewAriaLabel}
-              className="btn-primary inline-flex min-h-10 max-w-[8.5rem] items-center justify-center gap-2 rounded-[var(--radius-control)] px-3 text-xs font-bold sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm"
+              className="btn-primary inline-flex min-h-11 max-w-[8.5rem] items-center justify-center gap-2 rounded-[var(--radius-control)] px-3 text-xs font-bold sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm"
             >
               <span className="truncate">Review hotel</span>
               <svg className="shrink-0" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -847,7 +847,7 @@ export default function HotelCard({
             </a>
           ) : (
             <span
-              className="inline-flex min-h-10 max-w-[8.5rem] cursor-not-allowed items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-muted)] px-3 text-xs font-bold text-[color:var(--text-3)] sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm"
+              className="inline-flex min-h-11 max-w-[8.5rem] cursor-not-allowed items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-muted)] px-3 text-xs font-bold text-[color:var(--text-3)] sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm"
               role="status"
               aria-label={unavailableAriaLabel}
             >
@@ -861,7 +861,7 @@ export default function HotelCard({
           aria-expanded={isExpanded}
           aria-controls={detailsId}
           onClick={() => setIsExpanded(value => !value)}
-          className="mt-3 flex min-h-10 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] text-sm font-bold text-[color:var(--text-1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
+          className="mt-3 flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] text-sm font-bold text-[color:var(--text-1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
         >
           {isExpanded ? 'Hide details' : 'Details'}
         </button>

@@ -129,6 +129,15 @@ describe('HotelCard access evidence', () => {
     expect(text).toContain('Review hotel')
   })
 
+  it('keeps primary card actions at least 44px tall on mobile', () => {
+    const card = HotelCard({ hotel, smokingPolicy: confirmedSmokingPolicy })
+    const review = collectElements(card).find(node => node.type === 'a' && collectText(node).includes('Review hotel'))
+    const details = collectElements(card).find(node => node.type === 'button' && collectText(node) === 'Details')
+
+    expect(String(review?.props.className)).toContain('min-h-11')
+    expect(String(details?.props.className)).toContain('min-h-11')
+  })
+
   it('shows only the highest-priority guaranteed property chip when collapsed', () => {
     const card = HotelCard({
       hotel,
