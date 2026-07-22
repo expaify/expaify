@@ -84,7 +84,7 @@ export default async function DealsPage() {
     <>
       <LandingNav />
       <main className="mx-auto max-w-[1140px] px-5 pb-24 pt-10">
-        <DealFeed initialDeals={initialDeals} />
+        <DealFeed initialDeals={initialDeals} premium={pwCtx.premium} />
       </main>
     </>
   )

@@ -32,6 +32,7 @@ type DealCardDeal = {
 type DealCardProps = {
   deal: DealCardDeal;
   href?: string;
+  onOpen?: () => void;
 };
 
 function starChars(stars: number): string {
@@ -43,7 +44,7 @@ function savingsCents(deal: DealCardDeal): number {
   return deal.medianPrice.priceCents - deal.dealPrice.priceCents;
 }
 
-export function DealCard({ deal, href }: DealCardProps) {
+export function DealCard({ deal, href, onOpen }: DealCardProps) {
   const savings = savingsCents(deal);
   const showSavings = savings >= 2000; // ≥ $20/night
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt);
@@ -168,7 +169,14 @@ export function DealCard({ deal, href }: DealCardProps) {
   if (!href) return content;
 
   return (
-    <a href={href} className="block text-inherit no-underline" aria-label={`View deal: ${deal.hotelName}`}>
+    <a
+      href={href}
+      onClick={(event) => {
+        if ((event.target as Element).closest("a") === event.currentTarget) onOpen?.();
+      }}
+      className="block text-inherit no-underline"
+      aria-label={`View deal: ${deal.hotelName}`}
+    >
       {content}
     </a>
   );
