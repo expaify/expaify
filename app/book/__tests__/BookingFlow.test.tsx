@@ -202,7 +202,7 @@ describe('BookingFlow fare context review', () => {
     const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
     expect(outbound.props.href).toBe(hotelContext.providerUrl);
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
-    expect(outbound.props['aria-label']).toBe("Continue to booking partner for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ. Hotellook did not provide complete rate restrictions. Check the partner's terms before paying.");
+    expect(outbound.props['aria-label']).toBe("Continue to booking partner for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ. Hotellook did not provide complete rate restrictions. Check the partner's terms before paying. Parking space not confirmed.");
   });
 
   it('names a resolved destination without changing its affiliate URL', () => {

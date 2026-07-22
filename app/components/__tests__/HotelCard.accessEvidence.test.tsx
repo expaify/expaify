@@ -140,7 +140,7 @@ describe('HotelCard access evidence', () => {
     const section = accessSection(card)
 
     expect(text).toContain(
-      'Access details not documented by this provider. Confirm elevator, parking, step-free access, and room requests directly with the provider before booking.'
+      'Access details not documented by this provider. Confirm elevator, step-free access, and room requests directly with the provider before booking.'
     )
     expect(section.props['aria-label']).toBe(
       'Access and room requests. Access details not documented by this provider. Confirm directly before booking.'
@@ -151,7 +151,7 @@ describe('HotelCard access evidence', () => {
 
   it.each([
     ['loading', 'Checking access details…'],
-    ['error', 'Access details could not be checked. Confirm elevator, parking, step-free access, and room requests directly with the provider before booking.'],
+    ['error', 'Access details could not be checked. Confirm elevator, step-free access, and room requests directly with the provider before booking.'],
   ] as const)('keeps the hotel usable in the %s access state', (accessEvidenceState, expected) => {
     expanded = true
     const card = HotelCard({ hotel, accessEvidenceState })
@@ -179,11 +179,6 @@ describe('HotelCard access evidence', () => {
         }),
         evidence({ id: 'elevator', status: 'unavailable', certainty: 'guaranteed' }),
         evidence({
-          id: 'on_site_parking',
-          label: 'On-site parking',
-          fee: 'paid',
-        }),
-        evidence({
           id: 'step_free_route',
           label: 'Step-free route, entrance to room',
           status: 'unknown',
@@ -195,11 +190,10 @@ describe('HotelCard access evidence', () => {
     const section = accessSection(card)
     const text = collectText(section)
 
-    expect(text.indexOf('Elevator')).toBeLessThan(text.indexOf('On-site parking'))
-    expect(text.indexOf('On-site parking')).toBeLessThan(text.indexOf('Step-free route, entrance to room'))
+    expect(text.indexOf('Elevator')).toBeLessThan(text.indexOf('Step-free route, entrance to room'))
     expect(text.indexOf('Step-free route, entrance to room')).toBeLessThan(text.indexOf('Ground-floor room'))
     expect(text).toContain('The provider states this property has no elevator.')
-    expect(text).toContain('Provider confirms this property has on-site parking. Parking fee: additional charge applies.')
+    expect(text).not.toContain('On-site parking')
     expect(text).toContain("Step-free route, entrance to room: the provider's information is unclear. Confirm directly before booking.")
     expect(text).toContain(`You can request a ground-floor room. ${'Request only — not guaranteed until the provider confirms.'}`)
     expect(text).toContain('Source: Example Provider. Updated Jul 20, 2026.')
@@ -212,7 +206,6 @@ describe('HotelCard access evidence', () => {
     const card = HotelCard({
       hotel,
       amenityEvidence: [
-        evidence({ id: 'on_site_parking', label: 'On-site parking', certainty: 'requestable' }),
         evidence({ id: 'room_pref_ground_floor', label: 'Ground-floor room', scope: 'room', certainty: 'requestable' }),
         evidence({ id: 'room_pref_high_floor', label: 'High-floor room', scope: 'room', certainty: 'requestable' }),
         evidence({ id: 'room_pref_near_elevator', label: 'Room near the elevator', scope: 'room', certainty: 'requestable' }),
@@ -225,8 +218,8 @@ describe('HotelCard access evidence', () => {
       .map(node => node.props['aria-label'])
       .filter(label => typeof label === 'string' && label.includes(clause))
 
-    expect(collectText(section).split(clause)).toHaveLength(6)
-    expect(requestableAriaLabels).toHaveLength(5)
+    expect(collectText(section).split(clause)).toHaveLength(5)
+    expect(requestableAriaLabels).toHaveLength(4)
   })
 
   it('uses warning tokens only on unavailable rows within access evidence', () => {

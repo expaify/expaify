@@ -6,6 +6,8 @@ import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
 import { track } from '@/lib/analytics'
 import { providerDisplayName } from '@/lib/providerFreshness'
+import type { HotelParkingConflictDimension, HotelParkingEvidence } from '@/lib/types'
+import { getParkingCtaStatus, ParkingSection } from '@/app/components/HotelParking'
 import {
   getRateRestrictionsAccessibleSummary,
   HotelRateRestrictionsSection,
@@ -109,6 +111,10 @@ type BookingFlowProps = {
   fareContext: BookingFareContext | null
   hotelContext?: BookingHotelContext | null
   invalidHotelSelection?: boolean
+  parkingEvidence?: HotelParkingEvidence | null
+  parkingConflictDimensions?: readonly HotelParkingConflictDimension[]
+  parkingEvidenceMalformed?: boolean
+  hasSearchDates?: boolean
 }
 
 function formatMoney(cents: number, currency: string) {
@@ -397,6 +403,7 @@ function ReviewShell({
   message,
   fareContext,
   hotelContext = null,
+  hotelParking,
   duffelSandbox,
   status,
   onBackClick,
@@ -407,6 +414,7 @@ function ReviewShell({
   message: string
   fareContext: BookingFareContext | null
   hotelContext?: BookingHotelContext | null
+  hotelParking?: ReactNode
   duffelSandbox: boolean
   status?: ReactNode
   onBackClick?: MouseEventHandler<HTMLAnchorElement>
@@ -431,6 +439,7 @@ function ReviewShell({
           {hotelContext && (
             <HotelSummary hotelContext={hotelContext} partner={getHotelPartnerIdentity(hotelContext.providerUrl)} />
           )}
+          {hotelParking}
         </div>
         <div className="min-w-0 lg:sticky lg:top-6">
           {children}
@@ -575,7 +584,21 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
   )
 }
 
-function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: BookingHotelContext; duffelSandbox: boolean }) {
+function HotelHandoffReview({
+  hotelContext,
+  duffelSandbox,
+  parkingEvidence,
+  parkingConflictDimensions,
+  parkingEvidenceMalformed = false,
+  hasSearchDates = true,
+}: {
+  hotelContext: BookingHotelContext
+  duffelSandbox: boolean
+  parkingEvidence?: HotelParkingEvidence | null
+  parkingConflictDimensions?: readonly HotelParkingConflictDimension[]
+  parkingEvidenceMalformed?: boolean
+  hasSearchDates?: boolean
+}) {
   const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
   const location = getHotelLocationDisplay(hotelContext)
   const analyticsProps = useMemo(() => ({
@@ -717,7 +740,8 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
     providerDisplayName(hotelContext.provider),
     'handoff',
   )
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${eligibilityAriaSummary}`
+  const parkingCtaStatus = getParkingCtaStatus({ evidence: parkingEvidence, malformed: parkingEvidenceMalformed })
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${eligibilityAriaSummary} ${parkingCtaStatus}`
 
   return (
     <ReviewShell
@@ -726,6 +750,16 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
       message="Review the hotel and nightly rate expaify found. The booking partner confirms the live rate and final details before you pay."
       fareContext={null}
       hotelContext={hotelContext}
+      hotelParking={(
+        <ParkingSection
+          hotelId={hotelContext.offerId}
+          evidence={parkingEvidence}
+          conflictDimensions={parkingConflictDimensions}
+          malformed={parkingEvidenceMalformed}
+          hasSearchDates={hasSearchDates}
+          bookingReview
+        />
+      )}
       duffelSandbox={duffelSandbox}
       onBackClick={handleBack}
     >
@@ -801,7 +835,17 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
   )
 }
 
-export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext, hotelContext = null, invalidHotelSelection = false }: BookingFlowProps) {
+export default function BookingFlow({
+  bookingEnabled,
+  duffelSandbox,
+  fareContext,
+  hotelContext = null,
+  invalidHotelSelection = false,
+  parkingEvidence,
+  parkingConflictDimensions,
+  parkingEvidenceMalformed = false,
+  hasSearchDates = true,
+}: BookingFlowProps) {
   const [state, setState] = useState<BookingState>('idle')
   const [bookingRef, setBookingRef] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
@@ -819,7 +863,16 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
   const maxDobStr = maxDob.toISOString().slice(0, 10)
 
   if (hotelContext) {
-    return <HotelHandoffReview hotelContext={hotelContext} duffelSandbox={duffelSandbox} />
+    return (
+      <HotelHandoffReview
+        hotelContext={hotelContext}
+        duffelSandbox={duffelSandbox}
+        parkingEvidence={parkingEvidence}
+        parkingConflictDimensions={parkingConflictDimensions}
+        parkingEvidenceMalformed={parkingEvidenceMalformed}
+        hasSearchDates={hasSearchDates}
+      />
+    )
   }
 
   if (invalidHotelSelection) {
