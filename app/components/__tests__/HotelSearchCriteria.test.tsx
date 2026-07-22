@@ -1,6 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import {
   HotelCriteriaContextCard,
+  HotelCriteriaMismatchAlert,
+  HotelCriteriaSummarySkeleton,
   HotelSearchCriteriaEditor,
   HotelSearchCriteriaSummary,
 } from '../HotelSearchCriteria'
@@ -27,9 +29,20 @@ describe('HotelSearchCriteria UI', () => {
     expect(html).toContain('Paris')
     expect(html).toContain('Check in Sep 10–13')
     expect(html).toContain('Guests &amp; rooms not captured')
-    expect(html).toContain('aria-label="Guests and rooms not captured."')
+    expect(html).toContain('Paris. Check in Sep 10–13. Guests and rooms not captured.')
     expect(html).toContain('aria-label="Edit hotel search"')
     expect(html).not.toMatch(/2 adults|1 room|Matches your party/)
+  })
+
+  it('keeps the last applied summary visible and disables Edit while updating', () => {
+    const html = renderToStaticMarkup(
+      <HotelSearchCriteriaSummary criteria={criteria} surface="results" status="updating" onEdit={() => undefined} />,
+    )
+
+    expect(html).toContain('Paris. Check in Sep 10–13. Guests and rooms not captured.')
+    expect(html).toContain('Updating results…')
+    expect(html).toContain('aria-atomic="true"')
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*aria-label="Edit hotel search"/)
   })
 
   it('keeps occupancy read-only in the atomic editor', () => {
@@ -58,5 +71,32 @@ describe('HotelSearchCriteria UI', () => {
     expect(html).toContain('Search criteria unavailable')
     expect(html).toContain('confirm the price and room fit with the provider')
     expect(html).not.toContain('Search hotel deals')
+  })
+
+  it('does not partially restore invalid detail context', () => {
+    const html = renderToStaticMarkup(<HotelCriteriaContextCard status="invalid" />)
+
+    expect(html).toContain('Search criteria couldn&#x27;t be restored')
+    expect(html).toContain('Start a new search')
+    expect(html).not.toContain('Paris')
+  })
+
+  it('blocks provider continuation for a known criteria mismatch', () => {
+    const html = renderToStaticMarkup(
+      <HotelCriteriaMismatchAlert onEdit={() => undefined} backHref="/deals?criteria=criteria-test" />,
+    )
+
+    expect(html).toContain('role="alert"')
+    expect(html).toContain('This deal doesn&#x27;t match your search.')
+    expect(html).toContain('Back to matching results')
+    expect(html).toContain('Provider options are unavailable until you review the mismatch.')
+  })
+
+  it('announces criteria restoration without exposing skeleton decoration', () => {
+    const html = renderToStaticMarkup(<HotelCriteriaSummarySkeleton />)
+
+    expect(html).toContain('role="status"')
+    expect(html).toContain('Restoring your search…')
+    expect(html).toContain('aria-hidden="true"')
   })
 })
