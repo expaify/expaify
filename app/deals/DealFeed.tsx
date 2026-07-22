@@ -10,17 +10,17 @@ import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 import { track } from '@/lib/analytics'
 import { HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
 import {
-  HotelFilterRecoveryPanel,
   HotelResultStatus,
-  HotelShortListHelper,
 } from './HotelRecoveryUI'
 import {
   formatDealCount,
+  formatFilterValue,
   parseHotelResultMetadata,
   type HotelFilterKey,
   type HotelFilterState,
   type HotelResultMetadata,
 } from './hotelFilterRecovery'
+import { ResultCoverageBoundary, type CoverageState, type CoverageFilter } from './ResultCoverageBoundary'
 
 const CITIES = [
   'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
@@ -116,6 +116,7 @@ type DealFetchOpts = {
   sort: SortKey
   offset: number
   append: boolean
+  existingDeals?: ApiDeal[]
 }
 
 type FeedSnapshot = HotelFilterState & { sort: SortKey; queryId?: string }
@@ -138,6 +139,37 @@ type DealsResponse = {
   premium?: boolean
   unfilteredTotal?: number
   resultMetadata?: unknown
+  coverage?: 'more_available' | 'confirmed_end'
+  page?: {
+    nextOffset: number | null
+    hasMore: boolean
+    exactTotal?: number
+  }
+}
+
+type ConfirmedCoverage = {
+  state: 'more_available' | 'confirmed_end'
+  nextOffset: number | null
+}
+
+function readConfirmedCoverage(response: DealsResponse): ConfirmedCoverage | null {
+  if (response.coverage === 'more_available' && response.page?.hasMore === true && Number.isInteger(response.page.nextOffset) && Number(response.page.nextOffset) >= 0) {
+    return { state: 'more_available', nextOffset: response.page.nextOffset }
+  }
+  if (response.coverage === 'confirmed_end' && response.page?.hasMore === false && response.page.nextOffset === null) {
+    return { state: 'confirmed_end', nextOffset: null }
+  }
+  return null
+}
+
+function appendUniqueDeals(current: ApiDeal[], incoming: ApiDeal[]) {
+  const ids = new Set(current.map(deal => deal.id))
+  const unique = incoming.filter(deal => {
+    if (ids.has(deal.id)) return false
+    ids.add(deal.id)
+    return true
+  })
+  return { deals: [...current, ...unique], uniqueCount: unique.length }
 }
 
 function SkeletonCard() {
@@ -285,9 +317,13 @@ type DealFeedProps = {
 export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization }: DealFeedProps = {}) {
   const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
-  const [hasMore, setHasMore] = useState((initialDeals?.length ?? 0) === HOTEL_DEAL_PAGE_SIZE)
+  const [confirmedCoverage, setConfirmedCoverage] = useState<ConfirmedCoverage | null>(null)
   const [loading, setLoading] = useState(!initialDeals)
   const [error, setError] = useState(false)
+  const [continuationError, setContinuationError] = useState(false)
+  const [zeroNewUnconfirmed, setZeroNewUnconfirmed] = useState(false)
+  const [continuationOrigin, setContinuationOrigin] = useState<'manual' | 'automatic'>('manual')
+  const [coverageAnnouncement, setCoverageAnnouncement] = useState(!initialDeals ? 'Finding current expaify hotel deals.' : '')
   const [activeTab, setActiveTab] = useState<'hotels' | 'flights'>('hotels')
   const [city, setCity] = useState(defaultCity ?? '')
   const [minDiscount, setMinDiscount] = useState(DEFAULT_MIN_DISCOUNT)
@@ -301,7 +337,6 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const [failedSort, setFailedSort] = useState<SortKey | null>(null)
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
   const [premiumExplanationOpen, setPremiumExplanationOpen] = useState(false)
-  const [offset, setOffset] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [premium, setPremium] = useState(premiumProp)
   const [resultMetadata, setResultMetadata] = useState<HotelResultMetadata | null>(() => {
@@ -315,7 +350,6 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       dateTo: '',
     }, defaultCity)
   })
-  const [lastChangedKey, setLastChangedKey] = useState<HotelFilterKey | null>(null)
   const [pendingRecoveryKey, setPendingRecoveryKey] = useState<HotelFilterKey | 'reset' | 'undo' | 'retry' | null>(null)
   const [undoSnapshot, setUndoSnapshot] = useState<UndoSnapshot | null>(null)
   const [undoError, setUndoError] = useState(false)
@@ -332,6 +366,17 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const requestSequenceRef = useRef(0)
   const requestAbortRef = useRef<AbortController | null>(null)
   const retryBehaviorRef = useRef<RequestBehavior | null>(null)
+  const continuationControlRef = useRef<HTMLButtonElement>(null)
+  const continuationBoundaryRef = useRef<HTMLElement>(null)
+  const failedContinuationOffsetRef = useRef<number | null>(null)
+  const continuationOriginRef = useRef<'manual' | 'automatic'>('manual')
+  const continuationPendingRef = useRef(false)
+
+  function restoreManualContinuationFocus() {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      (continuationControlRef.current ?? continuationBoundaryRef.current)?.focus()
+    }))
+  }
 
   const personalizationActive = Boolean(personalization?.active)
 
@@ -342,10 +387,20 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     const controller = new AbortController()
     requestAbortRef.current = controller
     if (!append) {
+      continuationPendingRef.current = false
       setLoading(true)
       setResultMetadata(null)
-    } else setLoadingMore(true)
-    setError(false)
+      setError(false)
+      setConfirmedCoverage(null)
+      setContinuationError(false)
+      setZeroNewUnconfirmed(false)
+      setCoverageAnnouncement('Finding current expaify hotel deals.')
+    } else {
+      setLoadingMore(true)
+      setContinuationError(false)
+      setZeroNewUnconfirmed(false)
+      setCoverageAnnouncement('Loading more deals.')
+    }
     setUndoError(false)
 
     const params = new URLSearchParams({
@@ -381,11 +436,47 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         if (parsedMetadata.filteredTotal === 0 && data.deals.length > 0) throw new Error('invalid result metadata')
         if (parsedMetadata.filteredTotal > 0 && parsedMetadata.filteredTotal <= 3 && data.deals.length === 0) throw new Error('invalid result metadata')
       }
-      setDeals(prev => append ? [...prev, ...data.deals] : data.deals)
+      const coverage = readConfirmedCoverage(data)
+      const filteredRequest = Boolean(
+        (defaultCity ? opts.city !== defaultCity : opts.city) ||
+        opts.minDiscount !== DEFAULT_MIN_DISCOUNT ||
+        opts.maxPriceCents || opts.minStars || opts.dateFrom || opts.dateTo
+      )
+      if (append) {
+        const appended = appendUniqueDeals(opts.existingDeals ?? [], data.deals)
+        setDeals(appended.deals)
+        setConfirmedCoverage(coverage)
+        failedContinuationOffsetRef.current = null
+        if (appended.uniqueCount === 0 && coverage?.state !== 'confirmed_end') {
+          // Retain the attempted server-authored offset so the visible
+          // zero-new recovery control can retry the same continuation.
+          failedContinuationOffsetRef.current = opts.offset
+          setZeroNewUnconfirmed(true)
+          setCoverageAnnouncement('No additional unique deals were returned. Coverage is still unconfirmed.')
+        } else if (coverage?.state === 'confirmed_end') {
+          setCoverageAnnouncement(`You’ve reached the end of current expaify deals${filteredRequest ? ' matching these filters' : ''}.`)
+        } else {
+          setCoverageAnnouncement(`${appended.uniqueCount} more ${appended.uniqueCount === 1 ? 'deal' : 'deals'} loaded. ${appended.deals.length} shown.`)
+        }
+      } else {
+        setDeals(data.deals)
+        setConfirmedCoverage(coverage)
+        setZeroNewUnconfirmed(false)
+        const liveDeals = data.deals.filter(deal => !deal.isMock)
+        if (liveDeals.length === 0 && data.deals.length > 0) setCoverageAnnouncement('')
+        else if (liveDeals.length === 0) {
+          setCoverageAnnouncement(filteredRequest
+            ? 'No current expaify deals match your filters. Remove one filter to expand this expaify result set.'
+            : 'No current expaify hotel deals were returned. There are no current matches in expaify’s tracked deal set.')
+        } else if (coverage?.state === 'confirmed_end') {
+          setCoverageAnnouncement(`You’ve reached the end of current expaify deals${filteredRequest ? ' matching these filters' : ''}.`)
+        } else if (coverage?.state === 'more_available') {
+          setCoverageAnnouncement(`${liveDeals.length} ${liveDeals.length === 1 ? 'deal' : 'deals'} shown. More ${filteredRequest ? 'matching ' : ''}expaify deals are available.`)
+        } else {
+          setCoverageAnnouncement(`${liveDeals.length} ${liveDeals.length === 1 ? 'deal' : 'deals'} shown. expaify can’t confirm whether this is the full ${filteredRequest ? 'matching ' : 'current '}set.`)
+        }
+      }
       if (!append) setResultMetadata(parsedMetadata)
-      // The API reports the page count, not the full set, so a full page is
-      // the only reliable "there may be more" signal.
-      setHasMore(data.deals.length === HOTEL_DEAL_PAGE_SIZE)
       setPremium(Boolean(data.premium))
       if (behavior.undoOnSuccess) setUndoSnapshot(behavior.undoOnSuccess)
       if (behavior.successKind === 'undo') {
@@ -408,16 +499,24 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         retryBehaviorRef.current = null
       }
       if (behavior.focusOnSuccess) window.requestAnimationFrame(() => resultStatusRef.current?.focus())
+      if (append && continuationOriginRef.current === 'manual') restoreManualContinuationFocus()
       return true
     } catch (caught) {
       if (sequence !== requestSequenceRef.current || (caught instanceof DOMException && caught.name === 'AbortError')) return false
-      if (behavior.preserveResultsOnFailure) {
+      if (append) {
+        failedContinuationOffsetRef.current = opts.offset
+        setContinuationError(true)
+        setConfirmedCoverage(null)
+        setCoverageAnnouncement('We couldn’t load more deals. The deals already shown are still available to compare.')
+        if (continuationOriginRef.current === 'manual') restoreManualContinuationFocus()
+      } else if (behavior.preserveResultsOnFailure) {
         setUndoError(true)
         setStatusAnnouncement('')
       } else {
         setError(true)
         setResultMetadata(null)
         setStatusAnnouncement('Deals couldn’t be updated. Your selected filters are still shown.')
+        setCoverageAnnouncement('We couldn’t confirm current hotel deals. The deal feed didn’t load. Your filters are unchanged.')
         retryBehaviorRef.current = behavior
       }
       return false
@@ -426,6 +525,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         setLoading(false)
         setLoadingMore(false)
         setPendingRecoveryKey(null)
+        if (append) continuationPendingRef.current = false
       }
     }
   }, [defaultCity, personalizationActive])
@@ -461,13 +561,6 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       dateFrom: nextDateFrom,
       dateTo: nextDateTo,
     }
-    const changedKeys: HotelFilterKey[] = []
-    if (nextCity !== city) changedKeys.push('city')
-    if (nextDiscount !== minDiscount) changedKeys.push('minDiscount')
-    if (nextStars !== minStars) changedKeys.push('minStars')
-    if (nextMax !== maxPriceCents) changedKeys.push('maxPrice')
-    if (nextDateFrom !== dateFrom) changedKeys.push('dateFrom')
-    if (nextDateTo !== dateTo) changedKeys.push('dateTo')
     setSortMenuOpen(false)
     setPremiumExplanationOpen(false)
     setFailedSort(null)
@@ -477,8 +570,6 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     setMinStars(nextStars)
     setDateFrom(nextDateFrom)
     setDateTo(nextDateTo)
-    setOffset(0)
-    setLastChangedKey(changedKeys.length === 1 ? changedKeys[0] : null)
     setStatusAnnouncement('')
     setUndoError(false)
     if (recovery) setPendingRecoveryKey(recovery.key)
@@ -568,8 +659,6 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     setUndoSnapshot(null)
     setUndoError(false)
     setStatusAnnouncement('')
-    setLastChangedKey(null)
-    setOffset(0)
     sortTriggerRef.current?.focus()
 
     const params = new URLSearchParams({
@@ -599,7 +688,9 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       }
       setDeals(data.deals)
       setResultMetadata(parsedMetadata)
-      setHasMore(data.deals.length === HOTEL_DEAL_PAGE_SIZE)
+      setConfirmedCoverage(readConfirmedCoverage(data))
+      setContinuationError(false)
+      setZeroNewUnconfirmed(false)
       setPremium(Boolean(data.premium))
       setPreviousSort(sortFrom)
       pendingSortEventRef.current = { from: sortFrom, to: target, startedAt }
@@ -612,31 +703,36 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     }
   }
 
-  function loadMore() {
-    if (loading || loadingMore || error || !hasMore) return
-    const nextOffset = offset + HOTEL_DEAL_PAGE_SIZE
-    setOffset(nextOffset)
-    fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort: appliedSort, offset: nextOffset, append: true })
+  function loadMore(origin: 'manual' | 'automatic', retryOffset?: number) {
+    const nextOffset = retryOffset ?? confirmedCoverage?.nextOffset
+    if (continuationPendingRef.current || loading || loadingMore || error || (retryOffset === undefined && (continuationError || zeroNewUnconfirmed)) || nextOffset === null || nextOffset === undefined) return
+    continuationPendingRef.current = true
+    continuationOriginRef.current = origin
+    setContinuationOrigin(origin)
+    void fetchDeals({ city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, sort: appliedSort, offset: nextOffset, append: true, existingDeals: deals })
   }
 
   // Infinite scroll: a sentinel below the grid loads the next page when it
   // nears the viewport. New cards arrive as skeleton cards, never a spinner.
   const sentinelRef = useRef<HTMLDivElement>(null)
-  const loadMoreRef = useRef(loadMore)
-  loadMoreRef.current = loadMore
+  const loadMoreRef = useRef<(origin: 'manual' | 'automatic', retryOffset?: number) => void>(loadMore)
+
+  useEffect(() => {
+    loadMoreRef.current = loadMore
+  })
 
   useEffect(() => {
     const el = sentinelRef.current
-    if (!el) return
+    if (!el || activeTab !== 'hotels' || confirmedCoverage?.state !== 'more_available' || loadingMore || continuationError || zeroNewUnconfirmed) return
     const obs = new IntersectionObserver(
       entries => {
-        if (entries.some(e => e.isIntersecting)) loadMoreRef.current()
+        if (entries.some(e => e.isIntersecting)) loadMoreRef.current('automatic')
       },
       { rootMargin: '600px 0px' }
     )
     obs.observe(el)
     return () => obs.disconnect()
-  }, [activeTab, loading, error, deals.length])
+  }, [activeTab, confirmedCoverage, continuationError, loadingMore, zeroNewUnconfirmed])
 
   const hasCityFilter = defaultCity ? city !== defaultCity : Boolean(city)
   const hasActiveFilters = Boolean(hasCityFilter || minDiscount !== DEFAULT_MIN_DISCOUNT || maxPriceCents || minStars || dateFrom || dateTo)
@@ -660,17 +756,33 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     ? resultMetadata
     : null
   const recoveryOptions = trustedMetadata?.recoveryOptions ?? []
-  const promotedOption = lastChangedKey && ['minDiscount', 'minStars', 'maxPrice'].includes(lastChangedKey)
-    ? recoveryOptions.find(option => option.filterKey === lastChangedKey) ?? null
-    : null
-  const verifiedShortList = trustedMetadata && trustedMetadata.filteredTotal >= 1 && trustedMetadata.filteredTotal <= 3
-  const showShortListHelper = Boolean(verifiedShortList && promotedOption)
+  // These callbacks are event handlers consumed by the boundary, not render-time calls.
+  // eslint-disable-next-line react-hooks/refs
+  const coverageFilters: CoverageFilter[] = [
+    hasCityFilter ? { key: 'city', label: city, onRemove: () => removeRecoveryFilter('city', 'promoted') } : null,
+    minDiscount !== DEFAULT_MIN_DISCOUNT ? { key: 'minDiscount', label: activeDiscount?.label ?? `${minDiscount}%+ off`, onRemove: () => removeRecoveryFilter('minDiscount', 'promoted') } : null,
+    minStars > 0 ? { key: 'minStars', label: activeStars?.label ?? `${minStars}★ & up`, onRemove: () => removeRecoveryFilter('minStars', 'promoted') } : null,
+    maxPriceCents ? { key: 'maxPrice', label: maxPriceLabel ?? formatFilterValue('maxPrice', activeFilters), onRemove: () => removeRecoveryFilter('maxPrice', 'promoted') } : null,
+    dateFrom ? { key: 'dateFrom', label: formatFilterValue('dateFrom', activeFilters), onRemove: () => removeRecoveryFilter('dateFrom', 'promoted') } : null,
+    dateTo ? { key: 'dateTo', label: formatFilterValue('dateTo', activeFilters), onRemove: () => removeRecoveryFilter('dateTo', 'promoted') } : null,
+  ].filter((filter): filter is CoverageFilter => filter !== null)
+  const recommendedFilterKey = recoveryOptions.reduce<(typeof recoveryOptions)[number] | null>((best, option) => (
+    !best || option.addedCount > best.addedCount ? option : best
+  ), null)?.filterKey ?? coverageFilters[0]?.key
+  const recommendedCoverageFilter = coverageFilters.find(filter => filter.key === recommendedFilterKey) ?? coverageFilters[0]
+  const boundaryState: CoverageState = continuationError
+    ? 'continuation_failed'
+    : zeroNewUnconfirmed
+      ? 'zero_new_unconfirmed'
+      : loadingMore
+        ? 'continuation_loading'
+        : confirmedCoverage?.state ?? 'coverage_unconfirmed'
   const displayedSort = pendingSort ?? appliedSort
   const appliedSortOption = getSortOption(appliedSort)
   const displayedSortOption = getSortOption(displayedSort)
   const sortControlDisabled = loading || error || deals.length === 0 || isMockFeed
   const resultStatusMessage = loading
-    ? (initialDeals && deals.length > 0 ? 'Updating deals for these filters.' : 'Loading hotel deals.')
+    ? (initialDeals && deals.length > 0 ? 'Updating deals for these filters.' : 'Finding current expaify hotel deals…')
     : error
       ? ''
       : statusAnnouncement || (trustedMetadata && hasActiveFilters
@@ -1136,7 +1248,9 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
             ) : null}
           </section>
 
-          <div aria-busy={loading || Boolean(pendingSort)}>
+          <p className="sr-only" aria-live="polite" aria-atomic="true">{coverageAnnouncement}</p>
+          <section aria-labelledby="hotel-results-heading" aria-busy={loading || Boolean(pendingSort) || loadingMore}>
+            <h3 id="hotel-results-heading" className="sr-only">Hotel deal results</h3>
             <HotelResultStatus
               statusRef={resultStatusRef}
               message={resultStatusMessage}
@@ -1155,35 +1269,30 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           ) : error ? (
-            <section role="alert" className="mx-auto max-w-[640px] rounded-[var(--radius-card)] border border-[color:var(--error)] bg-[color:var(--error-soft)] px-5 py-8 text-left sm:px-8 sm:py-10">
-              <h3 ref={gridRef} tabIndex={-1} className="text-h3 text-[color:var(--text-1)] focus:outline-none">We couldn&apos;t update these deals</h3>
-              <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">We couldn&apos;t check this filter combination. Try the same filters again.</p>
-              <button
-                type="button"
-                disabled={pendingRecoveryKey === 'retry'}
-                onClick={retryFilters}
-                className="btn btn-primary mt-5 min-h-11 px-8"
-              >
-                {pendingRecoveryKey === 'retry' ? 'Retrying…' : 'Retry'}
-              </button>
-            </section>
-          ) : deals.length === 0 && personalization?.active && !hasActiveFilters ? (
-            <PersonalizedEmpty personalization={personalization} premium={premium} />
-          ) : deals.length === 0 && hasActiveFilters ? (
-            <HotelFilterRecoveryPanel
-              filters={activeFilters}
-              defaultCity={defaultCity}
-              options={recoveryOptions}
-              promotedOption={promotedOption}
-              pendingKey={pendingRecoveryKey === 'undo' || pendingRecoveryKey === 'retry' ? null : pendingRecoveryKey}
-              onRemove={removeRecoveryFilter}
-              onReset={resetFilters}
-            />
+            <div ref={gridRef} tabIndex={-1}>
+              <ResultCoverageBoundary
+                surface="deals"
+                state="unavailable"
+                visibleCount={0}
+                activeFilters={coverageFilters}
+                recommendedFilterKey={recommendedFilterKey}
+                onRetryInitial={retryFilters}
+                statusMessageId="hotel-deals-unavailable"
+              />
+            </div>
           ) : deals.length === 0 ? (
-            <section className="mx-auto max-w-[640px] rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-5 py-8 text-left sm:px-8 sm:py-10">
-              <h3 className="text-h3 text-[color:var(--text-1)]">No current hotel deals yet</h3>
-              <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">We check tracked hotel prices daily. New current deals will appear here after the next sweep.</p>
-            </section>
+            <div ref={gridRef} tabIndex={-1}>
+              <ResultCoverageBoundary
+                surface="deals"
+                state="confirmed_empty"
+                visibleCount={0}
+                activeFilters={coverageFilters}
+                recommendedFilterKey={recommendedFilterKey}
+                onClearAll={resetFilters}
+                statusMessageId="hotel-deals-empty"
+              />
+              {personalization?.active && !hasActiveFilters ? <PersonalizedEmptyActions premium={premium} alertPreference={personalization.alertPreference} /> : null}
+            </div>
           ) : (
             <>
               {isColdSampleFeed ? (
@@ -1202,13 +1311,20 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                   </div>
                 </div>
               ) : null}
-              {showShortListHelper && promotedOption ? (
-                <HotelShortListHelper
-                  filters={activeFilters}
-                  option={promotedOption}
-                  pending={pendingRecoveryKey === promotedOption.filterKey}
-                  onRemove={() => removeRecoveryFilter(promotedOption.filterKey, 'promoted')}
-                />
+              {!isColdSampleFeed && hasActiveFilters && recommendedCoverageFilter ? (
+                <div className="mb-4 flex flex-col gap-3 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-4 py-3 text-[13px] leading-5 text-[color:var(--text-2)] sm:flex-row sm:items-center sm:justify-between">
+                  <p>Current filters narrow this list.</p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                    <button type="button" onClick={recommendedCoverageFilter.onRemove} className="btn btn-outline min-h-11 w-full whitespace-normal px-5 sm:w-auto">
+                      Remove &ldquo;{recommendedCoverageFilter.label}&rdquo;
+                    </button>
+                    {coverageFilters.length > 1 ? (
+                      <button type="button" onClick={resetFilters} className="min-h-11 px-2 font-medium text-[color:var(--brand)] underline-offset-4 hover:underline">
+                        Clear all filters
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
               ) : null}
               <div ref={gridRef} tabIndex={-1} aria-busy="false" className={`${gridClass} outline-none`}>
                 {deals.map((deal, index) =>
@@ -1248,34 +1364,41 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 )}
                 {loadingMore && Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={`more-${i}`} />)}
               </div>
-              <div ref={sentinelRef} aria-hidden className="h-px" />
+              {!isColdSampleFeed ? (
+                <div ref={sentinelRef} className="w-full">
+                  <ResultCoverageBoundary
+                    surface="deals"
+                    state={boundaryState}
+                    visibleCount={realDealCount}
+                    activeFilters={coverageFilters}
+                    recommendedFilterKey={recommendedFilterKey}
+                    requestOrigin={continuationOrigin}
+                    onLoadMore={() => loadMore('manual')}
+                    onRetryContinuation={() => {
+                      const failedOffset = failedContinuationOffsetRef.current
+                      if (failedOffset !== null) loadMore('manual', failedOffset)
+                    }}
+                    onClearAll={resetFilters}
+                    statusMessageId="hotel-deals-coverage-status"
+                    controlRef={continuationControlRef}
+                    boundaryRef={continuationBoundaryRef}
+                    showFilterActions={false}
+                  />
+                </div>
+              ) : null}
             </>
           )}
-          </div>
+          </section>
         </>
       )}
     </>
   )
 }
 
-/** Honest zero-result answer for the personalized feed — no ghost skeletons,
-    no mock cards, and a plan-aware footer line. */
-function PersonalizedEmpty({ personalization, premium }: { personalization: Personalization; premium: boolean }) {
-  const { watchlist, minDiscountPct: pct, alertPreference } = personalization
-  const headline =
-    watchlist.length >= 2
-      ? `No ${pct}%+ deals in your ${watchlist.length} destinations right now.`
-      : watchlist.length === 1
-        ? `No ${pct}%+ deals in ${watchlist[0]} right now.`
-        : `No ${pct}%+ deals right now.`
-
+function PersonalizedEmptyActions({ premium, alertPreference }: { premium: boolean; alertPreference: Personalization['alertPreference'] }) {
   return (
-    <div className="py-20 text-center">
-      <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">{headline}</p>
-      <p className="mt-2 text-[14px] text-[color:var(--ink-soft)]">
-        Your bar is set at {pct}%+ off — drops that big are rare, and we check every destination daily. New deals land here the moment one clears it.
-      </p>
-      <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+    <div className="mx-auto mt-5 max-w-[640px] text-center">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:justify-center">
         <a href="/deals?all=1" className="btn btn-primary px-8">
           Show all deals
         </a>
