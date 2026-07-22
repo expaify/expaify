@@ -8,7 +8,6 @@ import { DealChip } from '@/app/components/ui/DealChip'
 import { TrustLine } from '@/app/components/ui/TrustLine'
 import { PriceSparkline } from '@/app/components/ui/PriceSparkline'
 import { PriceBlock } from '@/app/components/ui/PriceBlock'
-import { CompareRow } from '@/app/components/ui/CompareRow'
 import { StarRow } from '@/app/components/ui/StarRow'
 import { ShareButton } from '@/app/components/ui/ShareButton'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
@@ -27,16 +26,18 @@ import type { DealScore } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
 import { HotelContinuityPrototype } from '@/app/components/research/HotelContinuityPrototype'
 import { createContinuityFixture, parseContinuityFixture } from '@/app/components/research/hotelContinuityFixtures'
-import { HotelCriteriaContextCard } from '@/app/components/HotelSearchCriteria'
+import { HotelDealCriteriaHandoff, HotelDealCriteriaSummary } from '@/app/components/HotelDealCriteria'
+import {
+  buildHotelResultsUrl,
+  hotelCriteriaContextStatus,
+  resolveHotelResultsView,
+  resolveHotelSearchCriteria,
+  type HotelCriteriaContextStatus,
+} from '@/lib/hotels/searchCriteria'
 
 type PageProps = {
   params: Promise<{ dealId: string }>
-  searchParams: Promise<{
-    continuityFixture?: string | string[]
-    continuityDisclosure?: string | string[]
-    criteria?: string | string[]
-    criteriaVersion?: string | string[]
-  }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
 function fmtDate(iso?: string | null): string {
@@ -255,8 +256,6 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const isStale = !isExpired && updatedAgeHours !== null && updatedAgeHours >= 48
   const foundAgo = timeAgo(deal.first_seen)
 
-  const hasOtaLinks = Object.keys(deal.ota_links ?? {}).length > 0
-
   // check-in / check-out derived
   const checkInDisplay = deal.check_in_date ? fmtShort(deal.check_in_date) : null
   const checkOutDisplay = deal.check_in_date ? addNights(deal.check_in_date, deal.nights ?? 1) : null
@@ -271,7 +270,14 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const disclosureParam = Array.isArray(researchParams.continuityDisclosure)
     ? researchParams.continuityDisclosure[0]
     : researchParams.continuityDisclosure
-  const contextStatus = researchParams.criteria || researchParams.criteriaVersion ? 'invalid' : 'missing'
+  const criteriaResolution = resolveHotelSearchCriteria(researchParams)
+  const resultsView = resolveHotelResultsView(researchParams)
+  const criteria = criteriaResolution.status === 'valid' && resultsView ? criteriaResolution.criteria : undefined
+  const contextStatus: HotelCriteriaContextStatus = criteria
+    ? hotelCriteriaContextStatus(criteria, { city: deal.city, checkInDate: deal.check_in_date })
+    : criteriaResolution.status === 'invalid' || !resultsView ? 'invalid' : 'missing'
+  const backHref = criteria && resultsView ? buildHotelResultsUrl(criteria, resultsView) : '/deals'
+  const criteriaContext = { criteria, status: contextStatus, backHref }
 
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
@@ -282,21 +288,9 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
             expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
           </a>
-          <div className="flex items-center gap-4">
-            <a href="/deals" className="flex min-h-[44px] items-center text-caption font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
-              ← Back to deals
-            </a>
-            <a
-              href="/account#alerts"
-              aria-label="Your account"
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" />
-              </svg>
-            </a>
-          </div>
+          <a href={backHref} aria-label={criteria ? 'Back to hotel results for this search' : 'Search hotel deals'} className="flex min-h-[44px] items-center text-caption font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
+            ← {criteria ? 'Back to results' : 'Search hotel deals'}
+          </a>
         </div>
       </nav>
 
@@ -376,7 +370,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
         </section>
 
         <div className="mt-8">
-          <HotelCriteriaContextCard status={contextStatus} />
+          <HotelDealCriteriaSummary context={criteriaContext} deal={{ city: deal.city, checkInDate: deal.check_in_date }} />
         </div>
 
         <section className="card mt-4 p-5">
@@ -393,7 +387,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           </div>
         </section>
 
-        <TrackOnMount event="hotel_detail_viewed" props={{ deal_id: deal.id, context_status: contextStatus }} />
+        <TrackOnMount event="hotel_detail_viewed" props={{ deal_id: deal.id, context_status: contextStatus, ...(criteria ? { criteria_version: criteria.criteriaVersion } : {}) }} />
 
         {/* Deal score — computed from price history */}
         <Suspense fallback={null}>
@@ -413,32 +407,12 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             <p className="mt-1 text-[12px] leading-5 text-[color:var(--ink-soft)]">
               This saved deal may no longer be available at the shown price. Search again to find current options.
             </p>
-            <a href="/deals" className="btn btn-primary mt-3 block w-full text-center">
+            <a href={backHref} className="btn btn-primary mt-3 block w-full text-center">
               Search current deals
             </a>
           </div>
-        ) : hasOtaLinks ? (
-          <div className="my-8">
-            <HotelCriteriaContextCard status={contextStatus} handoff />
-            <div className="mt-4">
-              <CompareRow
-                links={deal.ota_links}
-                size="primary"
-                handoffContext={{ dealId: deal.id, contextStatus }}
-              />
-            </div>
-            <p className="mt-2 text-caption leading-5 text-[color:var(--ink-faint)]">
-              Opens the provider site. Prices and availability can change.
-            </p>
-          </div>
         ) : (
-          <div className="my-8">
-            <HotelCriteriaContextCard status={contextStatus} handoff />
-            <div className="mt-4 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-4" role="status">
-              <p className="text-[13px] font-bold text-[color:var(--ink)]">No provider options are available for this deal right now.</p>
-              <p className="mt-1 text-[12px] leading-5 text-[color:var(--ink-soft)]">This saved deal can still be reviewed here.</p>
-            </div>
-          </div>
+          <HotelDealCriteriaHandoff context={criteriaContext} deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }} links={deal.ota_links ?? {}} />
         )}
 
         <HotelContinuityPrototype
