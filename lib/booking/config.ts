@@ -1,4 +1,16 @@
-import type { HotelLocation, HotelLocationPrecision, HotelOffer, NormalizedFare } from '../types';
+import type {
+  HotelLocation,
+  HotelLocationAnchorKind,
+  HotelLocationAnchorSource,
+  HotelLocationEvidenceSource,
+  HotelLocationPrecision,
+  HotelOffer,
+  NormalizedFare,
+} from '../types';
+import {
+  hasValidCoordinates,
+  hasVerifiedHotelLocationComparison,
+} from '../hotels/locationEvidence';
 
 export type BookingFareContext = {
   offerId: string;
@@ -38,9 +50,18 @@ type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
   locationAddress?: unknown;
   locationLat?: unknown;
   locationLng?: unknown;
+  locationArea?: unknown;
+  locationSource?: unknown;
+  locationAnchorKind?: unknown;
+  locationAnchorId?: unknown;
+  locationAnchorName?: unknown;
+  locationAnchorLat?: unknown;
+  locationAnchorLng?: unknown;
+  locationAnchorSource?: unknown;
   locationDistanceValue?: unknown;
   locationDistanceUnit?: unknown;
-  locationDistanceReferencePoint?: unknown;
+  locationDistanceMethod?: unknown;
+  locationDistanceSource?: unknown;
   locationProviderName?: unknown;
 };
 
@@ -130,6 +151,18 @@ function isLocationPrecision(value: string): value is HotelLocationPrecision {
     value === 'missing';
 }
 
+function isLocationEvidenceSource(value: string): value is HotelLocationEvidenceSource {
+  return value === 'provider' || value === 'search_fallback' || value === 'unavailable';
+}
+
+function isLocationAnchorKind(value: string): value is HotelLocationAnchorKind {
+  return value === 'airport' || value === 'venue' || value === 'landmark' || value === 'city_center';
+}
+
+function isLocationAnchorSource(value: string): value is HotelLocationAnchorSource {
+  return value === 'user_selected' || value === 'search_linked' || value === 'provider_declared';
+}
+
 function parseLatitude(value: unknown): number | undefined | null {
   const parsed = parseOptionalNumber(value);
   if (parsed === undefined || parsed === null) return parsed;
@@ -147,61 +180,129 @@ function validateHotelLocation(input: HotelContextInput): HotelLocation | undefi
   const label = cleanOptional(input.locationLabel);
   const address = cleanOptional(input.locationAddress);
   const providerLocationName = cleanOptional(input.locationProviderName);
+  const area = cleanOptional(input.locationArea);
+  const sourceValue = cleanOptional(input.locationSource);
   const lat = parseLatitude(input.locationLat);
   const lng = parseLongitude(input.locationLng);
+  const anchorKindValue = cleanOptional(input.locationAnchorKind);
+  const anchorId = cleanOptional(input.locationAnchorId);
+  const anchorName = cleanOptional(input.locationAnchorName);
+  const anchorLat = parseLatitude(input.locationAnchorLat);
+  const anchorLng = parseLongitude(input.locationAnchorLng);
+  const anchorSourceValue = cleanOptional(input.locationAnchorSource);
   const distanceValue = parseOptionalNumber(input.locationDistanceValue);
   const distanceUnit = cleanOptional(input.locationDistanceUnit);
-  const distanceReferencePoint = cleanOptional(input.locationDistanceReferencePoint);
-
-  if (lat === null || lng === null) return null;
-  if ((lat === undefined) !== (lng === undefined)) return null;
+  const distanceMethod = cleanOptional(input.locationDistanceMethod);
+  const distanceSource = cleanOptional(input.locationDistanceSource);
 
   const precision = precisionValue === undefined
     ? undefined
     : isLocationPrecision(precisionValue)
       ? precisionValue
-      : null;
-  if (precision === null) return null;
+      : undefined;
+
+  const source = sourceValue === undefined
+    ? undefined
+    : isLocationEvidenceSource(sourceValue)
+      ? sourceValue
+      : undefined;
+
+  const propertyCoordinates = lat !== undefined && lat !== null && lng !== undefined && lng !== null
+    ? { lat, lng }
+    : undefined;
+
+  const hasAnchorInput = anchorKindValue !== undefined ||
+    anchorId !== undefined ||
+    anchorName !== undefined ||
+    anchorLat !== undefined ||
+    anchorLng !== undefined ||
+    anchorSourceValue !== undefined;
+  let anchor: HotelLocation['anchor'];
+  if (hasAnchorInput) {
+    if (
+      anchorKindValue === undefined ||
+      !isLocationAnchorKind(anchorKindValue) ||
+      anchorId === undefined ||
+      anchorName === undefined ||
+      anchorLat === undefined ||
+      anchorLat === null ||
+      anchorLng === undefined ||
+      anchorLng === null ||
+      anchorSourceValue === undefined ||
+      !isLocationAnchorSource(anchorSourceValue)
+    ) {
+      anchor = undefined;
+    } else {
+      anchor = {
+        kind: anchorKindValue,
+        id: anchorId,
+        name: anchorName,
+        lat: anchorLat,
+        lng: anchorLng,
+        source: anchorSourceValue,
+      };
+    }
+  }
 
   let distance: HotelLocation['distance'];
-  if (distanceValue !== undefined || distanceUnit !== undefined || distanceReferencePoint !== undefined) {
+  const hasDistanceInput = distanceValue !== undefined ||
+    distanceUnit !== undefined ||
+    distanceMethod !== undefined ||
+    distanceSource !== undefined;
+  if (hasDistanceInput) {
     if (
       distanceValue === undefined ||
       distanceValue === null ||
       distanceValue < 0 ||
       (distanceUnit !== 'mi' && distanceUnit !== 'km') ||
-      distanceReferencePoint === undefined
+      distanceMethod !== 'straight_line' ||
+      (distanceSource !== 'expaify_calculated' && distanceSource !== 'provider_documented')
     ) {
-      return null;
+      distance = undefined;
+    } else {
+      distance = {
+        value: distanceValue,
+        unit: distanceUnit,
+        method: distanceMethod,
+        source: distanceSource,
+      };
     }
-    distance = {
-      value: distanceValue,
-      unit: distanceUnit,
-      referencePoint: distanceReferencePoint,
-    };
   }
 
   if (
     precision === undefined &&
     label === undefined &&
     address === undefined &&
-    lat === undefined &&
-    lng === undefined &&
+    propertyCoordinates === undefined &&
+    area === undefined &&
+    source === undefined &&
+    anchor === undefined &&
     distance === undefined &&
     providerLocationName === undefined
   ) {
     return undefined;
   }
 
-  return {
+  if (source === undefined) return undefined;
+
+  const location: HotelLocation = {
     label,
     precision,
     address,
-    lat,
-    lng,
+    ...propertyCoordinates,
+    area,
+    source,
+    anchor,
     distance,
     providerLocationName,
   };
+
+  if (!anchor || !distance || !hasVerifiedHotelLocationComparison(location)) {
+    delete location.anchor;
+    delete location.distance;
+  }
+
+  return location;
 }
 
 export function validateBookingFareContext(input: FareContextInput): BookingFareContext | null {
@@ -326,9 +427,18 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     locationAddress: firstParam(params.locationAddress),
     locationLat: firstParam(params.locationLat),
     locationLng: firstParam(params.locationLng),
+    locationArea: firstParam(params.locationArea),
+    locationSource: firstParam(params.locationSource),
+    locationAnchorKind: firstParam(params.locationAnchorKind),
+    locationAnchorId: firstParam(params.locationAnchorId),
+    locationAnchorName: firstParam(params.locationAnchorName),
+    locationAnchorLat: firstParam(params.locationAnchorLat),
+    locationAnchorLng: firstParam(params.locationAnchorLng),
+    locationAnchorSource: firstParam(params.locationAnchorSource),
     locationDistanceValue: firstParam(params.locationDistanceValue),
     locationDistanceUnit: firstParam(params.locationDistanceUnit),
-    locationDistanceReferencePoint: firstParam(params.locationDistanceReferencePoint),
+    locationDistanceMethod: firstParam(params.locationDistanceMethod),
+    locationDistanceSource: firstParam(params.locationDistanceSource),
     locationProviderName: firstParam(params.locationProviderName),
     priceCents: firstParam(params.priceCents),
     currency: firstParam(params.currency),
@@ -373,12 +483,23 @@ export function buildHotelBookingHref(hotel: HotelOffer): string {
   if (hotel.location?.precision) params.set('locationPrecision', hotel.location.precision);
   if (hotel.location?.label) params.set('locationLabel', hotel.location.label);
   if (hotel.location?.address) params.set('locationAddress', hotel.location.address);
-  if (typeof hotel.location?.lat === 'number') params.set('locationLat', String(hotel.location.lat));
-  if (typeof hotel.location?.lng === 'number') params.set('locationLng', String(hotel.location.lng));
-  if (hotel.location?.distance) {
+  if (hotel.location?.area) params.set('locationArea', hotel.location.area);
+  if (hotel.location?.source) params.set('locationSource', hotel.location.source);
+  if (hotel.location && hasValidCoordinates(hotel.location)) {
+    params.set('locationLat', String(hotel.location.lat));
+    params.set('locationLng', String(hotel.location.lng));
+  }
+  if (hasVerifiedHotelLocationComparison(hotel.location)) {
+    params.set('locationAnchorKind', hotel.location.anchor.kind);
+    params.set('locationAnchorId', hotel.location.anchor.id);
+    params.set('locationAnchorName', hotel.location.anchor.name);
+    params.set('locationAnchorLat', String(hotel.location.anchor.lat));
+    params.set('locationAnchorLng', String(hotel.location.anchor.lng));
+    params.set('locationAnchorSource', hotel.location.anchor.source);
     params.set('locationDistanceValue', String(hotel.location.distance.value));
     params.set('locationDistanceUnit', hotel.location.distance.unit);
-    params.set('locationDistanceReferencePoint', hotel.location.distance.referencePoint);
+    params.set('locationDistanceMethod', hotel.location.distance.method);
+    params.set('locationDistanceSource', hotel.location.distance.source);
   }
   if (hotel.location?.providerLocationName) params.set('locationProviderName', hotel.location.providerLocationName);
 

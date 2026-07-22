@@ -199,7 +199,27 @@ describe('GET /api/search guardrails and provider failures', () => {
     expect(mockHotelSearch).toHaveBeenCalledWith('LAX', {
       checkin: '2099-09-22',
       checkout: '2099-09-29',
+    }, {
+      anchor: {
+        kind: 'airport',
+        id: 'LAX',
+        name: 'Los Angeles International (LAX)',
+        lat: 33.9425,
+        lng: -118.4081,
+        source: 'search_linked',
+      },
     });
+  });
+
+  it('does not invent an airport anchor when the catalog lacks validated coordinates', async () => {
+    const response = await GET(searchRequest('origin=JFK&dest=ATL&depart=2099-09-22&return=2099-09-29&trip=roundtrip&passengers=1'));
+
+    expect(response.status).toBe(200);
+    await readNdjson(response);
+    expect(mockHotelSearch).toHaveBeenCalledWith('ATL', {
+      checkin: '2099-09-22',
+      checkout: '2099-09-29',
+    }, undefined);
   });
 
   it('streams successful fares with a bounded notice when another provider returns failure', async () => {

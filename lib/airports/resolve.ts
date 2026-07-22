@@ -1,4 +1,5 @@
 import { AIRPORTS } from './data';
+import type { HotelLocationAnchor } from '../types';
 
 /**
  * Resolves a user-supplied origin string to an IATA airport code.
@@ -72,4 +73,32 @@ export function resolveToIATA(input: string): string {
   if (partial) return partial.iata;
 
   throw new Error(`Unrecognised airport: ${trimmed}`);
+}
+
+export function getSearchLinkedAirportAnchor(iata: string): HotelLocationAnchor | undefined {
+  const normalizedIata = iata.trim().toUpperCase();
+  const airport = AIRPORTS.find(candidate => candidate.iata === normalizedIata);
+  if (
+    !airport ||
+    typeof airport.lat !== 'number' ||
+    !Number.isFinite(airport.lat) ||
+    airport.lat < -90 ||
+    airport.lat > 90 ||
+    typeof airport.lon !== 'number' ||
+    !Number.isFinite(airport.lon) ||
+    airport.lon < -180 ||
+    airport.lon > 180 ||
+    airport.name.trim() === ''
+  ) {
+    return undefined;
+  }
+
+  return {
+    kind: 'airport',
+    id: normalizedIata,
+    name: `${airport.name.trim()} (${normalizedIata})`,
+    lat: airport.lat,
+    lng: airport.lon,
+    source: 'search_linked',
+  };
 }

@@ -277,8 +277,8 @@ describe('BookingFlow fare context review', () => {
       ...hotelContext,
       area: undefined,
       location: precision === 'search_area'
-        ? { precision, label: 'New York' }
-        : { precision },
+        ? { precision, label: 'New York', source: 'search_fallback' }
+        : { precision, source: 'unavailable' },
     };
     const tree = BookingFlow({
       bookingEnabled: false,
