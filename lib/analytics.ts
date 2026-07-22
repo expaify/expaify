@@ -1,12 +1,23 @@
 type AnalyticsProps = Record<string, string | number | boolean>
 
 const SESSION_KEY = 'expaify.analytics.session.v1'
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+let inMemorySessionId: string | null = null
 
 function sessionId(): string {
-  const existing = window.sessionStorage.getItem(SESSION_KEY)
-  if (existing) return existing
+  if (inMemorySessionId && UUID.test(inMemorySessionId)) return inMemorySessionId
   const created = crypto.randomUUID()
-  window.sessionStorage.setItem(SESSION_KEY, created)
+  try {
+    const existing = window.sessionStorage.getItem(SESSION_KEY)
+    if (existing && UUID.test(existing)) {
+      inMemorySessionId = existing
+      return existing
+    }
+    window.sessionStorage.setItem(SESSION_KEY, created)
+  } catch {
+    // Storage can be disabled; retain a tab-lifetime in-memory session instead.
+  }
+  inMemorySessionId = created
   return created
 }
 

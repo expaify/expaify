@@ -5,11 +5,6 @@ export type OtaLinks = {
   trip?: string
 }
 
-function addAffiliate(url: string, param: string, value: string): string {
-  const sep = url.includes('?') ? '&' : '?'
-  return `${url}${sep}${param}=${encodeURIComponent(value)}`
-}
-
 export function buildOtaLinks(opts: {
   hotelName: string
   city: string
@@ -18,22 +13,15 @@ export function buildOtaLinks(opts: {
 }): OtaLinks {
   const { hotelName, city, checkIn, checkOut } = opts
   const q = encodeURIComponent(`${hotelName} ${city}`)
-  const marker = process.env.TP_AFFILIATE_MARKER ?? ''
+  const marker = process.env.HOTEL_AFFILIATE_ID ?? ''
 
-  const expedia = process.env.EXPEDIA_AFFILIATE_ID ? addAffiliate(
-    `https://www.expedia.com/Hotel-Search?destination=${q}&startDate=${checkIn}&endDate=${checkOut}`,
-    'affcid', process.env.EXPEDIA_AFFILIATE_ID
-  ) : undefined
-
-  const booking = process.env.BOOKING_AFFILIATE_ID ? addAffiliate(
-    `https://www.booking.com/search.html?ss=${q}&checkin=${checkIn}&checkout=${checkOut}`,
-    'aid', process.env.BOOKING_AFFILIATE_ID
-  ) : undefined
-
-  const kiwi = process.env.KIWI_AFFILIATE_ID ? addAffiliate(
-    `https://www.kiwi.com/en/search/results/${encodeURIComponent(city)}/${encodeURIComponent(city)}/${checkIn}/${checkOut}?accommodation=true`,
-    'affilid', process.env.KIWI_AFFILIATE_ID
-  ) : undefined
+  // The approved hotel contract exposes one Travelpayouts/HotelLook marker,
+  // not provider-specific Expedia, Booking, or Kiwi affiliate credentials.
+  // Keep those actions unavailable rather than emitting unattributed links or
+  // pretending the snapshot's hidden occupancy default was traveler intent.
+  const expedia = undefined
+  const booking = undefined
+  const kiwi = undefined
 
   const trip = marker
     ? `https://tp.media/r?marker=${encodeURIComponent(marker)}&trs=233847&p=4536&u=https%3A%2F%2Fwww.trip.com%2Fhotels%2F%3FhotelName%3D${q}%26checkIn%3D${checkIn}%26checkOut%3D${checkOut}`

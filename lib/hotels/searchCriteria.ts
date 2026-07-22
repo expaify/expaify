@@ -136,6 +136,14 @@ export function resolveHotelSearchCriteria(source: SearchParamSource): HotelCrit
   const hasReference = hasSearchParam(source, 'criteriaVersion') || hasSearchParam(source, 'criteriaSchema')
   if (!hasReference) return { status: 'missing' }
 
+  if (source instanceof URLSearchParams) {
+    const singletonKeys = [
+      'criteriaSchema', 'criteriaVersion', 'criteriaSource', 'city',
+      'date_from', 'date_to', 'occupancy', 'adults', 'rooms', 'market_id',
+    ]
+    if (singletonKeys.some(key => source.getAll(key).length > 1)) return { status: 'invalid' }
+  }
+
   const schema = readSearchParam(source, 'criteriaSchema')
   const criteriaVersion = readSearchParam(source, 'criteriaVersion')
   const cityValue = readSearchParam(source, 'city')
@@ -152,6 +160,7 @@ export function resolveHotelSearchCriteria(source: SearchParamSource): HotelCrit
     hasSearchParam(source, 'occupancy') ||
     hasSearchParam(source, 'adults') ||
     hasSearchParam(source, 'rooms') ||
+    hasSearchParam(source, 'market_id') ||
     (cityValue !== null && canonicalCity(cityValue) === null)
   ) {
     return { status: 'invalid' }

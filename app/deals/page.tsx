@@ -145,6 +145,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
       <LandingNav />
       <main className="mx-auto max-w-[1140px] px-5 pb-24 pt-10">
         <DealFeed
+          key={criteria.criteriaVersion}
           initialDeals={initialDeals}
           premium={pwCtx.premium}
           initialCriteria={criteria}

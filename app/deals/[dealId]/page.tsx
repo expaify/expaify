@@ -29,6 +29,7 @@ import {
   resolveHotelResultsView,
   resolveHotelSearchCriteria,
   type HotelCriteriaContextStatus,
+  type HotelSearchCriteriaV1,
 } from '@/lib/hotels/searchCriteria'
 
 type PageProps = {
@@ -75,7 +76,16 @@ function Fact({ label, value, muted }: { label: string; value: string; muted?: b
   )
 }
 
-function LockedDealDetail({ city, checkInWindow }: { city: string; checkInWindow: string }) {
+function LockedDealDetail({ city, checkInDate, checkInWindow, criteriaContext }: {
+  city: string
+  checkInDate: string | null
+  checkInWindow: string
+  criteriaContext: {
+    criteria?: HotelSearchCriteriaV1
+    status: HotelCriteriaContextStatus
+    backHref: string
+  }
+}) {
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
       <nav className="border-b border-[color:var(--line-ivory)] bg-[color:var(--bg)]">
@@ -83,13 +93,23 @@ function LockedDealDetail({ city, checkInWindow }: { city: string; checkInWindow
           <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
             expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
           </a>
-          <a href="/deals" className="text-[14px] font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
-            ← Back to deals
+          <a
+            href={criteriaContext.backHref}
+            aria-label={criteriaContext.criteria ? 'Back to hotel results for this search' : 'Search hotel deals'}
+            className="text-[14px] font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]"
+          >
+            ← {criteriaContext.criteria ? 'Back to results' : 'Search hotel deals'}
           </a>
         </div>
       </nav>
 
       <main className="mx-auto max-w-[560px] px-5 py-14">
+        <div className="mb-6 text-left">
+          <HotelDealCriteriaSummary
+            context={criteriaContext}
+            deal={{ city, checkInDate }}
+          />
+        </div>
         <section className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-8 text-center">
           <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
             <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-3 py-1 font-display text-[12px] font-bold leading-none text-[color:var(--gold-text)]">
@@ -223,13 +243,22 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const deal = await getDealById(dealId).catch(() => null)
   if (!deal) notFound()
 
+  const criteriaResolution = resolveHotelSearchCriteria(researchParams)
+  const resultsView = resolveHotelResultsView(researchParams)
+  const criteria = criteriaResolution.status === 'valid' && resultsView ? criteriaResolution.criteria : undefined
+  const contextStatus: HotelCriteriaContextStatus = criteria
+    ? hotelCriteriaContextStatus(criteria, { city: deal.city, checkInDate: deal.check_in_date })
+    : criteriaResolution.status === 'invalid' || !resultsView ? 'invalid' : 'missing'
+  const backHref = criteria && resultsView ? buildHotelResultsUrl(criteria, resultsView) : '/deals'
+  const criteriaContext = { criteria, status: contextStatus, backHref }
+
   // Server-side paywall: render the locked state instead of the deal for
   // free/anonymous visitors when this deal is outside the weekly unlock set.
   const pwCtx = await getPaywallContext()
   if (!pwCtx.premium) {
     const unlockedIds = await getFreeUnlockedDealIds()
     if (!unlockedIds.has(deal.id)) {
-      return <LockedDealDetail city={deal.city} checkInWindow={deal.check_in_window} />
+      return <LockedDealDetail city={deal.city} checkInDate={deal.check_in_date} checkInWindow={deal.check_in_window} criteriaContext={criteriaContext} />
     }
   }
 
@@ -259,15 +288,6 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const disclosureParam = Array.isArray(researchParams.continuityDisclosure)
     ? researchParams.continuityDisclosure[0]
     : researchParams.continuityDisclosure
-  const criteriaResolution = resolveHotelSearchCriteria(researchParams)
-  const resultsView = resolveHotelResultsView(researchParams)
-  const criteria = criteriaResolution.status === 'valid' && resultsView ? criteriaResolution.criteria : undefined
-  const contextStatus: HotelCriteriaContextStatus = criteria
-    ? hotelCriteriaContextStatus(criteria, { city: deal.city, checkInDate: deal.check_in_date })
-    : criteriaResolution.status === 'invalid' || !resultsView ? 'invalid' : 'missing'
-  const backHref = criteria && resultsView ? buildHotelResultsUrl(criteria, resultsView) : '/deals'
-  const criteriaContext = { criteria, status: contextStatus, backHref }
-
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
 

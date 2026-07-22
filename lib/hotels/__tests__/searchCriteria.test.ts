@@ -55,6 +55,8 @@ describe('HotelSearchCriteriaV1', () => {
     'criteriaSchema=1&criteriaVersion=785d80de-8954-46c7-90f7-a4a04f719e5f&city=Atlantis',
     'criteriaSchema=1&criteriaVersion=785d80de-8954-46c7-90f7-a4a04f719e5f&date_from=2026-09-14&date_to=2026-09-13',
     'criteriaSchema=1&criteriaVersion=785d80de-8954-46c7-90f7-a4a04f719e5f&adults=2',
+    'criteriaSchema=1&criteriaVersion=785d80de-8954-46c7-90f7-a4a04f719e5f&market_id=7',
+    'criteriaSchema=1&criteriaVersion=785d80de-8954-46c7-90f7-a4a04f719e5f&criteriaVersion=8ba2a25d-a48d-46f5-a434-86bd9039321f',
   ])('rejects malformed or occupancy-bearing context: %s', query => {
     expect(resolveHotelSearchCriteria(new URLSearchParams(query))).toEqual({ status: 'invalid' })
   })
