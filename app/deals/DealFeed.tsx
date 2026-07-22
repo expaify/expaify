@@ -1286,6 +1286,16 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 onClearAll={resetFilters}
                 statusMessageId="hotel-deals-empty"
               />
+              {defaultCity && hasActiveFilters ? (
+                <div className="mt-3 text-center">
+                  <a
+                    href="/deals"
+                    className="inline-flex min-h-[44px] items-center justify-center px-3 text-[13px] font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
+                  >
+                    See all destinations
+                  </a>
+                </div>
+              ) : null}
               {personalization?.active && !hasActiveFilters ? <PersonalizedEmptyActions premium={premium} alertPreference={personalization.alertPreference} /> : null}
             </div>
           ) : (
