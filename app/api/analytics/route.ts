@@ -8,9 +8,19 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, reason: 'Analytics payload too large' }, { status: 413 });
   }
 
+  let rawBody: string;
+  try {
+    rawBody = await request.text();
+  } catch {
+    return Response.json({ ok: false, reason: 'Invalid analytics payload' }, { status: 400 });
+  }
+  if (new TextEncoder().encode(rawBody).byteLength > 8_192) {
+    return Response.json({ ok: false, reason: 'Analytics payload too large' }, { status: 413 });
+  }
+
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(rawBody) as unknown;
   } catch {
     return Response.json({ ok: false, reason: 'Invalid analytics payload' }, { status: 400 });
   }

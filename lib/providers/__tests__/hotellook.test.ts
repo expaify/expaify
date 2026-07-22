@@ -35,6 +35,17 @@ const notReturnedEvidence = [
   sourceLabel: 'Hotellook',
 }));
 
+const unknownEligibility = (offerId: string) => ({
+  offerId,
+  supplier: 'hotellook',
+  supplierLabel: 'Hotellook',
+  loadStatus: 'ready',
+  membership: { state: 'not_provided' },
+  residency: { state: 'not_provided' },
+  age: { state: 'not_provided' },
+  refundability: { state: 'not_provided' },
+});
+
 beforeEach(() => {
   process.env.TP_TOKEN = 'test-token';
   process.env.HOTEL_AFFILIATE_ID = 'hotel-marker42';
@@ -165,6 +176,7 @@ describe('HotellookProvider.searchHotels', () => {
         },
         amenityEvidence: notReturnedEvidence,
         accessEvidenceState: 'ready',
+        rateEligibility: unknownEligibility('12345'),
       },
     ]);
   });
@@ -422,6 +434,7 @@ describe('HotellookProvider.searchHotels', () => {
           },
           amenityEvidence: notReturnedEvidence,
           accessEvidenceState: 'ready',
+          rateEligibility: unknownEligibility('cached-1'),
         },
       ],
     });

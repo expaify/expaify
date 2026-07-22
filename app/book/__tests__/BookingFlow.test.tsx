@@ -6,6 +6,7 @@ const trackMock = jest.fn();
 
 jest.mock('@/lib/analytics', () => ({
   track: (...args: unknown[]) => trackMock(...args),
+  ephemeralOfferKey: (offerId: string) => `opaque-${offerId}`,
 }));
 
 jest.mock('react', () => {
@@ -94,6 +95,16 @@ const hotelContext: BookingHotelContext = {
   currency: 'USD',
   priceBasis: 'per_night_before_taxes_fees',
   providerUrl: 'https://tp.media/r?marker=hotel-marker',
+  rateEligibility: {
+    offerId: 'hotel_123',
+    supplier: 'hotellook',
+    supplierLabel: 'Hotellook',
+    loadStatus: 'ready',
+    membership: { state: 'not_provided' },
+    residency: { state: 'not_provided' },
+    age: { state: 'not_provided' },
+    refundability: { state: 'not_provided' },
+  },
 };
 
 describe('BookingFlow fare context review', () => {
@@ -295,7 +306,44 @@ describe('BookingFlow fare context review', () => {
     expect(findElements(tree, element => element.type === 'a' && element.props.target === '_blank')).toHaveLength(1);
   });
 
-  it('emits the viewed and guarded back analytics events with hostname-only props', () => {
+  it('renders validated provider-backed restrictions and carries them into handoff analytics', () => {
+    const fetchedAt = '2026-07-22T03:00:00.000Z';
+    const provenance = { supplier: 'future_supplier', fetchedAt };
+    const providerBackedContext: BookingHotelContext = {
+      ...hotelContext,
+      provider: 'future_supplier',
+      rateEligibility: {
+        offerId: hotelContext.offerId,
+        supplier: 'future_supplier',
+        supplierLabel: 'Future Supplier',
+        fetchedAt,
+        loadStatus: 'ready',
+        membership: { state: 'restricted', membershipLabel: 'Rewards', provenance },
+        residency: { state: 'clear', provenance },
+        age: { state: 'restricted', minAge: 21, provenance },
+        refundability: { state: 'clear', provenance },
+      },
+    };
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext: providerBackedContext,
+    });
+    const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
+
+    expect(collectText(tree)).toContain('Ages 21+ onlyRewards members only');
+    expect(String(outbound.props['aria-label'])).toContain('This rate has 2 reported conditions.');
+    expect(trackMock).toHaveBeenCalledWith('hotel_handoff_viewed', expect.objectContaining({
+      supplier: 'future_supplier',
+      overallState: 'restricted',
+      restrictionTypes: 'membership,age',
+      knownRestrictionCount: 2,
+      coverageCount: 4,
+    }));
+  });
+
+  it('emits the viewed eligibility funnel event without hotel or provider-URL data', () => {
     const tree = BookingFlow({
       bookingEnabled: false,
       duffelSandbox: false,
@@ -306,12 +354,15 @@ describe('BookingFlow fare context review', () => {
     const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function');
 
     expect(trackMock).toHaveBeenCalledWith('hotel_handoff_viewed', {
-      source: 'hotellook',
-      partnerHost: 'tp.media',
+      offerKey: 'opaque-hotel_123',
+      supplier: 'hotellook',
+      overallState: 'not_provided',
+      restrictionTypes: '',
+      knownRestrictionCount: 0,
+      coverageCount: 0,
+      eligibilityLoadStatus: 'ready',
       currency: 'USD',
-      priceCents: 18900,
       priceBasis: 'per_night_before_taxes_fees',
-      locationPrecision: 'area',
     });
 
     (backLink?.props.onClick as (() => void))();
@@ -350,8 +401,8 @@ describe('BookingFlow fare context review', () => {
 
       (outbound?.props.onClick as (() => void))();
       expect(trackMock).toHaveBeenCalledWith('hotel_handoff_continue_clicked', expect.objectContaining({
-        source: 'hotellook',
-        partnerHost: 'www.booking.com',
+        supplier: 'hotellook',
+        overallState: 'not_provided',
         partnerNamed: true,
       }));
 
@@ -362,9 +413,14 @@ describe('BookingFlow fare context review', () => {
       visibilityListener?.();
 
       expect(trackMock).toHaveBeenCalledWith('hotel_handoff_returned', {
-        source: 'hotellook',
-        partnerHost: 'www.booking.com',
-        awayDurationBucket: '5–30s',
+        supplier: 'hotellook',
+        overallState: 'not_provided',
+        awayDurationBucket: 'under_30s',
+      });
+      expect(trackMock).toHaveBeenCalledWith('hotel_handoff_return_reason_prompted', {
+        supplier: 'hotellook',
+        overallState: 'not_provided',
+        awayDurationBucket: 'under_30s',
       });
       expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_handoff_returned')).toHaveLength(1);
 

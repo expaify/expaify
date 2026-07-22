@@ -83,13 +83,14 @@ describe('hotel rate restriction presentation', () => {
   })
 
   it('degrades malformed fixtures to not provided and de-duplicates repeated conditions', () => {
-    const malformed = { state: 'restricted', conditions: [] } as RateEligibilityPresentation
+    const malformed = { state: 'restricted', conditions: [], coverageIncomplete: true } as RateEligibilityPresentation
     const duplicate: RateEligibilityPresentation = {
       state: 'restricted',
       conditions: [
         { family: 'refundability', label: 'Non-refundable' },
         { family: 'refundability', label: 'Non-refundable' },
       ],
+      coverageIncomplete: true,
     }
 
     expect(collectText(HotelCardEligibilityLine({ eligibility: malformed }))).toBe('Restrictions not provided')

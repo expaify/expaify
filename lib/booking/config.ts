@@ -13,6 +13,7 @@ import {
   hasVerifiedHotelLocationComparison,
 } from '../hotels/locationEvidence';
 import { normalizeHotelRateEligibility } from '../hotels/rateEligibility';
+import { providerDisplayName } from '../providerFreshness';
 
 export type BookingFareContext = {
   offerId: string;
@@ -427,7 +428,7 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     providerUrl,
     rateEligibility: normalizeHotelRateEligibility(
       typeof input.rateEligibility === 'string' ? parseOptionalJson(input.rateEligibility) : input.rateEligibility,
-      { offerId, supplier: provider, supplierLabel: provider },
+      { offerId, supplier: provider, supplierLabel: providerDisplayName(provider) },
     ),
   };
 }

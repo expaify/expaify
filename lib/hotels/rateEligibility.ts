@@ -31,7 +31,16 @@ export type RateEligibilityAnalytics = {
 function safeString(value: unknown, maxLength = SAFE_LABEL_LENGTH): string | undefined {
   if (typeof value !== 'string') return undefined;
   const cleaned = value.trim();
-  return cleaned && cleaned.length <= maxLength ? cleaned : undefined;
+  return cleaned && cleaned.length <= maxLength && !/[\u0000-\u001f\u007f<>]/.test(cleaned)
+    ? cleaned
+    : undefined;
+}
+
+function safeSupplierLabel(value: unknown): string | undefined {
+  const cleaned = safeString(value);
+  if (!cleaned || /(?:https?:\/\/|www\.|[/@])/i.test(cleaned)) return undefined;
+  if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(cleaned)) return undefined;
+  return cleaned;
 }
 
 function validTimestamp(value: unknown): value is string {
@@ -111,7 +120,7 @@ export function unknownHotelRateEligibility(
   return {
     offerId,
     supplier,
-    supplierLabel: safeString(supplierLabel) ?? 'Hotel provider',
+    supplierLabel: safeSupplierLabel(supplierLabel) ?? 'Hotel provider',
     loadStatus,
     membership: UNKNOWN_MEMBERSHIP,
     residency: UNKNOWN_RESIDENCY,
@@ -132,7 +141,7 @@ export function normalizeHotelRateEligibility(
   if (!value || typeof value !== 'object') return fallback;
   const candidate = value as Partial<HotelRateEligibilityEvidence>;
   if (candidate.offerId !== expected.offerId || candidate.supplier !== expected.supplier) return fallback;
-  const supplierLabel = safeString(candidate.supplierLabel) ?? 'Hotel provider';
+  const supplierLabel = safeSupplierLabel(candidate.supplierLabel) ?? 'Hotel provider';
   const loadStatus = candidate.loadStatus === 'loading' || candidate.loadStatus === 'error' ? candidate.loadStatus : 'ready';
   if (loadStatus !== 'ready') return unknownHotelRateEligibility(expected.offerId, expected.supplier, supplierLabel, loadStatus);
   if (!validTimestamp(candidate.fetchedAt)) return unknownHotelRateEligibility(expected.offerId, expected.supplier, supplierLabel);

@@ -39,6 +39,16 @@ const hotelDistanceKm = calculateStraightLineDistanceKm(
   { lat: 40.7484, lng: -73.9857 },
   hotelAnchor
 )!;
+const unknownHotellookEligibility = {
+  offerId: 'hotel_123',
+  supplier: 'hotellook',
+  supplierLabel: 'Hotellook',
+  loadStatus: 'ready' as const,
+  membership: { state: 'not_provided' as const },
+  residency: { state: 'not_provided' as const },
+  age: { state: 'not_provided' as const },
+  refundability: { state: 'not_provided' as const },
+};
 
 const hotel: HotelOffer = {
   id: 'hotel_123',
@@ -67,6 +77,7 @@ const hotel: HotelOffer = {
   rating: 8.7,
   deeplink: 'https://tp.media/r?marker=hotel-marker&p=4536&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
   source: 'hotellook',
+  rateEligibility: unknownHotellookEligibility,
 };
 
 describe('booking fare context continuity', () => {
@@ -200,6 +211,7 @@ describe('booking hotel context continuity', () => {
     expect(url.searchParams.get('currency')).toBe(hotel.pricePerNight.currency);
     expect(url.searchParams.get('priceBasis')).toBe('per_night_before_taxes_fees');
     expect(url.searchParams.get('providerUrl')).toBe(hotel.deeplink);
+    expect(JSON.parse(url.searchParams.get('rateEligibility') ?? '')).toEqual(unknownHotellookEligibility);
   });
 
   it('parses valid hotel review context without changing selected display values', () => {
@@ -231,6 +243,7 @@ describe('booking hotel context continuity', () => {
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
       providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      rateEligibility: JSON.stringify(unknownHotellookEligibility),
     });
 
     expect(parsed).toEqual({
@@ -260,7 +273,33 @@ describe('booking hotel context continuity', () => {
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
       providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      rateEligibility: unknownHotellookEligibility,
     });
+  });
+
+  it('round-trips valid provider-backed family evidence without changing its meaning', () => {
+    const fetchedAt = '2026-07-22T03:00:00.000Z';
+    const provenance = { supplier: 'future_supplier', fetchedAt };
+    const providerBackedHotel: HotelOffer = {
+      ...hotel,
+      id: 'future_rate_1',
+      source: 'future_supplier',
+      rateEligibility: {
+        offerId: 'future_rate_1',
+        supplier: 'future_supplier',
+        supplierLabel: 'Future Supplier',
+        fetchedAt,
+        loadStatus: 'ready',
+        membership: { state: 'restricted', membershipLabel: 'Rewards', provenance },
+        residency: { state: 'clear', provenance },
+        age: { state: 'restricted', minAge: 21, provenance },
+        refundability: { state: 'clear', provenance },
+      },
+    };
+    const href = buildHotelBookingHref(providerBackedHotel);
+    const params = Object.fromEntries(new URL(href, 'https://expaify.test').searchParams.entries());
+
+    expect(parseBookingHotelContext(params)?.rateEligibility).toEqual(providerBackedHotel.rateEligibility);
   });
 
   it('returns null for malformed hotel price, currency, basis, or provider URL', () => {

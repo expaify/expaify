@@ -249,7 +249,7 @@ function buildHotelClassEvidence(input: {
       value: input.stars,
       scaleMax: 5,
       sourceLabel: sourceLabel(input.source),
-      fetchedAt: input.fetchedAt,
+      ...(input.fetchedAt ? { fetchedAt: input.fetchedAt } : {}),
       confidence: 'provider_only',
     };
   }
@@ -257,7 +257,7 @@ function buildHotelClassEvidence(input: {
   return {
     kind: 'unknown',
     sourceLabel: sourceLabel(input.source),
-    fetchedAt: input.fetchedAt,
+    ...(input.fetchedAt ? { fetchedAt: input.fetchedAt } : {}),
     confidence: 'unavailable',
   };
 }
@@ -270,7 +270,7 @@ function buildGuestRatingEvidence(input: {
 }): HotelRatingEvidence {
   const base = {
     sourceLabel: sourceLabel(input.source),
-    fetchedAt: input.fetchedAt,
+    ...(input.fetchedAt ? { fetchedAt: input.fetchedAt } : {}),
   };
 
   if (input.legacyRating !== undefined) {
@@ -390,8 +390,8 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     area: value.area,
     location,
     stars,
-    rating: normalizedRating,
-    photoUrl,
+    ...(normalizedRating !== undefined ? { rating: normalizedRating } : {}),
+    ...(photoUrl ? { photoUrl } : {}),
     pricePerNight: {
       priceCents,
       currency,

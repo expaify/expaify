@@ -1,16 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEventHandler, type ReactNode, type SyntheticEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEventHandler, type ReactNode, type SyntheticEvent } from 'react'
 import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext, type BookingHotelContext } from '@/lib/booking/config'
 import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
-import { track } from '@/lib/analytics'
+import { ephemeralOfferKey, track } from '@/lib/analytics'
 import { providerDisplayName } from '@/lib/providerFreshness'
 import {
   getRateRestrictionsAccessibleSummary,
   HotelRateRestrictionsSection,
-  RATE_ELIGIBILITY_NOT_PROVIDED,
 } from '@/app/components/HotelRateRestrictions'
+import { getRateEligibilityAnalytics, presentHotelRateEligibility } from '@/lib/hotels/rateEligibility'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -88,11 +88,31 @@ function getHotelPartnerIdentity(providerUrl: string): HotelPartnerIdentity {
   }
 }
 
-function getAwayDurationBucket(durationMs: number) {
-  if (durationMs < 5_000) return '<5s'
-  if (durationMs < 30_000) return '5–30s'
-  if (durationMs < 120_000) return '30–120s'
-  return '120s+'
+type AwayDurationBucket = 'under_30s' | '30s_to_2m' | '2m_to_10m' | 'over_10m' | 'unknown'
+type HotelReturnReason = typeof HOTEL_RETURN_REASONS[number]['value']
+
+const HOTEL_RETURN_REASONS = [
+  { label: 'Membership was required', value: 'membership_required' },
+  { label: 'Residency requirement', value: 'residency_required' },
+  { label: 'Age requirement', value: 'age_requirement' },
+  { label: 'Rate was non-refundable', value: 'non_refundable' },
+  { label: 'Price changed', value: 'price_changed' },
+  { label: 'Room was sold out', value: 'sold_out' },
+  { label: 'Fees or total were different', value: 'fees_or_total' },
+  { label: 'Room details did not match', value: 'room_mismatch' },
+  { label: 'I was just comparing', value: 'just_comparing' },
+  { label: 'Another reason', value: 'other' },
+  { label: 'Prefer not to say', value: 'prefer_not_to_say' },
+] as const
+
+const RETURN_PROMPT_SESSION_KEY = 'expaify:hotel-handoff-return-reason-prompted'
+
+function getAwayDurationBucket(durationMs: number | undefined): AwayDurationBucket {
+  if (durationMs === undefined || !Number.isFinite(durationMs)) return 'unknown'
+  if (durationMs < 30_000) return 'under_30s'
+  if (durationMs < 120_000) return '30s_to_2m'
+  if (durationMs < 600_000) return '2m_to_10m'
+  return 'over_10m'
 }
 
 function emitAnalytics(event: string, props: Record<string, string | number | boolean>) {
@@ -272,7 +292,7 @@ function HotelSummary({ hotelContext, partner }: { hotelContext: BookingHotelCon
         </p>
       </div>
       <HotelRateRestrictionsSection
-        eligibility={RATE_ELIGIBILITY_NOT_PROVIDED}
+        eligibility={presentHotelRateEligibility(hotelContext.rateEligibility)}
         providerName={rateSource}
       />
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -577,22 +597,33 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
 
 function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: BookingHotelContext; duffelSandbox: boolean }) {
   const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
-  const location = getHotelLocationDisplay(hotelContext)
+  const eligibilityPresentation = useMemo(
+    () => presentHotelRateEligibility(hotelContext.rateEligibility),
+    [hotelContext.rateEligibility],
+  )
+  const eligibilityAnalytics = useMemo(
+    () => getRateEligibilityAnalytics(hotelContext.rateEligibility),
+    [hotelContext.rateEligibility],
+  )
   const analyticsProps = useMemo(() => ({
-    source: hotelContext.provider,
-    partnerHost: partner.host,
+    offerKey: ephemeralOfferKey(hotelContext.offerId),
+    supplier: hotelContext.provider,
+    ...eligibilityAnalytics,
     currency: hotelContext.currency,
-    priceCents: hotelContext.priceCents,
     priceBasis: hotelContext.priceBasis,
-    locationPrecision: location.precision,
-  }), [hotelContext.currency, hotelContext.priceBasis, hotelContext.priceCents, hotelContext.provider, location.precision, partner.host])
+  }), [eligibilityAnalytics, hotelContext.currency, hotelContext.offerId, hotelContext.priceBasis, hotelContext.provider])
+  const [returnPrompt, setReturnPrompt] = useState<{ awayDurationBucket: AwayDurationBucket } | null>(null)
+  const [returnReason, setReturnReason] = useState<HotelReturnReason | ''>('')
+  const [returnResponse, setReturnResponse] = useState<'pending' | 'submitted' | 'dismissed'>('pending')
+  const returnResponseRef = useRef<'pending' | 'submitted' | 'dismissed'>('pending')
   const didContinueRef = useRef(false)
+  const continueLinkRef = useRef<HTMLAnchorElement>(null)
   const guidanceBlockRef = useRef<HTMLElement>(null)
   const guidanceViewedRef = useRef(false)
   const helpOpenRef = useRef(false)
   const returnArmedRef = useRef(false)
   const hiddenAfterContinueRef = useRef(false)
-  const continueStartedAtRef = useRef<number | undefined>(undefined)
+  const hiddenAtRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     const guidanceBlock = guidanceBlockRef.current
@@ -642,32 +673,48 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
 
       if (document.visibilityState === 'hidden') {
         hiddenAfterContinueRef.current = true
+        hiddenAtRef.current = performance.now()
         return
       }
 
       if (document.visibilityState !== 'visible' || !hiddenAfterContinueRef.current) return
 
-      const startedAt = continueStartedAtRef.current
-      const durationMs = startedAt === undefined ? 0 : Math.max(0, performance.now() - startedAt)
+      const hiddenAt = hiddenAtRef.current
+      const durationMs = hiddenAt === undefined ? undefined : Math.max(0, performance.now() - hiddenAt)
+      const awayDurationBucket = getAwayDurationBucket(durationMs)
       emitAnalytics('hotel_handoff_returned', {
-        source: hotelContext.provider,
-        partnerHost: partner.host,
-        awayDurationBucket: getAwayDurationBucket(durationMs),
+        supplier: hotelContext.provider,
+        overallState: eligibilityAnalytics.overallState,
+        awayDurationBucket,
       })
       returnArmedRef.current = false
       hiddenAfterContinueRef.current = false
-      continueStartedAtRef.current = undefined
+      hiddenAtRef.current = undefined
+
+      try {
+        if (sessionStorage.getItem(RETURN_PROMPT_SESSION_KEY)) return
+        sessionStorage.setItem(RETURN_PROMPT_SESSION_KEY, '1')
+      } catch {
+        // Storage can be unavailable; the in-memory prompt state still prevents repeats on this page.
+        if (returnPrompt) return
+      }
+      setReturnPrompt({ awayDurationBucket })
+      emitAnalytics('hotel_handoff_return_reason_prompted', {
+        supplier: hotelContext.provider,
+        overallState: eligibilityAnalytics.overallState,
+        awayDurationBucket,
+      })
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [hotelContext.provider, partner.host])
+  }, [eligibilityAnalytics.overallState, hotelContext.provider, returnPrompt])
 
   const handleContinue = () => {
     didContinueRef.current = true
     returnArmedRef.current = true
     hiddenAfterContinueRef.current = false
-    continueStartedAtRef.current = performance.now()
+    hiddenAtRef.current = undefined
     emitAnalytics('hotel_handoff_continue_clicked', { ...analyticsProps, partnerNamed: partner.named })
     if (guidanceViewedRef.current) {
       emitAnalytics('hotel_request_handoff_continued', {
@@ -679,6 +726,37 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
         guidanceSeen: true,
       })
     }
+  }
+
+  const dismissReturnPrompt = () => {
+    if (!returnPrompt || returnResponseRef.current !== 'pending') return
+    returnResponseRef.current = 'dismissed'
+    setReturnResponse('dismissed')
+    emitAnalytics('hotel_handoff_return_reason_dismissed', {
+      supplier: hotelContext.provider,
+      overallState: eligibilityAnalytics.overallState,
+      awayDurationBucket: returnPrompt.awayDurationBucket,
+    })
+    continueLinkRef.current?.focus()
+  }
+
+  const handleReturnReasonSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!returnPrompt || !returnReason || returnResponseRef.current !== 'pending') return
+    returnResponseRef.current = 'submitted'
+    setReturnResponse('submitted')
+    emitAnalytics('hotel_handoff_return_reason_submitted', {
+      supplier: hotelContext.provider,
+      overallState: eligibilityAnalytics.overallState,
+      awayDurationBucket: returnPrompt.awayDurationBucket,
+      reason: returnReason,
+    })
+  }
+
+  const handleReturnPromptKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== 'Escape' || returnResponseRef.current !== 'pending') return
+    event.preventDefault()
+    dismissReturnPrompt()
   }
 
   const handleHelpToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
@@ -713,8 +791,8 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
     : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
   const accessiblePartner = partner.named ? partner.label : 'the booking partner’s site'
   const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(
-    RATE_ELIGIBILITY_NOT_PROVIDED,
-    providerDisplayName(hotelContext.provider),
+    eligibilityPresentation,
+    hotelContext.rateEligibility.supplierLabel,
     'handoff',
   )
   const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${eligibilityAriaSummary}`
@@ -779,6 +857,7 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
         </section>
         <div className="mt-5 flex flex-col gap-3">
           <a
+            ref={continueLinkRef}
             href={hotelContext.providerUrl}
             target="_blank"
             rel="noopener noreferrer sponsored"
@@ -796,6 +875,53 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
             Back to search
           </a>
         </div>
+        {returnPrompt && returnResponse !== 'dismissed' ? (
+          <section
+            className="mt-4 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--bg-raised)] p-4 sm:p-5"
+            aria-labelledby="hotel-return-reason-title"
+            onKeyDown={handleReturnPromptKeyDown}
+          >
+            {returnResponse === 'submitted' ? (
+              <p className="text-sm font-medium text-[color:var(--text-2)]" role="status" aria-live="polite">
+                Thanks. Your answer helps us explain hotel rates more clearly.
+              </p>
+            ) : (
+              <form onSubmit={handleReturnReasonSubmit}>
+                <p className="sr-only" role="status" aria-live="polite">
+                  Optional question: what happened on the booking partner&apos;s site?
+                </p>
+                <h3 id="hotel-return-reason-title" className="text-base font-bold leading-6 text-[color:var(--text-1)]">
+                  What happened on the booking partner&apos;s site?
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Optional. Choose the main reason you came back.</p>
+                <fieldset className="mt-3 grid grid-cols-1 gap-1 sm:grid-cols-2 sm:gap-x-3">
+                  <legend className="sr-only">Main reason for returning</legend>
+                  {HOTEL_RETURN_REASONS.map(reason => (
+                    <label key={reason.value} className="flex min-h-11 items-start gap-3 rounded-[var(--radius-control)] px-2 py-2 text-sm leading-6 text-[color:var(--text-2)]">
+                      <input
+                        type="radio"
+                        name="hotel-return-reason"
+                        value={reason.value}
+                        checked={returnReason === reason.value}
+                        onChange={() => setReturnReason(reason.value)}
+                        className="mt-1"
+                      />
+                      <span>{reason.label}</span>
+                    </label>
+                  ))}
+                </fieldset>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <button type="submit" disabled={!returnReason} className="btn-primary min-h-11 disabled:cursor-not-allowed disabled:opacity-50">
+                    Share reason
+                  </button>
+                  <button type="button" onClick={dismissReturnPrompt} className="btn-outline min-h-11">
+                    Skip
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+        ) : null}
       </div>
     </ReviewShell>
   )

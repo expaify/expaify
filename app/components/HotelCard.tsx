@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { DealScore, HotelAmenityEvidence, HotelEvidenceFee, HotelOffer } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
 import { buildHotelBookingHref } from '@/lib/booking/config'
@@ -12,7 +12,8 @@ import {
   getRateRestrictionsAccessibleSummary,
   HotelCardEligibilityLine,
 } from './HotelRateRestrictions'
-import { normalizeHotelRateEligibility, presentHotelRateEligibility } from '@/lib/hotels/rateEligibility'
+import { getRateEligibilityAnalytics, normalizeHotelRateEligibility, presentHotelRateEligibility } from '@/lib/hotels/rateEligibility'
+import { ephemeralOfferKey, track } from '@/lib/analytics'
 
 type Props = {
   hotel: HotelOffer
@@ -20,6 +21,13 @@ type Props = {
   loading?: boolean
   amenityEvidence?: readonly HotelAmenityEvidence[]
   accessEvidenceState?: 'ready' | 'loading' | 'error'
+  position?: number
+}
+
+function getViewportBand(): 'mobile_375_or_less' | 'compact_376_to_767' | 'desktop_768_plus' {
+  if (window.innerWidth <= 375) return 'mobile_375_or_less'
+  if (window.innerWidth <= 767) return 'compact_376_to_767'
+  return 'desktop_768_plus'
 }
 
 type AccessFactId =
@@ -714,6 +722,7 @@ export default function HotelCard({
   loading = false,
   amenityEvidence,
   accessEvidenceState,
+  position = 0,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [photoFailed, setPhotoFailed] = useState(false)
@@ -736,6 +745,45 @@ export default function HotelCard({
     supplierLabel: providerName,
   })
   const rateEligibilityPresentation = presentHotelRateEligibility(rateEligibility)
+  const eligibilityLineRef = useRef<HTMLDivElement>(null)
+  const eligibilityExposedRef = useRef(false)
+
+  useEffect(() => {
+    const target = eligibilityLineRef.current
+    if (!target || typeof IntersectionObserver === 'undefined') return
+    let exposureTimer: ReturnType<typeof setTimeout> | undefined
+    const observer = new IntersectionObserver(entries => {
+      const exposed = entries.some(entry => entry.target === target && entry.isIntersecting && entry.intersectionRatio >= 0.5)
+      if (!exposed) {
+        if (exposureTimer !== undefined) clearTimeout(exposureTimer)
+        exposureTimer = undefined
+        return
+      }
+      if (eligibilityExposedRef.current || exposureTimer !== undefined) return
+      exposureTimer = setTimeout(() => {
+        exposureTimer = undefined
+        if (eligibilityExposedRef.current) return
+        eligibilityExposedRef.current = true
+        const eligibility = getRateEligibilityAnalytics(rateEligibility)
+        try {
+          track('hotel_rate_eligibility_exposed', {
+            offerKey: ephemeralOfferKey(hotel.id),
+            supplier: hotel.source,
+            ...eligibility,
+            cardPosition: position + 1,
+            viewportBand: getViewportBand(),
+          })
+        } catch {
+          // Analytics must never affect result-card actions.
+        }
+      }, 1_000)
+    }, { threshold: 0.5 })
+    observer.observe(target)
+    return () => {
+      if (exposureTimer !== undefined) clearTimeout(exposureTimer)
+      observer.disconnect()
+    }
+  }, [hotel.id, hotel.source, position, rateEligibility])
   const hasHotelProviderName = hasProviderName(hotel.source)
   const rateCheckCopy = `Rate from ${providerName}. Last-checked time unavailable.`
   const providerConfirmationCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
@@ -830,7 +878,9 @@ export default function HotelCard({
           )}
         </div>
 
-        <HotelCardEligibilityLine eligibility={rateEligibilityPresentation} />
+        <div ref={eligibilityLineRef}>
+          <HotelCardEligibilityLine eligibility={rateEligibilityPresentation} />
+        </div>
 
         <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <div className="min-w-0">

@@ -51,4 +51,13 @@ describe('POST /api/analytics', () => {
     }));
     expect(response.status).toBe(503);
   });
+
+  it('rejects oversized bodies even without a content-length header', async () => {
+    const response = await POST(new Request('https://expaify.test/api/analytics', {
+      method: 'POST',
+      body: JSON.stringify({ event: 'hotel_viewed', props: { value: 'x'.repeat(8_193) } }),
+    }));
+    expect(response.status).toBe(413);
+    expect(writeAnalyticsEventMock).not.toHaveBeenCalled();
+  });
 });
