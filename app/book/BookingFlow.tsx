@@ -1,8 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEventHandler, type ReactNode } from 'react'
 import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext, type BookingHotelContext } from '@/lib/booking/config'
 import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
+import { TrackOnMount } from '@/app/components/TrackOnMount'
+import { track } from '@/lib/analytics'
+import { providerDisplayName } from '@/lib/providerFreshness'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -15,12 +18,85 @@ const panelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(-
 const insetPanelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)]'
 const secondaryButtonCls = 'inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-medium text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:border-[color:var(--border-focus)] focus-visible:shadow-[var(--focus-ring)]'
 const actionStackCls = 'mt-5 flex flex-col gap-3'
-const hotelTermsCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
 const trustClaims = [
   'Required by Duffel for this booking request',
   'Sent only when you choose verify',
   'No payment details are collected on this page',
 ]
+
+type HotelPartnerIdentity = {
+  host: string
+  label: string
+  named: boolean
+}
+
+const knownHotelPartners: Record<string, string> = {
+  'booking.com': 'Booking.com',
+  'hotels.com': 'Hotels.com',
+  'expedia.com': 'Expedia',
+  'agoda.com': 'Agoda',
+  'priceline.com': 'Priceline',
+}
+
+const opaquePartnerHosts = new Set(['tp.media', 'localhost'])
+const commonRoutingSubdomains = new Set(['www', 'm', 'go', 'redirect', 'click'])
+const compoundPublicSuffixes = new Set(['co.uk', 'com.au', 'com.br', 'com.mx', 'co.nz', 'co.jp', 'co.in'])
+
+function getHotelPartnerIdentity(providerUrl: string): HotelPartnerIdentity {
+  const unresolved = (host = ''): HotelPartnerIdentity => ({ host, label: 'booking partner', named: false })
+
+  try {
+    const parsed = new URL(providerUrl)
+    const host = parsed.hostname.toLowerCase().replace(/\.$/, '')
+    const matchingHost = host.replace(/^www\./, '')
+    if (
+      !host ||
+      opaquePartnerHosts.has(matchingHost) ||
+      host.includes(':') ||
+      /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)
+    ) {
+      return unresolved(host)
+    }
+
+    for (const [domain, label] of Object.entries(knownHotelPartners)) {
+      if (matchingHost === domain || matchingHost.endsWith(`.${domain}`)) return { host, label, named: true }
+    }
+
+    const labels = matchingHost.split('.').filter(Boolean)
+    while (labels.length > 2 && commonRoutingSubdomains.has(labels[0])) labels.shift()
+
+    const suffixLength = compoundPublicSuffixes.has(labels.slice(-2).join('.')) ? 2 : 1
+    const brandIndex = labels.length - suffixLength - 1
+    const brand = labels[brandIndex]
+    const suffix = labels.slice(brandIndex + 1).join('.')
+
+    if (!brand || !suffix || brand.length > 40 || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(brand)) {
+      return unresolved(host)
+    }
+
+    const label = `${brand.charAt(0).toUpperCase()}${brand.slice(1)}.${suffix}`
+    if (label.length > 40) return unresolved(host)
+
+    return { host, label, named: true }
+  } catch {
+    return unresolved()
+  }
+}
+
+function getAwayDurationBucket(durationMs: number) {
+  if (durationMs < 5_000) return '<5s'
+  if (durationMs < 30_000) return '5–30s'
+  if (durationMs < 120_000) return '30–120s'
+  return '120s+'
+}
+
+function emitAnalytics(event: string, props: Record<string, string | number | boolean>) {
+  try {
+    track(event, props)
+  } catch {
+    // Analytics must never block or alter the booking handoff.
+  }
+}
 
 type BookingFlowProps = {
   bookingEnabled: boolean
@@ -156,8 +232,9 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
   )
 }
 
-function HotelSummary({ hotelContext }: { hotelContext: BookingHotelContext }) {
+function HotelSummary({ hotelContext, partner }: { hotelContext: BookingHotelContext; partner: HotelPartnerIdentity }) {
   const location = getHotelLocationDisplay(hotelContext)
+  const rateSource = providerDisplayName(hotelContext.provider)
 
   return (
     <section aria-labelledby="hotel-review-title" className={`${panelCls} p-4 sm:p-6`}>
@@ -180,11 +257,20 @@ function HotelSummary({ hotelContext }: { hotelContext: BookingHotelContext }) {
           <p className="mt-1 text-xs font-medium text-[color:var(--text-2)]">{getHotelPriceBasisLabel(hotelContext.priceBasis)}</p>
         </div>
       </div>
+      <div className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 sm:px-5 sm:py-4">
+        <p className={factLabelCls}>Rate expectation</p>
+        <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+          This is the nightly rate expaify last saw from {rateSource}. {partner.named ? partner.label : 'The booking partner'} confirms the live rate, taxes, and fees before you pay—the total you see there may differ.
+        </p>
+        <p className="mt-2 text-xs font-medium leading-5 text-[color:var(--text-3)]">
+          Rate freshness not available from this provider.
+        </p>
+      </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <FareFact label="Hotel" value={hotelContext.name} />
         <FareFact label="Location" value={location.value} />
         <FareFact label="Location precision" value={location.label} />
-        <FareFact label="Provider" value={getProviderLabel(hotelContext.provider, false)} />
+        <FareFact label="Rate source" value={rateSource} />
         <FareFact label="Price basis" value={getHotelPriceBasisLabel(hotelContext.priceBasis)} />
         <FareFact label="Currency" value={hotelContext.currency} />
       </div>
@@ -304,6 +390,7 @@ function ReviewShell({
   hotelContext = null,
   duffelSandbox,
   status,
+  onBackClick,
   children,
 }: {
   eyebrow?: string
@@ -313,11 +400,12 @@ function ReviewShell({
   hotelContext?: BookingHotelContext | null
   duffelSandbox: boolean
   status?: ReactNode
+  onBackClick?: MouseEventHandler<HTMLAnchorElement>
   children: ReactNode
 }) {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-10 lg:px-8">
-      <a href="/" className="inline-flex min-h-10 items-center rounded-lg px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
+      <a href="/" onClick={onBackClick} className="inline-flex min-h-10 items-center rounded-lg px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
         ← Back to search
       </a>
       <div className="mt-4 grid gap-5 lg:mt-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
@@ -332,7 +420,7 @@ function ReviewShell({
             <FareSummary fareContext={fareContext} duffelSandbox={duffelSandbox} />
           )}
           {hotelContext && (
-            <HotelSummary hotelContext={hotelContext} />
+            <HotelSummary hotelContext={hotelContext} partner={getHotelPartnerIdentity(hotelContext.providerUrl)} />
           )}
         </div>
         <div className="min-w-0 lg:sticky lg:top-6">
@@ -479,40 +567,122 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
 }
 
 function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: BookingHotelContext; duffelSandbox: boolean }) {
+  const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
+  const location = getHotelLocationDisplay(hotelContext)
+  const analyticsProps = useMemo(() => ({
+    source: hotelContext.provider,
+    partnerHost: partner.host,
+    currency: hotelContext.currency,
+    priceCents: hotelContext.priceCents,
+    priceBasis: hotelContext.priceBasis,
+    locationPrecision: location.precision,
+  }), [hotelContext.currency, hotelContext.priceBasis, hotelContext.priceCents, hotelContext.provider, location.precision, partner.host])
+  const didContinueRef = useRef(false)
+  const returnArmedRef = useRef(false)
+  const hiddenAfterContinueRef = useRef(false)
+  const continueStartedAtRef = useRef<number | undefined>(undefined)
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+
+    const handleVisibilityChange = () => {
+      if (!returnArmedRef.current) return
+
+      if (document.visibilityState === 'hidden') {
+        hiddenAfterContinueRef.current = true
+        return
+      }
+
+      if (document.visibilityState !== 'visible' || !hiddenAfterContinueRef.current) return
+
+      const startedAt = continueStartedAtRef.current
+      const durationMs = startedAt === undefined ? 0 : Math.max(0, performance.now() - startedAt)
+      emitAnalytics('hotel_handoff_returned', {
+        source: hotelContext.provider,
+        partnerHost: partner.host,
+        awayDurationBucket: getAwayDurationBucket(durationMs),
+      })
+      returnArmedRef.current = false
+      hiddenAfterContinueRef.current = false
+      continueStartedAtRef.current = undefined
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [hotelContext.provider, partner.host])
+
+  const handleContinue = () => {
+    didContinueRef.current = true
+    returnArmedRef.current = true
+    hiddenAfterContinueRef.current = false
+    continueStartedAtRef.current = performance.now()
+    emitAnalytics('hotel_handoff_continue_clicked', { ...analyticsProps, partnerNamed: partner.named })
+  }
+
+  const handleBack = () => {
+    if (didContinueRef.current) return
+    emitAnalytics('hotel_handoff_back_clicked', {
+      source: hotelContext.provider,
+      partnerHost: partner.host,
+    })
+  }
+
+  const partnerHeading = partner.named
+    ? `You’ll book with ${partner.label}.`
+    : 'You’ll book with an external booking partner.'
+  const partnerSupport = partner.named
+    ? `expaify hands you off; ${partner.label} takes payment.`
+    : 'expaify hands you off; the booking partner takes payment.'
+  const continueLabel = partner.named ? `Continue to ${partner.label}` : 'Continue to booking partner'
+  const newTabCue = partner.named
+    ? `Opens ${partner.label} in a new tab. Your expaify search stays open here.`
+    : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
+  const accessiblePartner = partner.named ? partner.label : 'the booking partner’s site'
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ.`
+
   return (
     <ReviewShell
       eyebrow="Hotel handoff"
       title="Review selected hotel"
-      message="The selected hotel offer is preserved for provider handoff. Confirm the location, taxes, fees, cancellation policy, room details, and live availability with the provider before payment."
+      message="Review the hotel and nightly rate expaify found. The booking partner confirms the live rate and final details before you pay."
       fareContext={null}
       hotelContext={hotelContext}
       duffelSandbox={duffelSandbox}
-      status={
-        <StatusPanel
-          title="Provider confirmation required"
-          message={hotelTermsCopy}
-        />
-      }
+      onBackClick={handleBack}
     >
+      <TrackOnMount event="hotel_handoff_viewed" props={analyticsProps} />
       <div className={`${panelCls} p-4 sm:p-6`}>
-        <div className={`mt-5 p-4 ${insetPanelCls}`}>
-          <p className={factLabelCls}>Before you continue</p>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            Compare the hotel name, location, provider, selected rate, currency, and price basis on the provider page before entering payment details.
-          </p>
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand)]">Booking partner</p>
+          <h2 className="mt-2 break-words text-xl font-bold leading-tight text-[color:var(--text-1)]">{partnerHeading}</h2>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">{partnerSupport}</p>
         </div>
-        <p className="mt-4 text-sm leading-6 text-[color:var(--text-2)]">{hotelTermsCopy}</p>
-        <div className={actionStackCls}>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
+          <div className={`min-w-0 px-3.5 py-3 ${insetPanelCls}`}>
+            <p className={factLabelCls}>expaify shows</p>
+            <p className="mt-2 text-sm leading-5 text-[color:var(--text-2)]">Hotel name, location, nightly rate basis, and rate source.</p>
+          </div>
+          <div className={`min-w-0 px-3.5 py-3 ${insetPanelCls}`}>
+            <p className={factLabelCls}>{partner.named ? `${partner.label} confirms` : 'Booking partner confirms'}</p>
+            <p className="mt-2 text-sm leading-5 text-[color:var(--text-2)]">Final total, taxes, fees, room availability, and cancellation policy.</p>
+          </div>
+        </div>
+        <div className="mt-5 flex flex-col gap-3">
           <a
             href={hotelContext.providerUrl}
             target="_blank"
             rel="noopener noreferrer sponsored"
-            aria-label={`Continue to provider for ${hotelContext.name}. Selected nightly rate ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. Opens provider site in a new tab. ${hotelTermsCopy}`}
-            className="btn-primary"
+            aria-label={accessibleName}
+            onClick={handleContinue}
+            className="btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-center text-sm font-medium"
           >
-            Continue to provider
+            <span className="min-w-0 break-words">{continueLabel}</span>
+            <svg aria-hidden="true" focusable="false" className="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="none">
+              <path d="M5 11 11 5M6 5h5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </a>
-          <a href="/" className={secondaryButtonCls}>
+          <p className="text-center text-xs leading-5 text-[color:var(--text-3)]">{newTabCue}</p>
+          <a href="/" onClick={handleBack} className={secondaryButtonCls}>
             Back to search
           </a>
         </div>
