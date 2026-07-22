@@ -8,6 +8,8 @@ import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import DealScorePanel from './DealScorePanel'
 import { getHotelLocationDisplay } from './hotelLocationContext'
 import { PropertyPhoto } from './ui/PropertyPhoto'
+import { HotelPetPolicyDetails, HotelPetPolicyScan } from './HotelPetPolicy'
+import type { HotelPetPolicyPresentation } from './HotelPetPolicy'
 
 type Props = {
   hotel: HotelOffer
@@ -15,6 +17,7 @@ type Props = {
   loading?: boolean
   amenityEvidence?: readonly HotelAmenityEvidence[]
   accessEvidenceState?: 'ready' | 'loading' | 'error'
+  petPolicy?: HotelPetPolicyPresentation
 }
 
 type AccessFactId =
@@ -709,6 +712,7 @@ export default function HotelCard({
   loading = false,
   amenityEvidence,
   accessEvidenceState,
+  petPolicy,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [photoFailed, setPhotoFailed] = useState(false)
@@ -817,6 +821,8 @@ export default function HotelCard({
           )}
         </div>
 
+        {petPolicy ? <HotelPetPolicyScan policy={petPolicy} /> : null}
+
         <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <div className="min-w-0">
             <ScoreChip score={score} loading={loading} />
@@ -889,6 +895,15 @@ export default function HotelCard({
                 <p className="mt-2 break-words text-[color:var(--text-2)]">{location.distanceText}</p>
               ) : null}
             </div>
+
+            {petPolicy ? (
+              <HotelPetPolicyDetails
+                hotelId={hotel.id}
+                hotelName={hotel.name}
+                providerName={providerName}
+                policy={petPolicy}
+              />
+            ) : null}
 
             <AccessEvidencePanel
               hotelId={hotel.id}
