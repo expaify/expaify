@@ -7,7 +7,7 @@ const OPTS = {
   checkOut: '2026-08-03',
 }
 
-const AFFILIATE_ENV = ['EXPEDIA_AFFILIATE_ID', 'BOOKING_AFFILIATE_ID', 'KIWI_AFFILIATE_ID', 'TP_AFFILIATE_MARKER'] as const
+const AFFILIATE_ENV = ['HOTEL_AFFILIATE_ID'] as const
 
 const saved: Record<string, string | undefined> = {}
 
@@ -26,23 +26,17 @@ afterEach(() => {
 })
 
 describe('buildOtaLinks', () => {
-  it('builds attributed OTA links with the deal destination and dates', () => {
-    process.env.EXPEDIA_AFFILIATE_ID = 'exp-123'
-    process.env.BOOKING_AFFILIATE_ID = 'bk-456'
-    process.env.KIWI_AFFILIATE_ID = 'kw-789'
-    process.env.TP_AFFILIATE_MARKER = 'tp-marker'
+  it('builds an attributed hotel handoff with the deal destination and dates', () => {
+    process.env.HOTEL_AFFILIATE_ID = 'hotel-marker'
     const links = buildOtaLinks(OPTS)
 
-    expect(links.expedia).toContain('expedia.com')
-    expect(links.booking).toContain('booking.com')
-    expect(links.kiwi).toContain('kiwi.com')
+    expect(links.expedia).toBeUndefined()
+    expect(links.booking).toBeUndefined()
+    expect(links.kiwi).toBeUndefined()
     expect(links.trip).toContain('trip.com')
-
-    expect(links.expedia).toContain('startDate=2026-08-01')
-    expect(links.expedia).toContain('endDate=2026-08-03')
-    expect(links.booking).toContain('checkin=2026-08-01')
-    expect(links.booking).toContain('checkout=2026-08-03')
-    expect(links.expedia).toContain(encodeURIComponent('Harbour View Inn Lisbon'))
+    expect(links.trip).toContain('checkIn%3D2026-08-01')
+    expect(links.trip).toContain('checkOut%3D2026-08-03')
+    expect(links.trip).toContain(encodeURIComponent('Harbour View Inn Lisbon'))
   })
 
   it('omits outbound links when affiliate attribution is absent', () => {
@@ -50,18 +44,12 @@ describe('buildOtaLinks', () => {
     expect(links).toEqual({ expedia: undefined, booking: undefined, kiwi: undefined, trip: undefined })
   })
 
-  it('appends affiliate params when env placeholders are present', () => {
-    process.env.EXPEDIA_AFFILIATE_ID = 'exp-123'
-    process.env.BOOKING_AFFILIATE_ID = 'bk-456'
-    process.env.KIWI_AFFILIATE_ID = 'kw-789'
-    process.env.TP_AFFILIATE_MARKER = 'tp-marker'
+  it('uses only the approved hotel affiliate marker and exposes no occupancy default', () => {
+    process.env.HOTEL_AFFILIATE_ID = 'hotel-marker'
 
     const links = buildOtaLinks(OPTS)
 
-    expect(links.expedia).toContain('affcid=exp-123')
-    expect(links.booking).toContain('aid=bk-456')
-    expect(links.kiwi).toContain('affilid=kw-789')
-    expect(links.trip).toContain('marker=tp-marker')
-    expect(links.kiwi).not.toContain('adults=')
+    expect(links.trip).toContain('marker=hotel-marker')
+    expect(Object.values(links).filter(Boolean).join('')).not.toContain('adults=')
   })
 })

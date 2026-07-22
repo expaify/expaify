@@ -24,17 +24,16 @@ type SummaryProps = {
   className?: string
 }
 
-const viewed = new Set<string>()
-
 export function HotelSearchCriteriaSummary({ criteria, surface, status = 'ready', onEdit, className = '' }: SummaryProps) {
   const headingId = useId()
+  const viewedRef = useRef<string | null>(null)
   const destination = hotelCriteriaDestination(criteria)
   const dateDisplay = formatHotelCriteriaDates(criteria.dates)
 
   useEffect(() => {
     const key = `${surface}:${criteria.criteriaVersion}`
-    if (viewed.has(key)) return
-    viewed.add(key)
+    if (viewedRef.current === key) return
+    viewedRef.current = key
     track('hotel_criteria_summary_viewed', {
       surface,
       criteria_version: criteria.criteriaVersion,
