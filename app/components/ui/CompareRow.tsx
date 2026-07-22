@@ -1,3 +1,7 @@
+'use client'
+
+import { track } from '@/lib/analytics'
+
 type CompareLinks = {
   expedia?: string;
   booking?: string;
@@ -9,6 +13,7 @@ type CompareRowProps = {
   links: CompareLinks;
   /** compact: inside cards (default). primary: full-width action zone on the deal detail page. */
   size?: "compact" | "primary";
+  handoffContext?: { dealId: string; contextStatus: 'missing' | 'invalid' };
 };
 
 const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
@@ -18,7 +23,7 @@ const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
   { key: "trip", label: "Trip.com" },
 ];
 
-export function CompareRow({ links, size = "compact" }: CompareRowProps) {
+export function CompareRow({ links, size = "compact", handoffContext }: CompareRowProps) {
   const primary = size === "primary";
 
   const base = primary
@@ -38,6 +43,19 @@ export function CompareRow({ links, size = "compact" }: CompareRowProps) {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
+                aria-label={`Check this deal on ${label}`}
+                onClick={() => {
+                  if (!handoffContext) return
+                  track('hotel_provider_handoff_clicked', {
+                    provider: key,
+                    deal_id: handoffContext.dealId,
+                    context_status: handoffContext.contextStatus,
+                    destination_present: false,
+                    date_state: 'missing',
+                    occupancy_state: 'not_captured',
+                    room_state: 'not_captured',
+                  })
+                }}
                 className={`${base} hover:border-[color:var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_4%,transparent)]`}
               >
                 {label}

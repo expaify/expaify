@@ -23,12 +23,15 @@ import type { DealScore } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
 import { HotelContinuityPrototype } from '@/app/components/research/HotelContinuityPrototype'
 import { createContinuityFixture, parseContinuityFixture } from '@/app/components/research/hotelContinuityFixtures'
+import { HotelCriteriaContextCard } from '@/app/components/HotelSearchCriteria'
 
 type PageProps = {
   params: Promise<{ dealId: string }>
   searchParams: Promise<{
     continuityFixture?: string | string[]
     continuityDisclosure?: string | string[]
+    criteria?: string | string[]
+    criteriaVersion?: string | string[]
   }>
 }
 
@@ -257,6 +260,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const disclosureParam = Array.isArray(researchParams.continuityDisclosure)
     ? researchParams.continuityDisclosure[0]
     : researchParams.continuityDisclosure
+  const contextStatus = researchParams.criteria || researchParams.criteriaVersion ? 'invalid' : 'missing'
 
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
@@ -267,8 +271,8 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
             expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
           </a>
-          <a href="/deals" className="flex min-h-[44px] items-center text-caption font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
-            ← Back to deals
+          <a href="/deals" aria-label="Search hotel deals" className="flex min-h-[44px] items-center text-caption font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
+            ← Search hotel deals
           </a>
         </div>
       </nav>
@@ -338,6 +342,26 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           </p>
         </section>
 
+        <div className="mt-8">
+          <HotelCriteriaContextCard status={contextStatus} />
+        </div>
+
+        <section className="card mt-4 p-5">
+          <h3 className="mb-3 text-[13px] font-bold text-[color:var(--ink)]">This deal</h3>
+          <div className="grid grid-cols-2 gap-3 min-[680px]:grid-cols-4">
+            <Fact label="Hotel" value={deal.hotel_name || 'Hotel name unavailable'} muted={!deal.hotel_name} />
+            <Fact label="Area" value={deal.city || 'Area unavailable'} muted={!deal.city} />
+            <Fact label="Check-in" value={checkInDisplay ?? 'Check-in unavailable'} muted={!checkInDisplay} />
+            <Fact label="Check-out" value={checkOutDisplay ?? 'Check-out unavailable'} muted={!checkOutDisplay} />
+            <Fact label="Nights" value={deal.nights != null ? String(deal.nights) : 'Nights unavailable'} muted={deal.nights == null} />
+            <Fact label="Guests" value="Guest count unavailable" muted />
+            <Fact label="Room or rate" value="Room or rate unavailable" muted />
+            <Fact label="Price basis" value="Provider confirms final price and availability." />
+          </div>
+        </section>
+
+        <TrackOnMount event="hotel_detail_viewed" props={{ deal_id: deal.id, context_status: contextStatus }} />
+
         {/* Deal score — computed from price history */}
         <Suspense fallback={null}>
           <DealScoreSection deal={deal} />
@@ -362,17 +386,25 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           </div>
         ) : hasOtaLinks ? (
           <div className="my-8">
-            <CompareRow links={deal.ota_links} size="primary" />
+            <HotelCriteriaContextCard status={contextStatus} handoff />
+            <div className="mt-4">
+              <CompareRow
+                links={deal.ota_links}
+                size="primary"
+                handoffContext={{ dealId: deal.id, contextStatus }}
+              />
+            </div>
             <p className="mt-2 text-caption leading-5 text-[color:var(--ink-faint)]">
               Opens the provider site. Prices and availability can change.
             </p>
           </div>
         ) : (
-          <div className="my-8 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-4" role="status">
-            <p className="text-[13px] font-bold text-[color:var(--ink)]">Provider link unavailable</p>
-            <p className="mt-1 text-[12px] leading-5 text-[color:var(--ink-soft)]">
-              This saved deal can be reviewed here, but expaify does not have a current external booking link.
-            </p>
+          <div className="my-8">
+            <HotelCriteriaContextCard status={contextStatus} handoff />
+            <div className="mt-4 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-4" role="status">
+              <p className="text-[13px] font-bold text-[color:var(--ink)]">No provider options are available for this deal right now.</p>
+              <p className="mt-1 text-[12px] leading-5 text-[color:var(--ink-soft)]">This saved deal can still be reviewed here.</p>
+            </div>
           </div>
         )}
 
@@ -419,20 +451,6 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           ) : null}
         </section>
 
-        {/* Hotel continuity facts */}
-        <section className="card mt-4 p-5">
-          <h3 className="mb-3 text-[13px] font-bold text-[color:var(--ink)]">Stay details</h3>
-          <div className="grid grid-cols-2 gap-3 min-[680px]:grid-cols-4">
-            <Fact label="Hotel" value={deal.hotel_name} />
-            <Fact label="Area" value={deal.city ?? 'Area unavailable'} muted={!deal.city} />
-            <Fact label="Check-in" value={checkInDisplay ?? 'Check-in unavailable'} muted={!checkInDisplay} />
-            <Fact label="Check-out" value={checkOutDisplay ?? 'Check-out unavailable'} muted={!checkOutDisplay} />
-            <Fact label="Nights" value={deal.nights != null ? String(deal.nights) : 'Nights unavailable'} muted={deal.nights == null} />
-            <Fact label="Guests" value="Guest count unavailable" muted />
-            <Fact label="Room or rate" value="Room or rate unavailable" muted />
-            <Fact label="Price basis" value="Provider confirms final price and availability." />
-          </div>
-        </section>
       </main>
     </div>
   )
