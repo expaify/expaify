@@ -137,9 +137,50 @@ function SupplierWording({ statement }: { statement: SupplierSmokingStatement })
       <blockquote className="mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere] border-l-2 border-[color:var(--border-strong)] pl-3 text-[color:var(--text-2)]">
         {statement.sourceText}
       </blockquote>
+      <p className="mt-2 font-medium text-[color:var(--text-2)]">Scope: {scopeLabels[statement.scope]}</p>
       {statementMetadata(statement)}
     </div>
   )
+}
+
+function hasCurrentProvenance(statement: SupplierSmokingStatement | undefined): statement is SupplierSmokingStatement {
+  if (!statement || !statement.sourceLabel.trim() || !statement.sourceText.trim()) return false
+  return !Number.isNaN(new Date(statement.fetchedAt).getTime())
+}
+
+function hasQualifiedRoomConfirmation(dimension: HotelSmokingDimension<RoomSmokingPolicyValue>): boolean {
+  if (dimension.state !== 'confirmed' || dimension.isStale || !dimension.value) return false
+
+  const statement = dimension.statements[0]
+  if (!hasCurrentProvenance(statement) || statement.value !== dimension.value) return false
+
+  if (dimension.value === 'all_rooms_non_smoking') {
+    return dimension.scope === 'property_room_inventory' && statement.scope === 'property_room_inventory'
+  }
+
+  if (dimension.value === 'smoking_rooms_offered') {
+    return dimension.scope === 'property_room_capability' && statement.scope === 'property_room_capability'
+  }
+
+  return dimension.scope === 'selected_room_rate'
+    && statement.scope === 'selected_room_rate'
+    && Boolean(statement.checkin && statement.checkout && statement.roomId && statement.rateId)
+}
+
+function hasQualifiedPropertyConfirmation(dimension: HotelSmokingDimension<PropertySmokingPolicyValue>): boolean {
+  if (dimension.state !== 'confirmed' || dimension.isStale || !dimension.value) return false
+
+  const statement = dimension.statements[0]
+  if (!hasCurrentProvenance(statement) || statement.value !== dimension.value) return false
+
+  const expectedScope: Record<PropertySmokingPolicyValue, HotelSmokingScope> = {
+    smoke_free_property: 'entire_property',
+    indoor_common_areas_smoke_free: 'indoor_common_areas',
+    designated_smoking_areas: 'designated_areas',
+    smoking_permitted_in_stated_areas: 'stated_areas',
+  }
+
+  return dimension.scope === expectedScope[dimension.value] && statement.scope === expectedScope[dimension.value]
 }
 
 function getConfirmedCopy(
@@ -295,8 +336,8 @@ export function getCollapsedSmokingPolicy(policy?: HotelSmokingPolicyView): { la
 
   const room = policy.room
   const property = policy.property
-  const roomValue = room.state === 'confirmed' && !room.isStale ? room.value : undefined
-  const propertyValue = property.state === 'confirmed' && !property.isStale ? property.value : undefined
+  const roomValue = hasQualifiedRoomConfirmation(room) ? room.value : undefined
+  const propertyValue = hasQualifiedPropertyConfirmation(property) ? property.value : undefined
   const selectedStatement = room.statements[0]
 
   if (roomValue === 'selected_room_non_smoking' || roomValue === 'selected_room_smoking') {

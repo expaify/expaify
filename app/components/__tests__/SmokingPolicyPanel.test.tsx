@@ -137,6 +137,7 @@ describe('SmokingPolicyPanel', () => {
     expect(String(quote.props.className)).toContain('whitespace-pre-wrap')
     expect(String(quote.props.className)).toContain('[overflow-wrap:anywhere]')
     expect(collectText(tree)).toContain('Policy wording provided; scope unclear.')
+    expect(collectText(tree)).toContain('Scope: Scope unclear')
   })
 
   it('shows every conflicting statement with scope and provenance without hiding records', () => {
@@ -197,15 +198,42 @@ describe('SmokingPolicyPanel', () => {
       scope: 'selected_room_rate',
       checkin: '2026-09-10',
       checkout: '2026-09-12',
+      roomId: 'room-1',
+      rateId: 'rate-1',
     })
     const mixed = policy({
-      room: { state: 'confirmed', value: 'selected_room_non_smoking', statements: [selected] },
-      property: { state: 'confirmed', value: 'smoke_free_property', statements: [statement({ value: 'smoke_free_property', scope: 'entire_property' })] },
+      room: { state: 'confirmed', value: 'selected_room_non_smoking', scope: 'selected_room_rate', statements: [selected] },
+      property: { state: 'confirmed', value: 'smoke_free_property', scope: 'entire_property', statements: [statement({ value: 'smoke_free_property', scope: 'entire_property' })] },
     })
 
     expect(getCollapsedSmokingPolicy(mixed)?.label).toBe('Selected room: Non-smoking')
     expect(getCollapsedSmokingPolicy(mixed)?.ariaLabel).toContain('Open Details for full supplier evidence.')
     expect(getCollapsedSmokingPolicy(policy({ room: { state: 'ambiguous', statements: [statement()] } }))).toBeNull()
-    expect(getCollapsedSmokingPolicy(policy({ room: { state: 'confirmed', value: 'all_rooms_non_smoking', statements: [statement()], isStale: true } }))).toBeNull()
+    expect(getCollapsedSmokingPolicy(policy({ room: { state: 'confirmed', value: 'all_rooms_non_smoking', scope: 'property_room_inventory', statements: [statement()], isStale: true } }))).toBeNull()
+  })
+
+  it('withholds collapsed claims unless provenance, scope, and selected-stay binding are complete', () => {
+    const selected = statement({
+      value: 'selected_room_non_smoking',
+      scope: 'selected_room_rate',
+      checkin: '2026-09-10',
+      checkout: '2026-09-12',
+      roomId: 'room-1',
+      rateId: 'rate-1',
+    })
+    const qualified = policy({
+      room: { state: 'confirmed', value: 'selected_room_non_smoking', scope: 'selected_room_rate', statements: [selected] },
+    })
+
+    expect(getCollapsedSmokingPolicy(qualified)?.label).toBe('Selected room: Non-smoking')
+    expect(getCollapsedSmokingPolicy(policy({
+      room: { state: 'confirmed', value: 'selected_room_non_smoking', scope: 'selected_room_rate', statements: [{ ...selected, rateId: undefined }] },
+    }))).toBeNull()
+    expect(getCollapsedSmokingPolicy(policy({
+      room: { state: 'confirmed', value: 'all_rooms_non_smoking', scope: 'property_room_inventory', statements: [statement({ sourceLabel: '' })] },
+    }))).toBeNull()
+    expect(getCollapsedSmokingPolicy(policy({
+      property: { state: 'confirmed', value: 'smoke_free_property', scope: 'indoor_common_areas', statements: [statement({ value: 'smoke_free_property', scope: 'entire_property' })] },
+    }))).toBeNull()
   })
 })
