@@ -8,6 +8,11 @@ import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import DealScorePanel from './DealScorePanel'
 import { getHotelLocationDisplay } from './hotelLocationContext'
 import { PropertyPhoto } from './ui/PropertyPhoto'
+import {
+  getRateRestrictionsAccessibleSummary,
+  HotelCardEligibilityLine,
+  RATE_ELIGIBILITY_NOT_PROVIDED,
+} from './HotelRateRestrictions'
 
 type Props = {
   hotel: HotelOffer
@@ -729,10 +734,12 @@ export default function HotelCard({
   const rateCheckCopy = `Rate from ${providerName}. Last-checked time unavailable.`
   const providerConfirmationCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
   const reviewDisclosure = providerConfirmationCopy
-  const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${providerConfirmationCopy}`
+  const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(RATE_ELIGIBILITY_NOT_PROVIDED, providerName, 'card')
+  const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy}`
   const unavailableAriaLabel = hasValidPrice
     ? `Provider link unavailable for ${hotel.name}. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
     : `Hotel price unavailable. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
+  const unavailableWithEligibilityAriaLabel = `${unavailableAriaLabel} ${eligibilityAriaSummary}`
   const detailsId = `hotel-details-${hotel.id}`
   const accessEvidence = getAccessEvidence(amenityEvidence ?? hotel.amenityEvidence ?? [])
   const resolvedAccessEvidenceState = accessEvidenceState ?? hotel.accessEvidenceState ?? 'ready'
@@ -817,7 +824,9 @@ export default function HotelCard({
           )}
         </div>
 
-        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+        <HotelCardEligibilityLine eligibility={RATE_ELIGIBILITY_NOT_PROVIDED} />
+
+        <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <div className="min-w-0">
             <ScoreChip score={score} loading={loading} />
           </div>
@@ -836,7 +845,7 @@ export default function HotelCard({
             <span
               className="inline-flex min-h-10 max-w-[8.5rem] cursor-not-allowed items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-muted)] px-3 text-xs font-bold text-[color:var(--text-3)] sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm"
               role="status"
-              aria-label={unavailableAriaLabel}
+              aria-label={unavailableWithEligibilityAriaLabel}
             >
               <span className="truncate">{unavailableLabel}</span>
             </span>

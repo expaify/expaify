@@ -192,10 +192,20 @@ describe('Deal score presentation', () => {
     expect(text).toContain('Midtown')
     expect(text).toContain('$189 USD')
     expect(text).toContain('per night before taxes and fees')
+    expect(text).toContain('Restrictions not provided')
     expect(text).toContain('Review hotel')
     expect(text).toContain('Details')
     expect(text).not.toContain('22nd percentile')
     expect(text).not.toContain(score.explanation)
+    expect(text.indexOf('Restrictions not provided')).toBeLessThan(text.indexOf('Good'))
+    const ctaAriaLabel = findFirstProp(
+      HotelCard({ hotel, score, loading: false }),
+      'aria-label',
+      value => typeof value === 'string' && value.startsWith('Review The Example Hotel')
+    )
+    expect(ctaAriaLabel).toEqual(expect.stringContaining(
+      'Rate restrictions: Hotellook did not provide complete rate restrictions.'
+    ))
   })
 
   it('shows flight price currency and trip scope from structured money', () => {
