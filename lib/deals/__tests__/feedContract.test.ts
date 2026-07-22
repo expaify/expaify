@@ -30,4 +30,20 @@ describe('hotel deal feed contract', () => {
     expect(result.page).toEqual({ hasMore: false, nextOffset: null })
     expect(result.coverage).toBe('confirmed_end')
   })
+
+  it('advances by consumed rows when a page contains duplicate stable ids', () => {
+    const result = buildDealPage(
+      [
+        { id: 'deal-1' },
+        { id: 'deal-1' },
+        ...Array.from({ length: 11 }, (_, index) => ({ id: `deal-${index + 2}` })),
+      ],
+      24,
+      12,
+    )
+
+    expect(result.items).toHaveLength(11)
+    expect(result.page).toEqual({ hasMore: true, nextOffset: 36 })
+    expect(result.coverage).toBe('more_available')
+  })
 })
