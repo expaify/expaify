@@ -50,6 +50,32 @@ describe('POST /api/analytics', () => {
     expect(mockQuery).not.toHaveBeenCalled()
   })
 
+  it('rejects properties outside the event-specific privacy contract', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_results_viewed',
+      occurredAt: new Date().toISOString(),
+      path: '/deals',
+      props: { criteria_version: 'opaque-version', raw_query: 'Paris for two adults' },
+    }))
+    expect(response.status).toBe(400)
+    expect(mockQuery).not.toHaveBeenCalled()
+  })
+
+  it('rejects unknown event names rather than accepting arbitrary properties', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'arbitrary_event',
+      occurredAt: new Date().toISOString(),
+      path: '/deals',
+      props: {},
+    }))
+    expect(response.status).toBe(400)
+    expect(mockQuery).not.toHaveBeenCalled()
+  })
+
   it('returns a non-throwing service response when persistence is unavailable', async () => {
     mockQuery.mockRejectedValue(new Error('database unavailable'))
     const response = await POST(request({

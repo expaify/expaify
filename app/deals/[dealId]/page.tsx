@@ -24,7 +24,7 @@ import { HotelContinuityPrototype } from '@/app/components/research/HotelContinu
 import { createContinuityFixture, parseContinuityFixture } from '@/app/components/research/hotelContinuityFixtures'
 import { HotelDealCriteriaHandoff, HotelDealCriteriaSummary } from '@/app/components/HotelDealCriteria'
 import {
-  buildHotelResultsUrl,
+  buildHotelBackUrl,
   hotelCriteriaContextStatus,
   resolveHotelResultsView,
   resolveHotelSearchCriteria,
@@ -249,7 +249,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const contextStatus: HotelCriteriaContextStatus = criteria
     ? hotelCriteriaContextStatus(criteria, { city: deal.city, checkInDate: deal.check_in_date })
     : criteriaResolution.status === 'invalid' || !resultsView ? 'invalid' : 'missing'
-  const backHref = criteria && resultsView ? buildHotelResultsUrl(criteria, resultsView) : '/deals'
+  const backHref = criteria && resultsView ? buildHotelBackUrl(criteria, resultsView, researchParams) : '/deals'
   const criteriaContext = { criteria, status: contextStatus, backHref }
 
   // Server-side paywall: render the locked state instead of the deal for

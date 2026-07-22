@@ -2,7 +2,7 @@
 
 import { track } from '@/lib/analytics'
 
-type CompareLinks = {
+export type CompareLinks = {
   expedia?: string;
   booking?: string;
   kiwi?: string;
@@ -41,10 +41,50 @@ export function isAttributedHotelProviderUrl(provider: keyof CompareLinks, href:
       kiwi: 'affilid',
       trip: 'marker',
     }
-    return Boolean(url.searchParams.get(attributionParam[provider]))
+    const providerHost: Record<keyof CompareLinks, string> = {
+      expedia: 'expedia.com',
+      booking: 'booking.com',
+      kiwi: 'kiwi.com',
+      trip: 'tp.media',
+    }
+    const expectedHost = providerHost[provider]
+    if (url.hostname !== expectedHost && !url.hostname.endsWith(`.${expectedHost}`)) return false
+    if (!url.searchParams.get(attributionParam[provider])) return false
+
+    const occupancyKeys = new Set(['adults', 'adult', 'rooms', 'room_qty', 'children', 'childages', 'child_ages'])
+    const containsOccupancy = (candidate: URL): boolean => {
+      if ([...candidate.searchParams.keys()].some(key => occupancyKeys.has(key.toLocaleLowerCase('en-US')))) return true
+      const nested = candidate.searchParams.get('u')
+      if (!nested) return false
+      try {
+        return containsOccupancy(new URL(nested))
+      } catch {
+        return true
+      }
+    }
+    if (containsOccupancy(url)) return false
+    if (provider === 'trip') {
+      const nested = url.searchParams.get('u')
+      if (!nested) return false
+      try {
+        const nestedUrl = new URL(nested)
+        if (nestedUrl.protocol !== 'https:' || (nestedUrl.hostname !== 'trip.com' && !nestedUrl.hostname.endsWith('.trip.com'))) return false
+      } catch {
+        return false
+      }
+    }
+    return true
   } catch {
     return false
   }
+}
+
+export function eligibleHotelProviderLinks(links: CompareLinks): CompareLinks {
+  return Object.fromEntries(
+    Object.entries(links).filter(([provider, href]) => (
+      typeof href === 'string' && isAttributedHotelProviderUrl(provider as keyof CompareLinks, href)
+    )),
+  ) as CompareLinks
 }
 
 export function CompareRow({ links, size = "compact", handoffContext }: CompareRowProps) {

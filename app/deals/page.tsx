@@ -79,13 +79,18 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   const requestedDateFrom = criteria.dates.semantic === 'checkin_window' ? criteria.dates.dateFrom : undefined
   const requestedDateTo = criteria.dates.semantic === 'checkin_window' ? criteria.dates.dateTo : undefined
   const pwCtx = await getPaywallContext()
+  let initialError = false
   const market = requestedCity
-    ? await query<{ id: number }>('SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1', [requestedCity]).catch(() => ({ rows: [] as { id: number }[] }))
+    ? await query<{ id: number }>('SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1', [requestedCity]).catch(() => {
+        initialError = true
+        return { rows: [] as { id: number }[] }
+      })
     : null
+  if (requestedCity && !market?.rows[0]) initialError = true
   const effectiveView = pwCtx.premium ? requestedView : { minDiscount: 20, maxPriceCents: null, minStars: 0, sort: 'newest' as const }
 
   // Pre-fetch the exact validated URL state so refresh/share never flash default results.
-  const rowsRequest = requestedCity && !market?.rows[0]
+  const rowsRequest = initialError
     ? Promise.resolve([] as DealRow[])
     : getActiveDeals({
       limit: HOTEL_DEAL_PAGE_SIZE,
@@ -97,7 +102,10 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
       marketId: market?.rows[0]?.id,
       dateFrom: requestedDateFrom,
       dateTo: requestedDateTo,
-    }).catch(() => [] as DealRow[])
+    }).catch(() => {
+      initialError = true
+      return [] as DealRow[]
+    })
   const [rows, unlockedIds] = await Promise.all([
     rowsRequest,
     getFreeUnlockedDealIds(),
@@ -106,7 +114,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   let initialDeals: ApiDeal[]
   if (rows.length > 0) {
     initialDeals = rows.map(row => toApiDeal(row, !pwCtx.premium && !unlockedIds.has(row.id)))
-  } else if (
+  } else if (!initialError &&
     criteria.destination.state === 'all' && criteria.dates.semantic === 'missing' &&
     effectiveView.minDiscount === 20 && effectiveView.maxPriceCents === null &&
     effectiveView.minStars === 0 && effectiveView.sort === 'newest'
@@ -150,6 +158,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           premium={pwCtx.premium}
           initialCriteria={criteria}
           initialView={effectiveView}
+          initialError={initialError}
         />
       </main>
     </>

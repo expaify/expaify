@@ -1,4 +1,5 @@
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
+import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 
 export type HotelSearchCriteriaV1 = {
   schemaVersion: 1
@@ -139,7 +140,7 @@ export function resolveHotelSearchCriteria(source: SearchParamSource): HotelCrit
   if (source instanceof URLSearchParams) {
     const singletonKeys = [
       'criteriaSchema', 'criteriaVersion', 'criteriaSource', 'city',
-      'date_from', 'date_to', 'occupancy', 'adults', 'rooms', 'market_id',
+      'date_from', 'date_to', 'occupancy', 'adults', 'rooms', 'market_id', 'criteriaReturn',
     ]
     if (singletonKeys.some(key => source.getAll(key).length > 1)) return { status: 'invalid' }
   }
@@ -161,6 +162,7 @@ export function resolveHotelSearchCriteria(source: SearchParamSource): HotelCrit
     hasSearchParam(source, 'adults') ||
     hasSearchParam(source, 'rooms') ||
     hasSearchParam(source, 'market_id') ||
+    (hasSearchParam(source, 'criteriaReturn') && readSearchParam(source, 'criteriaReturn') !== 'destination') ||
     (cityValue !== null && canonicalCity(cityValue) === null)
   ) {
     return { status: 'invalid' }
@@ -203,7 +205,36 @@ export function buildHotelResultsUrl(
   return `/deals?${params.toString()}`
 }
 
+export function buildHotelDestinationUrl(
+  criteria: HotelSearchCriteriaV1,
+  view?: Partial<HotelResultsViewState>,
+): string {
+  if (criteria.destination.state !== 'selected') return buildHotelResultsUrl(criteria, view)
+  const slug = CITY_DISPLAY_TO_SLUG[criteria.destination.city]
+  if (!slug) return buildHotelResultsUrl(criteria, view)
+  const query = buildHotelResultsUrl(criteria, view).split('?')[1]
+  const params = new URLSearchParams(query)
+  params.set('criteriaReturn', 'destination')
+  return `/destinations/${slug}?${params.toString()}`
+}
+
+export function buildHotelBackUrl(
+  criteria: HotelSearchCriteriaV1,
+  view: HotelResultsViewState,
+  source: SearchParamSource,
+): string {
+  return readSearchParam(source, 'criteriaReturn') === 'destination'
+    ? buildHotelDestinationUrl(criteria, view)
+    : buildHotelResultsUrl(criteria, view)
+}
+
 export function resolveHotelResultsView(source: SearchParamSource): HotelResultsViewState | null {
+  const viewKeys = ['min_discount', 'max_price_cents', 'min_stars', 'sort']
+  if (
+    (source instanceof URLSearchParams && viewKeys.some(key => source.getAll(key).length > 1)) ||
+    (!(source instanceof URLSearchParams) && viewKeys.some(key => Array.isArray(source[key])))
+  ) return null
+
   const readInteger = (key: string, fallback: number): number | null => {
     const raw = readSearchParam(source, key)
     if (raw === null) return fallback
