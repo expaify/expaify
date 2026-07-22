@@ -55,6 +55,15 @@ beforeEach(() => {
 });
 
 describe('HotellookProvider.searchHotels', () => {
+  it('declares that its property-price feed cannot prove any rate eligibility family', () => {
+    expect(new HotellookProvider().rateEligibilityCapabilities).toEqual({
+      membership: { restricted: false, clear: false },
+      residency: { restricted: false, clear: false },
+      age: { restricted: false, clear: false },
+      refundability: { restricted: false, clear: false },
+    });
+  });
+
   it('returns a configuration error when TP_TOKEN is missing', async () => {
     delete process.env.TP_TOKEN;
 

@@ -420,6 +420,8 @@ function priceFromToCents(priceFrom: HotelLookCacheEntry['priceFrom']): number |
 }
 
 export class HotellookProvider implements HotelProvider {
+  readonly rateEligibilityCapabilities = HOTELLOOK_RATE_ELIGIBILITY_CAPABILITIES;
+
   private get token(): string {
     return process.env.TP_TOKEN ?? '';
   }

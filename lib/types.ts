@@ -190,10 +190,10 @@ export interface HotelRateEligibilityEvidence {
 }
 
 export interface HotelRateEligibilityCapabilities {
-  membership: { restricted: boolean; clear: boolean };
-  residency: { restricted: boolean; clear: boolean };
-  age: { restricted: boolean; clear: boolean };
-  refundability: { restricted: boolean; clear: boolean };
+  readonly membership: { readonly restricted: boolean; readonly clear: boolean };
+  readonly residency: { readonly restricted: boolean; readonly clear: boolean };
+  readonly age: { readonly restricted: boolean; readonly clear: boolean };
+  readonly refundability: { readonly restricted: boolean; readonly clear: boolean };
 }
 
 export type HotelLocationPrecision = 'exact' | 'coordinates' | 'area' | 'search_area' | 'missing';
@@ -281,6 +281,7 @@ export interface FlightProvider {
 }
 
 export interface HotelProvider {
+  readonly rateEligibilityCapabilities: HotelRateEligibilityCapabilities;
   searchHotels(
     area: string,
     range: { checkin: string; checkout: string },
