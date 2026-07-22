@@ -180,11 +180,18 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('the total you see there may differ.');
     expect(text).toContain('expaify shows');
     expect(text).toContain('Booking partner confirms');
+    expect(text).toContain('Special requests');
+    expect(text).toContain('Need a quiet room, high floor, or early check-in?');
+    expect(text).toContain('Add your request on the booking partner’s site while booking. Nothing is selected or sent by expaify.');
+    expect(text).toContain('Requests depend on availability and are not guaranteed. After booking, use your confirmation or itinerary to contact the property and ask it to confirm what it can provide.');
     expect(text).toContain('Opens the booking partner’s site in a new tab. Your expaify search stays open here.');
     expect(text).not.toContain('Provider confirmation required');
     expect(text).not.toContain('Before you continue');
     expect(text).not.toContain('Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.');
     expect(text).not.toContain('tp.media takes payment');
+    expect(text).not.toContain('Add your request on tp.media');
+    expect(text).not.toContain('rooms near each other');
+    expect(text).not.toContain('connecting rooms');
     expect(text).not.toContain('Traveler details');
     expect(text).not.toContain('Confirm booking');
 
@@ -208,9 +215,58 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('You’ll book with Booking.com.');
     expect(text).toContain('Continue to Booking.com');
     expect(text).toContain('Booking.com confirms');
+    expect(text).toContain('Add your request on Booking.com while booking. Nothing is selected or sent by expaify.');
     expect(outbound.props.href).toBe(providerUrl);
     expect(outbound.props.target).toBe('_blank');
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
+  });
+
+  it('uses a native, initially collapsed disclosure with exact evidence-state semantics', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext: { ...hotelContext, providerUrl: 'https://www.booking.com/hotel/x?aid=123' },
+    });
+    const details = findElements(tree, element => element.type === 'details')[0];
+    const summary = findElements(details, element => element.type === 'summary')[0];
+    const list = findElements(details, element => element.type === 'ul')[0];
+    const items = findElements(list, element => element.type === 'li');
+
+    expect(details.props.open).toBeUndefined();
+    expect(typeof details.props.onToggle).toBe('function');
+    expect(collectText(summary)).toBe('How requests work');
+    expect(items.map(collectText)).toEqual([
+      'Selected: You have chosen a preference. expaify does not offer this step.',
+      'Sent: The booking service says it submitted the request. Continuing from expaify does not send one.',
+      'Acknowledged: The property has replied about the request.',
+      'Guaranteed: The property explicitly confirms it for this stay. Until then, treat it as a preference.',
+    ]);
+    expect(findElements(details, element => element.type === 'button')).toHaveLength(0);
+    expect(summary.props.className).toContain('min-h-11');
+  });
+
+  it('keeps Special requests between the responsibility comparison and provider CTA', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext,
+    });
+    const panel = findElements(tree, element => (
+      element.type === 'div'
+      && collectText(element).includes('You’ll book with an external booking partner.')
+      && collectText(element).includes('expaify shows')
+      && collectText(element).includes('Continue to booking partner')
+    )).at(-1) as TestElement;
+    const directChildren = childrenOf(panel).filter(child => child && typeof child === 'object') as TestElement[];
+    const responsibilityIndex = directChildren.findIndex(child => collectText(child).includes('expaify shows'));
+    const guidanceIndex = directChildren.findIndex(child => child.type === 'section' && collectText(child).includes('Special requests'));
+    const actionsIndex = directChildren.findIndex(child => collectText(child).includes('Continue to booking partner'));
+
+    expect(responsibilityIndex).toBeGreaterThanOrEqual(0);
+    expect(guidanceIndex).toBeGreaterThan(responsibilityIndex);
+    expect(actionsIndex).toBeGreaterThan(guidanceIndex);
   });
 
   it.each([
@@ -317,18 +373,150 @@ describe('BookingFlow fare context review', () => {
     }
   });
 
+  it('guards request analytics behind sustained guidance exposure and uses non-sensitive properties', () => {
+    jest.useFakeTimers();
+    let intersectionCallback: IntersectionObserverCallback | undefined;
+    let observedTarget: Element | undefined;
+    const disconnect = jest.fn();
+    const originalObserver = Object.getOwnPropertyDescriptor(globalThis, 'IntersectionObserver');
+    Object.defineProperty(globalThis, 'IntersectionObserver', {
+      configurable: true,
+      value: jest.fn((callback: IntersectionObserverCallback) => {
+        intersectionCallback = callback;
+        return {
+          observe: jest.fn((target: Element) => { observedTarget = target; }),
+          disconnect,
+        };
+      }),
+    });
+
+    try {
+      const providerUrl = 'https://www.booking.com/hotel/private-name?aid=secret-marker';
+      const tree = BookingFlow({
+        bookingEnabled: false,
+        duffelSandbox: false,
+        fareContext: null,
+        hotelContext: { ...hotelContext, providerUrl },
+      });
+      const rendered = resolveFunctionElement(tree as TestElement);
+      const outbound = findElements(rendered, element => element.type === 'a' && element.props.target === '_blank')[0];
+      const details = findElements(rendered, element => element.type === 'details')[0];
+
+      (outbound.props.onClick as (() => void))();
+      expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_request_handoff_continued')).toHaveLength(0);
+
+      intersectionCallback?.([{
+        target: observedTarget,
+        isIntersecting: true,
+        intersectionRatio: 0.5,
+      } as IntersectionObserverEntry], {} as IntersectionObserver);
+      jest.advanceTimersByTime(999);
+      expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_request_guidance_viewed')).toHaveLength(0);
+
+      intersectionCallback?.([{
+        target: observedTarget,
+        isIntersecting: false,
+        intersectionRatio: 0,
+      } as IntersectionObserverEntry], {} as IntersectionObserver);
+      jest.advanceTimersByTime(1);
+      expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_request_guidance_viewed')).toHaveLength(0);
+
+      intersectionCallback?.([{
+        target: observedTarget,
+        isIntersecting: true,
+        intersectionRatio: 0.75,
+      } as IntersectionObserverEntry], {} as IntersectionObserver);
+      jest.advanceTimersByTime(1_000);
+      expect(trackMock).toHaveBeenCalledWith('hotel_request_guidance_viewed', {
+        source: 'hotellook',
+        partnerHost: 'www.booking.com',
+        capabilityState: 'provider_directed_only',
+        eligibleRequestCount: 3,
+      });
+
+      intersectionCallback?.([{
+        target: observedTarget,
+        isIntersecting: true,
+        intersectionRatio: 1,
+      } as IntersectionObserverEntry], {} as IntersectionObserver);
+      jest.advanceTimersByTime(1_000);
+      expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_request_guidance_viewed')).toHaveLength(1);
+
+      (details.props.onToggle as (event: unknown) => void)({ currentTarget: { open: true } });
+      (details.props.onToggle as (event: unknown) => void)({ currentTarget: { open: true } });
+      (details.props.onToggle as (event: unknown) => void)({ currentTarget: { open: false } });
+      (details.props.onToggle as (event: unknown) => void)({ currentTarget: { open: true } });
+      expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_request_help_opened')).toEqual([
+        ['hotel_request_help_opened', {
+          source: 'hotellook',
+          partnerHost: 'www.booking.com',
+          capabilityState: 'provider_directed_only',
+        }],
+        ['hotel_request_help_opened', {
+          source: 'hotellook',
+          partnerHost: 'www.booking.com',
+          capabilityState: 'provider_directed_only',
+        }],
+      ]);
+
+      (outbound.props.onClick as (() => void))();
+      expect(trackMock).toHaveBeenCalledWith('hotel_request_handoff_continued', {
+        source: 'hotellook',
+        partnerHost: 'www.booking.com',
+        capabilityState: 'provider_directed_only',
+        eligibleRequestCount: 3,
+        selectedRequestCount: 0,
+        guidanceSeen: true,
+      });
+      const requestPayloads = trackMock.mock.calls
+        .filter(([event]) => String(event).startsWith('hotel_request_'))
+        .map(([, props]) => JSON.stringify(props));
+      expect(requestPayloads.join(' ')).not.toContain('private-name');
+      expect(requestPayloads.join(' ')).not.toContain('secret-marker');
+      expect(requestPayloads.join(' ')).not.toContain('The Example Hotel');
+      expect(requestPayloads.join(' ')).not.toContain('hotel_123');
+    } finally {
+      jest.useRealTimers();
+      if (originalObserver) Object.defineProperty(globalThis, 'IntersectionObserver', originalObserver);
+      else delete (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver;
+    }
+  });
+
+  it('does not let analytics failures block request help or provider handoff', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext,
+    });
+    const rendered = resolveFunctionElement(tree as TestElement);
+    const details = findElements(rendered, element => element.type === 'details')[0];
+    const outbound = findElements(rendered, element => element.type === 'a' && element.props.target === '_blank')[0];
+    trackMock.mockImplementation(() => { throw new Error('analytics unavailable'); });
+
+    expect(() => (details.props.onToggle as (event: unknown) => void)({ currentTarget: { open: true } })).not.toThrow();
+    expect(() => (outbound.props.onClick as (() => void))()).not.toThrow();
+
+    trackMock.mockReset();
+  });
+
   it('shows a recoverable hotel-specific error for malformed hotel handoff links', () => {
-    const text = collectText(BookingFlow({
+    const tree = BookingFlow({
       bookingEnabled: false,
       duffelSandbox: true,
       fareContext: null,
       hotelContext: null,
       invalidHotelSelection: true,
-    }));
+    });
+    const text = collectText(tree);
 
     expect(text).toContain("We can't identify this hotel");
     expect(text).toContain('integer-cent price, currency, price basis, and provider handoff URL');
     expect(text).toContain('Back to search');
     expect(text).not.toContain("We can't identify this fare");
+    expect(text).not.toContain('Special requests');
+    expect(findElements(tree, element => element.type === 'details')).toHaveLength(0);
+    expect(findElements(tree, element => element.type === 'a' && element.props.target === '_blank')).toHaveLength(0);
+    expect(trackMock.mock.calls.some(([event]) => String(event).startsWith('hotel_request_'))).toBe(false);
   });
 });
