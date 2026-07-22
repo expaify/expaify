@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { DealScore, HotelOffer } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
 import { buildHotelBookingHref } from '@/lib/booking/config'
 import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
+import { track } from '@/lib/analytics'
 import DealScorePanel from './DealScorePanel'
-import { getHotelLocationDisplay } from './hotelLocationContext'
+import { getHotelLocationAnalytics, getHotelLocationDisplay } from './hotelLocationContext'
+import { markHotelLocationInspected, toTrackProps } from './hotelLocationAnalytics'
 
 type Props = {
   hotel: HotelOffer
@@ -400,6 +402,8 @@ function ScoreChip({ score, loading }: { score: DealScore | null; loading: boole
 export default function HotelCard({ hotel, score = null, loading = false }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
   const location = getHotelLocationDisplay(hotel)
+  const locationAnalytics = getHotelLocationAnalytics(hotel.id, location)
+  const trackedImpression = useRef(false)
   const hasBookingUrl = isValidBookingUrl(hotel.deeplink)
   const hasValidPrice = isValidMoney(hotel.pricePerNight)
   const canBook = hasBookingUrl && hasValidPrice
@@ -421,6 +425,31 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
     ? `Provider link unavailable for ${hotel.name}. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
     : `Hotel price unavailable. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
   const detailsId = `hotel-details-${hotel.id}`
+
+  useEffect(() => {
+    if (trackedImpression.current) return
+    trackedImpression.current = true
+    track('hotel_location_impression', toTrackProps(locationAnalytics))
+  }, [locationAnalytics])
+
+  function toggleDetails() {
+    setIsExpanded(value => {
+      const willExpand = !value
+      if (willExpand) {
+        markHotelLocationInspected(hotel.id, 'details')
+        track('hotel_location_details_opened', toTrackProps(locationAnalytics))
+      }
+      return willExpand
+    })
+  }
+
+  function handlePinOpened() {
+    markHotelLocationInspected(hotel.id, 'pin')
+    track('hotel_location_pin_opened', {
+      ...toTrackProps(locationAnalytics),
+      mapTarget: 'external_coordinate_map',
+    })
+  }
 
   return (
     <article className="card overflow-hidden rounded-[var(--radius-card)]">
@@ -473,6 +502,9 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
                 {location.label}
               </p>
               <p className="break-words font-medium text-[color:var(--text-2)]">{location.value}</p>
+              {location.distanceText ? (
+                <p className="break-words font-medium text-[color:var(--text-1)]">{location.distanceText}</p>
+              ) : null}
             </div>
           </div>
 
@@ -513,7 +545,7 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
           type="button"
           aria-expanded={isExpanded}
           aria-controls={detailsId}
-          onClick={() => setIsExpanded(value => !value)}
+          onClick={toggleDetails}
           className="mt-3 flex min-h-10 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] text-sm font-bold text-[color:var(--text-1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
         >
           {isExpanded ? 'Hide details' : 'Details'}
@@ -560,12 +592,27 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
                 <span className="font-medium text-[color:var(--text-2)]">{location.label}: </span>
                 {location.value}
               </p>
+              {location.distanceText ? (
+                <>
+                  <p className="mt-2 break-words font-bold text-[color:var(--text-1)]">{location.distanceText}</p>
+                  <p className="mt-1 text-[color:var(--text-3)]">{location.distanceCaveat}</p>
+                </>
+              ) : null}
+              {location.mapUrl ? (
+                <a
+                  href={location.mapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`View property pin for ${hotel.name}. Opens map in a new tab.`}
+                  onClick={handlePinOpened}
+                  className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-bold text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] sm:w-auto"
+                >
+                  View property pin
+                </a>
+              ) : null}
               <p className={`mt-2 ${location.isWarning ? 'font-medium text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
                 {location.note}
               </p>
-              {location.distanceText ? (
-                <p className="mt-2 break-words text-[color:var(--text-2)]">{location.distanceText}</p>
-              ) : null}
             </div>
 
             <div className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[color:var(--text-2)]">

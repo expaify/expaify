@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext, type BookingHotelContext } from '@/lib/booking/config'
-import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
+import { getHotelLocationAnalytics, getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
+import { markHotelLocationInspected, toTrackProps, wasHotelLocationInspected } from '@/app/components/hotelLocationAnalytics'
+import { track } from '@/lib/analytics'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -158,6 +160,15 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
 
 function HotelSummary({ hotelContext }: { hotelContext: BookingHotelContext }) {
   const location = getHotelLocationDisplay(hotelContext)
+  const locationAnalytics = getHotelLocationAnalytics(hotelContext.offerId, location)
+
+  function handlePinOpened() {
+    markHotelLocationInspected(hotelContext.offerId, 'pin')
+    track('hotel_location_pin_opened', {
+      ...toTrackProps(locationAnalytics),
+      mapTarget: 'external_coordinate_map',
+    })
+  }
 
   return (
     <section aria-labelledby="hotel-review-title" className={`${panelCls} p-4 sm:p-6`}>
@@ -170,6 +181,24 @@ function HotelSummary({ hotelContext }: { hotelContext: BookingHotelContext }) {
           <p className="mt-2 break-words text-sm font-medium leading-6 text-[color:var(--text-2)]">
             {location.label}: {location.value}
           </p>
+          {location.distanceText ? (
+            <>
+              <p className="mt-2 break-words text-sm font-bold leading-6 text-[color:var(--text-1)]">{location.distanceText}</p>
+              <p className="mt-1 text-xs leading-5 text-[color:var(--text-3)]">{location.distanceCaveat}</p>
+            </>
+          ) : null}
+          {location.mapUrl ? (
+            <a
+              href={location.mapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`View property pin for ${hotelContext.name}. Opens map in a new tab.`}
+              onClick={handlePinOpened}
+              className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-bold text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] sm:w-auto"
+            >
+              View property pin
+            </a>
+          ) : null}
           <p className={`mt-1 text-xs leading-5 ${location.isWarning ? 'font-medium text-[color:var(--warning)]' : 'font-medium text-[color:var(--text-3)]'}`}>
             {location.note}
           </p>
@@ -183,7 +212,7 @@ function HotelSummary({ hotelContext }: { hotelContext: BookingHotelContext }) {
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <FareFact label="Hotel" value={hotelContext.name} />
         <FareFact label="Location" value={location.value} />
-        <FareFact label="Location precision" value={location.label} />
+        <FareFact label="Location evidence" value={location.label} />
         <FareFact label="Provider" value={getProviderLabel(hotelContext.provider, false)} />
         <FareFact label="Price basis" value={getHotelPriceBasisLabel(hotelContext.priceBasis)} />
         <FareFact label="Currency" value={hotelContext.currency} />
@@ -479,6 +508,27 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
 }
 
 function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: BookingHotelContext; duffelSandbox: boolean }) {
+  const location = getHotelLocationDisplay(hotelContext)
+  const locationAnalytics = getHotelLocationAnalytics(hotelContext.offerId, location)
+  const trackedReview = useRef(false)
+
+  useEffect(() => {
+    if (trackedReview.current || !wasHotelLocationInspected(hotelContext.offerId)) return
+    trackedReview.current = true
+    track('hotel_review_opened_after_location', {
+      ...toTrackProps(locationAnalytics),
+      sameProperty: true,
+    })
+  }, [hotelContext.offerId, locationAnalytics])
+
+  function handleProviderHandoff() {
+    if (!wasHotelLocationInspected(hotelContext.offerId)) return
+    track('hotel_provider_handoff_after_location', {
+      ...toTrackProps(locationAnalytics),
+      sameProperty: true,
+    })
+  }
+
   return (
     <ReviewShell
       eyebrow="Hotel handoff"
@@ -507,6 +557,7 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
             href={hotelContext.providerUrl}
             target="_blank"
             rel="noopener noreferrer sponsored"
+            onClick={handleProviderHandoff}
             aria-label={`Continue to provider for ${hotelContext.name}. Selected nightly rate ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. Opens provider site in a new tab. ${hotelTermsCopy}`}
             className="btn-primary"
           >

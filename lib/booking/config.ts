@@ -375,11 +375,8 @@ export function buildHotelBookingHref(hotel: HotelOffer): string {
   if (hotel.location?.address) params.set('locationAddress', hotel.location.address);
   if (typeof hotel.location?.lat === 'number') params.set('locationLat', String(hotel.location.lat));
   if (typeof hotel.location?.lng === 'number') params.set('locationLng', String(hotel.location.lng));
-  if (hotel.location?.distance) {
-    params.set('locationDistanceValue', String(hotel.location.distance.value));
-    params.set('locationDistanceUnit', hotel.location.distance.unit);
-    params.set('locationDistanceReferencePoint', hotel.location.distance.referencePoint);
-  }
+  // The current distance shape does not carry anchor provenance or measurement
+  // method. Do not persist an unverified comparison into booking review.
   if (hotel.location?.providerLocationName) params.set('locationProviderName', hotel.location.providerLocationName);
 
   return `/book?${params.toString()}`;

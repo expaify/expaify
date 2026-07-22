@@ -138,10 +138,10 @@ describe('BookingFlow fare context review', () => {
 
     expect(text).toContain('Review selected hotel');
     expect(text).toContain('The Example Hotel');
-    expect(text).toContain('Area');
+    expect(text).toContain('Area only');
     expect(text).toContain('Midtown');
-    expect(text).toContain('Provider supplied an area, not a street address.');
-    expect(text).toContain('Location precision');
+    expect(text).toContain('Provider supplied an area, not a property address or map pin.');
+    expect(text).toContain('Location evidence');
     expect(text).toContain('hotellook');
     expect(text).toContain('$189.00');
     expect(text).toContain('USD');
@@ -150,6 +150,30 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Continue to provider');
     expect(text).not.toContain('Traveler details');
     expect(text).not.toContain('Confirm booking');
+  });
+
+  it('preserves an inspectable provider pin in hotel review without rendering a legacy distance', () => {
+    const text = collectText(BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: true,
+      fareContext: null,
+      hotelContext: {
+        ...hotelContext,
+        location: {
+          precision: 'coordinates',
+          lat: 40.7484,
+          lng: -73.9857,
+          providerLocationName: 'Midtown',
+          distance: { value: 0.3, unit: 'mi', referencePoint: 'city center' },
+        },
+      },
+    }));
+
+    expect(text).toContain('Provider map pin');
+    expect(text).toContain('View property pin');
+    expect(text).not.toContain('city center');
+    expect(text).not.toContain('0.3 mi');
+    expect(text).toContain('Continue to provider');
   });
 
   it('shows a recoverable hotel-specific error for malformed hotel handoff links', () => {

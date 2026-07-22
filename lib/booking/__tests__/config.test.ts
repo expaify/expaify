@@ -164,9 +164,9 @@ describe('booking hotel context continuity', () => {
     expect(url.searchParams.get('locationAddress')).toBe('350 5th Ave, New York, NY');
     expect(url.searchParams.get('locationLat')).toBe('40.7484');
     expect(url.searchParams.get('locationLng')).toBe('-73.9857');
-    expect(url.searchParams.get('locationDistanceValue')).toBe('0.3');
-    expect(url.searchParams.get('locationDistanceUnit')).toBe('mi');
-    expect(url.searchParams.get('locationDistanceReferencePoint')).toBe('Times Square');
+    expect(url.searchParams.has('locationDistanceValue')).toBe(false);
+    expect(url.searchParams.has('locationDistanceUnit')).toBe(false);
+    expect(url.searchParams.has('locationDistanceReferencePoint')).toBe(false);
     expect(url.searchParams.get('locationProviderName')).toBe('Midtown');
     expect(url.searchParams.get('priceCents')).toBe(String(hotel.pricePerNight.priceCents));
     expect(url.searchParams.get('currency')).toBe(hotel.pricePerNight.currency);

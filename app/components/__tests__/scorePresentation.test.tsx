@@ -8,6 +8,8 @@ jest.mock('react', () => {
 
   return {
     ...actual,
+    useEffect: jest.fn((effect: () => void) => effect()),
+    useRef: jest.fn(() => ({ current: false })),
     useState: jest.fn((initialValue: unknown) => [initialValue, jest.fn()]),
   }
 })
@@ -160,7 +162,7 @@ describe('Deal score presentation', () => {
     const text = collectText(HotelCard({ hotel, score, loading: false }))
 
     expect(text).toContain('Good')
-    expect(text).toContain('Area')
+    expect(text).toContain('Area only')
     expect(text).toContain('Midtown')
     expect(text).toContain('$189 USD')
     expect(text).toContain('per night before taxes and fees')
@@ -231,8 +233,27 @@ describe('Deal score presentation', () => {
     const text = collectText(HotelCard({ hotel, score: null, loading: false }))
 
     expect(text).toContain('Score unavailable')
-    expect(text).toContain('Area')
+    expect(text).toContain('Area only')
     expect(text).toContain('Details')
+  })
+
+  it('keeps pin inspection out of a collapsed coordinate-backed hotel card', () => {
+    const text = collectText(HotelCard({
+      hotel: {
+        ...hotel,
+        location: {
+          precision: 'coordinates',
+          lat: 40.7484,
+          lng: -73.9857,
+          providerLocationName: 'Midtown',
+        },
+      },
+      score: null,
+      loading: false,
+    }))
+
+    expect(text).toContain('Provider map pin')
+    expect(text).not.toContain('View property pin')
   })
 
   it('keeps invalid median money hidden in collapsed score state', () => {

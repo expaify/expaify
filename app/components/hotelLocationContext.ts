@@ -7,33 +7,72 @@ export type HotelLocationSource = {
   location?: HotelLocation
 }
 
+export type HotelLocationEvidenceState =
+  | 'address_pin'
+  | 'address_only'
+  | 'provider_pin'
+  | 'area_only'
+  | 'search_area_only'
+  | 'unavailable'
+
+export type HotelLocationAnalytics = {
+  hotelId: string
+  evidenceState: HotelLocationEvidenceState
+  anchorKind: 'none'
+  anchorId: 'none'
+  hasDistance: false
+  distanceBucket: 'none'
+}
+
 export type HotelLocationDisplay = {
+  evidenceState: HotelLocationEvidenceState
   label: string
   value: string
   note: string
   precision: HotelLocationPrecision
   isWarning: boolean
+  mapUrl?: string
   distanceText?: string
+  distanceCaveat?: string
 }
 
 function clean(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function completeDistance(location: HotelLocation | undefined): string | undefined {
-  const distance = location?.distance
-  if (
-    !distance ||
-    typeof distance.value !== 'number' ||
-    !Number.isFinite(distance.value) ||
-    distance.value < 0 ||
-    (distance.unit !== 'mi' && distance.unit !== 'km') ||
-    !clean(distance.referencePoint)
-  ) {
+function hasValidCoordinates(location: HotelLocation | undefined): location is HotelLocation & { lat: number; lng: number } {
+  return typeof location?.lat === 'number'
+    && Number.isFinite(location.lat)
+    && location.lat >= -90
+    && location.lat <= 90
+    && typeof location.lng === 'number'
+    && Number.isFinite(location.lng)
+    && location.lng >= -180
+    && location.lng <= 180
+}
+
+function buildCoordinateMapUrl(location: HotelLocation | undefined): string | undefined {
+  if (!hasValidCoordinates(location)) return undefined
+
+  try {
+    const url = new URL('https://www.google.com/maps/search/')
+    url.searchParams.set('api', '1')
+    url.searchParams.set('query', `${location.lat},${location.lng}`)
+    return url.protocol === 'https:' && url.hostname === 'www.google.com' ? url.toString() : undefined
+  } catch {
     return undefined
   }
+}
 
-  return `${distance.value} ${distance.unit} from ${clean(distance.referencePoint)}`
+export function getHotelLocationAnalytics(hotelId: string, display: HotelLocationDisplay): HotelLocationAnalytics {
+  return {
+    hotelId,
+    evidenceState: display.evidenceState,
+    anchorKind: 'none',
+    anchorId: 'none',
+    hasDistance: false,
+    distanceBucket: 'none',
+  }
 }
 
 export function getHotelLocationDisplay(source: HotelLocationSource): HotelLocationDisplay {
@@ -42,56 +81,75 @@ export function getHotelLocationDisplay(source: HotelLocationSource): HotelLocat
   const providerLocationName = clean(location?.providerLocationName)
   const locationLabel = clean(location?.label)
   const address = clean(location?.address)
-  const distanceText = completeDistance(location)
+  const mapUrl = buildCoordinateMapUrl(location)
 
-  if (location?.precision === 'exact') {
+  // The legacy distance has no anchor kind, provenance, coordinates, source, or
+  // measurement method. It is deliberately suppressed until DEV supplies the
+  // provenance-bearing contract required by the design specification.
+
+  if (address && mapUrl) {
     return {
-      label: 'Exact location',
-      value: address || locationLabel || providerLocationName || area || 'Confirm with provider',
-      note: 'Provider-supplied address. Confirm final address before payment.',
-      precision: 'exact',
+      evidenceState: 'address_pin',
+      label: 'Address',
+      value: address,
+      note: 'Provider-supplied address and map pin. Confirm the entrance and final address before payment.',
+      precision: location?.precision ?? 'exact',
       isWarning: false,
-      distanceText,
+      mapUrl,
     }
   }
 
-  if (location?.precision === 'coordinates') {
+  if (address) {
     return {
-      label: 'Map position',
-      value: providerLocationName || locationLabel || area || 'Confirm with provider',
-      note: 'Provider-supplied map position. Confirm final address before payment.',
+      evidenceState: 'address_only',
+      label: 'Address',
+      value: address,
+      note: 'Provider-supplied address. A property map pin is not available.',
+      precision: location?.precision ?? 'exact',
+      isWarning: false,
+    }
+  }
+
+  if (mapUrl) {
+    return {
+      evidenceState: 'provider_pin',
+      label: 'Provider map pin',
+      value: providerLocationName || (location?.precision === 'search_area' ? '' : locationLabel) || area || 'Map position provided',
+      note: 'Provider-supplied map pin. Confirm the entrance and final address before payment.',
       precision: 'coordinates',
       isWarning: false,
-      distanceText,
+      mapUrl,
     }
   }
 
-  if (location?.precision === 'area' || area) {
+  const providerArea = providerLocationName || (location?.precision === 'search_area' ? '' : locationLabel) || area
+  if (providerArea && location?.precision !== 'search_area') {
     return {
-      label: 'Area',
-      value: providerLocationName || locationLabel || area || 'Confirm with provider',
-      note: 'Provider supplied an area, not a street address.',
+      evidenceState: 'area_only',
+      label: 'Area only',
+      value: providerArea,
+      note: 'Provider supplied an area, not a property address or map pin.',
       precision: 'area',
       isWarning: false,
-      distanceText,
     }
   }
 
   if (location?.precision === 'search_area') {
     return {
-      label: 'Search area',
-      value: locationLabel || providerLocationName || 'Confirm with provider',
-      note: 'Only the searched destination is available. Confirm location with the provider.',
+      evidenceState: 'search_area_only',
+      label: 'Search area only',
+      value: locationLabel || providerLocationName || area || 'Confirm location with provider',
+      note: 'Only the searched destination is available. Confirm the property location with the provider.',
       precision: 'search_area',
       isWarning: true,
-      distanceText,
     }
   }
 
   return {
+    evidenceState: 'unavailable',
     label: 'Location unavailable',
-    value: 'Confirm with provider',
-    note: 'No provider location details were returned.',
+    value: 'Confirm location with provider',
+    note: 'No property location details were returned. Confirm the location with the provider.',
     precision: 'missing',
     isWarning: true,
   }
