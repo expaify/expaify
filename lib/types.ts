@@ -148,6 +148,54 @@ export interface HotelAmenityEvidence {
 
 export type HotelAccessEvidenceState = 'loading' | 'ready' | 'error';
 
+export type HotelRateRestrictionFamily = 'membership' | 'residency' | 'age' | 'refundability';
+export type HotelRateEligibilityFamilyState = 'restricted' | 'clear' | 'not_provided';
+export type HotelRateEligibilityLoadStatus = 'ready' | 'loading' | 'error';
+
+export interface HotelRateEligibilityProvenance {
+  supplier: string;
+  fetchedAt: string;
+}
+
+export type HotelMembershipEligibility =
+  | { state: 'restricted'; membershipLabel?: string; provenance: HotelRateEligibilityProvenance }
+  | { state: 'clear'; provenance: HotelRateEligibilityProvenance }
+  | { state: 'not_provided' };
+
+export type HotelResidencyEligibility =
+  | { state: 'restricted'; placeLabel: string; provenance: HotelRateEligibilityProvenance }
+  | { state: 'clear'; provenance: HotelRateEligibilityProvenance }
+  | { state: 'not_provided' };
+
+export type HotelAgeEligibility =
+  | { state: 'restricted'; minAge?: number; maxAge?: number; provenance: HotelRateEligibilityProvenance }
+  | { state: 'clear'; provenance: HotelRateEligibilityProvenance }
+  | { state: 'not_provided' };
+
+export type HotelRefundabilityEligibility =
+  | { state: 'restricted'; provenance: HotelRateEligibilityProvenance }
+  | { state: 'clear'; provenance: HotelRateEligibilityProvenance }
+  | { state: 'not_provided' };
+
+export interface HotelRateEligibilityEvidence {
+  offerId: string;
+  supplier: string;
+  supplierLabel: string;
+  fetchedAt?: string;
+  loadStatus: HotelRateEligibilityLoadStatus;
+  membership: HotelMembershipEligibility;
+  residency: HotelResidencyEligibility;
+  age: HotelAgeEligibility;
+  refundability: HotelRefundabilityEligibility;
+}
+
+export interface HotelRateEligibilityCapabilities {
+  membership: { restricted: boolean; clear: boolean };
+  residency: { restricted: boolean; clear: boolean };
+  age: { restricted: boolean; clear: boolean };
+  refundability: { restricted: boolean; clear: boolean };
+}
+
 export type HotelLocationPrecision = 'exact' | 'coordinates' | 'area' | 'search_area' | 'missing';
 
 export type HotelLocationEvidenceSource = 'provider' | 'search_fallback' | 'unavailable';
@@ -203,6 +251,7 @@ export interface HotelOffer {
   guestRating?: HotelRatingEvidence;
   amenityEvidence?: HotelAmenityEvidence[];
   accessEvidenceState?: HotelAccessEvidenceState;
+  rateEligibility?: HotelRateEligibilityEvidence;
 }
 
 export type NormalizedHotelOffer = HotelOffer;

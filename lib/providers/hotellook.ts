@@ -1,11 +1,19 @@
-import { HotelProvider, HotelLocation, HotelOffer, HotelRatingEvidence, HotelSearchContext, Result } from '../types';
+import { HotelProvider, HotelLocation, HotelOffer, HotelRateEligibilityCapabilities, HotelRatingEvidence, HotelSearchContext, Result } from '../types';
 import { cache } from '../cache/redis';
 import { fetchWithProviderTimeout } from './timeout';
 import { normalizeHotelAmenityEvidence } from './hotelAmenityEvidence';
 import { withCalculatedAnchorDistance } from '../hotels/locationEvidence';
+import { normalizeHotelRateEligibility, unknownHotelRateEligibility } from '../hotels/rateEligibility';
 
 const ENGINE_BASE = 'https://engine.hotellook.com/api/v2/cache.json';
 const CACHE_TTL = 21600; // 6 hours
+
+export const HOTELLOOK_RATE_ELIGIBILITY_CAPABILITIES: HotelRateEligibilityCapabilities = {
+  membership: { restricted: false, clear: false },
+  residency: { restricted: false, clear: false },
+  age: { restricted: false, clear: false },
+  refundability: { restricted: false, clear: false },
+};
 
 // ─── API response shapes ──────────────────────────────────────────────────────
 
@@ -370,6 +378,11 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     });
   const access = normalizeHotelAmenityEvidence(value.amenityEvidence, sourceLabel(value.source));
   const accessEvidenceState = value.accessEvidenceState === 'error' ? 'error' : access.state;
+  const rateEligibility = normalizeHotelRateEligibility(value.rateEligibility, {
+    offerId: value.id,
+    supplier: value.source,
+    supplierLabel: sourceLabel(value.source),
+  });
 
   return {
     id: value.id,
@@ -389,6 +402,7 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     guestRating,
     amenityEvidence: access.evidence,
     accessEvidenceState,
+    rateEligibility,
   };
 }
 
@@ -498,6 +512,11 @@ export class HotellookProvider implements HotelProvider {
           }),
           amenityEvidence: access.evidence,
           accessEvidenceState: access.state,
+          rateEligibility: unknownHotelRateEligibility(
+            String(entry.hotelId),
+            'hotellook',
+            'Hotellook',
+          ),
         };
       });
 

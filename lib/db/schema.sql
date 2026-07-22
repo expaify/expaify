@@ -68,6 +68,17 @@ CREATE TABLE IF NOT EXISTS searched_routes (
 );
 CREATE INDEX IF NOT EXISTS idx_searched_routes_count ON searched_routes(search_count DESC);
 
+-- First-party, non-PII product analytics sink. Event-specific callers are
+-- responsible for sending only coarse identifiers and enumerated properties.
+CREATE TABLE IF NOT EXISTS analytics_events (
+  id BIGSERIAL PRIMARY KEY,
+  event_name TEXT NOT NULL,
+  properties JSONB NOT NULL DEFAULT '{}',
+  received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_name_received
+  ON analytics_events (event_name, received_at DESC);
+
 -- ── Agent 3: Price Pipeline ───────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS tracked_markets (

@@ -5,12 +5,14 @@ import type {
   HotelLocationEvidenceSource,
   HotelLocationPrecision,
   HotelOffer,
+  HotelRateEligibilityEvidence,
   NormalizedFare,
 } from '../types';
 import {
   hasValidCoordinates,
   hasVerifiedHotelLocationComparison,
 } from '../hotels/locationEvidence';
+import { normalizeHotelRateEligibility } from '../hotels/rateEligibility';
 
 export type BookingFareContext = {
   offerId: string;
@@ -38,6 +40,7 @@ export type BookingHotelContext = {
   currency: string;
   priceBasis: 'per_night_before_taxes_fees';
   providerUrl: string;
+  rateEligibility: HotelRateEligibilityEvidence;
 };
 
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
@@ -120,6 +123,16 @@ function parseOptionalNumber(value: unknown): number | undefined | null {
 
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseOptionalJson(value: unknown): unknown {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value !== 'string' || value.length > 4_096) return undefined;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return undefined;
+  }
 }
 
 function isAirportCode(value: string): boolean {
@@ -412,6 +425,10 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     currency,
     priceBasis,
     providerUrl,
+    rateEligibility: normalizeHotelRateEligibility(
+      typeof input.rateEligibility === 'string' ? parseOptionalJson(input.rateEligibility) : input.rateEligibility,
+      { offerId, supplier: provider, supplierLabel: provider },
+    ),
   };
 }
 
@@ -444,6 +461,7 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     currency: firstParam(params.currency),
     priceBasis: firstParam(params.priceBasis),
     providerUrl: firstParam(params.providerUrl),
+    rateEligibility: firstParam(params.rateEligibility),
   });
 }
 
@@ -502,6 +520,7 @@ export function buildHotelBookingHref(hotel: HotelOffer): string {
     params.set('locationDistanceSource', hotel.location.distance.source);
   }
   if (hotel.location?.providerLocationName) params.set('locationProviderName', hotel.location.providerLocationName);
+  if (hotel.rateEligibility) params.set('rateEligibility', JSON.stringify(hotel.rateEligibility));
 
   return `/book?${params.toString()}`;
 }

@@ -11,8 +11,8 @@ import { PropertyPhoto } from './ui/PropertyPhoto'
 import {
   getRateRestrictionsAccessibleSummary,
   HotelCardEligibilityLine,
-  RATE_ELIGIBILITY_NOT_PROVIDED,
 } from './HotelRateRestrictions'
+import { normalizeHotelRateEligibility, presentHotelRateEligibility } from '@/lib/hotels/rateEligibility'
 
 type Props = {
   hotel: HotelOffer
@@ -730,11 +730,17 @@ export default function HotelCard({
   const bookingHref = canBook ? buildHotelBookingHref(hotel) : ''
   const formattedPrice = hasValidPrice ? formatMoney(hotel.pricePerNight) : ''
   const providerName = providerDisplayName(hotel.source)
+  const rateEligibility = normalizeHotelRateEligibility(hotel.rateEligibility, {
+    offerId: hotel.id,
+    supplier: hotel.source,
+    supplierLabel: providerName,
+  })
+  const rateEligibilityPresentation = presentHotelRateEligibility(rateEligibility)
   const hasHotelProviderName = hasProviderName(hotel.source)
   const rateCheckCopy = `Rate from ${providerName}. Last-checked time unavailable.`
   const providerConfirmationCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
   const reviewDisclosure = providerConfirmationCopy
-  const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(RATE_ELIGIBILITY_NOT_PROVIDED, providerName, 'card')
+  const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(rateEligibilityPresentation, rateEligibility.supplierLabel, 'card')
   const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy}`
   const unavailableAriaLabel = hasValidPrice
     ? `Provider link unavailable for ${hotel.name}. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
@@ -824,7 +830,7 @@ export default function HotelCard({
           )}
         </div>
 
-        <HotelCardEligibilityLine eligibility={RATE_ELIGIBILITY_NOT_PROVIDED} />
+        <HotelCardEligibilityLine eligibility={rateEligibilityPresentation} />
 
         <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <div className="min-w-0">
