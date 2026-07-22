@@ -113,7 +113,7 @@ const hotel: HotelOffer = {
   stars: 4,
   pricePerNight: { priceCents: 18900, currency: 'USD' },
   rating: 8.7,
-  deeplink: 'https://example.com/hotel?affiliate_id=test-marker',
+  deeplink: 'https://www.booking.com/hotel/example?aid=test-marker',
   source: 'hotellook',
 }
 

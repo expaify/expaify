@@ -181,10 +181,32 @@ function isCurrencyCode(value: string): boolean {
 export function isValidatedAffiliateProviderUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    if (url.protocol !== 'https:' || !url.hostname) return false;
+    if (url.protocol !== 'https:' || url.username || url.password || url.port) return false;
 
-    return ['marker', 'aid', 'affcid', 'affilid', 'affiliate_id', 'aff_id']
-      .some((key) => Boolean(url.searchParams.get(key)?.trim()));
+    const hostname = url.hostname.toLowerCase();
+    const hasAttribution = (key: string) => Boolean(url.searchParams.get(key)?.trim());
+    const isHost = (domain: string) => hostname === domain || hostname.endsWith(`.${domain}`);
+
+    if (isHost('booking.com')) return hasAttribution('aid');
+    if (isHost('expedia.com')) return hasAttribution('affcid');
+    if (isHost('kiwi.com')) return hasAttribution('affilid');
+
+    if (hostname === 'tp.media' && url.pathname === '/r' && hasAttribution('marker')) {
+      const destination = url.searchParams.get('u');
+      if (!destination) return false;
+
+      try {
+        const nested = new URL(destination);
+        if (nested.protocol !== 'https:' || nested.username || nested.password || nested.port) return false;
+        const nestedHost = nested.hostname.toLowerCase();
+        return nestedHost === 'hotellook.com' || nestedHost.endsWith('.hotellook.com') ||
+          nestedHost === 'trip.com' || nestedHost.endsWith('.trip.com');
+      } catch {
+        return false;
+      }
+    }
+
+    return false;
   } catch {
     return false;
   }

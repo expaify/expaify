@@ -230,7 +230,7 @@ describe('booking hotel context continuity', () => {
       priceCents: '18900',
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
-      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
       entrySource: 'direct',
       returnUrl: '/',
     });
@@ -261,7 +261,7 @@ describe('booking hotel context continuity', () => {
       priceCents: 18900,
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
-      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
       entrySource: 'direct',
       returnUrl: '/',
     });
@@ -276,7 +276,7 @@ describe('booking hotel context continuity', () => {
       priceCents: 18900,
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
-      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
     } as const;
 
     expect(validateBookingHotelContext({ ...baseContext, priceCents: 189.99 })).toBeNull();
@@ -298,7 +298,7 @@ describe('booking hotel context continuity', () => {
       priceCents: 18900,
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
-      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
     } as const;
 
     const invalidCoordinates = validateBookingHotelContext({
@@ -398,20 +398,23 @@ describe('booking hotel context continuity', () => {
     const baseContext = {
       kind: 'hotel', offerId: 'hotel_123', provider: 'hotellook', name: 'The Example Hotel',
       priceCents: 18900, currency: 'USD', priceBasis: 'per_night_before_taxes_fees',
-      providerUrl: 'https://tp.media/r?marker=hotel-marker', entrySource: 'hotel_results', returnUrl: '/',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123', entrySource: 'hotel_results', returnUrl: '/',
     } as const;
 
     expect(validateBookingHotelContext({ ...baseContext, checkIn: '2026-08-12', checkOut: '2026-08-15', nightCount: 2 })).toBeNull();
     expect(validateBookingHotelContext({ ...baseContext, guestRatingKind: 'guest_review', guestRatingConfidence: 'verified', guestRatingValue: 11, guestRatingScaleMax: 10 })).toBeNull();
     expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'https://booking.com/hotel/example' })).toBeNull();
     expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'http://booking.com/hotel/example?aid=123' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'https://evil.example/hotel?aid=123' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'https://booking.com.evil.example/hotel?aid=123' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fevil.example%2Fhotel' })).toBeNull();
   });
 
   it('falls back from external or privileged return destinations to the source-safe route', () => {
     const baseContext = {
       kind: 'hotel', offerId: 'hotel_123', provider: 'hotellook', name: 'The Example Hotel',
       priceCents: 18900, currency: 'USD', priceBasis: 'per_night_before_taxes_fees',
-      providerUrl: 'https://tp.media/r?marker=hotel-marker', entrySource: 'saved_deals',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123', entrySource: 'saved_deals',
     } as const;
 
     expect(validateBookingHotelContext({ ...baseContext, returnUrl: 'https://evil.example/steal' })?.returnUrl).toBe('/deals');

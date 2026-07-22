@@ -93,7 +93,7 @@ const hotelContext: BookingHotelContext = {
   priceCents: 18900,
   currency: 'USD',
   priceBasis: 'per_night_before_taxes_fees',
-  providerUrl: 'https://tp.media/r?marker=hotel-marker',
+  providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
   entrySource: 'hotel_results',
   returnUrl: '/?destination=NYC',
 };
