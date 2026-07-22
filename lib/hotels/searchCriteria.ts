@@ -137,13 +137,14 @@ export function resolveHotelSearchCriteria(source: SearchParamSource): HotelCrit
   const hasReference = hasSearchParam(source, 'criteriaVersion') || hasSearchParam(source, 'criteriaSchema')
   if (!hasReference) return { status: 'missing' }
 
-  if (source instanceof URLSearchParams) {
-    const singletonKeys = [
-      'criteriaSchema', 'criteriaVersion', 'criteriaSource', 'city',
-      'date_from', 'date_to', 'occupancy', 'adults', 'rooms', 'market_id', 'criteriaReturn',
-    ]
-    if (singletonKeys.some(key => source.getAll(key).length > 1)) return { status: 'invalid' }
-  }
+  const singletonKeys = [
+    'criteriaSchema', 'criteriaVersion', 'criteriaSource', 'city',
+    'date_from', 'date_to', 'occupancy', 'adults', 'rooms', 'market_id', 'criteriaReturn',
+  ]
+  const hasAmbiguousValue = source instanceof URLSearchParams
+    ? singletonKeys.some(key => source.getAll(key).length > 1)
+    : singletonKeys.some(key => Array.isArray(source[key]))
+  if (hasAmbiguousValue) return { status: 'invalid' }
 
   const schema = readSearchParam(source, 'criteriaSchema')
   const criteriaVersion = readSearchParam(source, 'criteriaVersion')
