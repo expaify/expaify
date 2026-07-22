@@ -46,10 +46,10 @@ function addNights(dateStr: string, nights: number): string {
 function Fact({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <div>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">{label}</p>
-      <p className={`mt-0.5 text-[13px] font-medium leading-5 ${muted ? 'text-[color:var(--text-3)]' : 'text-[color:var(--text-1)]'}`}>
+      <dt className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">{label}</dt>
+      <dd className={`mt-0.5 text-[13px] font-medium leading-5 ${muted ? 'text-[color:var(--text-3)]' : 'text-[color:var(--text-1)]'}`}>
         {value}
-      </p>
+      </dd>
     </div>
   )
 }
