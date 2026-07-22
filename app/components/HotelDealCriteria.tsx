@@ -1,14 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CompareRow } from '@/app/components/ui/CompareRow'
+import { CompareRow, eligibleHotelProviderLinks } from '@/app/components/ui/CompareRow'
+import { track } from '@/lib/analytics'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import {
   buildHotelResultsUrl,
   createHotelCriteriaVersion,
   hotelCriteriaContextStatus,
   hotelCriteriaFromDraft,
+  hotelCriteriaToDraft,
+  resultCountBucket,
   type HotelCriteriaContextStatus,
   type HotelCriteriaDraft,
   type HotelSearchCriteriaV1,
@@ -34,25 +37,45 @@ export function HotelDealCriteriaSummary({ context, deal }: {
   const [editorOpen, setEditorOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [updateFailed, setUpdateFailed] = useState(false)
+  const [failedDraft, setFailedDraft] = useState<HotelCriteriaDraft | null>(null)
+  const failedVersionRef = useRef<string | null>(null)
+  const retryRef = useRef<HTMLButtonElement>(null)
   const criteria = context.criteria
   const status = criteria ? hotelCriteriaContextStatus(criteria, deal) : context.status
 
-  async function apply(draft: HotelCriteriaDraft) {
+  async function apply(draft: HotelCriteriaDraft, retryVersion?: string) {
     if (!criteria || submitting) return
     setSubmitting(true)
     setUpdateFailed(false)
-    const next = hotelCriteriaFromDraft(draft, createHotelCriteriaVersion(), 'edit')
+    const next = hotelCriteriaFromDraft(draft, retryVersion ?? createHotelCriteriaVersion(), 'edit')
     const href = buildHotelResultsUrl(next)
     try {
       const response = await fetch(`/api/deals?${href.split('?')[1]}&limit=1`, { headers: { accept: 'application/json' } })
       if (!response.ok) throw new Error('request failed')
-      const payload = await response.json() as { criteriaVersion?: string }
+      const payload = await response.json() as { criteriaVersion?: string; deals?: unknown[]; total?: number }
       if (payload.criteriaVersion !== next.criteriaVersion) throw new Error('criteria version mismatch')
+      const previousDraft = hotelCriteriaToDraft(criteria)
+      const changedFields = [
+        previousDraft.city !== draft.city ? 'destination' : null,
+        previousDraft.dateFrom !== draft.dateFrom ? 'date_from' : null,
+        previousDraft.dateTo !== draft.dateTo ? 'date_to' : null,
+      ].filter((field): field is string => field !== null).sort().join(',')
+      track('hotel_criteria_edit_applied', {
+        changed_fields: changedFields,
+        previous_version: criteria.criteriaVersion,
+        criteria_version: next.criteriaVersion,
+        result_count_bucket: resultCountBucket(payload.total ?? payload.deals?.length ?? 0),
+      })
+      setFailedDraft(null)
+      failedVersionRef.current = null
       router.push(href)
     } catch {
       setSubmitting(false)
       setEditorOpen(false)
+      setFailedDraft(draft)
+      failedVersionRef.current = next.criteriaVersion
       setUpdateFailed(true)
+      window.requestAnimationFrame(() => retryRef.current?.focus())
     }
   }
 
@@ -70,7 +93,10 @@ export function HotelDealCriteriaSummary({ context, deal }: {
         <div role="alert" className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--error)] bg-[color:var(--error-soft)] p-4">
           <p className="text-sm font-bold">We couldn&apos;t update these results.</p>
           <p className="mt-1 text-[13px]">This deal and your previous search are still showing.</p>
-          <button type="button" onClick={() => setEditorOpen(true)} className="btn btn-outline mt-3 min-h-11 px-4">Edit search</button>
+          <div className="mt-3 flex flex-col gap-2 min-[420px]:flex-row">
+            <button ref={retryRef} type="button" onClick={() => failedDraft && void apply(failedDraft, failedVersionRef.current ?? undefined)} className="btn btn-primary min-h-11 px-4">Retry update</button>
+            <button type="button" onClick={() => setEditorOpen(true)} className="btn btn-outline min-h-11 px-4">Edit search</button>
+          </div>
         </div>
       ) : null}
       <HotelSearchCriteriaEditor
@@ -80,6 +106,7 @@ export function HotelDealCriteriaSummary({ context, deal }: {
         surface="detail"
         entryPoint={status === 'mismatch' ? 'mismatch' : 'summary'}
         submitting={submitting}
+        initialDraft={updateFailed ? failedDraft ?? undefined : undefined}
         onClose={() => setEditorOpen(false)}
         onSubmit={draft => void apply(draft)}
       />
@@ -103,14 +130,15 @@ export function HotelDealCriteriaHandoff({ context, deal, links }: {
     )
   }
 
-  const hasLinks = Object.values(links).some(Boolean)
+  const eligibleLinks = eligibleHotelProviderLinks(links)
+  const hasLinks = Object.values(eligibleLinks).some(Boolean)
   return (
     <div className="my-8">
       {criteria ? <HotelSearchCriteriaSummary criteria={criteria} surface="handoff" /> : <HotelCriteriaContextCard status={status === 'invalid' ? 'invalid' : 'missing'} handoff />}
       {hasLinks ? (
         <div className="mt-4">
           <CompareRow
-            links={links}
+            links={eligibleLinks}
             size="primary"
             handoffContext={{
               dealId: deal.id,
