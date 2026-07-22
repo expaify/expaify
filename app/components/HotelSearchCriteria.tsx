@@ -24,17 +24,16 @@ type SummaryProps = {
   className?: string
 }
 
-const viewed = new Set<string>()
-
 export function HotelSearchCriteriaSummary({ criteria, surface, status = 'ready', onEdit, className = '' }: SummaryProps) {
   const headingId = useId()
+  const viewedVersionsRef = useRef(new Set<string>())
   const destination = hotelCriteriaDestination(criteria)
   const dateDisplay = formatHotelCriteriaDates(criteria.dates)
 
   useEffect(() => {
     const key = `${surface}:${criteria.criteriaVersion}`
-    if (viewed.has(key)) return
-    viewed.add(key)
+    if (viewedVersionsRef.current.has(key)) return
+    viewedVersionsRef.current.add(key)
     track('hotel_criteria_summary_viewed', {
       surface,
       criteria_version: criteria.criteriaVersion,
@@ -57,14 +56,16 @@ export function HotelSearchCriteriaSummary({ criteria, surface, status = 'ready'
           <h2 id={headingId} className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--text-3)]">
             {handoff ? 'Before you continue' : 'Your search'}
           </h2>
-          <p className="mt-1 text-[15px] font-semibold leading-6 text-[color:var(--text-1)] sm:text-[16px]">
+          <p
+            aria-label={`${destination}. ${dateDisplay}.`}
+            className="mt-1 text-[15px] font-semibold leading-6 text-[color:var(--text-1)] sm:text-[16px]"
+          >
             {destination} <span aria-hidden="true">·</span> {dateDisplay}
           </p>
-          <p className="mt-1 text-[13px] font-semibold leading-5 text-[color:var(--text-1)]">Guests &amp; rooms not captured</p>
+          <p aria-label="Guests and rooms not captured." className="mt-1 text-[13px] font-semibold leading-5 text-[color:var(--text-1)]">Guests &amp; rooms not captured</p>
           <p className="mt-1 text-[12px] leading-5 text-[color:var(--text-2)]">
             Confirm the price and room fit for your party with the provider.
           </p>
-          <span className="sr-only">{destination}. {dateDisplay}. Guests and rooms not captured.</span>
           {status === 'updating' ? (
             <p role="status" aria-live="polite" className="mt-2 text-[12px] font-medium text-[color:var(--brand)]">Updating results…</p>
           ) : null}

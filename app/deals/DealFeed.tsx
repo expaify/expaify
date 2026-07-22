@@ -697,6 +697,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const hasActiveFilters = Boolean(hasCityFilter || minDiscount !== DEFAULT_MIN_DISCOUNT || maxPriceCents || minStars || dateFrom || dateTo)
   const hasSecondaryFilters = Boolean(minDiscount !== DEFAULT_MIN_DISCOUNT || maxPriceCents || minStars)
   const isColdSampleFeed = deals.length > 0 && deals.every(d => d.isMock)
+  const initialLoadError = !initialDeals && deals.length === 0
 
   // SearchBar can set a max price that is not one of the popover options.
   const maxPriceLabel = maxPriceCents
@@ -1224,8 +1225,12 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
             </div>
           ) : error ? (
             <section role="alert" className="mx-auto max-w-[640px] rounded-[var(--radius-card)] border border-[color:var(--error)] bg-[color:var(--error-soft)] px-5 py-8 text-left sm:px-8 sm:py-10">
-              <h3 ref={gridRef} tabIndex={-1} className="text-h3 text-[color:var(--text-1)] focus:outline-none">We couldn&apos;t update these deals</h3>
-              <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">We couldn&apos;t check this filter combination. Try the same filters again.</p>
+              <h3 ref={gridRef} tabIndex={-1} className="text-h3 text-[color:var(--text-1)] focus:outline-none">
+                {initialLoadError ? 'Couldn\'t load hotel deals.' : 'We couldn\'t update these deals'}
+              </h3>
+              <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">
+                {initialLoadError ? 'Check your connection and try again.' : 'We couldn\'t check this filter combination. Try the same filters again.'}
+              </p>
               <button
                 type="button"
                 disabled={pendingRecoveryKey === 'retry'}
