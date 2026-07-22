@@ -148,6 +148,62 @@ export interface HotelAmenityEvidence {
 
 export type HotelAccessEvidenceState = 'loading' | 'ready' | 'error';
 
+export type ParkingLocationKind = 'on_site' | 'nearby_off_site' | 'street' | 'unknown';
+
+export type ParkingSpaceState =
+  | 'confirmed_for_selected_stay'
+  | 'unavailable_for_selected_stay'
+  | 'not_returned'
+  | 'unknown';
+
+export type ParkingReservationRule =
+  | 'required'
+  | 'not_required'
+  | 'not_possible'
+  | 'available_on_request'
+  | 'first_come_first_served'
+  | 'unknown';
+
+export type ParkingOperator = 'hotel_operated' | 'third_party' | 'unknown';
+export type ParkingCostState = 'included' | 'paid' | 'unknown';
+export type ParkingCostBasis = 'per_night' | 'per_stay' | 'per_entry' | 'per_hour' | 'unknown';
+
+export interface HotelParkingOptionEvidence {
+  id: string;
+  facilityStatus: HotelEvidenceStatus;
+  facilityScope: 'property';
+  selectedStaySpace: ParkingSpaceState;
+  location: {
+    kind: ParkingLocationKind;
+    distance?: HotelLocationDistance;
+    address?: string;
+  };
+  cost: {
+    state: ParkingCostState;
+    amount?: Money;
+    basis: ParkingCostBasis;
+  };
+  reservation: ParkingReservationRule;
+  operator: ParkingOperator;
+  sourceLabel: string;
+  fetchedAt?: string;
+  confidence?: HotelAmenityConfidence;
+}
+
+export interface HotelParkingEvidence {
+  state: 'loading' | 'ready' | 'error';
+  options: HotelParkingOptionEvidence[];
+  evidenceRevision: string;
+  conflict: boolean;
+}
+
+export type HotelParkingConflictDimension =
+  | 'location'
+  | 'cost'
+  | 'reservation rule'
+  | 'operator'
+  | 'space for your stay';
+
 export type HotelLocationPrecision = 'exact' | 'coordinates' | 'area' | 'search_area' | 'missing';
 
 export type HotelLocationEvidenceSource = 'provider' | 'search_fallback' | 'unavailable';
