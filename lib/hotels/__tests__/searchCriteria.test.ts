@@ -63,6 +63,17 @@ describe('HotelSearchCriteriaV1', () => {
     expect(resolveHotelSearchCriteria(new URLSearchParams(query))).toEqual({ status: 'invalid' })
   })
 
+  it.each(['criteriaSource', 'city', 'date_from', 'date_to'])(
+    'rejects duplicate %s values from Next.js server search params',
+    key => {
+      expect(resolveHotelSearchCriteria({
+        criteriaSchema: '1',
+        criteriaVersion: '785d80de-8954-46c7-90f7-a4a04f719e5f',
+        [key]: ['Paris', 'Rome'],
+      })).toEqual({ status: 'invalid' })
+    },
+  )
+
   it('classifies destination and check-in matches without comparing checkout', () => {
     const criteria = hotelCriteriaFromDraft(
       { city: 'Paris', dateFrom: '2026-09-10', dateTo: '2026-09-13' },
