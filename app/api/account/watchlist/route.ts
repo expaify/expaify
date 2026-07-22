@@ -4,12 +4,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { query } from '@/lib/db/client'
 import { getSubscription, isPremium } from '@/lib/subscription'
+import { CITY_NAMES } from '@/lib/cities'
 
-const CITIES = new Set([
-  'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
-  'London', 'Tokyo', 'Bangkok', 'Dubai', 'Las Vegas', 'Orlando', 'San Juan',
-  'Tulum', 'Amsterdam', 'Athens', 'Punta Cana', 'Charlotte', 'Nashville',
-])
+const CITIES = new Set(CITY_NAMES)
 
 export async function PATCH(req: NextRequest) {
   const session = await auth()

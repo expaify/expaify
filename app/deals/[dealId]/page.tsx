@@ -14,6 +14,8 @@ import { ShareButton } from '@/app/components/ui/ShareButton'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { scoreDeal } from '@/lib/scoring/scoreDeal'
 import type { DealScore } from '@/lib/types'
+import { timeAgo } from '@/lib/timeAgo'
+import { DealStaleTracker } from './DealStaleTracker'
 
 type PageProps = { params: Promise<{ dealId: string }> }
 
@@ -31,17 +33,6 @@ function addNights(dateStr: string, nights: number): string {
   const d = new Date(dateStr)
   d.setDate(d.getDate() + nights)
   return fmtShort(d.toISOString())
-}
-
-function timeAgo(iso?: string | null): string {
-  if (!iso) return 'today'
-  const diff = Date.now() - new Date(iso).getTime()
-  const minutes = Math.floor(diff / 60000)
-  if (minutes < 60) return minutes <= 1 ? 'just now' : `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return days === 1 ? 'yesterday' : `${days}d ago`
 }
 
 function Fact({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
@@ -217,9 +208,16 @@ export default async function DealDetailPage({ params }: PageProps) {
 
   const now = Date.now()
   const isExpired = deal.expires_at ? new Date(deal.expires_at).getTime() < now : false
-  const isStale = !isExpired && deal.updated_at
-    ? (now - new Date(deal.updated_at).getTime()) > 6 * 3600 * 1000
-    : false
+  const HOURS = 3600 * 1000
+  const checkedAt = deal.updated_at ? new Date(deal.updated_at).getTime() : null
+  const hoursSinceCheck = checkedAt !== null && Number.isFinite(checkedAt) ? (now - checkedAt) / HOURS : null
+  const checkedAgo = timeAgo(deal.updated_at)
+  const freshness: 'fresh' | 'aging' | 'stale' | null =
+    isExpired || hoursSinceCheck === null || checkedAgo === null ? null
+      : hoursSinceCheck < 30 ? 'fresh'
+        : hoursSinceCheck < 48 ? 'aging'
+          : 'stale'
+  const foundAgo = timeAgo(deal.first_seen)
 
   const hasOtaLinks = Object.keys(deal.ota_links ?? {}).length > 0
 
@@ -245,11 +243,12 @@ export default async function DealDetailPage({ params }: PageProps) {
       <main className="mx-auto max-w-[760px] px-5 py-8">
 
         {/* Stale deal banner */}
-        {isStale && (
-          <div className="mb-4 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] px-4 py-3" role="status">
-            <p className="text-[13px] font-bold text-[color:var(--ink)]">Price may be stale</p>
+        {freshness === 'stale' && hoursSinceCheck !== null && (
+          <div className="mb-4 rounded-[var(--radius-card)] border border-[color:color-mix(in_srgb,var(--gold)_45%,transparent)] bg-[color:var(--warning-soft)] px-4 py-3" role="status">
+            <DealStaleTracker dealId={deal.id} hoursSinceCheck={hoursSinceCheck} />
+            <p className="text-[13px] font-bold text-[color:var(--ink)]">Price may be out of date</p>
             <p className="mt-0.5 text-[12px] leading-5 text-[color:var(--ink-soft)]">
-              This deal was last updated more than 6 hours ago. The provider confirms the current price and availability.
+              We haven&rsquo;t been able to re-verify this price since {fmtDate(deal.updated_at)}. Check the provider for the current price and availability.
             </p>
           </div>
         )}
@@ -276,9 +275,14 @@ export default async function DealDetailPage({ params }: PageProps) {
           <div className="absolute left-4 top-4">
             <DealChip discountPct={deal.discount_pct} />
           </div>
-          <span className="absolute right-4 top-4 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--bg)]">
-            found {timeAgo(deal.first_seen)}
-          </span>
+          {foundAgo !== null && (
+            <span
+              className="absolute right-4 top-4 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--bg)]"
+              title={fmtDate(deal.first_seen)}
+            >
+              found {foundAgo}
+            </span>
+          )}
         </div>
 
         {/* Title block */}
@@ -312,6 +316,16 @@ export default async function DealDetailPage({ params }: PageProps) {
           {showSavings && (
             <p className="mt-2 text-[13px] font-medium text-[color:var(--primary)]">
               Save {formatMoney({ priceCents: savings, currency: 'USD' })}/night vs the usual price
+            </p>
+          )}
+          {freshness === 'fresh' && checkedAgo !== null && (
+            <p className="mt-2 text-caption font-medium leading-5 text-[color:var(--ink-faint)]" title={fmtDate(deal.updated_at)}>
+              Price checked {checkedAgo}
+            </p>
+          )}
+          {freshness === 'aging' && checkedAgo !== null && (
+            <p className="mt-2 text-caption font-semibold leading-5 text-[color:var(--warning)]" title={fmtDate(deal.updated_at)}>
+              Price checked {checkedAgo} — verify with the provider
             </p>
           )}
           <p className="mt-2 text-caption font-medium leading-5 text-[color:var(--ink-soft)]">
@@ -379,10 +393,11 @@ export default async function DealDetailPage({ params }: PageProps) {
               </dd>
             </div>
           </dl>
-          <p className="mt-4 border-t border-[color:var(--line-ivory)] pt-3 text-caption text-[color:var(--ink-faint)]">
-            Updated {fmtDate(deal.updated_at)}
-            {!isExpired && deal.expires_at ? ` · Expires ${fmtDate(deal.expires_at)}` : ''}
-          </p>
+          {deal.expires_at && (
+            <p className="mt-4 border-t border-[color:var(--line-ivory)] pt-3 text-caption text-[color:var(--ink-faint)]">
+              Expires {fmtDate(deal.expires_at)}
+            </p>
+          )}
         </section>
 
         {/* Hotel continuity facts */}

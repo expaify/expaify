@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { DealCard } from '../components/ui/DealCard'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
 import { SearchBar } from '../components/ui/SearchBar'
@@ -675,9 +676,9 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
               </button>
 
               {defaultCity && (
-                <a href="/deals" className="mt-3 block text-[13px] font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]">
+                <Link href="/deals" className="mt-3 block text-[13px] font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]">
                   See all destinations
-                </a>
+                </Link>
               )}
             </div>
           ) : showColdEmpty ? (
@@ -701,7 +702,7 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
                       sample hotels and prices — they&rsquo;re not bookable.
                     </p>
                   </div>
-                  <div className={gridClass}>
+                  <div ref={gridRef} tabIndex={-1} className={gridClass}>
                     {deals.map(deal => (
                       <DealCard key={deal.id} deal={toCardDeal(deal)} />
                     ))}
@@ -721,6 +722,7 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
                       stars={deal.stars ?? 4}
                       photoUrl={deal.photoUrl ?? undefined}
                       joinHref="/join"
+                      updatedAt={deal.updatedAt}
                     />
                   ) : (
                     <DealCard

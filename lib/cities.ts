@@ -24,3 +24,5 @@ export const CITY_SLUGS: Record<string, string> = {
 export const CITY_DISPLAY_TO_SLUG: Record<string, string> = Object.fromEntries(
   Object.entries(CITY_SLUGS).map(([slug, name]) => [name, slug])
 )
+
+export const CITY_NAMES = Object.values(CITY_SLUGS)

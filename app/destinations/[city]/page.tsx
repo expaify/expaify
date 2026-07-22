@@ -1,11 +1,14 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { CITY_SLUGS } from '@/lib/cities'
+import { auth } from '@/auth'
+import { CITY_NAMES, CITY_SLUGS } from '@/lib/cities'
 import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DealFeed, type ApiDeal } from '@/app/deals/DealFeed'
 import { getPaywallContext, getFreeUnlockedDealIds } from '@/lib/paywall'
 import { query } from '@/lib/db/client'
+import { getSubscription, isPremium } from '@/lib/subscription'
+import { WatchCityCta, type CityEmptyTier } from './WatchCityCta'
 
 function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
   if (locked) {
@@ -16,7 +19,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
       discountPct: row.discount_pct, checkInWindow: row.check_in_window,
       nights: row.nights, snapshotCount: row.snapshot_count,
       otaLinks: {}, headline: null, isMock: row.is_mock,
-      firstSeen: row.first_seen, locked: true,
+      firstSeen: row.first_seen, updatedAt: row.updated_at, locked: true,
     }
   }
   return {
@@ -26,7 +29,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
     discountPct: row.discount_pct, checkInWindow: row.check_in_window,
     nights: row.nights, snapshotCount: row.snapshot_count,
     otaLinks: row.ota_links, headline: row.headline, isMock: row.is_mock,
-    firstSeen: row.first_seen, locked: false,
+    firstSeen: row.first_seen, updatedAt: row.updated_at, locked: false,
   }
 }
 
@@ -59,18 +62,42 @@ export default async function CityPage({ params }: PageProps) {
   ).catch(() => ({ rows: [] as { id: number }[] }))
   const marketId = marketRes.rows[0]?.id
 
-  const [rows, pwCtx, unlockedIds] = await Promise.all([
+  const [rows, pwCtx, unlockedIds, session] = await Promise.all([
     marketId
       ? getActiveDeals({ marketId, limit: 20, sort: 'newest', includeMock: false }).catch(() => [] as DealRow[])
       : Promise.resolve([] as DealRow[]),
     getPaywallContext(),
     getFreeUnlockedDealIds(),
+    auth(),
   ])
 
   const initialDeals: ApiDeal[] = rows.map(row => {
     const locked = !pwCtx.premium && !unlockedIds.has(row.id)
     return toApiDeal(row, locked)
   })
+
+  let capture: { tier: CityEmptyTier; watchlist: string[] } | null = null
+  if (CITY_NAMES.includes(displayName)) {
+    if (!session?.user?.id) {
+      capture = { tier: 'anonymous', watchlist: [] }
+    } else {
+      try {
+        const subscription = await getSubscription(session.user.id)
+        const watchlist = subscription?.watchlist ?? []
+        const premium = subscription ? isPremium(subscription.status) : false
+        capture = {
+          tier: premium
+            ? watchlist.includes(displayName) ? 'premium_watching' : 'premium'
+            : 'free',
+          watchlist,
+        }
+      } catch {
+        // Keep the empty state useful when account data is unavailable, but
+        // hide capture rather than guessing at a membership tier.
+        capture = null
+      }
+    }
+  }
 
   return (
     <main className="mx-auto max-w-[1200px] px-4 pb-24 pt-8 sm:px-6 lg:px-8">
@@ -91,7 +118,9 @@ export default async function CityPage({ params }: PageProps) {
         Hotel deals in {displayName}
       </h1>
       <p className="text-[13px] text-[color:var(--text-2)] mb-8">
-        Updated daily · {initialDeals.length} deal{initialDeals.length !== 1 ? 's' : ''} found
+        {initialDeals.length > 0
+          ? `Updated daily · ${initialDeals.length} deal${initialDeals.length !== 1 ? 's' : ''} found`
+          : 'Checked daily — no active deals right now'}
       </p>
 
       {initialDeals.length > 0 ? (
@@ -99,14 +128,17 @@ export default async function CityPage({ params }: PageProps) {
       ) : (
         <div className="mt-4 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] px-8 py-14 text-center">
           <p className="text-[15px] font-medium text-[color:var(--text-1)] mb-2">
-            No deals in {displayName} right now.
+            No {displayName} deals right now.
           </p>
-          <p className="text-[13px] text-[color:var(--text-2)] mb-6">
-            We check daily — prices can drop overnight.
+          <p className="text-[13px] text-[color:var(--text-2)]">
+            We check {displayName} hotel prices every day — deals appear here the moment a price drops.
           </p>
+          {capture && <WatchCityCta city={displayName} tier={capture.tier} watchlist={capture.watchlist} />}
           <Link
             href="/deals"
-            className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[color:var(--brand)] px-5 py-2.5 text-[13px] font-medium text-white hover:opacity-90 transition-opacity"
+            className={capture
+              ? 'mt-3 inline-flex min-h-[44px] items-center text-[13px] font-medium text-[color:var(--brand)] hover:underline'
+              : 'mt-6 inline-flex min-h-[44px] items-center gap-1.5 rounded-[var(--radius-pill)] bg-[color:var(--brand)] px-5 text-[13px] font-medium text-white transition-opacity hover:opacity-90'}
           >
             See all destinations
           </Link>

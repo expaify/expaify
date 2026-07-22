@@ -1,10 +1,19 @@
+import { timeAgo } from '@/lib/timeAgo'
+
 type LockedDealCardProps = {
   placeholderName: string;
   placeholderCity: string;
   stars: number;
   photoUrl?: string;
   joinHref?: string;
+  updatedAt?: string | null;
 };
+
+function fmtAbsolute(iso: string): string {
+  return new Date(iso).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
 
 function starChars(stars: number): string {
   const n = Math.max(0, Math.min(5, Math.round(stars)));
@@ -17,7 +26,9 @@ export function LockedDealCard({
   stars,
   photoUrl,
   joinHref = "/join",
+  updatedAt,
 }: LockedDealCardProps) {
+  const checked = timeAgo(updatedAt)
   return (
     <article className="overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]">
       {/* ── Image area ─────────────────────────────── */}
@@ -54,10 +65,14 @@ export function LockedDealCard({
           Members
         </span>
 
-        {/* Found pill — top right */}
-        <span className="absolute right-3 top-3 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--bg)]">
-          found today
-        </span>
+        {checked !== null && (
+          <span
+            className="absolute right-3 top-3 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--bg)]"
+            title={updatedAt ? fmtAbsolute(updatedAt) : undefined}
+          >
+            checked {checked}
+          </span>
+        )}
       </div>
 
       {/* ── Body ───────────────────────────────────── */}
