@@ -13,8 +13,10 @@ jest.mock('react', () => {
 })
 
 const { default: DealBadge } = jest.requireActual('../DealBadge') as typeof import('../DealBadge')
+const { default: DealScorePanel } = jest.requireActual('../DealScorePanel') as typeof import('../DealScorePanel')
 const { default: FlightCard } = jest.requireActual('../FlightCard') as typeof import('../FlightCard')
 const { default: HotelCard } = jest.requireActual('../HotelCard') as typeof import('../HotelCard')
+const { CompareRow } = jest.requireActual('../ui/CompareRow') as typeof import('../ui/CompareRow')
 
 function childrenOf(node: TestElement): unknown[] {
   const children = node.props?.children
@@ -127,6 +129,43 @@ describe('Deal score presentation', () => {
     expect(badgeText).not.toContain('Great')
   })
 
+  it('names an invalid usual nightly rate as unavailable without implying a comparison', () => {
+    const score: DealScore = {
+      percentile: 58,
+      pctVsMedian: Number.NaN,
+      medianCents: 0,
+      currency: 'USD',
+      verdict: 'Typical',
+      confidence: 'high',
+      explanation: 'Current price history is incomplete.',
+    }
+
+    const text = collectText(DealScorePanel({
+      score,
+      loading: false,
+      scope: 'hotel',
+      priceNoun: 'nightly rate',
+      unavailableCopy: 'Unavailable.',
+    }))
+
+    expect(text).toContain('Usual nightly rate unavailable')
+    expect(text).toContain('Not enough valid price data')
+    expect(text).not.toContain('Vs usual')
+    expect(text).not.toContain('$0')
+  })
+
+  it('uses the provider name in the saved-deal room-inspection action', () => {
+    const text = collectText(CompareRow({
+      links: { booking: 'https://www.booking.com/hotel/example?aid=123' },
+      size: 'primary',
+      hotelName: 'The Example Hotel',
+    }))
+
+    expect(text).toContain('Provider options')
+    expect(text).toContain('Check rooms at Booking.com')
+    expect(text).toContain('Opens Booking.com in a new tab')
+  })
+
   it('labels low-confidence flight cards as limited history when collapsed', () => {
     const score: DealScore = {
       percentile: 50,
@@ -228,11 +267,18 @@ describe('Deal score presentation', () => {
   })
 
   it('renders an explicit collapsed hotel Deal Score unavailable state when score is not available', () => {
-    const text = collectText(HotelCard({ hotel, score: null, loading: false }))
+    const card = HotelCard({ hotel, score: null, loading: false })
+    const text = collectText(card)
+    const reviewClassName = findFirstProp(
+      card,
+      'className',
+      value => typeof value === 'string' && value.includes('btn-primary') && value.includes('min-h-11'),
+    )
 
     expect(text).toContain('Score unavailable')
     expect(text).toContain('Area')
     expect(text).toContain('Details')
+    expect(reviewClassName).toBeDefined()
   })
 
   it('keeps invalid median money hidden in collapsed score state', () => {

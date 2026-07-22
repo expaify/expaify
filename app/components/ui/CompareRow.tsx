@@ -14,7 +14,7 @@ type CompareRowProps = {
 
 const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
   { key: "expedia", label: "Expedia" },
-  { key: "booking", label: "Booking" },
+  { key: "booking", label: "Booking.com" },
   { key: "kiwi", label: "Kiwi" },
   { key: "trip", label: "Trip.com" },
 ];

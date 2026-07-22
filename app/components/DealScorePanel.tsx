@@ -90,7 +90,10 @@ function EvidenceGrid({
 }) {
   return (
     <div className="grid grid-cols-2 gap-2 text-xs min-[420px]:grid-cols-3">
-      <Fact label={usualLabel} value={usual} />
+      <Fact
+        label={usual === 'Unavailable' ? `${usualLabel} unavailable` : usualLabel}
+        value={usual === 'Unavailable' ? 'Not enough valid price data' : usual}
+      />
       {showComparison ? <Fact label="Vs usual" value={vsUsual} /> : null}
       <Fact label="Window" value="Last 90 days" />
     </div>
