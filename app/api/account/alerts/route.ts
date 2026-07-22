@@ -18,25 +18,37 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Premium required' }, { status: 403 })
   }
 
-  const body = (await req.json()) as {
+  const body = await req.json().catch(() => null) as {
     alertPreference?: string
     alertMinDiscount?: unknown
     alertTimezone?: unknown
+  } | null
+  if (!body) {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
+
+  const hasPreference = body.alertPreference !== undefined
+  const hasMinDiscount = body.alertMinDiscount !== undefined
+  const hasTimezone = body.alertTimezone !== undefined
+  if (!hasPreference && !hasMinDiscount && !hasTimezone) {
+    return NextResponse.json({ error: 'No alert settings provided' }, { status: 400 })
+  }
+
   const pref = body.alertPreference as AlertPref | undefined
-  if (!pref || !VALID_PREFS.includes(pref)) {
+  if (hasPreference && (!pref || !VALID_PREFS.includes(pref))) {
     return NextResponse.json({ error: 'Invalid alertPreference' }, { status: 400 })
   }
 
-  const patch: Parameters<typeof upsertSubscription>[1] = { alertPreference: pref }
-  if (body.alertMinDiscount !== undefined) {
+  const patch: Parameters<typeof upsertSubscription>[1] = {}
+  if (pref) patch.alertPreference = pref
+  if (hasMinDiscount) {
     const min = Number(body.alertMinDiscount)
     if (!Number.isInteger(min) || min < 0 || min > 90) {
       return NextResponse.json({ error: 'Invalid alertMinDiscount' }, { status: 400 })
     }
     patch.alertMinDiscount = min
   }
-  if (body.alertTimezone !== undefined) {
+  if (hasTimezone) {
     if (typeof body.alertTimezone !== 'string' || body.alertTimezone.length > 64) {
       return NextResponse.json({ error: 'Invalid alertTimezone' }, { status: 400 })
     }

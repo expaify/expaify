@@ -2,6 +2,7 @@ import { render } from '@react-email/components'
 import { getResend, FROM } from './resend'
 import { DealAlert } from './templates/DealAlert'
 import { query } from '../db/client'
+import { CITY_DISPLAY_TO_SLUG } from '../cities'
 
 const BASE_URL = process.env.AUTH_URL ?? 'https://expaify.com'
 const MAX_INSTANT_PER_DAY = 3
@@ -24,6 +25,7 @@ type AlertRecipient = {
   userId: string
   email: string
   unsubscribeToken: string
+  watchlist: string[]
 }
 
 export async function sendInstantAlerts(deal: Deal): Promise<number> {
@@ -44,7 +46,8 @@ export async function sendInstantAlerts(deal: Deal): Promise<number> {
   const res = await query<AlertRecipient>(
     `SELECT s.user_id AS "userId",
             u.email,
-            s.alert_unsubscribe_token::TEXT AS "unsubscribeToken"
+            s.alert_unsubscribe_token::TEXT AS "unsubscribeToken",
+            s.watchlist
      FROM subscriptions s
      JOIN users u ON u.id = s.user_id
      WHERE s.alert_preference = 'instant'
@@ -73,6 +76,11 @@ export async function sendInstantAlerts(deal: Deal): Promise<number> {
 
   for (const recipient of res.rows) {
     try {
+      const citySlug = CITY_DISPLAY_TO_SLUG[deal.city]
+      const watchlist = recipient.watchlist ?? []
+      const stopCityUrl = citySlug && watchlist.length > 0 && watchlist.includes(deal.city)
+        ? `${BASE_URL}/alerts/manage?token=${recipient.unsubscribeToken}&action=stop-city&city=${citySlug}`
+        : null
       const html = await render(
         DealAlert({
           hotelName: deal.hotelName,
@@ -85,8 +93,10 @@ export async function sendInstantAlerts(deal: Deal): Promise<number> {
           medianPriceCents: deal.medianPriceCents,
           snapshotCount: deal.snapshotCount,
           dealUrl: `${BASE_URL}/deals/${deal.id}`,
-          manageUrl: `${BASE_URL}/account`,
+          manageUrl: `${BASE_URL}/account#alerts`,
           unsubscribeUrl: `${BASE_URL}/api/alerts/unsubscribe?token=${recipient.unsubscribeToken}`,
+          stopCityUrl,
+          switchDailyUrl: `${BASE_URL}/alerts/manage?token=${recipient.unsubscribeToken}&action=daily`,
         })
       )
 

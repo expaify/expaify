@@ -7,6 +7,7 @@ import { LockedDealCard } from '../components/ui/LockedDealCard'
 import { SearchBar } from '../components/ui/SearchBar'
 import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
+import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { track } from '@/lib/analytics'
 import { HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
 import {
@@ -21,12 +22,6 @@ import {
   type HotelFilterState,
   type HotelResultMetadata,
 } from './hotelFilterRecovery'
-
-const CITIES = [
-  'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
-  'London', 'Tokyo', 'Bangkok', 'Dubai', 'Las Vegas', 'Orlando', 'San Juan',
-  'Tulum', 'Amsterdam', 'Athens', 'Punta Cana', 'Charlotte', 'Nashville',
-]
 
 const DEFAULT_MIN_DISCOUNT = 20
 
@@ -905,7 +900,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               onClear={() => applyFilter({ city: '' })}
               options={[
                 { label: 'All destinations', selected: !city, onSelect: () => applyFilter({ city: '' }) },
-                ...CITIES.map(c => ({
+                ...TRACKED_MARKET_NAMES.map(c => ({
                   label: c,
                   selected: city === c,
                   onSelect: () => {

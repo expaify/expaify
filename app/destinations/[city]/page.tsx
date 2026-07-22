@@ -9,6 +9,8 @@ import { query } from '@/lib/db/client'
 import { auth } from '@/auth'
 import { getSubscription, isPremium } from '@/lib/subscription'
 import { WatchCityCta } from '@/app/components/WatchCityCta'
+import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
+import { WatchCityPill } from '@/app/components/ui/WatchCityPill'
 
 function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
   if (locked) {
@@ -62,22 +64,25 @@ export default async function CityPage({ params }: PageProps) {
   ).catch(() => ({ rows: [] as { id: number }[] }))
   const marketId = marketRes.rows[0]?.id
 
-  const [rows, pwCtx, unlockedIds] = await Promise.all([
+  const session = await auth().catch(() => null)
+
+  const [rows, pwCtx, unlockedIds, sub] = await Promise.all([
     marketId
       ? getActiveDeals({ marketId, limit: 20, sort: 'newest', includeMock: false }).catch(() => [] as DealRow[])
       : Promise.resolve([] as DealRow[]),
     getPaywallContext(),
     getFreeUnlockedDealIds(),
+    session?.user?.id ? getSubscription(session.user.id).catch(() => null) : Promise.resolve(null),
   ])
+
+  const showWatchPill = !!sub && isPremium(sub.status) && TRACKED_MARKET_NAMES.includes(displayName)
 
   const initialDeals: ApiDeal[] = rows.map(row => {
     const locked = !pwCtx.premium && !unlockedIds.has(row.id)
     return toApiDeal(row, locked)
   })
-  const session = await auth()
-  const subscription = session?.user?.id ? await getSubscription(session.user.id).catch(() => null) : null
-  const premium = subscription ? isPremium(subscription.status) : false
-  const watchlist = subscription?.watchlist ?? []
+  const premium = sub ? isPremium(sub.status) : false
+  const watchlist = sub?.watchlist ?? []
   const watchTier = !session?.user?.id ? 'anonymous' : premium ? 'premium' : 'free'
   const isWatching = watchlist.includes(displayName)
 
@@ -99,6 +104,15 @@ export default async function CityPage({ params }: PageProps) {
       <h1 className="text-h2 text-[color:var(--ink)] font-display mb-1">
         Hotel deals in {displayName}
       </h1>
+      {showWatchPill && sub && (
+        <div className="mb-3 mt-2">
+          <WatchCityPill
+            city={displayName}
+            initialWatching={sub.watchlist.includes(displayName)}
+            initialCount={sub.watchlist.length}
+          />
+        </div>
+      )}
       <p className="text-[13px] text-[color:var(--text-2)] mb-8">
         {initialDeals.length === 0
           ? 'Checked daily — no active deals right now'

@@ -12,6 +12,9 @@ import { CompareRow } from '@/app/components/ui/CompareRow'
 import { StarRow } from '@/app/components/ui/StarRow'
 import { ShareButton } from '@/app/components/ui/ShareButton'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
+import { WatchCityPill } from '@/app/components/ui/WatchCityPill'
+import { getSubscription } from '@/lib/subscription'
+import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
 import {
@@ -229,6 +232,12 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
     }
   }
 
+  // Watch pill: premium sessions only, and only for tracked markets (defensive).
+  const sub = pwCtx.premium && pwCtx.userId
+    ? await getSubscription(pwCtx.userId).catch(() => null)
+    : null
+  const showWatchPill = !!sub && TRACKED_MARKET_NAMES.includes(deal.city)
+
   const savings = deal.median_price_cents - deal.deal_price_cents
   const showSavings = savings >= 2000
 
@@ -267,9 +276,21 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
             expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
           </a>
-          <a href="/deals" className="flex min-h-[44px] items-center text-caption font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
-            ← Back to deals
-          </a>
+          <div className="flex items-center gap-4">
+            <a href="/deals" className="flex min-h-[44px] items-center text-caption font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
+              ← Back to deals
+            </a>
+            <a
+              href="/account#alerts"
+              aria-label="Your account"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" />
+              </svg>
+            </a>
+          </div>
         </div>
       </nav>
 
@@ -312,6 +333,16 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           </div>
           <ShareButton />
         </div>
+
+        {showWatchPill && sub && (
+          <div className="mt-3">
+            <WatchCityPill
+              city={deal.city}
+              initialWatching={sub.watchlist.includes(deal.city)}
+              initialCount={sub.watchlist.length}
+            />
+          </div>
+        )}
 
         {/* Price */}
         <section className="mt-6">

@@ -1,6 +1,7 @@
 import { sendInstantAlerts } from '../sendDealAlert'
 import { query } from '../../db/client'
 import { getResend } from '../resend'
+import { DealAlert } from '../templates/DealAlert'
 
 jest.mock('../../db/client', () => ({
   query: jest.fn(),
@@ -15,8 +16,13 @@ jest.mock('@react-email/components', () => ({
   render: jest.fn(async () => '<html>deal</html>'),
 }))
 
+jest.mock('../templates/DealAlert', () => ({
+  DealAlert: jest.fn(() => null),
+}))
+
 const mockQuery = query as jest.MockedFunction<typeof query>
 const mockGetResend = getResend as jest.Mock
+const mockDealAlert = DealAlert as jest.Mock
 
 function qr<T>(rows: T[]) {
   return {
@@ -47,6 +53,7 @@ describe('sendInstantAlerts', () => {
   beforeEach(() => {
     process.env.RESEND_API_KEY = 'resend-test'
     mockQuery.mockReset()
+    mockDealAlert.mockClear()
     mockGetResend.mockReturnValue({ emails: { send: jest.fn().mockResolvedValue({ id: 'email-1' }) } })
   })
 
@@ -67,17 +74,38 @@ describe('sendInstantAlerts', () => {
   it('filters recipients by premium status, watchlist, threshold, duplicates, and daily cap', async () => {
     mockQuery
       .mockResolvedValueOnce(qr([{ id: deal.id }]))
-      .mockResolvedValueOnce(qr([{ userId: 'user-1', email: 'a@example.com', unsubscribeToken: 'token-1' }]))
+      .mockResolvedValueOnce(qr([{ userId: 'user-1', email: 'a@example.com', unsubscribeToken: 'token-1', watchlist: ['Lisbon'] }]))
       .mockResolvedValueOnce(qr([]))
       .mockResolvedValueOnce(qr([]))
 
     await expect(sendInstantAlerts(deal)).resolves.toBe(1)
 
     expect(mockQuery.mock.calls[1][0]).toContain("s.status IN ('trialing', 'active')")
+    expect(mockQuery.mock.calls[1][0]).toContain('s.watchlist')
     expect(mockQuery.mock.calls[1][0]).toContain('$4 = ANY(s.watchlist)')
     expect(mockQuery.mock.calls[1][0]).toContain('deal_alert_deliveries')
     expect(mockQuery.mock.calls[1][0]).toContain("dad.delivery_type = 'instant'")
     expect(mockQuery.mock.calls[1][1]).toEqual([deal.id, deal.discountPct, 40, deal.city, 3])
     expect(mockQuery.mock.calls[2][0]).toContain('INSERT INTO deal_alert_deliveries')
+    expect(mockDealAlert).toHaveBeenCalledWith(expect.objectContaining({
+      manageUrl: 'https://expaify.com/account#alerts',
+      stopCityUrl: 'https://expaify.com/alerts/manage?token=token-1&action=stop-city&city=lisbon',
+      switchDailyUrl: 'https://expaify.com/alerts/manage?token=token-1&action=daily',
+      unsubscribeUrl: 'https://expaify.com/api/alerts/unsubscribe?token=token-1',
+    }))
+  })
+
+  it('omits the stop-city action for everywhere-mode recipients', async () => {
+    mockQuery
+      .mockResolvedValueOnce(qr([{ id: deal.id }]))
+      .mockResolvedValueOnce(qr([{ userId: 'user-1', email: 'a@example.com', unsubscribeToken: 'token-1', watchlist: [] }]))
+      .mockResolvedValueOnce(qr([]))
+
+    await expect(sendInstantAlerts(deal)).resolves.toBe(1)
+
+    expect(mockDealAlert).toHaveBeenCalledWith(expect.objectContaining({
+      stopCityUrl: null,
+      switchDailyUrl: 'https://expaify.com/alerts/manage?token=token-1&action=daily',
+    }))
   })
 })
