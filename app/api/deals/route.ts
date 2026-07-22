@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { generateMockDeals } from '@/lib/pipeline/mock'
-import type { HotelDealSort } from '@/lib/deals/feedContract'
+import { buildDealPage, type HotelDealSort } from '@/lib/deals/feedContract'
 
 export const runtime = 'nodejs'
 
@@ -105,8 +105,14 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const pwCtx = await getPaywallContext()
 
-  const limit = Math.min(Number(searchParams.get('limit') ?? '50'), 100)
-  const offset = Number(searchParams.get('offset') ?? '0')
+  const requestedLimit = Number(searchParams.get('limit') ?? '50')
+  const requestedOffset = Number(searchParams.get('offset') ?? '0')
+  const limit = Number.isInteger(requestedLimit) && requestedLimit > 0
+    ? Math.min(requestedLimit, 100)
+    : 50
+  const offset = Number.isInteger(requestedOffset) && requestedOffset >= 0
+    ? requestedOffset
+    : 0
   // Filters and sort are a Premium feature: for free users every filter param is
   // ignored server-side so the plain newest-first feed is the only view.
   const minDiscount = pwCtx.premium ? Number(searchParams.get('min_discount') ?? '20') : 20
@@ -138,20 +144,30 @@ export async function GET(req: NextRequest) {
   }
 
   const [deals, unlockedIds] = await Promise.all([
-    getActiveDeals({ limit, offset, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, marketId, sort, includeMock: false }),
+    getActiveDeals({ limit: limit + 1, offset, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, marketId, sort, includeMock: false }),
     pwCtx.premium ? Promise.resolve(new Set<string>()) : getFreeUnlockedDealIds(),
   ])
 
   // Fall back to mock deals when DB has no real data yet
   const source = deals.length > 0 ? deals : null
 
-  if (!source && !hasFilters) {
+  if (!source && !hasFilters && offset === 0) {
     const mocks = generateMockDeals(3).map(mockToApiDeal)
-    return NextResponse.json({ deals: mocks, total: mocks.length, premium: pwCtx.premium })
+    return NextResponse.json({
+      deals: mocks,
+      page: { nextOffset: null, hasMore: false },
+      premium: pwCtx.premium,
+      coverage: 'confirmed_end',
+    })
   }
 
   if (!source) {
-    return NextResponse.json({ deals: [], total: 0, premium: pwCtx.premium })
+    return NextResponse.json({
+      deals: [],
+      page: { nextOffset: null, hasMore: false },
+      premium: pwCtx.premium,
+      coverage: 'confirmed_end',
+    })
   }
 
   // Lock by membership in the weekly unlock set — never by position in the page,
@@ -160,6 +176,12 @@ export async function GET(req: NextRequest) {
     const locked = !pwCtx.premium && !unlockedIds.has(row.id)
     return toApiDeal(row, locked)
   })
+  const result = buildDealPage(paywalled, offset, limit)
 
-  return NextResponse.json({ deals: paywalled, total: source.length, premium: pwCtx.premium })
+  return NextResponse.json({
+    deals: result.items,
+    page: result.page,
+    premium: pwCtx.premium,
+    coverage: result.coverage,
+  })
 }

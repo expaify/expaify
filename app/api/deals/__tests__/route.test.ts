@@ -63,7 +63,7 @@ describe('GET /api/deals sorting', () => {
 
     expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({
       sort: 'price',
-      limit: 12,
+      limit: 13,
       offset: 0,
     }))
     expect(body.premium).toBe(true)
@@ -94,5 +94,72 @@ describe('GET /api/deals sorting', () => {
       dealPriceCents: 0,
       locked: true,
     })
+  })
+
+  it('returns a trustworthy next offset from a one-row lookahead', async () => {
+    mockGetPaywallContext.mockResolvedValue({
+      userId: 'premium-user',
+      premium: true,
+      freeUnlockedThisWeek: 0,
+      freeUnlockLimit: 3,
+    })
+    mockGetActiveDeals.mockResolvedValue(
+      Array.from({ length: 13 }, (_, index) => ({
+        ...row,
+        id: `deal-${index + 1}`,
+        hotel_id: `hotel-${index + 1}`,
+      })),
+    )
+
+    const response = await GET(request('limit=12&offset=0'))
+    const body = await response.json() as {
+      deals: Array<{ id: string }>
+      page: { nextOffset: number | null; hasMore: boolean }
+      coverage: string
+    }
+
+    expect(body.deals).toHaveLength(12)
+    expect(body.page).toEqual({ hasMore: true, nextOffset: 12 })
+    expect(body.coverage).toBe('more_available')
+  })
+
+  it('confirms the end for a short continuation page without substituting samples', async () => {
+    mockGetPaywallContext.mockResolvedValue({
+      userId: 'premium-user',
+      premium: true,
+      freeUnlockedThisWeek: 0,
+      freeUnlockLimit: 3,
+    })
+    mockGetActiveDeals.mockResolvedValue([])
+
+    const response = await GET(request('limit=12&offset=12'))
+    const body = await response.json() as {
+      deals: Array<{ id: string }>
+      page: { nextOffset: number | null; hasMore: boolean }
+      coverage: string
+    }
+
+    expect(body.deals).toEqual([])
+    expect(body.page).toEqual({ hasMore: false, nextOffset: null })
+    expect(body.coverage).toBe('confirmed_end')
+  })
+
+  it('deduplicates repeated stable deal ids before returning a page', async () => {
+    mockGetPaywallContext.mockResolvedValue({
+      userId: 'premium-user',
+      premium: true,
+      freeUnlockedThisWeek: 0,
+      freeUnlockLimit: 3,
+    })
+    mockGetActiveDeals.mockResolvedValue([row, { ...row, hotel_name: 'Duplicate row' }])
+
+    const response = await GET(request('limit=12&offset=0'))
+    const body = await response.json() as {
+      deals: Array<{ id: string }>
+      page: { nextOffset: number | null; hasMore: boolean }
+    }
+
+    expect(body.deals.map(deal => deal.id)).toEqual(['deal-cheapest'])
+    expect(body.page).toEqual({ hasMore: false, nextOffset: null })
   })
 })

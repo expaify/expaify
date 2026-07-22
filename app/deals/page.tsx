@@ -7,7 +7,7 @@ import { generateMockDeals } from '@/lib/pipeline/mock'
 import { redirect } from 'next/navigation'
 import { LandingNav } from '../components/LandingNav'
 import { DealFeed, type ApiDeal } from './DealFeed'
-import { HOTEL_DEAL_PAGE_SIZE } from '@/lib/deals/feedContract'
+import { buildDealPage, HOTEL_DEAL_PAGE_SIZE } from '@/lib/deals/feedContract'
 
 export const metadata: Metadata = {
   title: 'Hotel deals today — expaify',
@@ -45,16 +45,24 @@ export default async function DealsPage() {
   }
 
   // Pre-fetch initial deals server-side so the page renders immediately without a client round-trip
-  const [rows, pwCtx, unlockedIds] = await Promise.all([
-    getActiveDeals({ limit: HOTEL_DEAL_PAGE_SIZE, sort: 'newest', includeMock: false, minDiscount: 20 }).catch(() => [] as DealRow[]),
+  const [rowsResult, pwCtx, unlockedIds] = await Promise.all([
+    getActiveDeals({ limit: HOTEL_DEAL_PAGE_SIZE + 1, sort: 'newest', includeMock: false, minDiscount: 20 })
+      .then(rows => ({ ok: true as const, rows }))
+      .catch(() => ({ ok: false as const, rows: [] as DealRow[] })),
     getPaywallContext(),
     getFreeUnlockedDealIds(),
   ])
 
-  let initialDeals: ApiDeal[]
-  if (rows.length > 0) {
-    initialDeals = rows.map(row => toApiDeal(row, !pwCtx.premium && !unlockedIds.has(row.id)))
-  } else {
+  let initialDeals: ApiDeal[] | undefined
+  let initialPage: { nextOffset: number | null; hasMore: boolean } | undefined
+  let initialCoverage: 'more_available' | 'confirmed_end' | undefined
+  if (rowsResult.rows.length > 0) {
+    const paywalled = rowsResult.rows.map(row => toApiDeal(row, !pwCtx.premium && !unlockedIds.has(row.id)))
+    const result = buildDealPage(paywalled, 0, HOTEL_DEAL_PAGE_SIZE)
+    initialDeals = result.items
+    initialPage = result.page
+    initialCoverage = result.coverage
+  } else if (rowsResult.ok) {
     // Fallback mock deals while real data accumulates
     initialDeals = generateMockDeals(3).map((d) => {
       const base: ApiDeal = {
@@ -85,7 +93,12 @@ export default async function DealsPage() {
     <>
       <LandingNav />
       <main className="mx-auto max-w-[1140px] px-5 pb-24 pt-10">
-        <DealFeed initialDeals={initialDeals} premium={pwCtx.premium} />
+        <DealFeed
+          initialDeals={initialDeals}
+          initialPage={initialPage}
+          initialCoverage={initialCoverage}
+          premium={pwCtx.premium}
+        />
       </main>
     </>
   )
