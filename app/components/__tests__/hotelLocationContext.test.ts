@@ -1,4 +1,8 @@
-import { getHotelLocationAnalytics, getHotelLocationDisplay } from '../hotelLocationContext'
+import {
+  getHotelLocationAnalytics,
+  getHotelLocationDisplay,
+  getHotelLocationImpressionKey,
+} from '../hotelLocationContext'
 
 describe('hotel location evidence presentation', () => {
   it.each([
@@ -112,7 +116,9 @@ describe('hotel location evidence presentation', () => {
     expect(mapUrl.protocol).toBe('https:')
     expect(mapUrl.hostname).toBe('www.google.com')
     expect(mapUrl.searchParams.get('query')).toBe('40.7484,-73.9857')
-    expect(getHotelLocationAnalytics('hotel-123', display)).toEqual({
+    const analytics = getHotelLocationAnalytics('hotel-123', display)
+
+    expect(analytics).toEqual({
       hotelId: 'hotel-123',
       evidenceState: 'provider_pin',
       anchorKind: 'none',
@@ -120,5 +126,22 @@ describe('hotel location evidence presentation', () => {
       hasDistance: false,
       distanceBucket: 'none',
     })
+    expect(getHotelLocationImpressionKey(analytics)).toBe('hotel-123:provider_pin:none')
+  })
+
+  it('does not present a searched destination as a provider-supplied pin label', () => {
+    const display = getHotelLocationDisplay({
+      area: 'Los Angeles',
+      location: {
+        precision: 'search_area',
+        label: 'Los Angeles',
+        lat: 34.0522,
+        lng: -118.2437,
+      },
+    })
+
+    expect(display.evidenceState).toBe('provider_pin')
+    expect(display.value).toBe('Map position provided')
+    expect(display.value).not.toBe('Los Angeles')
   })
 })

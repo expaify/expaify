@@ -7,7 +7,7 @@ import { buildHotelBookingHref } from '@/lib/booking/config'
 import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import { track } from '@/lib/analytics'
 import DealScorePanel from './DealScorePanel'
-import { getHotelLocationAnalytics, getHotelLocationDisplay } from './hotelLocationContext'
+import { getHotelLocationAnalytics, getHotelLocationDisplay, getHotelLocationImpressionKey } from './hotelLocationContext'
 import { markHotelLocationInspected, toTrackProps } from './hotelLocationAnalytics'
 
 type Props = {
@@ -403,7 +403,7 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
   const [isExpanded, setIsExpanded] = useState(false)
   const location = getHotelLocationDisplay(hotel)
   const locationAnalytics = getHotelLocationAnalytics(hotel.id, location)
-  const trackedImpression = useRef(false)
+  const trackedImpressionKey = useRef<string | null>(null)
   const hasBookingUrl = isValidBookingUrl(hotel.deeplink)
   const hasValidPrice = isValidMoney(hotel.pricePerNight)
   const canBook = hasBookingUrl && hasValidPrice
@@ -427,8 +427,9 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
   const detailsId = `hotel-details-${hotel.id}`
 
   useEffect(() => {
-    if (trackedImpression.current) return
-    trackedImpression.current = true
+    const impressionKey = getHotelLocationImpressionKey(locationAnalytics)
+    if (trackedImpressionKey.current === impressionKey) return
+    trackedImpressionKey.current = impressionKey
     track('hotel_location_impression', toTrackProps(locationAnalytics))
   }, [locationAnalytics])
 

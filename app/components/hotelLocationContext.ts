@@ -75,6 +75,10 @@ export function getHotelLocationAnalytics(hotelId: string, display: HotelLocatio
   }
 }
 
+export function getHotelLocationImpressionKey(properties: HotelLocationAnalytics): string {
+  return `${properties.hotelId}:${properties.evidenceState}:${properties.anchorId}`
+}
+
 export function getHotelLocationDisplay(source: HotelLocationSource): HotelLocationDisplay {
   const area = clean(source.area)
   const location = source.location
@@ -111,10 +115,15 @@ export function getHotelLocationDisplay(source: HotelLocationSource): HotelLocat
   }
 
   if (mapUrl) {
+    const providerPinLabel = providerLocationName
+      || (location?.precision === 'search_area' ? '' : locationLabel)
+      || (location?.precision === 'search_area' ? '' : area)
+      || 'Map position provided'
+
     return {
       evidenceState: 'provider_pin',
       label: 'Provider map pin',
-      value: providerLocationName || (location?.precision === 'search_area' ? '' : locationLabel) || area || 'Map position provided',
+      value: providerPinLabel,
       note: 'Provider-supplied map pin. Confirm the entrance and final address before payment.',
       precision: 'coordinates',
       isWarning: false,
