@@ -171,10 +171,10 @@ export default async function AccountPage({ searchParams }: PageProps) {
 
         {/* Alerts + Watchlist (premium only) */}
         {premium && (
-          <section className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
+          <section id="alerts" className="scroll-mt-20 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
             <h2 className="mb-1 font-display text-[15px] font-bold text-[color:var(--ink)]">Email alerts</h2>
             <p className="mb-5 text-[13px] text-[color:var(--ink-faint)]">
-              Choose how often we email you when a deal appears.
+              Choose how often we email you when a deal appears. Changes save instantly.
             </p>
             <AccountClient
               stripeCustomerId={sub?.stripeCustomerId}

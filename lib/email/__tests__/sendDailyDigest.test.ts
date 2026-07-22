@@ -1,6 +1,7 @@
 import { runDailyDigest } from '../sendDailyDigest'
 import { query } from '../../db/client'
 import { getResend } from '../resend'
+import { DailyDigest } from '../templates/DailyDigest'
 
 jest.mock('../../db/client', () => ({
   query: jest.fn(),
@@ -15,8 +16,13 @@ jest.mock('@react-email/components', () => ({
   render: jest.fn(async () => '<html>digest</html>'),
 }))
 
+jest.mock('../templates/DailyDigest', () => ({
+  DailyDigest: jest.fn(() => null),
+}))
+
 const mockQuery = query as jest.MockedFunction<typeof query>
 const mockGetResend = getResend as jest.Mock
+const mockDailyDigest = DailyDigest as jest.Mock
 
 function qr<T>(rows: T[]) {
   return {
@@ -34,6 +40,7 @@ describe('runDailyDigest', () => {
   beforeEach(() => {
     process.env.RESEND_API_KEY = 'resend-test'
     mockQuery.mockReset()
+    mockDailyDigest.mockClear()
     mockGetResend.mockReturnValue({ emails: { send: jest.fn().mockResolvedValue({ id: 'email-1' }) } })
   })
 
@@ -81,5 +88,8 @@ describe('runDailyDigest', () => {
     expect(mockQuery.mock.calls[1][1]).toEqual(['user-1', 40, 8])
     expect(mockQuery.mock.calls[2][0]).toContain('INSERT INTO deal_alert_deliveries')
     expect(mockQuery.mock.calls[2][1]).toEqual(['user-1', ['22222222-2222-2222-2222-222222222222']])
+    expect(mockDailyDigest).toHaveBeenCalledWith(expect.objectContaining({
+      manageUrl: 'https://expaify.com/account#alerts',
+    }))
   })
 })

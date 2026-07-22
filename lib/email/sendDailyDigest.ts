@@ -110,7 +110,7 @@ export async function runDailyDigest(): Promise<{ recipients: number; skipped: n
         DailyDigest({
           deals: digestDeals,
           date,
-          manageUrl: `${BASE_URL}/account`,
+          manageUrl: `${BASE_URL}/account#alerts`,
           unsubscribeUrl: `${BASE_URL}/api/alerts/unsubscribe?token=${recipient.unsubscribeToken}`,
         })
       )

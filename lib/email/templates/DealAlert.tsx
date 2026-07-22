@@ -16,6 +16,8 @@ export type DealAlertProps = {
   dealUrl: string
   manageUrl: string
   unsubscribeUrl: string
+  stopCityUrl?: string | null
+  switchDailyUrl: string
 }
 
 function fmt(cents: number) {
@@ -39,6 +41,8 @@ export function DealAlert({
   dealUrl,
   manageUrl,
   unsubscribeUrl,
+  stopCityUrl,
+  switchDailyUrl,
 }: DealAlertProps) {
   return (
     <Html>
@@ -127,6 +131,17 @@ export function DealAlert({
           </Text>
 
           <Hr style={{ border: 'none', borderTop: '1px solid #E8E2D8', margin: '0 0 16px' }} />
+
+          <Text style={{ fontSize: '11px', color: '#8A857D', margin: '0 0 8px' }}>
+            Getting too many emails?{' '}
+            {stopCityUrl ? (
+              <>
+                <a href={stopCityUrl} style={{ color: '#8A857D' }}>Stop alerts for {city}</a>
+                {' · '}
+              </>
+            ) : null}
+            <a href={switchDailyUrl} style={{ color: '#8A857D' }}>Switch to daily digest</a>
+          </Text>
 
           <Text style={{ fontSize: '11px', color: '#8A857D', margin: 0 }}>
             <a href={manageUrl} style={{ color: '#8A857D' }}>Manage prefs</a>
