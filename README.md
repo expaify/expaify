@@ -41,6 +41,10 @@ npx tsc --noEmit --incremental false
 npx jest --passWithNoTests
 ```
 
+## Production analytics
+
+Set `NEXT_PUBLIC_ANALYTICS_ENDPOINT` to the approved event-collection endpoint to deliver client analytics in production. When it is absent, production analytics are intentionally disabled; booking handoffs are never blocked by delivery failures.
+
 ## Note On Historical Material
 
 Some audit documents in `docs/audits/` reference missing board/run/ticket surfaces because they were written against broader operator expectations. Treat those references as external assumptions, not as proof that those files exist locally.

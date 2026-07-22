@@ -3,6 +3,10 @@ import { cache } from '../cache/redis';
 import { fetchWithProviderTimeout } from './timeout';
 import { normalizeHotelAmenityEvidence } from './hotelAmenityEvidence';
 import { withCalculatedAnchorDistance } from '../hotels/locationEvidence';
+import {
+  normalizeHotelDocumentReadiness,
+  notProvidedHotelDocumentReadiness,
+} from './hotelDocumentReadiness';
 
 const ENGINE_BASE = 'https://engine.hotellook.com/api/v2/cache.json';
 const CACHE_TTL = 21600; // 6 hours
@@ -385,6 +389,7 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     },
     deeplink: value.deeplink,
     source: value.source,
+    documentReadiness: normalizeHotelDocumentReadiness(value.documentReadiness, sourceLabel(value.source)),
     hotelClass,
     guestRating,
     amenityEvidence: access.evidence,
@@ -486,6 +491,7 @@ export class HotellookProvider implements HotelProvider {
           deeplink: this.buildDeeplink(hotelId),
           photoUrl: entry.photoUrl || undefined,
           source: 'hotellook',
+          documentReadiness: notProvidedHotelDocumentReadiness('Hotellook'),
           hotelClass: buildHotelClassEvidence({
             stars: Number.isFinite(stars) ? stars : 0,
             source: 'hotellook',
@@ -506,6 +512,14 @@ export class HotellookProvider implements HotelProvider {
     } catch (err) {
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     }
+  }
+
+  async checkDocumentReadiness(
+    _offer: Pick<HotelOffer, 'id' | 'source' | 'deeplink' | 'documentReadiness'>,
+  ): Promise<Result<HotelOffer['documentReadiness']>> {
+    // Hotellook's cache feed has no rate/stay-scoped document fields or detail
+    // endpoint. Preserve that supplier omission instead of inferring availability.
+    return { ok: true, data: notProvidedHotelDocumentReadiness('Hotellook') };
   }
 }
 

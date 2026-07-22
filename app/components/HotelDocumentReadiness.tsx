@@ -1,56 +1,20 @@
-export type HotelDocumentStatus =
-  | 'confirmed'
-  | 'conditional'
-  | 'unavailable'
-  | 'not_provided'
-  | 'conflicting'
+import type {
+  HotelDocumentCheckState,
+  HotelDocumentIssuer,
+  HotelDocumentReadiness,
+} from '@/lib/types'
+import { notProvidedHotelDocumentReadiness } from '@/lib/providers/hotelDocumentReadiness'
 
-export type HotelDocumentType = 'invoice' | 'receipt' | 'booking_confirmation'
-
-export type HotelDocumentIssuerRole =
-  | 'booking_provider'
-  | 'property'
-  | 'split'
-  | 'unknown'
-
-export type HotelBillingDetailsStep =
-  | 'during_partner_booking'
-  | 'after_booking_contact_provider'
-  | 'after_booking_contact_property'
-  | 'at_checkout'
-  | 'not_required'
-  | 'unknown'
-
-export type HotelDocumentScope = 'rate' | 'selected_stay'
-
-export type HotelDocumentIssuer = {
-  role: HotelDocumentIssuerRole
-  displayName?: string
-}
-
-export type HotelDocumentReadiness = {
-  status: HotelDocumentStatus
-  scope: HotelDocumentScope
-  documentTypes: HotelDocumentType[]
-  issuerByDocument: Partial<Record<HotelDocumentType, HotelDocumentIssuer>>
-  billingDetailsStep: HotelBillingDetailsStep
-  condition?: string
-  source: {
-    label: string
-    policyId?: string
-    observedAt?: string
-  }
-  conflictStatements?: Array<{
-    sourceLabel: string
-    statement: string
-  }>
-  verificationTarget?: {
-    role: 'booking_provider' | 'property'
-    url?: string
-  }
-}
-
-export type HotelDocumentCheckState = 'idle' | 'loading' | 'ready' | 'error'
+export type {
+  HotelBillingDetailsStep,
+  HotelDocumentCheckState,
+  HotelDocumentIssuer,
+  HotelDocumentIssuerRole,
+  HotelDocumentReadiness,
+  HotelDocumentScope,
+  HotelDocumentStatus,
+  HotelDocumentType,
+} from '@/lib/types'
 
 type PartnerIdentity = {
   label: string
@@ -69,14 +33,7 @@ type ReadinessDisclosureProps = {
 }
 
 export function getNotProvidedHotelDocumentReadiness(sourceLabel: string): HotelDocumentReadiness {
-  return {
-    status: 'not_provided',
-    scope: 'rate',
-    documentTypes: [],
-    issuerByDocument: {},
-    billingDetailsStep: 'unknown',
-    source: { label: cleanLabel(sourceLabel, 'Hotel provider') },
-  }
+  return notProvidedHotelDocumentReadiness(sourceLabel)
 }
 
 const factRowClassName = 'rounded-lg bg-[color:var(--bg-muted)] px-3 py-2.5'

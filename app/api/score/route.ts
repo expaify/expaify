@@ -5,6 +5,7 @@ import { getBaseline } from '../../../lib/db/getBaseline';
 import { query } from '../../../lib/db/client';
 import { scoreDeal } from '../../../lib/scoring/scoreDeal';
 import type { NormalizedFare, NormalizedHotelOffer, PricePoint } from '../../../lib/types';
+import { notProvidedHotelDocumentReadiness } from '../../../lib/providers/hotelDocumentReadiness';
 
 interface HotelSnapshotRow {
   date: Date;
@@ -80,6 +81,7 @@ export async function GET(request: Request) {
     pricePerNight: { priceCents: pricePerNightCents, currency },
     deeplink: '',
     source: 'score-api',
+    documentReadiness: notProvidedHotelDocumentReadiness('Hotel provider'),
   };
 
   const dealScore = scoreDeal(hotel, history);

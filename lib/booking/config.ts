@@ -4,9 +4,14 @@ import type {
   HotelLocationAnchorSource,
   HotelLocationEvidenceSource,
   HotelLocationPrecision,
+  HotelDocumentReadiness,
   HotelOffer,
   NormalizedFare,
 } from '../types';
+import {
+  normalizeHotelDocumentReadiness,
+  notProvidedHotelDocumentReadiness,
+} from '../providers/hotelDocumentReadiness';
 import {
   hasValidCoordinates,
   hasVerifiedHotelLocationComparison,
@@ -38,6 +43,7 @@ export type BookingHotelContext = {
   currency: string;
   priceBasis: 'per_night_before_taxes_fees';
   providerUrl: string;
+  documentReadiness: HotelDocumentReadiness;
 };
 
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
@@ -63,6 +69,30 @@ type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
   locationDistanceMethod?: unknown;
   locationDistanceSource?: unknown;
   locationProviderName?: unknown;
+  documentStatus?: unknown;
+  documentScope?: unknown;
+  documentTypes?: unknown;
+  documentInvoiceIssuerRole?: unknown;
+  documentInvoiceIssuerName?: unknown;
+  documentReceiptIssuerRole?: unknown;
+  documentReceiptIssuerName?: unknown;
+  documentConfirmationIssuerRole?: unknown;
+  documentConfirmationIssuerName?: unknown;
+  documentBillingDetailsStep?: unknown;
+  documentCondition?: unknown;
+  documentSourceLabel?: unknown;
+  documentSourcePolicyId?: unknown;
+  documentSourceObservedAt?: unknown;
+  documentConflict1Source?: unknown;
+  documentConflict1Statement?: unknown;
+  documentConflict2Source?: unknown;
+  documentConflict2Statement?: unknown;
+  documentConflict3Source?: unknown;
+  documentConflict3Statement?: unknown;
+  documentConflict4Source?: unknown;
+  documentConflict4Statement?: unknown;
+  documentVerificationRole?: unknown;
+  documentVerificationUrl?: unknown;
 };
 
 export function isBookingEnabled(): boolean {
@@ -137,6 +167,55 @@ function isSafeProviderUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+function providerEvidenceLabel(provider: string): string {
+  return provider.toLowerCase() === 'hotellook' ? 'Hotellook' : provider || 'Hotel provider';
+}
+
+function documentReadinessInput(input: HotelContextInput, provider: string): unknown {
+  if (input.documentReadiness !== undefined) return input.documentReadiness;
+
+  const hasSerializedEvidence = input.documentStatus !== undefined || input.documentSourceLabel !== undefined;
+  if (!hasSerializedEvidence) return notProvidedHotelDocumentReadiness(providerEvidenceLabel(provider));
+
+  const issuerByDocument = {
+    invoice: {
+      role: input.documentInvoiceIssuerRole,
+      displayName: input.documentInvoiceIssuerName,
+    },
+    receipt: {
+      role: input.documentReceiptIssuerRole,
+      displayName: input.documentReceiptIssuerName,
+    },
+    booking_confirmation: {
+      role: input.documentConfirmationIssuerRole,
+      displayName: input.documentConfirmationIssuerName,
+    },
+  };
+  const conflictStatements = [1, 2, 3, 4].map((index) => ({
+    sourceLabel: input[`documentConflict${index}Source` as keyof HotelContextInput],
+    statement: input[`documentConflict${index}Statement` as keyof HotelContextInput],
+  }));
+
+  return {
+    status: input.documentStatus,
+    scope: input.documentScope,
+    documentTypes: typeof input.documentTypes === 'string' ? input.documentTypes.split(',') : input.documentTypes,
+    issuerByDocument,
+    billingDetailsStep: input.documentBillingDetailsStep,
+    condition: input.documentCondition,
+    source: {
+      label: input.documentSourceLabel,
+      policyId: input.documentSourcePolicyId,
+      observedAt: input.documentSourceObservedAt,
+    },
+    conflictStatements,
+    verificationTarget: {
+      role: input.documentVerificationRole,
+      url: input.documentVerificationUrl,
+    },
+  };
 }
 
 function isValidDateInput(value: string): boolean {
@@ -385,6 +464,10 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const priceBasis = cleanRequired(input.priceBasis);
   const providerUrl = cleanRequired(input.providerUrl);
   const location = validateHotelLocation(input);
+  const documentReadiness = normalizeHotelDocumentReadiness(
+    documentReadinessInput(input, provider),
+    providerEvidenceLabel(provider),
+  );
 
   if (
     kind !== 'hotel' ||
@@ -412,6 +495,7 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     currency,
     priceBasis,
     providerUrl,
+    documentReadiness,
   };
 }
 
@@ -440,6 +524,30 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     locationDistanceMethod: firstParam(params.locationDistanceMethod),
     locationDistanceSource: firstParam(params.locationDistanceSource),
     locationProviderName: firstParam(params.locationProviderName),
+    documentStatus: firstParam(params.documentStatus),
+    documentScope: firstParam(params.documentScope),
+    documentTypes: firstParam(params.documentTypes),
+    documentInvoiceIssuerRole: firstParam(params.documentInvoiceIssuerRole),
+    documentInvoiceIssuerName: firstParam(params.documentInvoiceIssuerName),
+    documentReceiptIssuerRole: firstParam(params.documentReceiptIssuerRole),
+    documentReceiptIssuerName: firstParam(params.documentReceiptIssuerName),
+    documentConfirmationIssuerRole: firstParam(params.documentConfirmationIssuerRole),
+    documentConfirmationIssuerName: firstParam(params.documentConfirmationIssuerName),
+    documentBillingDetailsStep: firstParam(params.documentBillingDetailsStep),
+    documentCondition: firstParam(params.documentCondition),
+    documentSourceLabel: firstParam(params.documentSourceLabel),
+    documentSourcePolicyId: firstParam(params.documentSourcePolicyId),
+    documentSourceObservedAt: firstParam(params.documentSourceObservedAt),
+    documentConflict1Source: firstParam(params.documentConflict1Source),
+    documentConflict1Statement: firstParam(params.documentConflict1Statement),
+    documentConflict2Source: firstParam(params.documentConflict2Source),
+    documentConflict2Statement: firstParam(params.documentConflict2Statement),
+    documentConflict3Source: firstParam(params.documentConflict3Source),
+    documentConflict3Statement: firstParam(params.documentConflict3Statement),
+    documentConflict4Source: firstParam(params.documentConflict4Source),
+    documentConflict4Statement: firstParam(params.documentConflict4Statement),
+    documentVerificationRole: firstParam(params.documentVerificationRole),
+    documentVerificationUrl: firstParam(params.documentVerificationUrl),
     priceCents: firstParam(params.priceCents),
     currency: firstParam(params.currency),
     priceBasis: firstParam(params.priceBasis),
@@ -468,6 +576,7 @@ export function buildBookingHref(fare: NormalizedFare): string {
 }
 
 export function buildHotelBookingHref(hotel: HotelOffer): string {
+  const documentReadiness = normalizeHotelDocumentReadiness(hotel.documentReadiness, providerEvidenceLabel(hotel.source));
   const params = new URLSearchParams({
     kind: 'hotel',
     offerId: hotel.id,
@@ -477,6 +586,11 @@ export function buildHotelBookingHref(hotel: HotelOffer): string {
     currency: hotel.pricePerNight.currency,
     priceBasis: hotel.priceBasis ?? 'per_night_before_taxes_fees',
     providerUrl: hotel.deeplink,
+    documentStatus: documentReadiness.status,
+    documentScope: documentReadiness.scope,
+    documentTypes: documentReadiness.documentTypes.join(','),
+    documentBillingDetailsStep: documentReadiness.billingDetailsStep,
+    documentSourceLabel: documentReadiness.source.label,
   });
 
   if (hotel.area) params.set('area', hotel.area);
@@ -502,6 +616,31 @@ export function buildHotelBookingHref(hotel: HotelOffer): string {
     params.set('locationDistanceSource', hotel.location.distance.source);
   }
   if (hotel.location?.providerLocationName) params.set('locationProviderName', hotel.location.providerLocationName);
+  const issuerParams = [
+    ['invoice', 'documentInvoiceIssuerRole', 'documentInvoiceIssuerName'],
+    ['receipt', 'documentReceiptIssuerRole', 'documentReceiptIssuerName'],
+    ['booking_confirmation', 'documentConfirmationIssuerRole', 'documentConfirmationIssuerName'],
+  ] as const;
+  for (const [type, roleParam, nameParam] of issuerParams) {
+    const documentIssuer = documentReadiness.issuerByDocument[type];
+    if (!documentIssuer) continue;
+    params.set(roleParam, documentIssuer.role);
+    if (documentIssuer.displayName) params.set(nameParam, documentIssuer.displayName);
+  }
+  if (documentReadiness.condition) params.set('documentCondition', documentReadiness.condition);
+  if (documentReadiness.source.policyId) params.set('documentSourcePolicyId', documentReadiness.source.policyId);
+  if (documentReadiness.source.observedAt) params.set('documentSourceObservedAt', documentReadiness.source.observedAt);
+  documentReadiness.conflictStatements?.forEach((statement, index) => {
+    params.set(`documentConflict${index + 1}Source`, statement.sourceLabel);
+    params.set(`documentConflict${index + 1}Statement`, statement.statement);
+  });
+  if (documentReadiness.verificationTarget) {
+    params.set('documentVerificationRole', documentReadiness.verificationTarget.role);
+    if (documentReadiness.verificationTarget.url) {
+      // URLSearchParams encodes but does not alter the original affiliate URL value.
+      params.set('documentVerificationUrl', documentReadiness.verificationTarget.url);
+    }
+  }
 
   return `/book?${params.toString()}`;
 }

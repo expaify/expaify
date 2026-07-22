@@ -6,7 +6,13 @@ import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
 import { track } from '@/lib/analytics'
 import { providerDisplayName } from '@/lib/providerFreshness'
-import type { HotelParkingConflictDimension, HotelParkingEvidence } from '@/lib/types'
+import type {
+  HotelDocumentCheckState,
+  HotelDocumentReadiness,
+  HotelParkingConflictDimension,
+  HotelParkingEvidence,
+} from '@/lib/types'
+import { normalizeHotelDocumentReadiness } from '@/lib/providers/hotelDocumentReadiness'
 import { getParkingCtaStatus, ParkingSection } from '@/app/components/HotelParking'
 import {
   getRateRestrictionsAccessibleSummary,
@@ -16,7 +22,6 @@ import {
 import {
   HotelDocumentIntentControl,
   HotelDocumentReadinessDisclosure,
-  getNotProvidedHotelDocumentReadiness,
 } from '@/app/components/HotelDocumentReadiness'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
@@ -107,6 +112,18 @@ function emitAnalytics(event: string, props: Record<string, string | number | bo
     track(event, props)
   } catch {
     // Analytics must never block or alter the booking handoff.
+  }
+}
+
+function invoiceReadinessAnalytics(readiness: HotelDocumentReadiness, source: string) {
+  return {
+    status: readiness.status,
+    documentTypes: readiness.documentTypes.join(',') || 'none',
+    invoiceIssuerRole: readiness.issuerByDocument.invoice?.role ?? 'unknown',
+    receiptIssuerRole: readiness.issuerByDocument.receipt?.role ?? 'unknown',
+    billingDetailsStep: readiness.billingDetailsStep,
+    source,
+    scope: readiness.scope,
   }
 }
 
@@ -616,16 +633,106 @@ function HotelHandoffReview({
   }), [hotelContext.currency, hotelContext.priceBasis, hotelContext.priceCents, hotelContext.provider, location.precision, partner.host])
   const didContinueRef = useRef(false)
   const guidanceBlockRef = useRef<HTMLElement>(null)
+  const documentDisclosureRef = useRef<HTMLDivElement>(null)
+  const documentReadinessViewedRef = useRef(false)
+  const documentCheckRequestRef = useRef(0)
+  const documentCheckPendingRef = useRef(false)
+  const invoiceNeededRef = useRef(false)
   const guidanceViewedRef = useRef(false)
   const helpOpenRef = useRef(false)
   const returnArmedRef = useRef(false)
   const hiddenAfterContinueRef = useRef(false)
   const continueStartedAtRef = useRef<number | undefined>(undefined)
   const [invoiceNeeded, setInvoiceNeeded] = useState(false)
-  const documentReadiness = useMemo(
-    () => getNotProvidedHotelDocumentReadiness(providerDisplayName(hotelContext.provider)),
-    [hotelContext.provider],
-  )
+  const [documentReadiness, setDocumentReadiness] = useState(hotelContext.documentReadiness)
+  const [documentCheckState, setDocumentCheckState] = useState<HotelDocumentCheckState>('idle')
+
+  const runDocumentReadinessCheck = async () => {
+    if (documentCheckPendingRef.current) return
+    documentCheckPendingRef.current = true
+    const requestId = documentCheckRequestRef.current + 1
+    documentCheckRequestRef.current = requestId
+    setDocumentCheckState('loading')
+    try {
+      const response = await fetch('/api/hotels/document-readiness', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hotelContext }),
+      })
+      const payload = await response.json() as { ok?: unknown; data?: unknown }
+      if (!response.ok || payload.ok !== true) throw new Error('document check failed')
+      if (documentCheckRequestRef.current !== requestId) return
+      setDocumentReadiness(normalizeHotelDocumentReadiness(payload.data, providerDisplayName(hotelContext.provider)))
+      setDocumentCheckState('ready')
+    } catch {
+      if (documentCheckRequestRef.current === requestId) setDocumentCheckState('error')
+    } finally {
+      if (documentCheckRequestRef.current === requestId) documentCheckPendingRef.current = false
+    }
+  }
+
+  const handleInvoiceNeedChange = (needed: boolean) => {
+    if (needed === invoiceNeededRef.current) return
+    invoiceNeededRef.current = needed
+    setInvoiceNeeded(needed)
+    emitAnalytics('hotel_invoice_need_changed', {
+      needed,
+      source: hotelContext.provider,
+      partnerNamed: partner.named,
+    })
+    if (needed && documentCheckState === 'idle') void runDocumentReadinessCheck()
+  }
+
+  const handleDocumentRetry = () => {
+    if (documentCheckState === 'loading') return
+    emitAnalytics('hotel_invoice_retry_clicked', {
+      priorCheckState: documentCheckState,
+      source: hotelContext.provider,
+      scope: documentReadiness.scope,
+    })
+    void runDocumentReadinessCheck()
+  }
+
+  const handleDocumentVerification = () => {
+    const targetRole = documentReadiness.verificationTarget?.role
+    if (!targetRole || !documentReadiness.verificationTarget?.url) return
+    emitAnalytics('hotel_invoice_verification_clicked', {
+      ...invoiceReadinessAnalytics(documentReadiness, hotelContext.provider),
+      targetRole,
+    })
+  }
+
+  useEffect(() => {
+    const disclosure = documentDisclosureRef.current
+    if (!invoiceNeeded || !disclosure || typeof IntersectionObserver === 'undefined') return
+
+    let exposureTimer: ReturnType<typeof setTimeout> | undefined
+    const clearExposureTimer = () => {
+      if (exposureTimer === undefined) return
+      clearTimeout(exposureTimer)
+      exposureTimer = undefined
+    }
+    const observer = new IntersectionObserver((entries) => {
+      const exposed = entries.some(entry => (
+        entry.target === disclosure && entry.isIntersecting && entry.intersectionRatio >= 0.5
+      ))
+      if (!exposed) {
+        clearExposureTimer()
+        return
+      }
+      if (documentReadinessViewedRef.current || exposureTimer !== undefined) return
+      exposureTimer = setTimeout(() => {
+        exposureTimer = undefined
+        documentReadinessViewedRef.current = true
+        emitAnalytics('hotel_invoice_readiness_viewed', invoiceReadinessAnalytics(documentReadiness, hotelContext.provider))
+      }, 1_000)
+    }, { threshold: 0.5 })
+    observer.observe(disclosure)
+    return () => {
+      clearExposureTimer()
+      observer.disconnect()
+    }
+  }, [documentReadiness, hotelContext.provider, invoiceNeeded])
 
   useEffect(() => {
     const guidanceBlock = guidanceBlockRef.current
@@ -701,7 +808,12 @@ function HotelHandoffReview({
     returnArmedRef.current = true
     hiddenAfterContinueRef.current = false
     continueStartedAtRef.current = performance.now()
-    emitAnalytics('hotel_handoff_continue_clicked', { ...analyticsProps, partnerNamed: partner.named })
+    emitAnalytics('hotel_handoff_continue_clicked', {
+      ...analyticsProps,
+      partnerNamed: partner.named,
+      invoiceNeeded,
+      invoiceReadinessStatus: documentReadiness.status,
+    })
     if (guidanceViewedRef.current) {
       emitAnalytics('hotel_request_handoff_continued', {
         source: hotelContext.provider,
@@ -790,14 +902,20 @@ function HotelHandoffReview({
             <p className="mt-2 text-sm leading-5 text-[color:var(--text-2)]">Final total, taxes, fees, room availability, and cancellation policy.</p>
           </div>
         </div>
-        <HotelDocumentIntentControl checked={invoiceNeeded} onChange={setInvoiceNeeded} />
+        <HotelDocumentIntentControl checked={invoiceNeeded} onChange={handleInvoiceNeedChange} />
         {invoiceNeeded ? (
-          <HotelDocumentReadinessDisclosure
-            readiness={documentReadiness}
-            checkState="ready"
-            partner={partner}
-            providerUrl={hotelContext.providerUrl}
-          />
+          <div ref={documentDisclosureRef}>
+            <HotelDocumentReadinessDisclosure
+              readiness={documentReadiness}
+              checkState={documentCheckState === 'idle' ? 'ready' : documentCheckState}
+              partner={partner}
+              providerUrl={hotelContext.providerUrl}
+              retryAvailable={documentCheckState === 'error'}
+              retryPending={documentCheckState === 'loading'}
+              onRetry={handleDocumentRetry}
+              onVerificationClick={handleDocumentVerification}
+            />
+          </div>
         ) : null}
         <section
           ref={guidanceBlockRef}

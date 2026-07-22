@@ -197,6 +197,53 @@ export interface HotelParkingEvidence {
   conflict: boolean;
 }
 
+export type HotelDocumentStatus =
+  | 'confirmed'
+  | 'conditional'
+  | 'unavailable'
+  | 'not_provided'
+  | 'conflicting';
+
+export type HotelDocumentType = 'invoice' | 'receipt' | 'booking_confirmation';
+export type HotelDocumentIssuerRole = 'booking_provider' | 'property' | 'split' | 'unknown';
+export type HotelBillingDetailsStep =
+  | 'during_partner_booking'
+  | 'after_booking_contact_provider'
+  | 'after_booking_contact_property'
+  | 'at_checkout'
+  | 'not_required'
+  | 'unknown';
+export type HotelDocumentScope = 'rate' | 'selected_stay';
+
+export interface HotelDocumentIssuer {
+  role: HotelDocumentIssuerRole;
+  displayName?: string;
+}
+
+export interface HotelDocumentReadiness {
+  status: HotelDocumentStatus;
+  scope: HotelDocumentScope;
+  documentTypes: HotelDocumentType[];
+  issuerByDocument: Partial<Record<HotelDocumentType, HotelDocumentIssuer>>;
+  billingDetailsStep: HotelBillingDetailsStep;
+  condition?: string;
+  source: {
+    label: string;
+    policyId?: string;
+    observedAt?: string;
+  };
+  conflictStatements?: Array<{
+    sourceLabel: string;
+    statement: string;
+  }>;
+  verificationTarget?: {
+    role: 'booking_provider' | 'property';
+    url?: string;
+  };
+}
+
+export type HotelDocumentCheckState = 'idle' | 'loading' | 'ready' | 'error';
+
 export type HotelParkingConflictDimension =
   | 'location'
   | 'cost'
@@ -255,6 +302,7 @@ export interface HotelOffer {
   photoUrl?: string;
   deeplink: string;
   source: string;
+  documentReadiness: HotelDocumentReadiness;
   hotelClass?: HotelRatingEvidence;
   guestRating?: HotelRatingEvidence;
   amenityEvidence?: HotelAmenityEvidence[];
@@ -293,6 +341,9 @@ export interface HotelProvider {
     range: { checkin: string; checkout: string },
     context?: HotelSearchContext
   ): Promise<Result<HotelOffer[]>>;
+  checkDocumentReadiness(
+    offer: Pick<HotelOffer, 'id' | 'source' | 'deeplink' | 'documentReadiness'>
+  ): Promise<Result<HotelDocumentReadiness>>;
 }
 
 export type Result<T> = { ok: true; data: T } | { ok: false; reason: string };

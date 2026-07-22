@@ -67,6 +67,10 @@ const hotel: HotelOffer = {
   rating: 8.7,
   deeplink: 'https://tp.media/r?marker=hotel-marker&p=4536&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
   source: 'hotellook',
+  documentReadiness: {
+    status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
+    billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
+  },
 };
 
 describe('booking fare context continuity', () => {
@@ -200,6 +204,32 @@ describe('booking hotel context continuity', () => {
     expect(url.searchParams.get('currency')).toBe(hotel.pricePerNight.currency);
     expect(url.searchParams.get('priceBasis')).toBe('per_night_before_taxes_fees');
     expect(url.searchParams.get('providerUrl')).toBe(hotel.deeplink);
+    expect(url.searchParams.get('documentStatus')).toBe('not_provided');
+    expect(url.searchParams.get('documentScope')).toBe('rate');
+    expect(url.searchParams.get('documentSourceLabel')).toBe('Hotellook');
+  });
+
+  it('preserves validated document evidence and affiliate verification markers through /book', () => {
+    const verificationUrl = 'https://tp.media/r?marker=invoice%2Bmarker&u=https%3A%2F%2Fpartner.test%2Fpolicy%3Fa%3D1%26b%3D2';
+    const evidencedHotel: HotelOffer = {
+      ...hotel,
+      documentReadiness: {
+        status: 'conditional',
+        scope: 'selected_stay',
+        documentTypes: ['invoice'],
+        issuerByDocument: { invoice: { role: 'property', displayName: 'The Example Hotel Billing Desk' } },
+        billingDetailsStep: 'after_booking_contact_property',
+        condition: 'billing details being approved by the property',
+        source: { label: 'Supplier rate terms', policyId: 'rate-policy-7', observedAt: '2026-07-22T12:00:00.000Z' },
+        verificationTarget: { role: 'property', url: verificationUrl },
+      },
+    };
+    const url = new URL(buildHotelBookingHref(evidencedHotel), 'https://expaify.test');
+    const parsed = parseBookingHotelContext(Object.fromEntries(url.searchParams));
+
+    expect(parsed?.providerUrl).toBe(hotel.deeplink);
+    expect(parsed?.documentReadiness).toEqual(evidencedHotel.documentReadiness);
+    expect(parsed?.documentReadiness.verificationTarget?.url).toBe(verificationUrl);
   });
 
   it('parses valid hotel review context without changing selected display values', () => {
@@ -260,6 +290,14 @@ describe('booking hotel context continuity', () => {
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
       providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      documentReadiness: {
+        status: 'not_provided',
+        scope: 'rate',
+        documentTypes: [],
+        issuerByDocument: {},
+        billingDetailsStep: 'unknown',
+        source: { label: 'Hotellook' },
+      },
     });
   });
 

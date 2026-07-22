@@ -24,6 +24,10 @@ const hotel: HotelOffer = {
   pricePerNight: { priceCents: 17900, currency: 'USD' },
   deeplink: 'https://example.com/hotel',
   source: 'hotellook',
+  documentReadiness: {
+    status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
+    billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
+  },
 }
 
 function evidence(overrides: Partial<HotelAmenityEvidence> = {}): HotelAmenityEvidence {
