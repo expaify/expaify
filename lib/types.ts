@@ -146,6 +146,8 @@ export interface HotelAmenityEvidence {
   certainty?: HotelEvidenceCertainty;
 }
 
+export type HotelAccessEvidenceState = 'loading' | 'ready' | 'error';
+
 export type HotelLocationPrecision = 'exact' | 'coordinates' | 'area' | 'search_area' | 'missing';
 
 export interface HotelLocationDistance {
@@ -178,6 +180,8 @@ export interface HotelOffer {
   source: string;
   hotelClass?: HotelRatingEvidence;
   guestRating?: HotelRatingEvidence;
+  amenityEvidence?: HotelAmenityEvidence[];
+  accessEvidenceState?: HotelAccessEvidenceState;
 }
 
 export type NormalizedHotelOffer = HotelOffer;

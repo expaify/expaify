@@ -101,6 +101,21 @@ describe('HotelCard access evidence', () => {
     expect(collectElements(elevator).some(node => String(node.props.className).includes('truncate'))).toBe(true)
   })
 
+  it('uses evidence and access state attached to the hotel offer by the data layer', () => {
+    expanded = true
+    const card = HotelCard({
+      hotel: {
+        ...hotel,
+        amenityEvidence: [evidence()],
+        accessEvidenceState: 'loading',
+      },
+    })
+    const section = accessSection(card)
+
+    expect(collectText(section)).toContain('Provider confirms this property has an elevator.')
+    expect(collectText(section)).toContain('Refreshing access details…')
+  })
+
   it('never promotes requestable or unclear evidence into a collapsed chip', () => {
     const card = HotelCard({
       hotel,

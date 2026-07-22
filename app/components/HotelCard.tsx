@@ -706,8 +706,8 @@ export default function HotelCard({
   hotel,
   score = null,
   loading = false,
-  amenityEvidence = [],
-  accessEvidenceState = 'ready',
+  amenityEvidence,
+  accessEvidenceState,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
   const location = getHotelLocationDisplay(hotel)
@@ -732,7 +732,8 @@ export default function HotelCard({
     ? `Provider link unavailable for ${hotel.name}. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
     : `Hotel price unavailable. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
   const detailsId = `hotel-details-${hotel.id}`
-  const accessEvidence = getAccessEvidence(amenityEvidence)
+  const accessEvidence = getAccessEvidence(amenityEvidence ?? hotel.amenityEvidence ?? [])
+  const resolvedAccessEvidenceState = accessEvidenceState ?? hotel.accessEvidenceState ?? 'ready'
   const collapsedAccessFact = accessEvidence.find(item => (
     (item.id === 'elevator' || item.id === 'on_site_parking')
     && item.status === 'confirmed'
@@ -903,7 +904,7 @@ export default function HotelCard({
             <AccessEvidencePanel
               hotelId={hotel.id}
               evidence={accessEvidence}
-              state={accessEvidenceState}
+              state={resolvedAccessEvidenceState}
             />
 
             <div className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[color:var(--text-2)]">
