@@ -115,6 +115,10 @@ const hotel: HotelOffer = {
   rating: 8.7,
   deeplink: 'https://example.com/hotel',
   source: 'hotellook',
+  documentReadiness: {
+    status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
+    billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
+  },
 }
 
 describe('Deal score presentation', () => {

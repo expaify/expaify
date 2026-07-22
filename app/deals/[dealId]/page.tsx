@@ -17,6 +17,7 @@ import { getSubscription } from '@/lib/subscription'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
+import { notProvidedHotelDocumentReadiness } from '@/lib/providers/hotelDocumentReadiness'
 import {
   NO_QUIET_STAY_EVIDENCE,
   QuietStayEvidenceLedger,
@@ -198,6 +199,7 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
       pricePerNight: { priceCents: deal.deal_price_cents, currency: 'USD' as const },
       deeplink: '',
       source: 'expaify',
+      documentReadiness: notProvidedHotelDocumentReadiness('Hotel provider'),
     }
     score = scoreDeal(offer, pricePoints)
   }

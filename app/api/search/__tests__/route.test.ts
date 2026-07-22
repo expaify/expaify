@@ -75,6 +75,10 @@ const hotelOffer: HotelOffer = {
   pricePerNight: { priceCents: 18999, currency: 'USD' },
   deeplink: 'https://example.com/hotel?marker=test',
   source: 'hotellook',
+  documentReadiness: {
+    status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
+    billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
+  },
   amenityEvidence: [
     {
       id: 'elevator',

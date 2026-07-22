@@ -94,6 +94,10 @@ const hotelContext: BookingHotelContext = {
   currency: 'USD',
   priceBasis: 'per_night_before_taxes_fees',
   providerUrl: 'https://tp.media/r?marker=hotel-marker',
+  documentReadiness: {
+    status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
+    billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
+  },
 };
 
 describe('BookingFlow fare context review', () => {
@@ -413,6 +417,78 @@ describe('BookingFlow fare context review', () => {
       nowSpy.mockRestore();
       if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument);
       else delete (globalThis as { document?: unknown }).document;
+    }
+  });
+
+  it('emits one coarse invoice-need event and starts one provider-backed check for a rapid duplicate change', async () => {
+    const originalFetch = Object.getOwnPropertyDescriptor(globalThis, 'fetch');
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue({ ok: true, data: hotelContext.documentReadiness }),
+    });
+    Object.defineProperty(globalThis, 'fetch', { value: fetchMock, configurable: true });
+
+    try {
+      const tree = BookingFlow({
+        bookingEnabled: false,
+        duffelSandbox: false,
+        fareContext: null,
+        hotelContext,
+      });
+      const checkbox = findElements(tree, element => element.type === 'input' && element.props.type === 'checkbox')[0];
+      const change = checkbox.props.onChange as (event: unknown) => void;
+
+      change({ currentTarget: { checked: true } });
+      change({ currentTarget: { checked: true } });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_invoice_need_changed')).toEqual([
+        ['hotel_invoice_need_changed', { needed: true, source: 'hotellook', partnerNamed: false }],
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const request = fetchMock.mock.calls[0][1] as RequestInit;
+      expect(JSON.parse(String(request.body))).toEqual({ hotelContext });
+      expect(String(request.body)).toContain('marker=hotel-marker');
+      expect(String(request.body)).not.toContain('email');
+    } finally {
+      if (originalFetch) Object.defineProperty(globalThis, 'fetch', originalFetch);
+      else delete (globalThis as { fetch?: unknown }).fetch;
+    }
+  });
+
+  it('normalizes unrecognized provider values before emitting invoice analytics', () => {
+    const originalFetch = Object.getOwnPropertyDescriptor(globalThis, 'fetch');
+    Object.defineProperty(globalThis, 'fetch', {
+      value: jest.fn().mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ ok: true, data: hotelContext.documentReadiness }),
+      }),
+      configurable: true,
+    });
+    const contextualHotel: BookingHotelContext = {
+      ...hotelContext,
+      provider: 'property-name-must-not-leak',
+    };
+    try {
+      const tree = BookingFlow({
+        bookingEnabled: false,
+        duffelSandbox: false,
+        fareContext: null,
+        hotelContext: contextualHotel,
+      });
+      const checkbox = findElements(tree, element => element.type === 'input' && element.props.type === 'checkbox')[0];
+
+      (checkbox.props.onChange as (event: unknown) => void)({ currentTarget: { checked: true } });
+
+      expect(trackMock).toHaveBeenCalledWith('hotel_invoice_need_changed', {
+        needed: true,
+        source: 'other',
+        partnerNamed: false,
+      });
+    } finally {
+      if (originalFetch) Object.defineProperty(globalThis, 'fetch', originalFetch);
+      else delete (globalThis as { fetch?: unknown }).fetch;
     }
   });
 
