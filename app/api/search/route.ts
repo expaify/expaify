@@ -184,7 +184,7 @@ async function searchHotelAvailability(
  * GET /api/search
  *
  * Streams results as newline-delimited JSON (NDJSON).
- * Each line: { type: 'flights'|'flight-date-coverage'|'hotels'|'hotel-status'|'notice'|'suggestion'|'done', ... }
+ * Each line: { type: 'flights'|'flight-date-coverage'|'hotels'|'hotel-status'|'hotel-access-status'|'notice'|'suggestion'|'done', ... }
  * Providers are raced — first to return streams immediately.
  */
 export async function GET(request: NextRequest) {
@@ -394,12 +394,24 @@ export async function GET(request: NextRequest) {
 
       // Hotels after all flight providers resolve
       if (destIATA && depart && ret) {
+        send({ type: 'hotel-access-status', status: 'loading' });
         const hotelsResult = await searchHotelAvailability(destIATA, { checkin: depart, checkout: ret });
         if (hotelsResult.ok && hotelsResult.data.length > 0) {
           send({ type: 'hotel-status', status: 'available' });
           send({ type: 'hotels', source: 'hotellook', data: hotelsResult.data });
+          const accessState = hotelsResult.data.some(hotel => hotel.accessEvidenceState === 'error')
+            ? 'error'
+            : 'ready';
+          send({
+            type: 'hotel-access-status',
+            status: accessState,
+            ...(accessState === 'error'
+              ? { message: 'Access details could not be checked for one or more hotels.' }
+              : {}),
+          });
         } else if (hotelsResult.ok) {
           send({ type: 'hotel-status', status: 'empty', message: 'No hotels were returned for these dates.' });
+          send({ type: 'hotel-access-status', status: 'ready' });
         } else {
           const status = classifyProviderIssue(hotelsResult.reason);
           send({
@@ -413,6 +425,11 @@ export async function GET(request: NextRequest) {
               ? 'The hotel provider returned a response we could not use.'
               : 'The hotel provider is unavailable right now.',
           });
+          send({
+            type: 'hotel-access-status',
+            status: 'error',
+            message: 'Access details could not be checked because the hotel provider is unavailable.',
+          });
         }
       } else {
         send({
@@ -420,6 +437,7 @@ export async function GET(request: NextRequest) {
           status: 'skipped',
           message: 'Enter a destination plus depart and return dates to check hotel availability.',
         });
+        send({ type: 'hotel-access-status', status: 'skipped' });
       }
 
       send({ type: 'done' });

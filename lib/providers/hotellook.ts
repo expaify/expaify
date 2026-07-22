@@ -1,6 +1,7 @@
 import { HotelProvider, HotelLocation, HotelOffer, HotelRatingEvidence, Result } from '../types';
 import { cache } from '../cache/redis';
 import { fetchWithProviderTimeout } from './timeout';
+import { normalizeHotelAmenityEvidence } from './hotelAmenityEvidence';
 
 const ENGINE_BASE = 'https://engine.hotellook.com/api/v2/cache.json';
 const CACHE_TTL = 21600; // 6 hours
@@ -25,6 +26,7 @@ interface HotelLookCacheEntry {
   priceFrom?: number | string;
   photoUrl?: string;
   propertyType?: string;
+  amenityEvidence?: unknown;
 }
 
 type HotelLookOffer = HotelOffer & {
@@ -360,6 +362,8 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
       stars,
       source: value.source,
     });
+  const access = normalizeHotelAmenityEvidence(value.amenityEvidence, sourceLabel(value.source));
+  const accessEvidenceState = value.accessEvidenceState === 'error' ? 'error' : access.state;
 
   return {
     id: value.id,
@@ -377,6 +381,8 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     source: value.source,
     hotelClass,
     guestRating,
+    amenityEvidence: access.evidence,
+    accessEvidenceState,
   };
 }
 
@@ -454,6 +460,7 @@ export class HotellookProvider implements HotelProvider {
           return [];
         }
         if (priceCents === null) return [];
+        const access = normalizeHotelAmenityEvidence(entry.amenityEvidence, 'Hotellook');
 
         return {
           id: String(entry.hotelId),
@@ -483,6 +490,8 @@ export class HotellookProvider implements HotelProvider {
             source: 'hotellook',
             fetchedAt,
           }),
+          amenityEvidence: access.evidence,
+          accessEvidenceState: access.state,
         };
       });
 

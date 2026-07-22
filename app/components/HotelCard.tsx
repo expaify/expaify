@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { DealScore, HotelOffer } from '@/lib/types'
+import { DealScore, HotelAmenityEvidence, HotelEvidenceFee, HotelOffer } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
 import { buildHotelBookingHref } from '@/lib/booking/config'
 import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
@@ -12,6 +12,311 @@ type Props = {
   hotel: HotelOffer
   score?: DealScore | null
   loading?: boolean
+  amenityEvidence?: readonly HotelAmenityEvidence[]
+  accessEvidenceState?: 'ready' | 'loading' | 'error'
+}
+
+type AccessFactId =
+  | 'elevator'
+  | 'on_site_parking'
+  | 'step_free_route'
+  | 'room_pref_ground_floor'
+  | 'room_pref_high_floor'
+  | 'room_pref_near_elevator'
+  | 'room_pref_connecting'
+
+type NormalizedAccessEvidence = HotelAmenityEvidence & { id: AccessFactId }
+
+const NON_GUARANTEE_CLAUSE = 'Request only — not guaranteed until the provider confirms.'
+
+const ACCESS_FACTS: ReadonlyArray<{
+  id: AccessFactId
+  label: string
+  kind: 'property' | 'room_request'
+}> = [
+  { id: 'elevator', label: 'Elevator', kind: 'property' },
+  { id: 'on_site_parking', label: 'On-site parking', kind: 'property' },
+  { id: 'step_free_route', label: 'Step-free route, entrance to room', kind: 'property' },
+  { id: 'room_pref_ground_floor', label: 'Ground-floor room', kind: 'room_request' },
+  { id: 'room_pref_high_floor', label: 'High-floor room', kind: 'room_request' },
+  { id: 'room_pref_near_elevator', label: 'Room near the elevator', kind: 'room_request' },
+  { id: 'room_pref_connecting', label: 'Connecting rooms', kind: 'room_request' },
+]
+
+const ACCESS_FACT_IDS = new Set<AccessFactId>(ACCESS_FACTS.map(fact => fact.id))
+
+function isAccessFactId(id: string): id is AccessFactId {
+  return ACCESS_FACT_IDS.has(id as AccessFactId)
+}
+
+function hasEvidenceSource(sourceLabel: unknown): sourceLabel is string {
+  return typeof sourceLabel === 'string' && sourceLabel.trim().length > 0
+}
+
+function normalizeAccessEvidence(item: HotelAmenityEvidence): NormalizedAccessEvidence {
+  const fact = ACCESS_FACTS.find(candidate => candidate.id === item.id)!
+  const normalized = { ...item, id: fact.id, label: fact.label }
+  const hasValidScope = fact.kind === 'property'
+    ? item.scope === 'property'
+    : item.scope === 'room' || item.scope === 'selected_stay'
+
+  if (item.status !== 'confirmed') {
+    if (item.status === 'unavailable' && (!hasEvidenceSource(item.sourceLabel) || !hasValidScope)) {
+      return { ...normalized, status: 'unknown', certainty: undefined }
+    }
+    return { ...normalized, certainty: undefined }
+  }
+
+  const hasValidSource = hasEvidenceSource(item.sourceLabel)
+  const isGuaranteedPropertyFact = fact.kind === 'property'
+    && item.scope === 'property'
+    && item.certainty === 'guaranteed'
+  const isRequestableParking = item.id === 'on_site_parking'
+    && item.scope === 'property'
+    && item.certainty === 'requestable'
+  const isGuaranteedRoom = fact.kind === 'room_request'
+    && item.scope === 'selected_stay'
+    && item.certainty === 'guaranteed'
+  const isRequestableRoom = fact.kind === 'room_request'
+    && (item.scope === 'room' || item.scope === 'selected_stay')
+    && item.certainty === 'requestable'
+
+  if (!hasValidSource || (!isGuaranteedPropertyFact && !isRequestableParking && !isGuaranteedRoom && !isRequestableRoom)) {
+    return { ...normalized, status: 'unknown', certainty: undefined }
+  }
+
+  return normalized
+}
+
+function getAccessEvidence(items: readonly HotelAmenityEvidence[]): NormalizedAccessEvidence[] {
+  const precedence = { unavailable: 0, unknown: 1, not_returned: 2, confirmed: 3 }
+  const supplied = new Map<AccessFactId, NormalizedAccessEvidence>()
+
+  for (const item of items) {
+    if (!isAccessFactId(item.id)) continue
+    const normalized = normalizeAccessEvidence(item)
+    const current = supplied.get(normalized.id)
+
+    if (!current || precedence[normalized.status] < precedence[current.status]) {
+      supplied.set(normalized.id, normalized)
+    }
+  }
+
+  return ACCESS_FACTS.map(fact => supplied.get(fact.id) ?? {
+    id: fact.id,
+    label: fact.label,
+    status: 'not_returned',
+    scope: fact.kind === 'property' ? 'property' : 'room',
+    sourceLabel: 'Hotel provider',
+  })
+}
+
+function getParkingFeeText(fee?: HotelEvidenceFee): string {
+  if (fee === 'included') return 'Parking fee: included.'
+  if (fee === 'paid') return 'Parking fee: additional charge applies.'
+  return 'Parking fee: not documented.'
+}
+
+function getConfirmedCopy(item: NormalizedAccessEvidence): { visible: string; aria: string } {
+  const provider = item.sourceLabel.trim()
+
+  if (item.certainty === 'requestable') {
+    const requestableCopy: Partial<Record<AccessFactId, readonly [string, string]>> = {
+      on_site_parking: ['You can request an on-site parking space.', 'On-site parking space can be requested.'],
+      room_pref_ground_floor: ['You can request a ground-floor room.', 'Ground-floor room can be requested.'],
+      room_pref_high_floor: ['You can request a high-floor room.', 'High-floor room can be requested.'],
+      room_pref_near_elevator: ['You can request a room near the elevator.', 'Room near the elevator can be requested.'],
+      room_pref_connecting: ['You can request connecting rooms.', 'Connecting rooms can be requested.'],
+    }
+    const copy = requestableCopy[item.id]
+    const fee = item.id === 'on_site_parking' ? ` ${getParkingFeeText(item.fee)}` : ''
+
+    return {
+      visible: `${copy?.[0] ?? `${item.label}: the provider's information is unclear.`} ${NON_GUARANTEE_CLAUSE}${fee}`,
+      aria: `${copy?.[1] ?? `${item.label}. Information unclear.`} ${NON_GUARANTEE_CLAUSE}${fee}`,
+    }
+  }
+
+  switch (item.id) {
+    case 'elevator':
+      return {
+        visible: 'Provider confirms this property has an elevator.',
+        aria: `Elevator. Guaranteed property attribute. ${provider} confirms this property has an elevator.`,
+      }
+    case 'on_site_parking': {
+      const fee = getParkingFeeText(item.fee)
+      return {
+        visible: `Provider confirms this property has on-site parking. ${fee}`,
+        aria: `On-site parking. Guaranteed property attribute. ${provider} confirms on-site parking. ${fee}`,
+      }
+    }
+    case 'step_free_route':
+      return {
+        visible: 'Provider confirms a step-free route from the entrance to the room.',
+        aria: `Step-free route from entrance to room. Guaranteed property attribute. ${provider} confirms every documented link in the route is step-free.`,
+      }
+    case 'room_pref_ground_floor':
+      return {
+        visible: 'The provider guarantees a ground-floor room for this selected stay.',
+        aria: `Ground-floor room. Guaranteed for this selected stay by ${provider}.`,
+      }
+    case 'room_pref_high_floor':
+      return {
+        visible: 'The provider guarantees a high-floor room for this selected stay.',
+        aria: `High-floor room. Guaranteed for this selected stay by ${provider}.`,
+      }
+    case 'room_pref_near_elevator':
+      return {
+        visible: 'The provider guarantees a room near the elevator for this selected stay.',
+        aria: `Room near the elevator. Guaranteed for this selected stay by ${provider}.`,
+      }
+    case 'room_pref_connecting':
+      return {
+        visible: 'The provider guarantees connecting rooms for this selected stay.',
+        aria: `Connecting rooms. Guaranteed for this selected stay by ${provider}.`,
+      }
+  }
+}
+
+function getUnavailableCopy(id: AccessFactId): string {
+  return {
+    elevator: 'The provider states this property has no elevator.',
+    on_site_parking: 'The provider states this property has no on-site parking.',
+    step_free_route: 'The provider documents a step or barrier on the route from the entrance to the room.',
+    room_pref_ground_floor: 'The provider states a ground-floor room cannot be requested for this stay.',
+    room_pref_high_floor: 'The provider states a high-floor room cannot be requested for this stay.',
+    room_pref_near_elevator: 'The provider states a room near the elevator cannot be requested for this stay.',
+    room_pref_connecting: 'The provider states connecting rooms cannot be requested for this stay.',
+  }[id]
+}
+
+function getEvidenceMetadata(item: NormalizedAccessEvidence): string[] {
+  const metadata: string[] = []
+
+  if (item.status === 'confirmed' && item.certainty === 'guaranteed') {
+    metadata.push(item.scope === 'selected_stay'
+      ? 'Confirmed for this selected stay.'
+      : 'Property-level fact; confirm your specific room and rate before payment.')
+  }
+
+  const updated = item.fetchedAt ? formatUpdatedDate(item.fetchedAt) : null
+  if (hasEvidenceSource(item.sourceLabel)) {
+    metadata.push(`Source: ${item.sourceLabel.trim()}.${updated ? ` Updated ${updated}.` : ''}`)
+  }
+
+  return metadata
+}
+
+function AccessEvidenceRow({ item }: { item: NormalizedAccessEvidence }) {
+  if (item.status === 'unknown') {
+    const copy = `${item.label}: the provider's information is unclear. Confirm directly before booking.`
+    const metadata = getEvidenceMetadata(item)
+    return (
+      <div aria-label={`${item.label}. Information unclear. Confirm directly with the provider before booking.`}>
+        <dt className="font-bold text-[color:var(--text-1)]">{item.label}</dt>
+        <dd className="mt-0.5 font-medium text-[color:var(--text-2)]">{copy}</dd>
+        {metadata.length ? <dd className="mt-1 break-words text-[color:var(--text-3)]">{metadata.join(' ')}</dd> : null}
+      </div>
+    )
+  }
+
+  if (item.status === 'unavailable') {
+    const copy = getUnavailableCopy(item.id)
+    const metadata = getEvidenceMetadata(item)
+    return (
+      <div
+        className="rounded-[var(--radius-control)] bg-[color:var(--warning-soft)] px-3 py-2"
+        aria-label={`${item.label}. Unavailable. ${copy} Source: ${item.sourceLabel.trim()}.`}
+      >
+        <dt className="font-bold text-[color:var(--text-1)]">{item.label}</dt>
+        <dd className="mt-0.5 font-medium text-[color:var(--warning)]">{copy}</dd>
+        <dd className="mt-1 break-words text-[color:var(--text-3)]">{metadata.join(' ')}</dd>
+      </div>
+    )
+  }
+
+  const copy = getConfirmedCopy(item)
+  const metadata = getEvidenceMetadata(item)
+  return (
+    <div aria-label={copy.aria}>
+      <dt className="font-bold text-[color:var(--text-1)]">{item.label}</dt>
+      <dd className="mt-0.5 font-medium text-[color:var(--text-2)]">{copy.visible}</dd>
+      <dd className="mt-1 break-words text-[color:var(--text-3)]">{metadata.join(' ')}</dd>
+    </div>
+  )
+}
+
+function AccessEvidencePanel({
+  hotelId,
+  evidence,
+  state,
+}: {
+  hotelId: string
+  evidence: NormalizedAccessEvidence[]
+  state: NonNullable<Props['accessEvidenceState']>
+}) {
+  const titleId = `hotel-access-title-${hotelId}`
+  const returnedEvidence = evidence.filter(item => item.status !== 'not_returned')
+  const allNotReturned = returnedEvidence.length === 0
+  const allReturnedUnknown = returnedEvidence.length > 0
+    && returnedEvidence.every(item => item.status === 'unknown')
+  const hasNotReturned = evidence.some(item => item.status === 'not_returned')
+  const defaultCopy = 'Access details not documented by this provider. Confirm elevator, parking, step-free access, and room requests directly with the provider before booking.'
+  const errorCopy = 'Access details could not be checked. Confirm elevator, parking, step-free access, and room requests directly with the provider before booking.'
+  const sectionLabel = allNotReturned && state === 'ready'
+    ? 'Access and room requests. Access details not documented by this provider. Confirm directly before booking.'
+    : undefined
+
+  return (
+    <section
+      className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs leading-5 text-[color:var(--text-2)]"
+      aria-labelledby={titleId}
+      aria-label={sectionLabel}
+    >
+      <h4 id={titleId} className="font-bold text-[color:var(--text-1)]">Access &amp; room requests</h4>
+      {state === 'loading' && allNotReturned ? (
+        <p className="mt-2 font-medium text-[color:var(--text-3)]" role="status" aria-live="polite">
+          Checking access details…
+        </p>
+      ) : state === 'error' ? (
+        <p
+          className="mt-2 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-3 py-2 font-medium text-[color:var(--text-3)]"
+          role="status"
+          aria-live="polite"
+        >
+          {errorCopy}
+        </p>
+      ) : allNotReturned ? (
+        <p className="mt-2 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-3 py-2 font-medium text-[color:var(--text-3)]">
+          {defaultCopy}
+        </p>
+      ) : allReturnedUnknown ? (
+        <p
+          className="mt-2 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-3 py-2 font-medium text-[color:var(--text-3)] sm:col-span-2"
+          aria-label="Access and room-request information from this provider is unclear. Confirm details directly before booking."
+        >
+          Access and room-request information from this provider is unclear. Confirm details directly before booking.
+        </p>
+      ) : (
+        <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-x-6">
+          {returnedEvidence.map(item => <AccessEvidenceRow key={item.id} item={item} />)}
+          {hasNotReturned ? (
+            <div
+              className="sm:col-span-2 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-3 py-2 font-medium text-[color:var(--text-3)]"
+              aria-label="Other access and room-request details were not documented by this provider. Confirm them directly before booking."
+            >
+              Other access and room-request details were not documented by this provider. Confirm them directly before booking.
+            </div>
+          ) : null}
+        </dl>
+      )}
+      {state === 'loading' && !allNotReturned ? (
+        <p className="mt-3 font-medium text-[color:var(--text-3)]" role="status" aria-live="polite">
+          Refreshing access details…
+        </p>
+      ) : null}
+    </section>
+  )
 }
 
 function StarRow({ stars }: { stars: number }) {
@@ -397,7 +702,13 @@ function ScoreChip({ score, loading }: { score: DealScore | null; loading: boole
   )
 }
 
-export default function HotelCard({ hotel, score = null, loading = false }: Props) {
+export default function HotelCard({
+  hotel,
+  score = null,
+  loading = false,
+  amenityEvidence,
+  accessEvidenceState,
+}: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
   const location = getHotelLocationDisplay(hotel)
   const hasBookingUrl = isValidBookingUrl(hotel.deeplink)
@@ -421,6 +732,20 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
     ? `Provider link unavailable for ${hotel.name}. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
     : `Hotel price unavailable. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
   const detailsId = `hotel-details-${hotel.id}`
+  const accessEvidence = getAccessEvidence(amenityEvidence ?? hotel.amenityEvidence ?? [])
+  const resolvedAccessEvidenceState = accessEvidenceState ?? hotel.accessEvidenceState ?? 'ready'
+  const collapsedAccessFact = accessEvidence.find(item => (
+    (item.id === 'elevator' || item.id === 'on_site_parking')
+    && item.status === 'confirmed'
+    && item.certainty === 'guaranteed'
+    && item.scope === 'property'
+    && hasEvidenceSource(item.sourceLabel)
+  ))
+  const collapsedAccessAriaLabel = collapsedAccessFact?.id === 'elevator'
+    ? `Elevator. ${collapsedAccessFact.sourceLabel.trim()} confirms this property has an elevator.`
+    : collapsedAccessFact?.id === 'on_site_parking'
+      ? `On-site parking. ${collapsedAccessFact.sourceLabel.trim()} confirms this property has on-site parking. Review parking fees and space availability in details.`
+      : undefined
 
   return (
     <article className="card overflow-hidden rounded-[var(--radius-card)]">
@@ -467,6 +792,14 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
                   </span>
                 ) : null}
               </div>
+            ) : null}
+            {collapsedAccessFact ? (
+              <span
+                className="mt-1.5 inline-flex max-w-full items-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-2 py-1 text-xs font-medium leading-4 text-[color:var(--text-2)]"
+                aria-label={collapsedAccessAriaLabel}
+              >
+                <span className="truncate">{collapsedAccessFact.label}</span>
+              </span>
             ) : null}
             <div className="mt-2 min-w-0 text-xs leading-5">
               <p className={`font-bold ${location.isWarning ? 'text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
@@ -567,6 +900,12 @@ export default function HotelCard({ hotel, score = null, loading = false }: Prop
                 <p className="mt-2 break-words text-[color:var(--text-2)]">{location.distanceText}</p>
               ) : null}
             </div>
+
+            <AccessEvidencePanel
+              hotelId={hotel.id}
+              evidence={accessEvidence}
+              state={resolvedAccessEvidenceState}
+            />
 
             <div className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[color:var(--text-2)]">
               <p className="font-bold text-[color:var(--text-1)]">Price scope</p>

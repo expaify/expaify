@@ -116,6 +116,38 @@ export interface HotelRatingEvidence {
   confidence: HotelQualityConfidence;
 }
 
+export type HotelEvidenceStatus =
+  | 'confirmed'
+  | 'unavailable'
+  | 'not_returned'
+  | 'unknown';
+
+export type HotelEvidenceScope =
+  | 'property'
+  | 'room'
+  | 'rate'
+  | 'selected_stay';
+
+export type HotelEvidenceFee = 'included' | 'paid' | 'unknown';
+
+export type HotelAmenityConfidence = HotelQualityConfidence;
+
+export type HotelEvidenceCertainty = 'guaranteed' | 'requestable';
+
+export interface HotelAmenityEvidence {
+  id: string;
+  label: string;
+  status: HotelEvidenceStatus;
+  scope: HotelEvidenceScope;
+  sourceLabel: string;
+  fee?: HotelEvidenceFee;
+  fetchedAt?: string;
+  confidence?: HotelAmenityConfidence;
+  certainty?: HotelEvidenceCertainty;
+}
+
+export type HotelAccessEvidenceState = 'loading' | 'ready' | 'error';
+
 export type HotelLocationPrecision = 'exact' | 'coordinates' | 'area' | 'search_area' | 'missing';
 
 export interface HotelLocationDistance {
@@ -148,6 +180,8 @@ export interface HotelOffer {
   source: string;
   hotelClass?: HotelRatingEvidence;
   guestRating?: HotelRatingEvidence;
+  amenityEvidence?: HotelAmenityEvidence[];
+  accessEvidenceState?: HotelAccessEvidenceState;
 }
 
 export type NormalizedHotelOffer = HotelOffer;

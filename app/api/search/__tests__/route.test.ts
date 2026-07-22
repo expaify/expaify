@@ -75,6 +75,19 @@ const hotelOffer: HotelOffer = {
   pricePerNight: { priceCents: 18999, currency: 'USD' },
   deeplink: 'https://example.com/hotel?marker=test',
   source: 'hotellook',
+  amenityEvidence: [
+    {
+      id: 'elevator',
+      label: 'Elevator',
+      status: 'confirmed',
+      scope: 'property',
+      sourceLabel: 'Hotellook',
+      fetchedAt: '2026-07-22T01:00:00.000Z',
+      confidence: 'provider_only',
+      certainty: 'guaranteed',
+    },
+  ],
+  accessEvidenceState: 'ready',
 };
 
 function searchRequest(queryString: string): NextRequest {
@@ -492,6 +505,32 @@ describe('GET /api/search guardrails and provider failures', () => {
       source: 'hotellook',
       data: [hotelOffer],
     });
+    expect(messages).toContainEqual({ type: 'hotel-access-status', status: 'loading' });
+    expect(messages).toContainEqual({ type: 'hotel-access-status', status: 'ready' });
     expect(Number.isInteger(hotelOffer.pricePerNight.priceCents)).toBe(true);
+  });
+
+  it('streams access errors independently while preserving hotel inventory', async () => {
+    const hotelWithAccessError: HotelOffer = {
+      ...hotelOffer,
+      amenityEvidence: [],
+      accessEvidenceState: 'error',
+    };
+    mockHotelSearch.mockResolvedValueOnce({ ok: true, data: [hotelWithAccessError] });
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&return=2099-09-29&trip=roundtrip&passengers=1'));
+    const messages = parseNdjson(await readNdjson(response));
+
+    expect(messages).toContainEqual({ type: 'hotel-status', status: 'available' });
+    expect(messages).toContainEqual({
+      type: 'hotels',
+      source: 'hotellook',
+      data: [hotelWithAccessError],
+    });
+    expect(messages).toContainEqual({
+      type: 'hotel-access-status',
+      status: 'error',
+      message: 'Access details could not be checked for one or more hotels.',
+    });
   });
 });

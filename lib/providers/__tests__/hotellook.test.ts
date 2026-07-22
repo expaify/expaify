@@ -19,6 +19,22 @@ const fetchMock = global.fetch as jest.Mock;
 const cacheGetMock = cache.get as jest.Mock;
 const cacheSetMock = cache.set as jest.Mock;
 
+const notReturnedEvidence = [
+  ['elevator', 'Elevator', 'property'],
+  ['on_site_parking', 'On-site parking', 'property'],
+  ['step_free_route', 'Step-free route, entrance to room', 'property'],
+  ['room_pref_ground_floor', 'Ground-floor room', 'room'],
+  ['room_pref_high_floor', 'High-floor room', 'room'],
+  ['room_pref_near_elevator', 'Room near the elevator', 'room'],
+  ['room_pref_connecting', 'Connecting rooms', 'room'],
+].map(([id, label, scope]) => ({
+  id,
+  label,
+  status: 'not_returned',
+  scope,
+  sourceLabel: 'Hotellook',
+}));
+
 beforeEach(() => {
   process.env.TP_TOKEN = 'test-token';
   process.env.HOTEL_AFFILIATE_ID = 'hotel-marker42';
@@ -150,6 +166,8 @@ describe('HotellookProvider.searchHotels', () => {
           fetchedAt: expect.any(String),
           confidence: 'unavailable',
         },
+        amenityEvidence: notReturnedEvidence,
+        accessEvidenceState: 'ready',
       },
     ]);
   });
@@ -353,6 +371,8 @@ describe('HotellookProvider.searchHotels', () => {
             sourceLabel: 'Hotellook',
             confidence: 'inferred',
           },
+          amenityEvidence: notReturnedEvidence,
+          accessEvidenceState: 'ready',
         },
       ],
     });
@@ -386,6 +406,20 @@ describe('HotellookProvider.searchHotels', () => {
           fetchedAt: '2026-07-02T10:00:00.000Z',
           confidence: 'verified',
         },
+        amenityEvidence: [
+          {
+            id: 'elevator',
+            label: 'Elevator',
+            status: 'confirmed',
+            scope: 'property',
+            sourceLabel: 'Booking.com',
+            fetchedAt: '2026-07-02T10:00:00.000Z',
+            confidence: 'verified',
+            certainty: 'guaranteed',
+          },
+          ...notReturnedEvidence.slice(1),
+        ],
+        accessEvidenceState: 'ready',
       },
     ];
     cacheGetMock.mockResolvedValueOnce(cached);
@@ -443,6 +477,153 @@ describe('HotellookProvider.searchHotels', () => {
         pricePerNight: { priceCents: 15025, currency: 'USD' },
       }),
     ]);
+  });
+
+  it('preserves conservative live access facts and downgrades unsupported claims', async () => {
+    const provider = new HotellookProvider();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue([
+        {
+          hotelId: 333,
+          hotelName: 'Evidence Hotel',
+          priceFrom: 180,
+          amenityEvidence: [
+            {
+              id: 'elevator',
+              label: 'Vendor elevator copy',
+              status: 'confirmed',
+              scope: 'property',
+              sourceLabel: 'Hotellook facilities',
+              fetchedAt: '2026-07-22T01:00:00.000Z',
+              confidence: 'provider_only',
+              certainty: 'guaranteed',
+            },
+            {
+              id: 'on_site_parking',
+              label: 'Parking',
+              status: 'confirmed',
+              scope: 'property',
+              sourceLabel: 'Hotellook facilities',
+              fee: 'paid',
+              certainty: 'requestable',
+            },
+            {
+              id: 'step_free_route',
+              label: 'Step free',
+              status: 'confirmed',
+              scope: 'property',
+              sourceLabel: 'Hotellook facilities',
+              certainty: 'requestable',
+            },
+            {
+              id: 'room_pref_connecting',
+              label: 'Connecting',
+              status: 'unavailable',
+              scope: 'room',
+              sourceLabel: 'Hotellook facilities',
+              certainty: 'guaranteed',
+            },
+          ],
+        },
+      ]),
+    });
+
+    const result = await provider.searchHotels('LAX', {
+      checkin: '2026-09-22',
+      checkout: '2026-09-29',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.data[0]).toMatchObject({
+      accessEvidenceState: 'ready',
+      amenityEvidence: [
+        {
+          id: 'elevator',
+          label: 'Elevator',
+          status: 'confirmed',
+          scope: 'property',
+          sourceLabel: 'Hotellook facilities',
+          fetchedAt: '2026-07-22T01:00:00.000Z',
+          confidence: 'provider_only',
+          certainty: 'guaranteed',
+        },
+        {
+          id: 'on_site_parking',
+          status: 'confirmed',
+          fee: 'paid',
+          certainty: 'requestable',
+        },
+        {
+          id: 'step_free_route',
+          status: 'unknown',
+        },
+        expect.objectContaining({ id: 'room_pref_ground_floor', status: 'not_returned' }),
+        expect.objectContaining({ id: 'room_pref_high_floor', status: 'not_returned' }),
+        expect.objectContaining({ id: 'room_pref_near_elevator', status: 'not_returned' }),
+        {
+          id: 'room_pref_connecting',
+          label: 'Connecting rooms',
+          status: 'unavailable',
+          scope: 'room',
+          sourceLabel: 'Hotellook facilities',
+        },
+      ],
+    });
+  });
+
+  it('keeps cached inventory usable when cached access evidence is malformed', async () => {
+    cacheGetMock.mockResolvedValueOnce([
+      {
+        id: 'cached-access-error',
+        name: 'Cached Access Error Hotel',
+        area: 'Seattle',
+        stars: 4,
+        pricePerNight: { priceCents: 12900, currency: 'USD' },
+        deeplink: 'https://example.com/cached-access-error',
+        source: 'hotellook',
+        amenityEvidence: 'not-an-evidence-list',
+      },
+    ]);
+
+    const result = await new HotellookProvider().searchHotels('SEA', {
+      checkin: '2026-09-22',
+      checkout: '2026-09-29',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.data[0].pricePerNight).toEqual({ priceCents: 12900, currency: 'USD' });
+    expect(result.data[0].accessEvidenceState).toBe('error');
+    expect(result.data[0].amenityEvidence).toEqual(notReturnedEvidence);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('preserves a cached access error independently from its safe fallback evidence', async () => {
+    cacheGetMock.mockResolvedValueOnce([
+      {
+        id: 'cached-preserved-error',
+        name: 'Cached Preserved Error Hotel',
+        area: 'Denver',
+        stars: 3,
+        pricePerNight: { priceCents: 11900, currency: 'USD' },
+        deeplink: 'https://example.com/cached-preserved-error',
+        source: 'hotellook',
+        amenityEvidence: notReturnedEvidence,
+        accessEvidenceState: 'error',
+      },
+    ]);
+
+    const result = await new HotellookProvider().searchHotels('DEN', {
+      checkin: '2026-09-22',
+      checkout: '2026-09-29',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.data[0].accessEvidenceState).toBe('error');
+    expect(result.data[0].amenityEvidence).toEqual(notReturnedEvidence);
   });
 
   it('caches API results for 6 hours', async () => {
