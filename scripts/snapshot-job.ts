@@ -90,7 +90,7 @@ async function snapshotTopHotels(): Promise<void> {
           continue;
         }
 
-        const n = await insertHotelSnapshots(result.data, checkin);
+        const n = await insertHotelSnapshots(result.data.offers, checkin);
         console.log(`[${label}] inserted ${n} rows`);
       } catch (err) {
         console.error(`[${label}] ${err instanceof Error ? err.message : err}`);

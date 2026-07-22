@@ -263,6 +263,15 @@ export interface HotelOffer {
 
 export type NormalizedHotelOffer = HotelOffer;
 
+export type HotelSearchCoverage = 'more_available' | 'confirmed_end' | 'unconfirmed';
+
+export interface HotelSearchPage {
+  offers: HotelOffer[];
+  coverage: HotelSearchCoverage;
+  nextPageToken?: string;
+  exactTotal?: number;
+}
+
 export interface AirportLookupAirport {
   iata: string;
   name: string;
@@ -292,7 +301,7 @@ export interface HotelProvider {
     area: string,
     range: { checkin: string; checkout: string },
     context?: HotelSearchContext
-  ): Promise<Result<HotelOffer[]>>;
+  ): Promise<Result<HotelSearchPage>>;
 }
 
 export type Result<T> = { ok: true; data: T } | { ok: false; reason: string };

@@ -111,7 +111,10 @@ describe('GET /api/search guardrails and provider failures', () => {
     flightProviders.forEach(provider => {
       provider.searchFares.mockResolvedValue({ ok: true, data: [] });
     });
-    mockHotelSearch.mockResolvedValue({ ok: true, data: [] });
+    mockHotelSearch.mockResolvedValue({
+      ok: true,
+      data: { offers: [], coverage: 'unconfirmed' },
+    });
     mockQuery.mockResolvedValue({
       rows: [],
       rowCount: 0,
@@ -495,7 +498,10 @@ describe('GET /api/search guardrails and provider failures', () => {
   });
 
   it('keeps empty hotel availability distinct from provider failure', async () => {
-    mockHotelSearch.mockResolvedValueOnce({ ok: true, data: [] });
+    mockHotelSearch.mockResolvedValueOnce({
+      ok: true,
+      data: { offers: [], coverage: 'unconfirmed' },
+    });
 
     const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&return=2099-09-29&trip=roundtrip&passengers=1'));
     const messages = parseNdjson(await readNdjson(response));
@@ -504,13 +510,17 @@ describe('GET /api/search guardrails and provider failures', () => {
     expect(messages).toContainEqual({
       type: 'hotel-status',
       status: 'empty',
+      coverage: 'unconfirmed',
       message: 'No hotels were returned for these dates.',
     });
     expect(messages.some(message => message.type === 'hotels')).toBe(false);
   });
 
   it('streams hotel offers with integer priceCents when availability succeeds', async () => {
-    mockHotelSearch.mockResolvedValueOnce({ ok: true, data: [hotelOffer] });
+    mockHotelSearch.mockResolvedValueOnce({
+      ok: true,
+      data: { offers: [hotelOffer], coverage: 'unconfirmed' },
+    });
 
     const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&return=2099-09-29&trip=roundtrip&passengers=1'));
     const messages = parseNdjson(await readNdjson(response));
@@ -519,11 +529,13 @@ describe('GET /api/search guardrails and provider failures', () => {
     expect(messages).toContainEqual({
       type: 'hotel-status',
       status: 'available',
+      coverage: 'unconfirmed',
     });
     expect(messages).toContainEqual({
       type: 'hotels',
       source: 'hotellook',
       data: [hotelOffer],
+      page: { coverage: 'unconfirmed' },
     });
     expect(messages).toContainEqual({ type: 'hotel-access-status', status: 'loading' });
     expect(messages).toContainEqual({ type: 'hotel-access-status', status: 'ready' });
@@ -536,16 +548,24 @@ describe('GET /api/search guardrails and provider failures', () => {
       amenityEvidence: [],
       accessEvidenceState: 'error',
     };
-    mockHotelSearch.mockResolvedValueOnce({ ok: true, data: [hotelWithAccessError] });
+    mockHotelSearch.mockResolvedValueOnce({
+      ok: true,
+      data: { offers: [hotelWithAccessError], coverage: 'unconfirmed' },
+    });
 
     const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&return=2099-09-29&trip=roundtrip&passengers=1'));
     const messages = parseNdjson(await readNdjson(response));
 
-    expect(messages).toContainEqual({ type: 'hotel-status', status: 'available' });
+    expect(messages).toContainEqual({
+      type: 'hotel-status',
+      status: 'available',
+      coverage: 'unconfirmed',
+    });
     expect(messages).toContainEqual({
       type: 'hotels',
       source: 'hotellook',
       data: [hotelWithAccessError],
+      page: { coverage: 'unconfirmed' },
     });
     expect(messages).toContainEqual({
       type: 'hotel-access-status',

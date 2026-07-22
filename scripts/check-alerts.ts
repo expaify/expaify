@@ -151,7 +151,7 @@ async function main(): Promise<void> {
         continue;
       }
 
-      const match = result.data.find(
+      const match = result.data.offers.find(
         (hotel) =>
           hotel.id === alert.hotel_id &&
           hotel.pricePerNight.priceCents <= alert.target_cents,

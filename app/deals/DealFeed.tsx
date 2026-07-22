@@ -8,7 +8,7 @@ import { SearchBar } from '../components/ui/SearchBar'
 import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 import { track } from '@/lib/analytics'
-import { HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
+import { dedupeByStableId, HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
 import {
   HotelResultStatus,
 } from './HotelRecoveryUI'
@@ -135,7 +135,6 @@ type RequestBehavior = {
 
 type DealsResponse = {
   deals: ApiDeal[]
-  total: number
   premium?: boolean
   unfilteredTotal?: number
   resultMetadata?: unknown
@@ -164,7 +163,7 @@ function readConfirmedCoverage(response: DealsResponse): ConfirmedCoverage | nul
 
 function appendUniqueDeals(current: ApiDeal[], incoming: ApiDeal[]) {
   const ids = new Set(current.map(deal => deal.id))
-  const unique = incoming.filter(deal => {
+  const unique = dedupeByStableId(incoming).filter(deal => {
     if (ids.has(deal.id)) return false
     ids.add(deal.id)
     return true
@@ -308,16 +307,22 @@ type Personalization = {
 
 type DealFeedProps = {
   initialDeals?: ApiDeal[]
+  initialPage?: DealsResponse['page']
+  initialCoverage?: DealsResponse['coverage']
   initialResultMetadata?: HotelResultMetadata | null
   defaultCity?: string
   premium?: boolean
   personalization?: Personalization
 }
 
-export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization }: DealFeedProps = {}) {
+export function DealFeed({ initialDeals, initialPage, initialCoverage, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization }: DealFeedProps = {}) {
   const router = useRouter()
-  const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
-  const [confirmedCoverage, setConfirmedCoverage] = useState<ConfirmedCoverage | null>(null)
+  const [deals, setDeals] = useState<ApiDeal[]>(() => dedupeByStableId(initialDeals ?? []))
+  const [confirmedCoverage, setConfirmedCoverage] = useState<ConfirmedCoverage | null>(() => readConfirmedCoverage({
+    deals: initialDeals ?? [],
+    page: initialPage,
+    coverage: initialCoverage,
+  }))
   const [loading, setLoading] = useState(!initialDeals)
   const [error, setError] = useState(false)
   const [continuationError, setContinuationError] = useState(false)
@@ -443,6 +448,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         setConfirmedCoverage(coverage)
         failedContinuationOffsetRef.current = null
         if (appended.uniqueCount === 0 && coverage?.state !== 'confirmed_end') {
+          failedContinuationOffsetRef.current = opts.offset
           setZeroNewUnconfirmed(true)
           setCoverageAnnouncement('No additional unique deals were returned. Coverage is still unconfirmed.')
         } else if (coverage?.state === 'confirmed_end') {
@@ -451,16 +457,17 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
           setCoverageAnnouncement(`${appended.uniqueCount} more ${appended.uniqueCount === 1 ? 'deal' : 'deals'} loaded. ${appended.deals.length} shown.`)
         }
       } else {
-        setDeals(data.deals)
+        const uniqueDeals = dedupeByStableId(data.deals)
+        setDeals(uniqueDeals)
         setConfirmedCoverage(coverage)
         setZeroNewUnconfirmed(false)
-        const liveDeals = data.deals.filter(deal => !deal.isMock)
+        const liveDeals = uniqueDeals.filter(deal => !deal.isMock)
         const filteredRequest = Boolean(
           (defaultCity ? opts.city !== defaultCity : opts.city) ||
           opts.minDiscount !== DEFAULT_MIN_DISCOUNT ||
           opts.maxPriceCents || opts.minStars || opts.dateFrom || opts.dateTo
         )
-        if (liveDeals.length === 0 && data.deals.length > 0) setCoverageAnnouncement('')
+        if (liveDeals.length === 0 && uniqueDeals.length > 0) setCoverageAnnouncement('')
         else if (liveDeals.length === 0) {
           setCoverageAnnouncement(filteredRequest
             ? 'No current expaify deals match your filters. Remove one filter to expand this expaify result set.'
@@ -683,7 +690,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         if (parsedMetadata.filteredTotal === 0 && data.deals.length > 0) throw new Error('invalid result metadata')
         if (parsedMetadata.filteredTotal > 0 && parsedMetadata.filteredTotal <= 3 && data.deals.length === 0) throw new Error('invalid result metadata')
       }
-      setDeals(data.deals)
+      setDeals(dedupeByStableId(data.deals))
       setResultMetadata(parsedMetadata)
       setConfirmedCoverage(readConfirmedCoverage(data))
       setContinuationError(false)

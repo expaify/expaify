@@ -1,4 +1,4 @@
-import { HotelProvider, HotelLocation, HotelOffer, HotelRatingEvidence, HotelSearchContext, Result } from '../types';
+import { HotelProvider, HotelLocation, HotelOffer, HotelRatingEvidence, HotelSearchContext, HotelSearchPage, Result } from '../types';
 import { cache } from '../cache/redis';
 import { fetchWithProviderTimeout } from './timeout';
 import { normalizeHotelAmenityEvidence } from './hotelAmenityEvidence';
@@ -422,7 +422,7 @@ export class HotellookProvider implements HotelProvider {
     area: string,
     range: { checkin: string; checkout: string },
     context?: HotelSearchContext
-  ): Promise<Result<HotelOffer[]>> {
+  ): Promise<Result<HotelSearchPage>> {
     const token = this.token;
     if (!token) return { ok: false, reason: 'TP_TOKEN not configured' };
     if (!this.marker) return { ok: false, reason: 'HOTEL_AFFILIATE_ID not configured' };
@@ -435,7 +435,13 @@ export class HotellookProvider implements HotelProvider {
       if (Array.isArray(cached)) {
         const hotels = cached.map(normalizeCachedHotelOffer);
         if (hotels.every((hotel): hotel is HotelOffer => hotel !== null)) {
-          return { ok: true, data: hotels.map(hotel => applySearchContext(hotel, context)) };
+          return {
+            ok: true,
+            data: {
+              offers: hotels.map(hotel => applySearchContext(hotel, context)),
+              coverage: 'unconfirmed',
+            },
+          };
         }
       }
 
@@ -455,7 +461,9 @@ export class HotellookProvider implements HotelProvider {
       if (!Array.isArray(json)) {
         return { ok: false, reason: 'HotelLook returned a malformed response' };
       }
-      if (json.length === 0) return { ok: true, data: [] };
+      if (json.length === 0) {
+        return { ok: true, data: { offers: [], coverage: 'unconfirmed' } };
+      }
 
       const fetchedAt = new Date().toISOString();
       const hotels: HotelLookOffer[] = json.flatMap((entry) => {
@@ -502,7 +510,13 @@ export class HotellookProvider implements HotelProvider {
       });
 
       await cache.set(cacheKey, hotels, CACHE_TTL);
-      return { ok: true, data: hotels.map(hotel => applySearchContext(hotel, context)) };
+      return {
+        ok: true,
+        data: {
+          offers: hotels.map(hotel => applySearchContext(hotel, context)),
+          coverage: 'unconfirmed',
+        },
+      };
     } catch (err) {
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     }

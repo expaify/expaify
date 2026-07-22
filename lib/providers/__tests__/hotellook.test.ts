@@ -94,8 +94,9 @@ describe('HotellookProvider.searchHotels', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
 
-    expect(result.data[0].deeplink).toContain('marker=hotel-primary');
-    expect(result.data[0].deeplink).not.toContain('legacy-flight-marker');
+    expect(result.data.offers[0].deeplink).toContain('marker=hotel-primary');
+    expect(result.data.offers[0].deeplink).not.toContain('legacy-flight-marker');
+    expect(result.data.coverage).toBe('unconfirmed');
   });
 
   it('calls the engine cache endpoint and maps HotelLook major-unit priceFrom to cents', async () => {
@@ -129,7 +130,7 @@ describe('HotellookProvider.searchHotels', () => {
       'https://engine.hotellook.com/api/v2/cache.json?location=JFK&checkIn=2026-09-22&checkOut=2026-09-29&currency=USD&token=test-token&limit=20',
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
-    expect(result.data).toEqual([
+    expect(result.data.offers).toEqual([
       {
         id: '12345',
         name: 'Hotel Example',
@@ -192,7 +193,7 @@ describe('HotellookProvider.searchHotels', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
 
-    expect(result.data[0]).toMatchObject({
+    expect(result.data.offers[0]).toMatchObject({
       id: '54321',
       area: 'Boston',
       location: {
@@ -238,7 +239,7 @@ describe('HotellookProvider.searchHotels', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
-    expect(result.data[0].location).toMatchObject({
+    expect(result.data.offers[0].location).toMatchObject({
       anchor,
       distance: {
         unit: 'km',
@@ -246,8 +247,8 @@ describe('HotellookProvider.searchHotels', () => {
         source: 'expaify_calculated',
       },
     });
-    expect(result.data[0].location?.distance?.value).toBeCloseTo(4.1, 1);
-    expect(JSON.stringify(result.data[0])).not.toContain('city center');
+    expect(result.data.offers[0].location?.distance?.value).toBeCloseTo(4.1, 1);
+    expect(JSON.stringify(result.data.offers[0])).not.toContain('city center');
   });
 
   it('excludes zero, missing, non-finite, and invalid HotelLook prices', async () => {
@@ -290,8 +291,8 @@ describe('HotellookProvider.searchHotels', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
 
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0]).toMatchObject({
+    expect(result.data.offers).toHaveLength(1);
+    expect(result.data.offers[0]).toMatchObject({
       id: '5',
       name: 'Valid Hotel',
       pricePerNight: { priceCents: 19950, currency: 'USD' },
@@ -310,7 +311,10 @@ describe('HotellookProvider.searchHotels', () => {
       checkout: '2026-09-29',
     });
 
-    expect(result).toEqual({ ok: true, data: [] });
+    expect(result).toEqual({
+      ok: true,
+      data: { offers: [], coverage: 'unconfirmed' },
+    });
   });
 
   it('returns HTTP status errors without throwing', async () => {
@@ -387,10 +391,11 @@ describe('HotellookProvider.searchHotels', () => {
       checkout: '2026-09-29',
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true,
-      data: [
-        {
+      data: {
+        coverage: 'unconfirmed',
+        offers: [{
           id: 'cached-1',
           name: 'Cached Hotel',
           area: 'Chicago',
@@ -422,8 +427,8 @@ describe('HotellookProvider.searchHotels', () => {
           },
           amenityEvidence: notReturnedEvidence,
           accessEvidenceState: 'ready',
-        },
-      ],
+        }],
+      },
     });
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -481,15 +486,18 @@ describe('HotellookProvider.searchHotels', () => {
 
     expect(result).toMatchObject({
       ok: true,
-      data: [{
-        ...cached[0],
-        location: {
-          label: 'Paris',
-          precision: 'search_area',
-          area: 'Paris',
-          source: 'search_fallback',
-        },
-      }],
+      data: {
+        coverage: 'unconfirmed',
+        offers: [{
+          ...cached[0],
+          location: {
+            label: 'Paris',
+            precision: 'search_area',
+            area: 'Paris',
+            source: 'search_fallback',
+          },
+        }],
+      },
     });
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -528,7 +536,7 @@ describe('HotellookProvider.searchHotels', () => {
     if (!result.ok) throw new Error(result.reason);
 
     expect(global.fetch).toHaveBeenCalled();
-    expect(result.data).toEqual([
+    expect(result.data.offers).toEqual([
       expect.objectContaining({
         id: '222',
         pricePerNight: { priceCents: 15025, currency: 'USD' },
@@ -593,7 +601,7 @@ describe('HotellookProvider.searchHotels', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
-    expect(result.data[0]).toMatchObject({
+    expect(result.data.offers[0]).toMatchObject({
       accessEvidenceState: 'ready',
       amenityEvidence: [
         {
@@ -651,9 +659,9 @@ describe('HotellookProvider.searchHotels', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
-    expect(result.data[0].pricePerNight).toEqual({ priceCents: 12900, currency: 'USD' });
-    expect(result.data[0].accessEvidenceState).toBe('error');
-    expect(result.data[0].amenityEvidence).toEqual(notReturnedEvidence);
+    expect(result.data.offers[0].pricePerNight).toEqual({ priceCents: 12900, currency: 'USD' });
+    expect(result.data.offers[0].accessEvidenceState).toBe('error');
+    expect(result.data.offers[0].amenityEvidence).toEqual(notReturnedEvidence);
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
@@ -679,8 +687,8 @@ describe('HotellookProvider.searchHotels', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
-    expect(result.data[0].accessEvidenceState).toBe('error');
-    expect(result.data[0].amenityEvidence).toEqual(notReturnedEvidence);
+    expect(result.data.offers[0].accessEvidenceState).toBe('error');
+    expect(result.data.offers[0].amenityEvidence).toEqual(notReturnedEvidence);
   });
 
   it('caches API results for 6 hours', async () => {

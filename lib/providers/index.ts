@@ -4,5 +4,7 @@ export type {
   Result,
   NormalizedFare,
   HotelOffer,
+  HotelSearchPage,
+  HotelSearchCoverage,
   PricePoint,
 } from '../types';
