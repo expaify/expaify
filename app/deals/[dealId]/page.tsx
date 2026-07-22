@@ -14,6 +14,10 @@ import { ShareButton } from '@/app/components/ui/ShareButton'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
+import {
+  NO_QUIET_STAY_EVIDENCE,
+  QuietStayEvidenceLedger,
+} from '@/app/components/ui/QuietStayEvidenceLedger'
 import { scoreDeal } from '@/lib/scoring/scoreDeal'
 import type { DealScore } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
@@ -338,6 +342,8 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
         <Suspense fallback={null}>
           <DealScoreSection deal={deal} />
         </Suspense>
+
+        <QuietStayEvidenceLedger evidence={NO_QUIET_STAY_EVIDENCE} />
 
         <div className="mt-8">
           <PropertyPhoto src={deal.photo_url} size="detail" loading="eager" />
