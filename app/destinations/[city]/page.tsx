@@ -124,7 +124,11 @@ export default async function CityPage({ params }: PageProps) {
       </p>
 
       {initialDeals.length > 0 ? (
-        <DealFeed initialDeals={initialDeals} defaultCity={displayName} />
+        <DealFeed
+          initialDeals={initialDeals}
+          initialPremium={pwCtx.premium}
+          defaultCity={displayName}
+        />
       ) : (
         <div className="mt-4 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] px-8 py-14 text-center">
           <p className="text-[15px] font-medium text-[color:var(--text-1)] mb-2">

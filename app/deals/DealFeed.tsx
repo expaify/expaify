@@ -204,10 +204,11 @@ const PAGE_SIZE = 12
 
 type DealFeedProps = {
   initialDeals?: ApiDeal[]
+  initialPremium?: boolean
   defaultCity?: string
 }
 
-export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
+export function DealFeed({ initialDeals, initialPremium = false, defaultCity }: DealFeedProps = {}) {
   const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
   const [hasMore, setHasMore] = useState(false)
@@ -223,7 +224,7 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
   const [sort, setSort] = useState<'newest' | 'discount'>('newest')
   const [offset, setOffset] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [premium, setPremium] = useState(false)
+  const [premium, setPremium] = useState(initialPremium)
   // Full-set count from the API when it provides one; enables the
   // "N deals are hidden by your filters" line in the filtered-empty state.
   const [unfilteredTotal, setUnfilteredTotal] = useState<number | null>(null)
@@ -676,7 +677,10 @@ export function DealFeed({ initialDeals, defaultCity }: DealFeedProps = {}) {
               </button>
 
               {defaultCity && (
-                <Link href="/deals" className="mt-3 block text-[13px] font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]">
+                <Link
+                  href="/deals"
+                  className="mt-3 inline-flex min-h-[44px] items-center justify-center text-[13px] font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
+                >
                   See all destinations
                 </Link>
               )}
