@@ -80,6 +80,23 @@ describe('HotelCard access evidence', () => {
     expanded = false
   })
 
+  it('shows the Hotellook not-returned funds policy before review and between price and handoff detail', () => {
+    const collapsedCard = HotelCard({ hotel })
+    const collapsedText = collectText(collapsedCard)
+    const reviewLink = collectElements(collapsedCard).find(node => node.type === 'a' && collectText(node).includes('Review hotel'))
+
+    expect(collapsedText).toContain('Deposit and hold policy not provided. Additional available funds may still be required.')
+    expect(collapsedText.indexOf('Deposit and hold policy not provided')).toBeLessThan(collapsedText.indexOf('Review hotel'))
+    expect(reviewLink?.props['aria-label']).toContain('Deposit and hold policy was not provided.')
+
+    expanded = true
+    const expandedText = collectText(HotelCard({ hotel }))
+    expect(expandedText).toContain('Additional funds at the property')
+    expect(expandedText).toContain('Source checked: Hotellook · Scope not provided')
+    expect(expandedText.indexOf('Price scope')).toBeLessThan(expandedText.indexOf('Additional funds at the property'))
+    expect(expandedText.indexOf('Additional funds at the property')).toBeLessThan(expandedText.indexOf('Provider handoff'))
+  })
+
   it('shows only the highest-priority guaranteed property chip when collapsed', () => {
     const card = HotelCard({
       hotel,

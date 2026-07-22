@@ -6,11 +6,19 @@ import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
 import { track } from '@/lib/analytics'
 import { providerDisplayName } from '@/lib/providerFreshness'
+<<<<<<< HEAD
 import {
   getRateRestrictionsAccessibleSummary,
   HotelRateRestrictionsSection,
   RATE_ELIGIBILITY_NOT_PROVIDED,
 } from '@/app/components/HotelRateRestrictions'
+=======
+import HotelFundsPolicyPanel, {
+  getHotelFundsPolicyAccessibleSuffix,
+  type HotelFundsPolicyEvidence,
+  type HotelFundsPolicyLoadState,
+} from '@/app/components/HotelFundsPolicyPanel'
+>>>>>>> 92e4430 (UI-HOTEL-DEPOSIT-HOLDS-01: clarify hotel deposits and holds)
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -109,6 +117,8 @@ type BookingFlowProps = {
   fareContext: BookingFareContext | null
   hotelContext?: BookingHotelContext | null
   invalidHotelSelection?: boolean
+  hotelFundsPolicy?: HotelFundsPolicyEvidence | null
+  hotelFundsPolicyLoadState?: HotelFundsPolicyLoadState
 }
 
 function formatMoney(cents: number, currency: string) {
@@ -575,7 +585,17 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
   )
 }
 
-function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: BookingHotelContext; duffelSandbox: boolean }) {
+function HotelHandoffReview({
+  hotelContext,
+  duffelSandbox,
+  fundsPolicy,
+  fundsPolicyLoadState = 'ready',
+}: {
+  hotelContext: BookingHotelContext
+  duffelSandbox: boolean
+  fundsPolicy?: HotelFundsPolicyEvidence | null
+  fundsPolicyLoadState?: HotelFundsPolicyLoadState
+}) {
   const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
   const location = getHotelLocationDisplay(hotelContext)
   const analyticsProps = useMemo(() => ({
@@ -712,18 +732,23 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
     ? `Opens ${partner.label} in a new tab. Your expaify search stays open here.`
     : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
   const accessiblePartner = partner.named ? partner.label : 'the booking partner’s site'
+<<<<<<< HEAD
   const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(
     RATE_ELIGIBILITY_NOT_PROVIDED,
     providerDisplayName(hotelContext.provider),
     'handoff',
   )
   const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${eligibilityAriaSummary}`
+=======
+  const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(fundsPolicy, fundsPolicyLoadState, providerDisplayName(hotelContext.provider))
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${policyAriaSuffix}`
+>>>>>>> 92e4430 (UI-HOTEL-DEPOSIT-HOLDS-01: clarify hotel deposits and holds)
 
   return (
     <ReviewShell
       eyebrow="Hotel handoff"
       title="Review selected hotel"
-      message="Review the hotel and nightly rate expaify found. The booking partner confirms the live rate and final details before you pay."
+      message="Review the hotel, nightly rate, and any provider-reported additional-funds policy. The booking partner confirms live details before you pay."
       fareContext={null}
       hotelContext={hotelContext}
       duffelSandbox={duffelSandbox}
@@ -777,6 +802,18 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
             </ul>
           </details>
         </section>
+        <div className="mt-5">
+          <HotelFundsPolicyPanel
+            evidence={fundsPolicy}
+            loadState={fundsPolicyLoadState}
+            surface="book_handoff"
+            partnerLabel={partner.named ? partner.label : undefined}
+            confirmHref={hotelContext.providerUrl}
+            hotelName={hotelContext.name}
+            sourceLabel={providerDisplayName(hotelContext.provider)}
+            variant="full"
+          />
+        </div>
         <div className="mt-5 flex flex-col gap-3">
           <a
             href={hotelContext.providerUrl}
@@ -801,7 +838,15 @@ function HotelHandoffReview({ hotelContext, duffelSandbox }: { hotelContext: Boo
   )
 }
 
-export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext, hotelContext = null, invalidHotelSelection = false }: BookingFlowProps) {
+export default function BookingFlow({
+  bookingEnabled,
+  duffelSandbox,
+  fareContext,
+  hotelContext = null,
+  invalidHotelSelection = false,
+  hotelFundsPolicy,
+  hotelFundsPolicyLoadState = 'ready',
+}: BookingFlowProps) {
   const [state, setState] = useState<BookingState>('idle')
   const [bookingRef, setBookingRef] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
@@ -819,7 +864,14 @@ export default function BookingFlow({ bookingEnabled, duffelSandbox, fareContext
   const maxDobStr = maxDob.toISOString().slice(0, 10)
 
   if (hotelContext) {
-    return <HotelHandoffReview hotelContext={hotelContext} duffelSandbox={duffelSandbox} />
+    return (
+      <HotelHandoffReview
+        hotelContext={hotelContext}
+        duffelSandbox={duffelSandbox}
+        fundsPolicy={hotelFundsPolicy}
+        fundsPolicyLoadState={hotelFundsPolicyLoadState}
+      />
+    )
   }
 
   if (invalidHotelSelection) {

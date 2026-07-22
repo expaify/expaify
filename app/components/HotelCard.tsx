@@ -6,6 +6,11 @@ import { formatMoney, isValidMoney } from '@/lib/money'
 import { buildHotelBookingHref } from '@/lib/booking/config'
 import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import DealScorePanel from './DealScorePanel'
+import HotelFundsPolicyPanel, {
+  getHotelFundsPolicyAccessibleSuffix,
+  type HotelFundsPolicyEvidence,
+  type HotelFundsPolicyLoadState,
+} from './HotelFundsPolicyPanel'
 import { getHotelLocationDisplay } from './hotelLocationContext'
 import { PropertyPhoto } from './ui/PropertyPhoto'
 import {
@@ -20,6 +25,8 @@ type Props = {
   loading?: boolean
   amenityEvidence?: readonly HotelAmenityEvidence[]
   accessEvidenceState?: 'ready' | 'loading' | 'error'
+  fundsPolicy?: HotelFundsPolicyEvidence | null
+  fundsPolicyLoadState?: HotelFundsPolicyLoadState
 }
 
 type AccessFactId =
@@ -714,6 +721,8 @@ export default function HotelCard({
   loading = false,
   amenityEvidence,
   accessEvidenceState,
+  fundsPolicy,
+  fundsPolicyLoadState = 'ready',
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [photoFailed, setPhotoFailed] = useState(false)
@@ -734,8 +743,13 @@ export default function HotelCard({
   const rateCheckCopy = `Rate from ${providerName}. Last-checked time unavailable.`
   const providerConfirmationCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
   const reviewDisclosure = providerConfirmationCopy
+<<<<<<< HEAD
   const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(RATE_ELIGIBILITY_NOT_PROVIDED, providerName, 'card')
   const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy}`
+=======
+  const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(fundsPolicy, fundsPolicyLoadState, providerName)
+  const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${providerConfirmationCopy} ${policyAriaSuffix}`
+>>>>>>> 92e4430 (UI-HOTEL-DEPOSIT-HOLDS-01: clarify hotel deposits and holds)
   const unavailableAriaLabel = hasValidPrice
     ? `Provider link unavailable for ${hotel.name}. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
     : `Hotel price unavailable. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
@@ -824,9 +838,23 @@ export default function HotelCard({
           )}
         </div>
 
+<<<<<<< HEAD
         <HotelCardEligibilityLine eligibility={RATE_ELIGIBILITY_NOT_PROVIDED} />
 
         <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+=======
+        {canBook ? (
+          <HotelFundsPolicyPanel
+            evidence={fundsPolicy}
+            loadState={fundsPolicyLoadState}
+            surface="hotel_detail"
+            sourceLabel={providerName}
+            variant="summary"
+          />
+        ) : null}
+
+        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+>>>>>>> 92e4430 (UI-HOTEL-DEPOSIT-HOLDS-01: clarify hotel deposits and holds)
           <div className="min-w-0">
             <ScoreChip score={score} loading={loading} />
           </div>
@@ -910,9 +938,23 @@ export default function HotelCard({
               <p>per night before taxes and fees</p>
               <p className="mt-2 font-bold text-[color:var(--text-1)]">Rate check</p>
               <p>{rateCheckCopy}</p>
-              <p className="mt-2 font-bold text-[color:var(--text-1)]">Provider handoff</p>
-              <p>{canBook ? reviewDisclosure : unavailableReason}</p>
               {!hasValidPrice || !hasBookingUrl ? <p className="mt-2">{unavailableReason}</p> : null}
+            </div>
+
+            {canBook ? (
+              <HotelFundsPolicyPanel
+                evidence={fundsPolicy}
+                loadState={fundsPolicyLoadState}
+                surface="hotel_detail"
+                sourceLabel={providerName}
+                hotelName={hotel.name}
+                variant="full"
+              />
+            ) : null}
+
+            <div className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[color:var(--text-2)]">
+              <p className="font-bold text-[color:var(--text-1)]">Provider handoff</p>
+              <p className="mt-1">{canBook ? reviewDisclosure : unavailableReason}</p>
             </div>
 
             {hotel.photoUrl && !photoFailed ? (
