@@ -13,6 +13,7 @@ import { track } from '@/lib/analytics'
 import { HotelSearchCriteriaEditor, HotelSearchCriteriaSummary } from '../components/HotelSearchCriteria'
 import {
   buildHotelDetailUrl,
+  buildHotelDestinationUrl,
   buildHotelResultsUrl,
   createHotelCriteriaVersion,
   formatHotelCriteriaDates,
@@ -326,14 +327,16 @@ type DealFeedProps = {
   personalization?: Personalization
   initialCriteria?: HotelSearchCriteriaV1
   initialView?: HotelResultsViewState
+  initialError?: boolean
 }
 
-export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization, initialCriteria, initialView }: DealFeedProps = {}) {
+export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization, initialCriteria, initialView, initialError = false }: DealFeedProps = {}) {
   const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
   const [confirmedCoverage, setConfirmedCoverage] = useState<ConfirmedCoverage | null>(null)
   const [loading, setLoading] = useState(!initialDeals)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState(initialError)
+  const [initialLoadError, setInitialLoadError] = useState(initialError)
   const [continuationError, setContinuationError] = useState(false)
   const [zeroNewUnconfirmed, setZeroNewUnconfirmed] = useState(false)
   const [continuationOrigin, setContinuationOrigin] = useState<'manual' | 'automatic'>('manual')
@@ -406,9 +409,14 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const personalizationActive = Boolean(personalization?.active)
 
   useEffect(() => {
-    if (window.location.pathname !== '/deals' || criteriaUpdating) return
-    window.history.replaceState(null, '', buildHotelResultsUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort }))
-  }, [appliedSort, criteria, criteriaUpdating, maxPriceCents, minDiscount, minStars])
+    if (criteriaUpdating || initialLoadError) return
+    const view = { minDiscount, maxPriceCents, minStars, sort: appliedSort }
+    if (window.location.pathname === '/deals') {
+      window.history.replaceState(null, '', buildHotelResultsUrl(criteria, view))
+    } else if (defaultCity && window.location.pathname.startsWith('/destinations/')) {
+      window.history.replaceState(null, '', buildHotelDestinationUrl(criteria, view))
+    }
+  }, [appliedSort, criteria, criteriaUpdating, defaultCity, initialLoadError, maxPriceCents, minDiscount, minStars])
 
   const fetchDeals = useCallback(async (opts: DealFetchOpts, behavior: RequestBehavior = {}) => {
     const { append } = opts
@@ -458,6 +466,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       const data: DealsResponse = await res.json()
       if (sequence !== requestSequenceRef.current) return false
       if (data.criteriaVersion !== requestCriteria.criteriaVersion) throw new Error('criteria version mismatch')
+      setInitialLoadError(false)
       const requestedFilters: HotelFilterState = {
         city: opts.city,
         minDiscount: opts.minDiscount,
@@ -553,6 +562,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         setUndoError(true)
         setStatusAnnouncement('')
       } else {
+        if (!initialDeals) setInitialLoadError(true)
         setError(true)
         setResultMetadata(null)
         setStatusAnnouncement('Deals couldn’t be updated. Your selected filters are still shown.')
@@ -568,7 +578,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         if (append) continuationPendingRef.current = false
       }
     }
-  }, [criteria, defaultCity, personalizationActive])
+  }, [criteria, defaultCity, initialDeals, personalizationActive])
 
   useEffect(() => {
     // Skip initial fetch when deals were pre-fetched server-side
@@ -669,12 +679,11 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       dateFrom: draft.dateFrom,
       dateTo: draft.dateTo,
     }, defaultCity))
-    setHasMore(response.deals.length === HOTEL_DEAL_PAGE_SIZE)
+    setConfirmedCoverage(readConfirmedCoverage(response))
     setPremium(Boolean(response.premium))
     setCity(draft.city)
     setDateFrom(draft.dateFrom)
     setDateTo(draft.dateTo)
-    setOffset(0)
     setCriteria(nextCriteria)
     setFailedCriteriaDraft(null)
     failedCriteriaVersionRef.current = null
@@ -843,7 +852,9 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const activeFilters: HotelFilterState = { city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo }
 
   const gridClass = 'grid grid-cols-1 gap-6 min-[680px]:grid-cols-2 min-[1024px]:grid-cols-3'
-  const resultsUrl = buildHotelResultsUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort })
+  const resultsUrl = defaultCity && criteria.source === 'destination_page'
+    ? buildHotelDestinationUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort })
+    : buildHotelResultsUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort })
 
   const echoLinkClass = 'font-medium text-[color:var(--primary)] no-underline hover:underline'
 
@@ -1433,17 +1444,29 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           ) : error ? (
-            <div ref={gridRef} tabIndex={-1}>
-              <ResultCoverageBoundary
-                surface="deals"
-                state="unavailable"
-                visibleCount={0}
-                activeFilters={coverageFilters}
-                recommendedFilterKey={recommendedFilterKey}
-                onRetryInitial={retryFilters}
-                statusMessageId="hotel-deals-unavailable"
-              />
-            </div>
+            <section role="alert" className="mx-auto max-w-[640px] rounded-[var(--radius-card)] border border-[color:var(--error)] bg-[color:var(--error-soft)] px-5 py-8 text-left sm:px-8 sm:py-10">
+              <h3 ref={gridRef} tabIndex={-1} className="text-h3 text-[color:var(--text-1)] focus:outline-none">{initialLoadError ? 'Couldn\'t load hotel deals.' : 'We couldn\'t update these deals'}</h3>
+              <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">{initialLoadError ? 'Check your connection and try again.' : 'We couldn\'t check this filter combination. Try the same filters again.'}</p>
+              <button
+                type="button"
+                disabled={pendingRecoveryKey === 'retry'}
+                onClick={retryFilters}
+                className="btn btn-primary mt-5 min-h-11 px-8"
+              >
+                {pendingRecoveryKey === 'retry' ? 'Retrying…' : 'Retry'}
+              </button>
+            </section>
+          ) : deals.length === 0 && personalization?.active && !hasActiveFilters ? (
+            <PersonalizedEmpty personalization={personalization} premium={premium} />
+          ) : deals.length === 0 && hasActiveFilters ? (
+            <section className="mx-auto max-w-[640px] rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-5 py-10 text-center">
+              <h3 className="text-h3 text-[color:var(--text-1)]">No hotel deals match this search</h3>
+              <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">Try another destination or check-in window. Your price and rating filters may also hide available deals.</p>
+              <div className="mt-5 flex flex-col items-stretch justify-center gap-3 min-[420px]:flex-row">
+                <button type="button" onClick={() => openCriteriaEditor('empty_state')} className="btn btn-primary min-h-11 px-6">Edit search</button>
+                {hasSecondaryFilters ? <button type="button" onClick={() => applyFilter({ minDiscount: DEFAULT_MIN_DISCOUNT, minStars: 0, maxPriceCents: null })} className="btn btn-outline min-h-11 px-6">Clear price and rating filters</button> : <Link href="/deals" className="btn btn-outline min-h-11 px-6">See all destinations</Link>}
+              </div>
+            </section>
           ) : deals.length === 0 ? (
             <div ref={gridRef} tabIndex={-1}>
               <ResultCoverageBoundary

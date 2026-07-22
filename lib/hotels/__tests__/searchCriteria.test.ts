@@ -4,6 +4,8 @@ import {
   hotelCriteriaToDraft,
   isValidHotelDate,
   buildHotelResultsUrl,
+  buildHotelBackUrl,
+  buildHotelDestinationUrl,
   hotelCriteriaContextStatus,
   resolveHotelResultsView,
   resolveHotelSearchCriteria,
@@ -69,5 +71,25 @@ describe('HotelSearchCriteriaV1', () => {
     expect(hotelCriteriaContextStatus(criteria, { city: 'Paris', checkInDate: '2026-09-13' })).toBe('matched')
     expect(hotelCriteriaContextStatus(criteria, { city: 'Rome', checkInDate: '2026-09-13' })).toBe('mismatch')
     expect(hotelCriteriaContextStatus(criteria, { city: 'Paris', checkInDate: '2026-09-14' })).toBe('mismatch')
+  })
+
+  it('preserves a validated destination-page origin through detail and Back', () => {
+    const criteria = hotelCriteriaFromDraft(
+      { city: 'New York', dateFrom: '2026-09-10', dateTo: '' },
+      '785d80de-8954-46c7-90f7-a4a04f719e5f',
+      'destination_page',
+    )
+    const view = { minDiscount: 30, maxPriceCents: null, minStars: 4, sort: 'price' as const }
+    const destinationUrl = buildHotelDestinationUrl(criteria, view)
+    const params = new URL(destinationUrl, 'https://expaify.test').searchParams
+
+    expect(destinationUrl).toContain('/destinations/new-york?')
+    expect(params.get('criteriaReturn')).toBe('destination')
+    expect(buildHotelBackUrl(criteria, view, params)).toBe(destinationUrl)
+  })
+
+  it('rejects ambiguous duplicate results-view parameters', () => {
+    expect(resolveHotelResultsView(new URLSearchParams('sort=price&sort=newest'))).toBeNull()
+    expect(resolveHotelResultsView({ sort: ['price', 'newest'] })).toBeNull()
   })
 })
