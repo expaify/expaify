@@ -164,6 +164,7 @@ describe('BookingFlow fare context review', () => {
     const text = collectText(tree);
 
     expect(text).toContain('Review selected hotel');
+    expect(text).toContain('Review the hotel, nightly rate, and any provider-reported additional-funds policy.');
     expect(text).toContain('The Example Hotel');
     expect(text).toContain('Area');
     expect(text).toContain('Midtown');
@@ -181,6 +182,10 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('expaify shows');
     expect(text).toContain('Booking partner confirms');
     expect(text).toContain('Special requests');
+    expect(text).toContain('Additional funds at the property');
+    expect(text).toContain('Policy not provided');
+    expect(text).toContain('Source checked: Hotellook · Scope not provided');
+    expect(text).toContain('Confirm policy with booking partner');
     expect(text).toContain('Need a quiet room, high floor, or early check-in?');
     expect(text).toContain('Add your request on the booking partner’s site while booking. Nothing is selected or sent by expaify.');
     expect(text).toContain('Requests depend on availability and are not guaranteed. After booking, use your confirmation or itinerary to contact the property and ask it to confirm what it can provide.');
@@ -195,10 +200,10 @@ describe('BookingFlow fare context review', () => {
     expect(text).not.toContain('Traveler details');
     expect(text).not.toContain('Confirm booking');
 
-    const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
+    const outbound = findElements(tree, element => element.type === 'a' && typeof element.props.onClick === 'function' && element.props.target === '_blank')[0];
     expect(outbound.props.href).toBe(hotelContext.providerUrl);
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
-    expect(outbound.props['aria-label']).toBe('Continue to booking partner for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ.');
+    expect(outbound.props['aria-label']).toBe('Continue to booking partner for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ. Deposit and hold policy was not provided.');
   });
 
   it('names a resolved destination without changing its affiliate URL', () => {
@@ -210,7 +215,7 @@ describe('BookingFlow fare context review', () => {
       hotelContext: { ...hotelContext, providerUrl },
     });
     const text = collectText(tree);
-    const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
+    const outbound = findElements(tree, element => element.type === 'a' && typeof element.props.onClick === 'function' && element.props.target === '_blank')[0];
 
     expect(text).toContain('You’ll book with Booking.com.');
     expect(text).toContain('Continue to Booking.com');
@@ -246,7 +251,7 @@ describe('BookingFlow fare context review', () => {
     expect(summary.props.className).toContain('min-h-11');
   });
 
-  it('keeps Special requests between the responsibility comparison and provider CTA', () => {
+  it('keeps general guidance, additional-funds policy, and provider CTA in decision order', () => {
     const tree = BookingFlow({
       bookingEnabled: false,
       duffelSandbox: false,
@@ -262,11 +267,13 @@ describe('BookingFlow fare context review', () => {
     const directChildren = childrenOf(panel).filter(child => child && typeof child === 'object') as TestElement[];
     const responsibilityIndex = directChildren.findIndex(child => collectText(child).includes('expaify shows'));
     const guidanceIndex = directChildren.findIndex(child => child.type === 'section' && collectText(child).includes('Special requests'));
+    const policyIndex = directChildren.findIndex(child => collectText(child).includes('Additional funds at the property'));
     const actionsIndex = directChildren.findIndex(child => collectText(child).includes('Continue to booking partner'));
 
     expect(responsibilityIndex).toBeGreaterThanOrEqual(0);
     expect(guidanceIndex).toBeGreaterThan(responsibilityIndex);
-    expect(actionsIndex).toBeGreaterThan(guidanceIndex);
+    expect(policyIndex).toBeGreaterThan(guidanceIndex);
+    expect(actionsIndex).toBeGreaterThan(policyIndex);
   });
 
   it.each([
@@ -288,7 +295,9 @@ describe('BookingFlow fare context review', () => {
     });
 
     expect(collectText(tree)).toContain(warning);
-    expect(findElements(tree, element => element.type === 'a' && element.props.target === '_blank')).toHaveLength(1);
+    const outboundLinks = findElements(tree, element => element.type === 'a' && element.props.target === '_blank');
+    expect(outboundLinks).toHaveLength(2);
+    expect(outboundLinks.some(element => typeof element.props.onClick === 'function')).toBe(true);
   });
 
   it('emits the viewed and guarded back analytics events with hostname-only props', () => {
@@ -341,7 +350,7 @@ describe('BookingFlow fare context review', () => {
         hotelContext: { ...hotelContext, providerUrl: 'https://www.booking.com/hotel/x?aid=123' },
       });
       const anchors = findElements(tree, element => element.type === 'a');
-      const outbound = anchors.find(element => element.props.target === '_blank');
+      const outbound = anchors.find(element => element.props.target === '_blank' && typeof element.props.onClick === 'function');
       const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function');
 
       (outbound?.props.onClick as (() => void))();
@@ -399,7 +408,7 @@ describe('BookingFlow fare context review', () => {
         hotelContext: { ...hotelContext, providerUrl },
       });
       const rendered = resolveFunctionElement(tree as TestElement);
-      const outbound = findElements(rendered, element => element.type === 'a' && element.props.target === '_blank')[0];
+      const outbound = findElements(rendered, element => element.type === 'a' && element.props.target === '_blank' && typeof element.props.onClick === 'function')[0];
       const details = findElements(rendered, element => element.type === 'details')[0];
 
       (outbound.props.onClick as (() => void))();
@@ -491,7 +500,7 @@ describe('BookingFlow fare context review', () => {
     });
     const rendered = resolveFunctionElement(tree as TestElement);
     const details = findElements(rendered, element => element.type === 'details')[0];
-    const outbound = findElements(rendered, element => element.type === 'a' && element.props.target === '_blank')[0];
+    const outbound = findElements(rendered, element => element.type === 'a' && element.props.target === '_blank' && typeof element.props.onClick === 'function')[0];
     trackMock.mockImplementation(() => { throw new Error('analytics unavailable'); });
 
     expect(() => (details.props.onToggle as (event: unknown) => void)({ currentTarget: { open: true } })).not.toThrow();
