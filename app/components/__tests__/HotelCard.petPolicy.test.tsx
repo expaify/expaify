@@ -193,11 +193,53 @@ describe('HotelCard pet-policy presentation', () => {
     const prohibited = collectText(HotelCard({ hotel, petPolicy: readyPolicy({ evidence: { ...readyPolicy().evidence, permission: 'prohibited' } }) }))
     const propertyOnly = collectText(HotelCard({ hotel, petPolicy: readyPolicy({ evidence: { ...readyPolicy().evidence, scope: 'property' } }) }))
     const sourceMissing = collectText(HotelCard({ hotel, petPolicy: readyPolicy({ evidence: { ...readyPolicy().evidence, sourceLabel: ' ' } }) }))
+    const nonFitSourceMissing = collectText(HotelCard({
+      hotel,
+      petPolicy: readyPolicy({
+        evidence: { ...readyPolicy().evidence, sourceLabel: ' ' },
+        evaluation: {
+          ...readyPolicy().evaluation!,
+          status: 'unsuitable',
+          explanation: 'The provider says this property does not allow pets.',
+        },
+      }),
+    }))
     expect(prohibited).toContain('Pet policy needs confirmation')
     expect(propertyOnly).toContain('Pet policy needs confirmation')
     expect(sourceMissing).toContain('Pet policy needs confirmation')
+    expect(nonFitSourceMissing).toContain('Pet policy needs confirmation')
     expect(prohibited).not.toContain('Fits your pet')
     expect(propertyOnly).not.toContain('Fits your pet')
     expect(sourceMissing).not.toContain('Fits your pet')
+    expect(nonFitSourceMissing).not.toContain('Does not fit your pet')
+  })
+
+  it.each([
+    ['allowed animal types', { includedAnimalTypes: undefined }],
+    ['pet count limit', { maximumPetCount: undefined }],
+    ['weight limit', { maximumWeight: undefined }],
+    ['restriction completeness', { restrictionsComplete: false }],
+    ['checked date', { fetchedAt: undefined }],
+    ['schema version', { schemaVersion: ' ' }],
+  ] as const)('does not claim a fit without resolved %s evidence', (_label, evidenceOverride) => {
+    const policy = readyPolicy({ evidence: { ...readyPolicy().evidence, ...evidenceOverride } })
+    const text = collectText(HotelCard({ hotel, petPolicy: policy }))
+    expect(text).toContain('Pet policy needs confirmation')
+    expect(text).not.toContain('Fits your pet')
+  })
+
+  it('quarantines invalid count and weight values as unconfirmed limits', () => {
+    expanded = true
+    const policy = readyPolicy({
+      evidence: {
+        ...readyPolicy().evidence,
+        maximumPetCount: -1,
+        maximumWeight: { value: Number.NaN, unit: 'lb' },
+      },
+    })
+    const text = collectText(HotelCard({ hotel, petPolicy: policy }))
+    expect(text.match(/A pet limit is listed, but the value could not be confirmed\./g)).toHaveLength(2)
+    expect(text).not.toContain('Up to -1')
+    expect(text).not.toContain('Up to NaN')
   })
 })

@@ -86,14 +86,35 @@ function toneClasses(status: PetFitStatus): string {
   return 'border-[color:var(--border-strong)] bg-[color:var(--warning-soft)] text-[color:var(--warning)]'
 }
 
+function hasClaimProvenance(evidence: HotelPetPolicyEvidence): boolean {
+  return Boolean(
+    validSource(evidence)
+    && formatCheckedDate(evidence.fetchedAt)
+    && evidence.schemaVersion?.trim(),
+  )
+}
+
+function hasResolvedFitEvidence(evidence: HotelPetPolicyEvidence): boolean {
+  return Boolean(
+    evidence.includedAnimalTypes?.some(type => type.trim())
+    && Number.isInteger(evidence.maximumPetCount)
+    && evidence.maximumPetCount! > 0
+    && evidence.maximumWeight
+    && Number.isFinite(evidence.maximumWeight.value)
+    && evidence.maximumWeight.value > 0
+    && evidence.restrictionsComplete,
+  )
+}
+
 function presentationStatus(policy: ReadyPolicy): PetFitStatus {
   const { evidence, evaluation, profileSummary } = policy
   if (!profileSummary || evidence.stale || evidence.availability !== 'returned' || !evaluation) return 'unknown'
+  if (!hasClaimProvenance(evidence)) return 'unknown'
   if (evaluation.status !== 'suitable') return evaluation.status
 
   const canMakePositiveClaim = evidence.permission === 'allowed'
     && evidence.scope === 'selected_stay'
-    && Boolean(validSource(evidence))
+    && hasResolvedFitEvidence(evidence)
     && evaluation.unresolvedDimensions.length === 0
     && evidence.feeStatus !== 'unconfirmed'
     && !evidence.malformedLimit
@@ -181,8 +202,8 @@ function formatCheckedDate(value?: string): string | null {
 }
 
 function typeText(evidence: HotelPetPolicyEvidence): string {
-  const included = evidence.includedAnimalTypes
-  const excluded = evidence.excludedAnimalTypes
+  const included = evidence.includedAnimalTypes?.map(type => type.trim()).filter(Boolean)
+  const excluded = evidence.excludedAnimalTypes?.map(type => type.trim()).filter(Boolean)
   if (!included?.length && !excluded?.length) return 'Allowed animal types were not specified.'
 
   const allowed = included?.length ? `${included.join(' and ')} allowed` : ''
@@ -213,6 +234,23 @@ function scopeText(scope: PetPolicyScope): string {
   if (scope === 'room') return 'Room-level policy; selected rate still needs confirmation.'
   if (scope === 'rate') return 'Rate-level policy; selected room still needs confirmation.'
   return 'Policy scope was not specified.'
+}
+
+function countText(evidence: HotelPetPolicyEvidence): string {
+  if (evidence.maximumPetCount === undefined) return 'Pet count limit was not specified.'
+  if (!Number.isInteger(evidence.maximumPetCount) || evidence.maximumPetCount < 1) {
+    return 'A pet limit is listed, but the value could not be confirmed.'
+  }
+  return `Up to ${evidence.maximumPetCount} pet(s).`
+}
+
+function weightText(evidence: HotelPetPolicyEvidence): string {
+  if (evidence.malformedLimit) return 'A pet limit is listed, but the value could not be confirmed.'
+  if (!evidence.maximumWeight) return 'Weight or size limit was not specified.'
+  if (!Number.isFinite(evidence.maximumWeight.value) || evidence.maximumWeight.value <= 0) {
+    return 'A pet limit is listed, but the value could not be confirmed.'
+  }
+  return `Up to ${evidence.maximumWeight.value} ${evidence.maximumWeight.unit} per pet.`
 }
 
 function detailedOutcome(policy: ReadyPolicy): { heading: string; body: string; status: PetFitStatus } {
@@ -295,11 +333,14 @@ export function HotelPetPolicyDetails({ hotelId, hotelName, providerName, policy
   const restrictions = evidence.restrictions
   const confirmationNeeded = outcome.status === 'unknown'
   const actionLabel = evidence.availability === 'error' && policy.canRetry ? 'Try policy again' : 'Confirm pet policy with provider'
+  const unknownOutcomeLabel = outcome.status === 'unknown'
+    ? `${outcome.heading} for ${hotelName}. ${outcome.body}`
+    : undefined
 
   return (
     <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs leading-5 text-[color:var(--text-2)]" aria-labelledby={titleId}>
       <h4 id={titleId} className="font-bold text-[color:var(--text-1)]">Pet policy for your stay</h4>
-      <div className={`mt-2 rounded-[var(--radius-control)] border px-3 py-2 ${toneClasses(outcome.status)}`}>
+      <div aria-label={unknownOutcomeLabel} className={`mt-2 rounded-[var(--radius-control)] border px-3 py-2 ${toneClasses(outcome.status)}`}>
         <p className="font-bold">{outcome.heading}</p>
         <p className={`mt-0.5 font-medium ${outcome.status === 'unsuitable' ? 'text-[color:var(--error)]' : ''}`}>{outcome.body}</p>
       </div>
@@ -308,8 +349,8 @@ export function HotelPetPolicyDetails({ hotelId, hotelName, providerName, policy
         <Fact label="Policy outcome" wide>{outcome.heading}</Fact>
         <Fact label="Animal types">{typeText(evidence)}</Fact>
         <Fact label="Pet charge">{feeText(evidence)}</Fact>
-        <Fact label="Number of pets">{evidence.maximumPetCount ? `Up to ${evidence.maximumPetCount} pet(s).` : 'Pet count limit was not specified.'}</Fact>
-        <Fact label="Weight or size limit">{evidence.malformedLimit ? 'A pet limit is listed, but the value could not be confirmed.' : evidence.maximumWeight ? `Up to ${evidence.maximumWeight.value} ${evidence.maximumWeight.unit} per pet.` : 'Weight or size limit was not specified.'}</Fact>
+        <Fact label="Number of pets">{countText(evidence)}</Fact>
+        <Fact label="Weight or size limit">{weightText(evidence)}</Fact>
         <Fact label="Other restrictions" wide>
           {restrictions?.length ? (
             <ul className="space-y-1">

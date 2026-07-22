@@ -231,13 +231,6 @@ export default function PetProfilePanel({
               <FieldError id="pet-type-error">{touched.has('type') ? errors.type : undefined}</FieldError>
             </fieldset>
 
-            <div>
-              <label htmlFor="pet-count" className="block text-sm font-bold text-[color:var(--text-1)]">Number of pets</label>
-              <input id="pet-count" data-pet-field="count" className={`field-input mt-1 ${errors.count && touched.has('count') ? 'border-[color:var(--error)]' : ''}`} type="number" inputMode="numeric" min="1" max="9" step="1" value={draft.count} disabled={busy} onChange={event => updateCount(event.target.value)} onBlur={() => markTouched('count')} aria-invalid={Boolean(errors.count && touched.has('count'))} aria-describedby="pet-count-helper pet-count-error" />
-              <p id="pet-count-helper" className="mt-1 text-xs leading-5 text-[color:var(--text-3)]">Enter the total travelling on this stay.</p>
-              <FieldError id="pet-count-error">{touched.has('count') ? errors.count : undefined}</FieldError>
-            </div>
-
             {draft.type === 'other' ? (
               <div className="sm:col-span-2">
                 <label htmlFor="pet-other-type" className="block text-sm font-bold text-[color:var(--text-1)]">Animal type</label>
@@ -246,6 +239,13 @@ export default function PetProfilePanel({
                 <FieldError id="pet-other-error">{touched.has('otherAnimalType') ? errors.otherAnimalType : undefined}</FieldError>
               </div>
             ) : null}
+
+            <div>
+              <label htmlFor="pet-count" className="block text-sm font-bold text-[color:var(--text-1)]">Number of pets</label>
+              <input id="pet-count" data-pet-field="count" className={`field-input mt-1 ${errors.count && touched.has('count') ? 'border-[color:var(--error)]' : ''}`} type="number" inputMode="numeric" min="1" max="9" step="1" value={draft.count} disabled={busy} onChange={event => updateCount(event.target.value)} onBlur={() => markTouched('count')} aria-invalid={Boolean(errors.count && touched.has('count'))} aria-describedby="pet-count-helper pet-count-error" />
+              <p id="pet-count-helper" className="mt-1 text-xs leading-5 text-[color:var(--text-3)]">Enter the total travelling on this stay.</p>
+              <FieldError id="pet-count-error">{touched.has('count') ? errors.count : undefined}</FieldError>
+            </div>
 
             <fieldset className="sm:col-span-2" aria-describedby="pet-weight-known-error" aria-invalid={Boolean(errors.knowsWeights && touched.has('knowsWeights'))}>
               <legend className="block text-sm font-bold text-[color:var(--text-1)]">Do you know each pet&apos;s weight?</legend>
