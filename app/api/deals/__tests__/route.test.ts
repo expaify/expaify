@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { GET } from '../route'
+import { query } from '@/lib/db/client'
 
 jest.mock('@/lib/pipeline/dealDetection', () => ({
   getActiveDeals: jest.fn(),
@@ -11,10 +12,12 @@ jest.mock('@/lib/paywall', () => ({
   getPaywallContext: jest.fn(),
   getFreeUnlockedDealIds: jest.fn(),
 }))
+jest.mock('@/lib/db/client', () => ({ query: jest.fn() }))
 
 const mockGetActiveDeals = getActiveDeals as jest.MockedFunction<typeof getActiveDeals>
 const mockGetPaywallContext = getPaywallContext as jest.MockedFunction<typeof getPaywallContext>
 const mockGetFreeUnlockedDealIds = getFreeUnlockedDealIds as jest.MockedFunction<typeof getFreeUnlockedDealIds>
+const mockQuery = query as jest.MockedFunction<typeof query>
 
 const row: DealRow = {
   id: 'deal-cheapest',
@@ -48,6 +51,7 @@ describe('GET /api/deals sorting', () => {
     jest.clearAllMocks()
     mockGetActiveDeals.mockResolvedValue([row])
     mockGetFreeUnlockedDealIds.mockResolvedValue(new Set())
+    mockQuery.mockResolvedValue({ rows: [{ id: 7 }], command: 'SELECT', rowCount: 1, oid: 0, fields: [] })
   })
 
   it('accepts price sorting for Premium requests and returns the ranked integer price unchanged', async () => {
@@ -94,5 +98,23 @@ describe('GET /api/deals sorting', () => {
       dealPriceCents: 0,
       locked: true,
     })
+  })
+
+  it('applies validated destination and date criteria for free requests and echoes the successful version', async () => {
+    mockGetPaywallContext.mockResolvedValue({ userId: null, premium: false, freeUnlockedThisWeek: 0, freeUnlockLimit: 3 })
+    const version = '785d80de-8954-46c7-90f7-a4a04f719e5f'
+    const response = await GET(request(`criteriaSchema=1&criteriaVersion=${version}&criteriaSource=edit&city=Miami&date_from=2026-08-01&date_to=2026-08-03`))
+    const body = await response.json() as { criteriaVersion?: string }
+
+    expect(response.status).toBe(200)
+    expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ marketId: 7, dateFrom: '2026-08-01', dateTo: '2026-08-03' }))
+    expect(body.criteriaVersion).toBe(version)
+  })
+
+  it('rejects malformed referenced criteria before querying deals', async () => {
+    mockGetPaywallContext.mockResolvedValue({ userId: null, premium: false, freeUnlockedThisWeek: 0, freeUnlockLimit: 3 })
+    const response = await GET(request('criteriaSchema=1&criteriaVersion=short&city=Miami'))
+    expect(response.status).toBe(400)
+    expect(mockGetActiveDeals).not.toHaveBeenCalled()
   })
 })

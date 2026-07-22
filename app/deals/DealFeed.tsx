@@ -1,17 +1,21 @@
 'use client'
 
-import { useState, useCallback, useEffect, useId, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { DealCard } from '../components/ui/DealCard'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
 import { track } from '@/lib/analytics'
 import { HotelSearchCriteriaEditor, HotelSearchCriteriaSummary } from '../components/HotelSearchCriteria'
 import {
+  buildHotelDetailUrl,
+  buildHotelResultsUrl,
+  createHotelCriteriaVersion,
   formatHotelCriteriaDates,
   hotelCriteriaFromDraft,
   hotelCriteriaToDraft,
   resultCountBucket,
   type HotelCriteriaDraft,
+  type HotelResultsViewState,
   type HotelSearchCriteriaV1,
 } from '@/lib/hotels/searchCriteria'
 import { HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
@@ -101,6 +105,7 @@ export type ApiDeal = {
   medianPriceCents: number
   discountPct: number
   checkInWindow: string
+  checkInDate: string
   nights: number
   snapshotCount: number
   otaLinks: Record<string, string>
@@ -121,6 +126,7 @@ type DealFetchOpts = {
   sort: SortKey
   offset: number
   append: boolean
+  criteriaRequest?: HotelSearchCriteriaV1
 }
 
 type FeedSnapshot = HotelFilterState & { sort: SortKey; queryId?: string }
@@ -143,6 +149,7 @@ type DealsResponse = {
   premium?: boolean
   unfilteredTotal?: number
   resultMetadata?: unknown
+  criteriaVersion?: string
 }
 
 function SkeletonCard() {
@@ -285,23 +292,24 @@ type DealFeedProps = {
   defaultCity?: string
   premium?: boolean
   personalization?: Personalization
+  initialCriteria?: HotelSearchCriteriaV1
+  initialView?: HotelResultsViewState
 }
 
-export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization }: DealFeedProps = {}) {
-  const initialCriteriaVersion = useId()
+export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization, initialCriteria, initialView }: DealFeedProps = {}) {
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
   const [hasMore, setHasMore] = useState((initialDeals?.length ?? 0) === HOTEL_DEAL_PAGE_SIZE)
   const [loading, setLoading] = useState(!initialDeals)
   const [error, setError] = useState(false)
   const [activeTab, setActiveTab] = useState<'hotels' | 'flights'>('hotels')
-  const [city, setCity] = useState(defaultCity ?? '')
-  const [minDiscount, setMinDiscount] = useState(DEFAULT_MIN_DISCOUNT)
-  const [maxPriceCents, setMaxPriceCents] = useState<number | null>(null)
-  const [minStars, setMinStars] = useState(0)
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-  const [appliedSort, setAppliedSort] = useState<SortKey>('newest')
-  const [previousSort, setPreviousSort] = useState<SortKey>('newest')
+  const [city, setCity] = useState(initialCriteria?.destination.state === 'selected' ? initialCriteria.destination.city : defaultCity ?? '')
+  const [minDiscount, setMinDiscount] = useState(initialView?.minDiscount ?? DEFAULT_MIN_DISCOUNT)
+  const [maxPriceCents, setMaxPriceCents] = useState<number | null>(initialView?.maxPriceCents ?? null)
+  const [minStars, setMinStars] = useState(initialView?.minStars ?? 0)
+  const [dateFrom, setDateFrom] = useState(initialCriteria?.dates.semantic === 'checkin_window' ? initialCriteria.dates.dateFrom ?? '' : '')
+  const [dateTo, setDateTo] = useState(initialCriteria?.dates.semantic === 'checkin_window' ? initialCriteria.dates.dateTo ?? '' : '')
+  const [appliedSort, setAppliedSort] = useState<SortKey>(initialView?.sort ?? 'newest')
+  const [previousSort, setPreviousSort] = useState<SortKey>(initialView?.sort ?? 'newest')
   const [pendingSort, setPendingSort] = useState<SortKey | null>(null)
   const [failedSort, setFailedSort] = useState<SortKey | null>(null)
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
@@ -325,16 +333,15 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const [undoSnapshot, setUndoSnapshot] = useState<UndoSnapshot | null>(null)
   const [undoError, setUndoError] = useState(false)
   const [statusAnnouncement, setStatusAnnouncement] = useState('')
-  const [criteria, setCriteria] = useState<HotelSearchCriteriaV1>(() => hotelCriteriaFromDraft(
-    { city: defaultCity ?? '', dateFrom: '', dateTo: '' },
-    initialCriteriaVersion,
-    defaultCity ? 'destination_page' : 'deals_page',
+  const [criteria, setCriteria] = useState<HotelSearchCriteriaV1>(() => initialCriteria ?? hotelCriteriaFromDraft(
+    { city: defaultCity ?? '', dateFrom: '', dateTo: '' }, createHotelCriteriaVersion(), defaultCity ? 'destination_page' : 'deals_page',
   ))
   const [criteriaEditorOpen, setCriteriaEditorOpen] = useState(false)
   const [criteriaEntryPoint, setCriteriaEntryPoint] = useState<'summary' | 'empty_state'>('summary')
   const [criteriaUpdating, setCriteriaUpdating] = useState(false)
   const [criteriaUpdateError, setCriteriaUpdateError] = useState(false)
   const [failedCriteriaDraft, setFailedCriteriaDraft] = useState<HotelCriteriaDraft | null>(null)
+  const failedCriteriaVersionRef = useRef<string | null>(null)
   const retryCriteriaRef = useRef<HTMLButtonElement>(null)
   const viewedCriteriaVersionsRef = useRef(new Set<string>())
   const gridRef = useRef<HTMLDivElement>(null)
@@ -351,6 +358,11 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const retryBehaviorRef = useRef<RequestBehavior | null>(null)
 
   const personalizationActive = Boolean(personalization?.active)
+
+  useEffect(() => {
+    if (window.location.pathname !== '/deals' || criteriaUpdating) return
+    window.history.replaceState(null, '', buildHotelResultsUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort }))
+  }, [appliedSort, criteria, criteriaUpdating, maxPriceCents, minDiscount, minStars])
 
   const fetchDeals = useCallback(async (opts: DealFetchOpts, behavior: RequestBehavior = {}) => {
     const { append } = opts
@@ -376,6 +388,11 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     if (opts.minStars > 0) params.set('min_stars', String(opts.minStars))
     if (opts.dateFrom) params.set('date_from', opts.dateFrom)
     if (opts.dateTo) params.set('date_to', opts.dateTo)
+    if (opts.criteriaRequest) {
+      params.set('criteriaSchema', String(opts.criteriaRequest.schemaVersion))
+      params.set('criteriaVersion', opts.criteriaRequest.criteriaVersion)
+      params.set('criteriaSource', opts.criteriaRequest.source)
+    }
     // Outside the personalized view, ask the API to skip stored preferences so
     // later pages match the unpersonalized first paint.
     if (!personalizationActive) params.set('all', '1')
@@ -385,6 +402,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       if (!res.ok) throw new Error('fetch failed')
       const data: DealsResponse = await res.json()
       if (sequence !== requestSequenceRef.current) return false
+      if (opts.criteriaRequest && data.criteriaVersion !== opts.criteriaRequest.criteriaVersion) throw new Error('criteria version mismatch')
       const requestedFilters: HotelFilterState = {
         city: opts.city,
         minDiscount: opts.minDiscount,
@@ -398,6 +416,9 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         if (parsedMetadata.filteredTotal === 0 && data.deals.length > 0) throw new Error('invalid result metadata')
         if (parsedMetadata.filteredTotal > 0 && parsedMetadata.filteredTotal <= 3 && data.deals.length === 0) throw new Error('invalid result metadata')
       }
+      // Criteria applies commit the response, criteria object, links, and URL
+      // together in the caller after the echoed version is verified.
+      if (opts.criteriaRequest) return data
       setDeals(prev => append ? [...prev, ...data.deals] : data.deals)
       if (!append) setResultMetadata(parsedMetadata)
       // The API reports the page count, not the full set, so a full page is
@@ -510,12 +531,14 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     } : {})
   }
 
-  async function applyCriteriaDraft(draft: HotelCriteriaDraft) {
+  async function applyCriteriaDraft(draft: HotelCriteriaDraft, retryVersion?: string) {
     if (criteriaUpdating) return
     setCriteriaUpdating(true)
     setCriteriaUpdateError(false)
     setCriteriaEditorOpen(false)
     setStatusAnnouncement('')
+    const proposedVersion = retryVersion ?? createHotelCriteriaVersion()
+    const nextCriteria = hotelCriteriaFromDraft(draft, proposedVersion, 'edit')
     const response = await fetchDeals({
       city: draft.city,
       minDiscount,
@@ -526,40 +549,51 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       sort: appliedSort,
       offset: 0,
       append: false,
+      criteriaRequest: nextCriteria,
     }, { preserveResultsOnFailure: true })
     setCriteriaUpdating(false)
     if (!response) {
       setUndoError(false)
       setFailedCriteriaDraft(draft)
+      failedCriteriaVersionRef.current = proposedVersion
       setCriteriaUpdateError(true)
       window.requestAnimationFrame(() => retryCriteriaRef.current?.focus())
       return
     }
 
     const previousDraft = hotelCriteriaToDraft(criteria)
-    const criteriaVersion = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID()
-      : `criteria-${Date.now()}`
-    const nextCriteria = hotelCriteriaFromDraft(draft, criteriaVersion, 'edit')
     const changedFields = [
       previousDraft.city !== draft.city ? 'destination' : null,
       previousDraft.dateFrom !== draft.dateFrom ? 'date_from' : null,
       previousDraft.dateTo !== draft.dateTo ? 'date_to' : null,
     ].filter((field): field is string => field !== null).sort().join(',')
+    setDeals(response.deals)
+    setResultMetadata(parseHotelResultMetadata(response.resultMetadata, {
+      city: draft.city,
+      minDiscount,
+      maxPriceCents,
+      minStars,
+      dateFrom: draft.dateFrom,
+      dateTo: draft.dateTo,
+    }, defaultCity))
+    setHasMore(response.deals.length === HOTEL_DEAL_PAGE_SIZE)
+    setPremium(Boolean(response.premium))
     setCity(draft.city)
     setDateFrom(draft.dateFrom)
     setDateTo(draft.dateTo)
     setOffset(0)
     setCriteria(nextCriteria)
     setFailedCriteriaDraft(null)
+    failedCriteriaVersionRef.current = null
     setUndoError(false)
     setStatusAnnouncement(`Results updated for ${nextCriteria.destination.state === 'selected' ? nextCriteria.destination.city : 'All destinations'}. ${formatHotelCriteriaDates(nextCriteria.dates)}. Guests and rooms not captured.`)
     track('hotel_criteria_edit_applied', {
       changed_fields: changedFields,
       previous_version: criteria.criteriaVersion,
-      criteria_version: criteriaVersion,
+      criteria_version: proposedVersion,
       result_count_bucket: resultCountBucket(response.deals.length),
     })
+    window.history.pushState(null, '', buildHotelResultsUrl(nextCriteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort }))
     window.requestAnimationFrame(() => resultStatusRef.current?.focus())
   }
 
@@ -569,7 +603,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   }
 
   function retryCriteriaUpdate() {
-    if (failedCriteriaDraft) void applyCriteriaDraft(failedCriteriaDraft)
+    if (failedCriteriaDraft) void applyCriteriaDraft(failedCriteriaDraft, failedCriteriaVersionRef.current ?? undefined)
   }
 
   function removeRecoveryFilter(key: HotelFilterKey, source: 'promoted' | 'review_filters') {
@@ -707,6 +741,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const activeFilters: HotelFilterState = { city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo }
 
   const gridClass = 'grid grid-cols-1 gap-6 min-[680px]:grid-cols-2 min-[1024px]:grid-cols-3'
+  const resultsUrl = buildHotelResultsUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort })
 
   const echoLinkClass = 'font-medium text-[color:var(--primary)] no-underline hover:underline'
 
@@ -1291,7 +1326,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                   ) : (
                     <DealCard
                       key={deal.id}
-                      href={deal.isMock ? undefined : `/deals/${deal.id}`}
+                      href={deal.isMock ? undefined : buildHotelDetailUrl(deal.id, resultsUrl)}
                       onOpen={deal.isMock ? undefined : () => trackCardOpen(index + 1)}
                       deal={{
                         id: deal.id,

@@ -94,6 +94,8 @@ export function DealCard({ deal, href, onOpen }: DealCardProps) {
 
         {deal.isMock ? (
           <p className="text-caption font-medium leading-snug text-[color:var(--ink-faint)]">Sample hotel — not bookable</p>
+        ) : href ? (
+          <p className="flex min-h-11 items-center justify-center rounded-[var(--radius-input)] border border-[color:var(--primary)] text-[13px] font-semibold text-[color:var(--primary)]">View deal</p>
         ) : (
           <CompareRow links={deal.links} />
         )}

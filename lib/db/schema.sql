@@ -261,3 +261,20 @@ CREATE TABLE IF NOT EXISTS deal_alert_deliveries (
 
 CREATE INDEX IF NOT EXISTS idx_deal_alert_deliveries_user_day
   ON deal_alert_deliveries (user_id, delivered_at DESC);
+
+-- First-party, privacy-bounded product analytics. session_id is generated per
+-- browser tab and is intentionally not tied to an account or raw search text.
+CREATE TABLE IF NOT EXISTS analytics_events (
+  event_id      UUID        PRIMARY KEY,
+  session_id    UUID        NOT NULL,
+  event_name    TEXT        NOT NULL,
+  occurred_at   TIMESTAMPTZ NOT NULL,
+  received_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  path          TEXT        NOT NULL,
+  properties    JSONB       NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_events_session_time
+  ON analytics_events (session_id, occurred_at);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_name_time
+  ON analytics_events (event_name, occurred_at DESC);

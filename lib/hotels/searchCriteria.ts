@@ -1,3 +1,5 @@
+import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
+
 export type HotelSearchCriteriaV1 = {
   schemaVersion: 1
   criteriaVersion: string
@@ -18,6 +20,41 @@ export type HotelCriteriaDraft = {
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+const CRITERIA_VERSION = /^[A-Za-z0-9_-]{8,80}$/
+const CRITERIA_SOURCES: ReadonlyArray<HotelSearchCriteriaV1['source']> = [
+  'deals_page', 'destination_page', 'edit', 'restored',
+]
+
+export type HotelCriteriaContextStatus = 'matched' | 'mismatch' | 'missing' | 'invalid'
+
+export type HotelResultsViewState = {
+  minDiscount: number
+  maxPriceCents: number | null
+  minStars: number
+  sort: 'newest' | 'discount' | 'price'
+}
+
+export type HotelCriteriaResolution =
+  | { status: 'valid'; criteria: HotelSearchCriteriaV1 }
+  | { status: 'missing' | 'invalid' }
+
+type SearchParamSource = URLSearchParams | Record<string, string | string[] | undefined>
+
+function readSearchParam(source: SearchParamSource, key: string): string | null {
+  if (source instanceof URLSearchParams) return source.get(key)
+  const value = source[key]
+  return typeof value === 'string' ? value : null
+}
+
+function hasSearchParam(source: SearchParamSource, key: string): boolean {
+  if (source instanceof URLSearchParams) return source.has(key)
+  return source[key] !== undefined
+}
+
+function canonicalCity(value: string): string | null {
+  const normalized = value.normalize('NFKC').trim().toLocaleLowerCase('en-US')
+  return TRACKED_MARKET_NAMES.find(city => city.normalize('NFKC').toLocaleLowerCase('en-US') === normalized) ?? null
+}
 
 function parseIsoDate(value: string): Date | null {
   if (!ISO_DATE.test(value)) return null
@@ -91,6 +128,117 @@ export function hotelCriteriaDraftChanged(criteria: HotelSearchCriteriaV1, draft
 
 export function isValidHotelDate(value: string): boolean {
   return value === '' || parseIsoDate(value) !== null
+}
+
+/** Strictly reconstructs V1 criteria. A referenced but malformed value is never
+ * partially trusted or silently converted to an all-destinations search. */
+export function resolveHotelSearchCriteria(source: SearchParamSource): HotelCriteriaResolution {
+  const hasReference = hasSearchParam(source, 'criteriaVersion') || hasSearchParam(source, 'criteriaSchema')
+  if (!hasReference) return { status: 'missing' }
+
+  const schema = readSearchParam(source, 'criteriaSchema')
+  const criteriaVersion = readSearchParam(source, 'criteriaVersion')
+  const cityValue = readSearchParam(source, 'city')
+  const dateFrom = readSearchParam(source, 'date_from') ?? ''
+  const dateTo = readSearchParam(source, 'date_to') ?? ''
+  const sourceValue = readSearchParam(source, 'criteriaSource') ?? 'restored'
+
+  if (
+    schema !== '1' ||
+    !criteriaVersion || !CRITERIA_VERSION.test(criteriaVersion) ||
+    !CRITERIA_SOURCES.includes(sourceValue as HotelSearchCriteriaV1['source']) ||
+    !isValidHotelDate(dateFrom) || !isValidHotelDate(dateTo) ||
+    Boolean(dateFrom && dateTo && dateTo < dateFrom) ||
+    hasSearchParam(source, 'occupancy') ||
+    hasSearchParam(source, 'adults') ||
+    hasSearchParam(source, 'rooms') ||
+    (cityValue !== null && canonicalCity(cityValue) === null)
+  ) {
+    return { status: 'invalid' }
+  }
+
+  const city = cityValue === null ? null : canonicalCity(cityValue)
+  return {
+    status: 'valid',
+    criteria: {
+      schemaVersion: 1,
+      criteriaVersion,
+      destination: city ? { state: 'selected', city } : { state: 'all' },
+      dates: dateFrom || dateTo
+        ? { semantic: 'checkin_window', dateFrom: dateFrom || undefined, dateTo: dateTo || undefined }
+        : { semantic: 'missing' },
+      occupancy: { state: 'not_captured' },
+      source: sourceValue as HotelSearchCriteriaV1['source'],
+    },
+  }
+}
+
+export function buildHotelResultsUrl(
+  criteria: HotelSearchCriteriaV1,
+  view?: Partial<HotelResultsViewState>,
+): string {
+  const params = new URLSearchParams({
+    criteriaSchema: '1',
+    criteriaVersion: criteria.criteriaVersion,
+    criteriaSource: criteria.source,
+  })
+  if (criteria.destination.state === 'selected') params.set('city', criteria.destination.city)
+  if (criteria.dates.semantic === 'checkin_window') {
+    if (criteria.dates.dateFrom) params.set('date_from', criteria.dates.dateFrom)
+    if (criteria.dates.dateTo) params.set('date_to', criteria.dates.dateTo)
+  }
+  if (view?.minDiscount !== undefined && view.minDiscount !== 20) params.set('min_discount', String(view.minDiscount))
+  if (view?.maxPriceCents) params.set('max_price_cents', String(view.maxPriceCents))
+  if (view?.minStars) params.set('min_stars', String(view.minStars))
+  if (view?.sort && view.sort !== 'newest') params.set('sort', view.sort)
+  return `/deals?${params.toString()}`
+}
+
+export function resolveHotelResultsView(source: SearchParamSource): HotelResultsViewState | null {
+  const readInteger = (key: string, fallback: number): number | null => {
+    const raw = readSearchParam(source, key)
+    if (raw === null) return fallback
+    if (!/^\d+$/.test(raw)) return null
+    return Number(raw)
+  }
+  const minDiscount = readInteger('min_discount', 20)
+  const maxPriceCents = readInteger('max_price_cents', 0)
+  const minStars = readInteger('min_stars', 0)
+  const sort = readSearchParam(source, 'sort') ?? 'newest'
+  if (
+    minDiscount === null || minDiscount < 0 || minDiscount > 90 ||
+    maxPriceCents === null || maxPriceCents < 0 || maxPriceCents > 100_000_000 ||
+    minStars === null || minStars < 0 || minStars > 5 ||
+    !['newest', 'discount', 'price'].includes(sort)
+  ) return null
+  return {
+    minDiscount,
+    maxPriceCents: maxPriceCents || null,
+    minStars,
+    sort: sort as HotelResultsViewState['sort'],
+  }
+}
+
+export function buildHotelDetailUrl(dealId: string, resultsUrl: string): string {
+  const query = resultsUrl.split('?')[1]
+  return `/deals/${encodeURIComponent(dealId)}${query ? `?${query}` : ''}`
+}
+
+export function hotelCriteriaContextStatus(
+  criteria: HotelSearchCriteriaV1,
+  deal: { city: string; checkInDate?: string | null },
+): 'matched' | 'mismatch' {
+  if (criteria.destination.state === 'selected' && canonicalCity(deal.city) !== criteria.destination.city) return 'mismatch'
+  if (criteria.dates.semantic === 'missing') return 'matched'
+  if (!deal.checkInDate || !parseIsoDate(deal.checkInDate.slice(0, 10))) return 'mismatch'
+  const checkIn = deal.checkInDate.slice(0, 10)
+  if (criteria.dates.dateFrom && checkIn < criteria.dates.dateFrom) return 'mismatch'
+  if (criteria.dates.dateTo && checkIn > criteria.dates.dateTo) return 'mismatch'
+  return 'matched'
+}
+
+export function createHotelCriteriaVersion(): string {
+  return crypto.randomUUID()
 }
 
 export function resultCountBucket(count: number): '0' | '1_5' | '6_20' | '21_plus' {

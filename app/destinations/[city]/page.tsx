@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { CITY_SLUGS } from '@/lib/cities'
 import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DealFeed, type ApiDeal } from '@/app/deals/DealFeed'
+import { createHotelCriteriaVersion, hotelCriteriaFromDraft } from '@/lib/hotels/searchCriteria'
 import { getPaywallContext, getFreeUnlockedDealIds } from '@/lib/paywall'
 import { query } from '@/lib/db/client'
 import { auth } from '@/auth'
@@ -17,6 +18,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
       hotelName: 'Members-only deal', stars: null, photoUrl: null,
       city: row.city, dealPriceCents: 0, medianPriceCents: 0,
       discountPct: row.discount_pct, checkInWindow: row.check_in_window,
+      checkInDate: row.check_in_date,
       nights: row.nights, snapshotCount: row.snapshot_count,
       otaLinks: {}, headline: null, isMock: row.is_mock,
       firstSeen: row.first_seen, updatedAt: row.updated_at, locked: true,
@@ -27,6 +29,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
     stars: row.stars, photoUrl: row.photo_url, city: row.city,
     dealPriceCents: row.deal_price_cents, medianPriceCents: row.median_price_cents,
     discountPct: row.discount_pct, checkInWindow: row.check_in_window,
+    checkInDate: row.check_in_date,
     nights: row.nights, snapshotCount: row.snapshot_count,
     otaLinks: row.ota_links, headline: row.headline, isMock: row.is_mock,
     firstSeen: row.first_seen, updatedAt: row.updated_at, locked: false,
@@ -80,6 +83,11 @@ export default async function CityPage({ params }: PageProps) {
   const watchlist = subscription?.watchlist ?? []
   const watchTier = !session?.user?.id ? 'anonymous' : premium ? 'premium' : 'free'
   const isWatching = watchlist.includes(displayName)
+  const criteria = hotelCriteriaFromDraft(
+    { city: displayName, dateFrom: '', dateTo: '' },
+    createHotelCriteriaVersion(),
+    'destination_page',
+  )
 
   return (
     <main className="mx-auto max-w-[1200px] px-4 pb-24 pt-8 sm:px-6 lg:px-8">
@@ -105,22 +113,13 @@ export default async function CityPage({ params }: PageProps) {
           : `Updated daily · ${initialDeals.length} deal${initialDeals.length !== 1 ? 's' : ''} found`}
       </p>
 
-      {initialDeals.length > 0 ? (
-        <DealFeed initialDeals={initialDeals} defaultCity={displayName} />
-      ) : (
-        <div className="mt-4 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] px-8 py-14 text-center">
-          <p className="text-[15px] font-medium text-[color:var(--text-1)] mb-2">
-            No {displayName} deals right now.
-          </p>
-          <p className="text-[13px] text-[color:var(--text-2)] mb-6">
-            We check {displayName} hotel prices every day — deals appear here the moment a price drops.
-          </p>
+      <DealFeed initialDeals={initialDeals} defaultCity={displayName} premium={pwCtx.premium} initialCriteria={criteria} />
+      {initialDeals.length === 0 ? (
+        <div className="mt-6 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] px-6 py-8 text-center">
+          <p className="mb-4 text-[13px] text-[color:var(--text-2)]">Get notified when a current {displayName} deal appears.</p>
           <WatchCityCta city={displayName} tier={watchTier} watching={isWatching} watchlist={watchlist} />
-          <Link href="/deals" className="mt-5 inline-flex text-[13px] font-medium text-[color:var(--brand)] no-underline hover:underline">
-            See all destinations
-          </Link>
         </div>
-      )}
+      ) : null}
     </main>
   )
 }
