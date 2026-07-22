@@ -184,6 +184,9 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('the total you see there may differ.');
     expect(text).toContain('expaify shows');
     expect(text).toContain('Booking partner confirms');
+    expect(text).toContain('I need an invoice or receipt for this stay');
+    expect(text).toContain('We’ll show what the provider supplied before you continue.');
+    expect(text).not.toContain('Hotellook did not provide invoice or receipt information for this rate.');
     expect(text).toContain('Special requests');
     expect(text).toContain('Need a quiet room, high floor, or early check-in?');
     expect(text).toContain('Add your request on the booking partner’s site while booking. Nothing is selected or sent by expaify.');
@@ -250,7 +253,7 @@ describe('BookingFlow fare context review', () => {
     expect(summary.props.className).toContain('min-h-11');
   });
 
-  it('keeps Special requests between the responsibility comparison and provider CTA', () => {
+  it('keeps invoice intent and Special requests between responsibility and the provider CTA', () => {
     const tree = BookingFlow({
       bookingEnabled: false,
       duffelSandbox: false,
@@ -265,11 +268,13 @@ describe('BookingFlow fare context review', () => {
     )).at(-1) as TestElement;
     const directChildren = childrenOf(panel).filter(child => child && typeof child === 'object') as TestElement[];
     const responsibilityIndex = directChildren.findIndex(child => collectText(child).includes('expaify shows'));
+    const invoiceIntentIndex = directChildren.findIndex(child => collectText(child).includes('I need an invoice or receipt for this stay'));
     const guidanceIndex = directChildren.findIndex(child => child.type === 'section' && collectText(child).includes('Special requests'));
     const actionsIndex = directChildren.findIndex(child => collectText(child).includes('Continue to booking partner'));
 
     expect(responsibilityIndex).toBeGreaterThanOrEqual(0);
-    expect(guidanceIndex).toBeGreaterThan(responsibilityIndex);
+    expect(invoiceIntentIndex).toBeGreaterThan(responsibilityIndex);
+    expect(guidanceIndex).toBeGreaterThan(invoiceIntentIndex);
     expect(actionsIndex).toBeGreaterThan(guidanceIndex);
   });
 
