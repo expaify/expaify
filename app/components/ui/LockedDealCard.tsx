@@ -1,5 +1,8 @@
 import { PropertyPhoto } from './PropertyPhoto'
 
+const LOCKED_CARD_PHOTO =
+  'https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=900&q=80'
+
 type LockedDealCardProps = {
   placeholderName: string
   placeholderCity: string
@@ -32,7 +35,7 @@ export function LockedDealCard({
       </div>
 
       <div className="px-4 pt-3">
-        <PropertyPhoto src={photoUrl} size="card" />
+        <PropertyPhoto src={photoUrl ?? LOCKED_CARD_PHOTO} size="card" />
       </div>
 
       <div className="relative space-y-3 px-4 pb-4 pt-3">

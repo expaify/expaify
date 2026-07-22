@@ -498,8 +498,8 @@ describe('Deal score presentation', () => {
       placeholderCity: 'Paris',
       stars: 5,
     }))
-    expect(withoutPhotoText).toContain('Photo unavailable')
-    expect(withoutPhotoText).not.toContain('Property photo')
+    expect(withoutPhotoText).toContain('Property photo')
+    expect(withoutPhotoText).not.toContain('Photo unavailable')
   })
 
   it('keeps deal-detail price claims outside the figure and orders evidence before imagery', () => {

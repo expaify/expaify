@@ -27,11 +27,46 @@ export type MockDeal = {
 }
 
 const MOCK_HOTELS = [
-  { id: 'mock-1', name: 'Grand Mercure Roxy', stars: 4, price: 8900, median: 16700 },
-  { id: 'mock-2', name: 'Kimpton Shorebreak Resort', stars: 4, price: 11200, median: 19800 },
-  { id: 'mock-3', name: 'Boutique Riviera Suites', stars: 5, price: 14200, median: 26100 },
-  { id: 'mock-4', name: 'The Townhouse Collective', stars: 3, price: 5800, median: 10400 },
-  { id: 'mock-5', name: 'Harbour View Inn', stars: 4, price: 9600, median: 17100 },
+  {
+    id: 'mock-1',
+    name: 'Grand Mercure Roxy',
+    stars: 4,
+    price: 8900,
+    median: 16700,
+    photoUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'mock-2',
+    name: 'Kimpton Shorebreak Resort',
+    stars: 4,
+    price: 11200,
+    median: 19800,
+    photoUrl: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'mock-3',
+    name: 'Boutique Riviera Suites',
+    stars: 5,
+    price: 14200,
+    median: 26100,
+    photoUrl: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'mock-4',
+    name: 'The Townhouse Collective',
+    stars: 3,
+    price: 5800,
+    median: 10400,
+    photoUrl: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'mock-5',
+    name: 'Harbour View Inn',
+    stars: 4,
+    price: 9600,
+    median: 17100,
+    photoUrl: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=900&q=80',
+  },
 ]
 
 function addDays(date: Date, days: number): string {
@@ -59,7 +94,7 @@ export function generateMockDeals(count = 5): MockDeal[] {
       hotel_id: h.id,
       hotel_name: h.name,
       stars: h.stars,
-      photo_url: null,
+      photo_url: h.photoUrl,
       deal_price_cents: h.price,
       median_price_cents: h.median,
       discount_pct: discountPct,

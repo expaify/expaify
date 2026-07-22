@@ -1,3 +1,5 @@
+'use client'
+
 import { formatMoney } from '@/lib/money'
 import type { Money } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
