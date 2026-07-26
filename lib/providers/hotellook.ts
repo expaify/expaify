@@ -7,6 +7,7 @@ import {
   normalizeHotelDocumentReadiness,
   notProvidedHotelDocumentReadiness,
 } from './hotelDocumentReadiness';
+import { createNotReturnedHotelFundsPolicy } from '../hotels/fundsPolicy';
 
 const ENGINE_BASE = 'https://engine.hotellook.com/api/v2/cache.json';
 const CACHE_TTL = 21600; // 6 hours
@@ -394,6 +395,7 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     guestRating,
     amenityEvidence: access.evidence,
     accessEvidenceState,
+    fundsPolicy: createNotReturnedHotelFundsPolicy('Hotellook'),
   };
 }
 
@@ -512,6 +514,7 @@ export class HotellookProvider implements HotelProvider {
           }),
           amenityEvidence: access.evidence,
           accessEvidenceState: access.state,
+          fundsPolicy: createNotReturnedHotelFundsPolicy('Hotellook'),
         };
       });
 

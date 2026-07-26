@@ -22,7 +22,7 @@ import {
   QuietStayEvidenceLedger,
 } from '@/app/components/ui/QuietStayEvidenceLedger'
 import { scoreDeal } from '@/lib/scoring/scoreDeal'
-import type { DealScore } from '@/lib/types'
+import type { DealScore, HotelOffer } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
 import { HotelContinuityPrototype } from '@/app/components/research/HotelContinuityPrototype'
 import { createContinuityFixture, parseContinuityFixture } from '@/app/components/research/hotelContinuityFixtures'
@@ -215,7 +215,7 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
 
   let score: DealScore | null = null
   if (pricePoints.length > 0) {
-    const offer = {
+    const offer: HotelOffer = {
       id: deal.id,
       name: deal.hotel_name,
       area: deal.city,
@@ -224,6 +224,7 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
       deeplink: '',
       source: 'expaify',
       documentReadiness: notProvidedHotelDocumentReadiness('Hotel provider'),
+      fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'expaify', scope: 'not_returned' },
     }
     score = scoreDeal(offer, pricePoints)
   }

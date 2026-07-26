@@ -23,6 +23,13 @@ import {
   HotelDocumentIntentControl,
   HotelDocumentReadinessDisclosure,
 } from '@/app/components/HotelDocumentReadiness'
+import HotelFundsPolicyPanel, {
+  getHotelFundsPolicyAccessibleSuffix,
+  type HotelFundsPolicyEvidence,
+  type HotelFundsPolicyLoadState,
+} from '@/app/components/HotelFundsPolicyPanel'
+import { useHotelFundsPolicyExposure } from '@/app/components/hotelFundsPolicyAnalytics'
+import { getHotelFundsAnalyticsDimensions } from '@/lib/hotels/fundsPolicy'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -161,6 +168,8 @@ type BookingFlowProps = {
   parkingConflictDimensions?: readonly HotelParkingConflictDimension[]
   parkingEvidenceMalformed?: boolean
   hasSearchDates?: boolean
+  hotelFundsPolicy?: HotelFundsPolicyEvidence | null
+  hotelFundsPolicyLoadState?: HotelFundsPolicyLoadState
 }
 
 function formatMoney(cents: number, currency: string) {
@@ -637,6 +646,8 @@ function HotelHandoffReview({
   parkingConflictDimensions,
   parkingEvidenceMalformed = false,
   hasSearchDates = true,
+  fundsPolicy,
+  fundsPolicyLoadState = 'ready',
 }: {
   hotelContext: BookingHotelContext
   duffelSandbox: boolean
@@ -644,9 +655,18 @@ function HotelHandoffReview({
   parkingConflictDimensions?: readonly HotelParkingConflictDimension[]
   parkingEvidenceMalformed?: boolean
   hasSearchDates?: boolean
+  fundsPolicy?: HotelFundsPolicyEvidence | null
+  fundsPolicyLoadState?: HotelFundsPolicyLoadState
 }) {
   const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
   const location = getHotelLocationDisplay(hotelContext)
+  const resolvedFundsPolicy = fundsPolicy ?? hotelContext.fundsPolicy
+  const policyDimensions = getHotelFundsAnalyticsDimensions({
+    evidence: resolvedFundsPolicy,
+    loadState: fundsPolicyLoadState,
+    provider: hotelContext.provider,
+    surface: 'book_handoff',
+  })
   const analyticsProps = useMemo(() => ({
     source: hotelContext.provider,
     partnerHost: partner.host,
@@ -654,7 +674,9 @@ function HotelHandoffReview({
     priceCents: hotelContext.priceCents,
     priceBasis: hotelContext.priceBasis,
     locationPrecision: location.precision,
-  }), [hotelContext.currency, hotelContext.priceBasis, hotelContext.priceCents, hotelContext.provider, location.precision, partner.host])
+    policyState: policyDimensions.policyState,
+    obligationTypes: policyDimensions.obligationTypes,
+  }), [hotelContext.currency, hotelContext.priceBasis, hotelContext.priceCents, hotelContext.provider, location.precision, partner.host, policyDimensions.obligationTypes, policyDimensions.policyState])
   const didContinueRef = useRef(false)
   const guidanceBlockRef = useRef<HTMLElement>(null)
   const documentDisclosureRef = useRef<HTMLDivElement>(null)
@@ -764,6 +786,13 @@ function HotelHandoffReview({
       observer.disconnect()
     }
   }, [documentReadiness, hotelContext.provider, invoiceNeeded])
+  const fundsPolicyExposureRef = useHotelFundsPolicyExposure({
+    evidence: resolvedFundsPolicy,
+    loadState: fundsPolicyLoadState,
+    offerId: hotelContext.offerId,
+    provider: hotelContext.provider,
+    surface: 'book_handoff',
+  })
 
   useEffect(() => {
     const guidanceBlock = guidanceBlockRef.current
@@ -824,6 +853,8 @@ function HotelHandoffReview({
         source: hotelContext.provider,
         partnerHost: partner.host,
         awayDurationBucket: getAwayDurationBucket(durationMs),
+        policyState: policyDimensions.policyState,
+        obligationTypes: policyDimensions.obligationTypes,
       })
       returnArmedRef.current = false
       hiddenAfterContinueRef.current = false
@@ -832,7 +863,7 @@ function HotelHandoffReview({
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [hotelContext.provider, partner.host])
+  }, [hotelContext.provider, partner.host, policyDimensions.obligationTypes, policyDimensions.policyState])
 
   const handleContinue = () => {
     didContinueRef.current = true
@@ -874,6 +905,8 @@ function HotelHandoffReview({
     emitAnalytics('hotel_handoff_back_clicked', {
       source: hotelContext.provider,
       partnerHost: partner.host,
+      policyState: policyDimensions.policyState,
+      obligationTypes: policyDimensions.obligationTypes,
     })
   }
 
@@ -894,13 +927,14 @@ function HotelHandoffReview({
     'handoff',
   )
   const parkingCtaStatus = getParkingCtaStatus({ evidence: parkingEvidence, malformed: parkingEvidenceMalformed })
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${eligibilityAriaSummary} ${parkingCtaStatus}`
+  const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(resolvedFundsPolicy, fundsPolicyLoadState, providerDisplayName(hotelContext.provider))
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${eligibilityAriaSummary} ${parkingCtaStatus} ${policyAriaSuffix}`
 
   return (
     <ReviewShell
       eyebrow="Hotel handoff"
       title="Review selected hotel"
-      message="Review the hotel and nightly rate expaify found. The booking partner confirms the live rate and final details before you pay."
+      message="Review the hotel, nightly rate, and any provider-reported additional-funds policy. The booking partner confirms live details before you pay."
       fareContext={null}
       hotelContext={hotelContext}
       hotelParking={(
@@ -998,6 +1032,21 @@ function HotelHandoffReview({
             </ul>
           </details>
         </section>
+        <div className="mt-5">
+          <HotelFundsPolicyPanel
+            evidence={resolvedFundsPolicy}
+            loadState={fundsPolicyLoadState}
+            surface="book_handoff"
+            partnerLabel={partner.named ? partner.label : undefined}
+            confirmHref={hotelContext.providerUrl}
+            hotelName={hotelContext.name}
+            sourceLabel={providerDisplayName(hotelContext.provider)}
+            variant="full"
+            offerId={hotelContext.offerId}
+            provider={hotelContext.provider}
+            rootRef={fundsPolicyExposureRef}
+          />
+        </div>
         <div className="mt-5 flex flex-col gap-3">
           <a
             href={hotelContext.providerUrl}
@@ -1032,6 +1081,8 @@ export default function BookingFlow({
   parkingConflictDimensions,
   parkingEvidenceMalformed = false,
   hasSearchDates = true,
+  hotelFundsPolicy,
+  hotelFundsPolicyLoadState = 'ready',
 }: BookingFlowProps) {
   const [state, setState] = useState<BookingState>('idle')
   const [bookingRef, setBookingRef] = useState('')
@@ -1058,6 +1109,8 @@ export default function BookingFlow({
         parkingConflictDimensions={parkingConflictDimensions}
         parkingEvidenceMalformed={parkingEvidenceMalformed}
         hasSearchDates={hasSearchDates}
+        fundsPolicy={hotelFundsPolicy}
+        fundsPolicyLoadState={hotelFundsPolicyLoadState}
       />
     )
   }
