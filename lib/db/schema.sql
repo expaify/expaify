@@ -149,6 +149,12 @@ CREATE TABLE IF NOT EXISTS deals (
 
 CREATE INDEX IF NOT EXISTS idx_deals_status ON deals (status, first_seen DESC);
 CREATE INDEX IF NOT EXISTS idx_deals_market  ON deals (market_id, status);
+CREATE INDEX IF NOT EXISTS idx_deals_active_newest
+  ON deals (first_seen DESC, id ASC) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_deals_active_discount
+  ON deals (discount_pct DESC, first_seen DESC, id ASC) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_deals_active_price
+  ON deals (deal_price_cents ASC, first_seen DESC, id ASC) WHERE status = 'active';
 
 -- ── Auth (NextAuth v5 / Auth.js PG adapter) ───────────────────────────────
 -- Table names are plural to match @auth/pg-adapter v1.x expectations

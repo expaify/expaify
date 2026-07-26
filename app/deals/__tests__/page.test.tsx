@@ -67,4 +67,35 @@ describe('/deals server reconstruction', () => {
 
     expect(dealFeedProps(tree).initialError).toBe(false)
   })
+
+  it('passes the first-page continuation boundary from the server to the feed', async () => {
+    mockGetActiveDeals.mockResolvedValue(Array.from({ length: 13 }, (_, index) => ({
+      id: `deal-${index}`,
+      hotel_id: `hotel-${index}`,
+      hotel_name: `Hotel ${index}`,
+      stars: 4,
+      photo_url: null,
+      city: 'Miami',
+      deal_price_cents: 10_000 + index,
+      median_price_cents: 15_000,
+      discount_pct: 30,
+      check_in_window: 'Aug 1–3',
+      check_in_date: '2026-08-01',
+      nights: 2,
+      snapshot_count: 20,
+      ota_links: {},
+      headline: null,
+      description: null,
+      is_mock: false,
+      first_seen: null,
+      expires_at: null,
+      updated_at: null,
+    })))
+    const tree = await DealsPage({ searchParams: Promise.resolve({}) }) as ReactElement<Record<string, unknown>>
+    const props = dealFeedProps(tree)
+
+    expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ limit: 13, offset: 0 }))
+    expect((props.initialDeals as unknown[])).toHaveLength(12)
+    expect(props.initialCoverage).toEqual({ state: 'more_available', nextOffset: 12 })
+  })
 })

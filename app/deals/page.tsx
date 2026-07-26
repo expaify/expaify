@@ -8,7 +8,7 @@ import { generateMockDeals } from '@/lib/pipeline/mock'
 import { redirect } from 'next/navigation'
 import { LandingNav } from '../components/LandingNav'
 import { DealFeed, type ApiDeal } from './DealFeed'
-import { HOTEL_DEAL_PAGE_SIZE } from '@/lib/deals/feedContract'
+import { buildDealPage, HOTEL_DEAL_PAGE_SIZE } from '@/lib/deals/feedContract'
 import { query } from '@/lib/db/client'
 import {
   createHotelCriteriaVersion,
@@ -93,7 +93,10 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   const rowsRequest = initialError
     ? Promise.resolve([] as DealRow[])
     : getActiveDeals({
-      limit: HOTEL_DEAL_PAGE_SIZE,
+      // Fetch one extra row so the client receives a trustworthy first-page
+      // continuation boundary on its initial server render.
+      limit: HOTEL_DEAL_PAGE_SIZE + 1,
+      offset: 0,
       sort: effectiveView.sort,
       includeMock: false,
       minDiscount: effectiveView.minDiscount,
@@ -111,9 +114,10 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     getFreeUnlockedDealIds(),
   ])
 
+  const initialPage = buildDealPage(rows, 0, HOTEL_DEAL_PAGE_SIZE)
   let initialDeals: ApiDeal[]
   if (rows.length > 0) {
-    initialDeals = rows.map(row => toApiDeal(row, !pwCtx.premium && !unlockedIds.has(row.id)))
+    initialDeals = initialPage.items.map(row => toApiDeal(row, !pwCtx.premium && !unlockedIds.has(row.id)))
   } else if (!initialError &&
     criteria.destination.state === 'all' && criteria.dates.semantic === 'missing' &&
     effectiveView.minDiscount === 20 && effectiveView.maxPriceCents === null &&
@@ -159,6 +163,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           initialCriteria={criteria}
           initialView={effectiveView}
           initialError={initialError}
+          initialCoverage={rows.length > 0 ? { state: initialPage.coverage, nextOffset: initialPage.page.nextOffset } : null}
         />
       </main>
     </>
