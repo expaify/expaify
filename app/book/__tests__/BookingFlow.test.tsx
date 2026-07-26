@@ -261,6 +261,46 @@ describe('BookingFlow fare context review', () => {
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
   });
 
+  it('wraps a maximal derived partner label at 375px and in the 380px desktop handoff panel', () => {
+    const providerUrl = 'https://abcdefghijklmnopqrstuvwxyzabcdefghi.com/hotel/x?affiliate=123';
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext: { ...hotelContext, providerUrl },
+    });
+    const partnerLabel = 'Abcdefghijklmnopqrstuvwxyzabcdefghi.com';
+    const layout = findElements(tree, element => (
+      element.type === 'div'
+      && String(element.props.className).includes('lg:grid-cols-[minmax(0,1fr)_380px]')
+    ))[0];
+    const responsibilityGrid = findElements(tree, element => (
+      element.type === 'div'
+      && String(element.props.className).includes('sm:grid-cols-2')
+      && collectText(element).includes(`${partnerLabel} confirms`)
+    )).at(-1) as TestElement;
+    const labelSurfaces = findElements(tree, element => (
+      collectText(element).includes(partnerLabel)
+      && ['h2', 'p', 'span'].includes(String(element.type))
+    ));
+
+    expect(layout).toBeDefined();
+    expect(responsibilityGrid.props.className).toContain('grid');
+    expect(responsibilityGrid.props.className).not.toMatch(/(?:^|\s)grid-cols-2(?:\s|$)/);
+    expect(childrenOf(responsibilityGrid).every(child => (
+      typeof child === 'object'
+      && String((child as TestElement).props.className).includes('min-w-0')
+    ))).toBe(true);
+    expect(labelSurfaces.length).toBeGreaterThanOrEqual(7);
+    expect(labelSurfaces.every(element => (
+      String(element.props.className).includes('[overflow-wrap:anywhere]')
+    ))).toBe(true);
+
+    const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
+    expect(outbound.props.href).toBe(providerUrl);
+    expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
+  });
+
   it('uses a native, initially collapsed disclosure with exact evidence-state semantics', () => {
     const tree = BookingFlow({
       bookingEnabled: false,
@@ -436,6 +476,62 @@ describe('BookingFlow fare context review', () => {
       (backLink?.props.onClick as (() => void))();
       expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_handoff_back_clicked')).toHaveLength(0);
     } finally {
+      nowSpy.mockRestore();
+      if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument);
+      else delete (globalThis as { document?: unknown }).document;
+    }
+  });
+
+  it('keeps view, back, continue, and return analytics failures isolated from the handoff', () => {
+    let visibilityState: 'visible' | 'hidden' = 'visible';
+    let visibilityListener: (() => void) | undefined;
+    const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+    Object.defineProperty(globalThis, 'document', {
+      configurable: true,
+      value: {
+        get visibilityState() { return visibilityState; },
+        addEventListener: jest.fn((event: string, listener: () => void) => {
+          if (event === 'visibilitychange') visibilityListener = listener;
+        }),
+        removeEventListener: jest.fn(),
+      },
+    });
+    const nowSpy = jest.spyOn(performance, 'now').mockReturnValueOnce(1_000).mockReturnValueOnce(9_000);
+    trackMock.mockImplementation(() => { throw new Error('analytics unavailable'); });
+
+    try {
+      let tree: ReactElement;
+      expect(() => {
+        tree = BookingFlow({
+          bookingEnabled: false,
+          duffelSandbox: false,
+          fareContext: null,
+          hotelContext: { ...hotelContext, providerUrl: 'https://www.booking.com/hotel/x?aid=123' },
+        }) as ReactElement;
+      }).not.toThrow();
+
+      const anchors = findElements(tree!, element => element.type === 'a');
+      const outbound = anchors.find(element => element.props.target === '_blank') as TestElement;
+      const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function') as TestElement;
+
+      expect(() => (backLink.props.onClick as (() => void))()).not.toThrow();
+      expect(() => (outbound.props.onClick as (() => void))()).not.toThrow();
+      visibilityState = 'hidden';
+      expect(() => visibilityListener?.()).not.toThrow();
+      visibilityState = 'visible';
+      expect(() => visibilityListener?.()).not.toThrow();
+
+      expect(trackMock.mock.calls.map(([event]) => event)).toEqual(expect.arrayContaining([
+        'hotel_handoff_viewed',
+        'hotel_handoff_back_clicked',
+        'hotel_handoff_continue_clicked',
+        'hotel_handoff_returned',
+      ]));
+      expect(outbound.props.href).toBe('https://www.booking.com/hotel/x?aid=123');
+      expect(outbound.props.target).toBe('_blank');
+      expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
+    } finally {
+      trackMock.mockReset();
       nowSpy.mockRestore();
       if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument);
       else delete (globalThis as { document?: unknown }).document;
