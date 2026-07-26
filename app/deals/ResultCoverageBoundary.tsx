@@ -41,7 +41,10 @@ function FilterActions({
   activeFilters,
   recommendedFilterKey,
   onClearAll,
-}: Pick<ResultCoverageBoundaryProps, 'activeFilters' | 'recommendedFilterKey' | 'onClearAll'>) {
+  showClearAllWithSingleFilter = false,
+}: Pick<ResultCoverageBoundaryProps, 'activeFilters' | 'recommendedFilterKey' | 'onClearAll'> & {
+  showClearAllWithSingleFilter?: boolean
+}) {
   const recommended = activeFilters.find(filter => filter.key === recommendedFilterKey) ?? activeFilters[0]
   if (!recommended) return null
 
@@ -50,43 +53,12 @@ function FilterActions({
       <button type="button" onClick={recommended.onRemove} className="btn btn-primary min-h-[44px] w-full whitespace-normal px-6 sm:w-auto">
         Remove &ldquo;{recommended.label}&rdquo;
       </button>
-      {activeFilters.length > 1 && onClearAll ? (
+      {(showClearAllWithSingleFilter || activeFilters.length > 1) && onClearAll ? (
         <button type="button" onClick={onClearAll} className="btn btn-outline min-h-[44px] w-full px-6 sm:w-auto">
           Clear all filters
         </button>
       ) : null}
     </div>
-  )
-}
-
-function FilteredEmptyActions({
-  activeFilters,
-  onClearAll,
-}: Pick<ResultCoverageBoundaryProps, 'activeFilters' | 'onClearAll'>) {
-  return (
-    <>
-      <div className="mt-2 flex flex-wrap justify-center gap-2">
-        {activeFilters.map(filter => (
-          <button
-            key={filter.key}
-            type="button"
-            aria-label={`Remove filter: ${filter.label}`}
-            onClick={filter.onRemove}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--primary)] bg-[color:var(--primary)] px-4 text-[13px] font-medium text-white"
-          >
-            {filter.label}
-            <svg aria-hidden="true" viewBox="0 0 16 16" className="h-[13px] w-[13px] fill-none stroke-current stroke-2">
-              <path d="m4 4 8 8m0-8-8 8" />
-            </svg>
-          </button>
-        ))}
-      </div>
-      {onClearAll ? (
-        <button type="button" onClick={onClearAll} className="btn btn-primary mt-3 min-h-[44px] w-full px-8 sm:w-auto">
-          Clear all filters
-        </button>
-      ) : null}
-    </>
   )
 }
 
@@ -115,6 +87,14 @@ export function ResultCoverageBoundary({
       activeFilters={activeFilters}
       recommendedFilterKey={recommendedFilterKey}
       onClearAll={onClearAll}
+    />
+  )
+  const filteredEmptyActions = (
+    <FilterActions
+      activeFilters={activeFilters}
+      recommendedFilterKey={recommendedFilterKey}
+      onClearAll={onClearAll}
+      showClearAllWithSingleFilter
     />
   )
 
@@ -168,14 +148,14 @@ export function ResultCoverageBoundary({
       break
     case 'confirmed_empty':
       title = isDeals
-        ? filtered ? 'No deals match your filters' : 'No current expaify hotel deals were returned'
+        ? filtered ? 'No current expaify deals match your filters' : 'No current expaify hotel deals were returned'
         : 'No expaify hotel results were returned for these dates'
       body = isDeals
-        ? filtered ? 'Remove a filter, or clear them all to see everything that’s live.' : 'There are no current matches in expaify’s tracked deal set. Check again after the next daily update.'
+        ? filtered ? 'Remove one filter to expand this expaify result set.' : 'There are no current matches in expaify’s tracked deal set. Check again after the next daily update.'
         : 'Try different stay dates while keeping your destination and traveler details.'
       actions = isDeals ? showFilterActions
         ? filtered
-          ? <FilteredEmptyActions activeFilters={activeFilters} onClearAll={onClearAll} />
+          ? filteredEmptyActions
           : filterActions
         : null : (
         <div className="mt-2 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">

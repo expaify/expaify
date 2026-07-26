@@ -64,25 +64,27 @@ describe('ResultCoverageBoundary', () => {
     expect(markup).not.toContain('Remove “Under $150”')
   })
 
-  it('renders every filtered-empty recovery action and status semantics', () => {
+  it('renders one causal primary and a secondary clear-all action for a filtered empty result', () => {
     const markup = renderToStaticMarkup(
       <ResultCoverageBoundary
         surface="deals"
         state="confirmed_empty"
         visibleCount={0}
         activeFilters={filters}
-        recommendedFilterKey="maxPrice"
+        recommendedFilterKey="minStars"
         onClearAll={jest.fn()}
         statusMessageId="filtered-empty"
       />,
     )
 
     expect(markup).toContain('role="status"')
-    expect(markup).toContain('No deals match your filters')
-    expect(markup).toContain('Remove a filter, or clear them all to see everything that’s live.')
-    expect(markup).toContain('aria-label="Remove filter: Under $150"')
-    expect(markup).toContain('aria-label="Remove filter: 4★ &amp; up"')
-    expect(markup).toContain('Clear all filters')
+    expect(markup).toContain('No current expaify deals match your filters')
+    expect(markup).toContain('Remove one filter to expand this expaify result set.')
+    expect(markup).toContain('Remove “4★ &amp; up”')
+    expect(markup).not.toContain('Remove “Under $150”')
+    expect(markup.match(/btn btn-primary/g)).toHaveLength(1)
+    expect(markup).toMatch(/class="btn btn-primary[^"]*"[^>]*>Remove “4★ &amp; up”<\/button>/)
+    expect(markup).toMatch(/class="btn btn-outline[^"]*"[^>]*>Clear all filters<\/button>/)
   })
 
   it('keeps clear-all available when only one filter is active', () => {
