@@ -142,6 +142,14 @@ describe('HotelDocumentReadiness UI', () => {
     expect(error).not.toContain('role="alert"')
   })
 
+  it('makes the replacement loading status programmatically focusable only for retry focus transfer', () => {
+    const retryLoading = renderDisclosure(baseReadiness, 'loading', { statusRegionFocusable: true })
+    const passiveLoading = renderDisclosure(baseReadiness, 'loading')
+
+    expect(retryLoading).toContain('tabindex="-1"')
+    expect(passiveLoading).not.toContain('tabindex=')
+  })
+
   it('does not duplicate the primary affiliate destination when verification uses the same URL', () => {
     const html = renderDisclosure({
       ...baseReadiness,

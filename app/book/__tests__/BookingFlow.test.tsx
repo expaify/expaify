@@ -20,7 +20,11 @@ jest.mock('react', () => {
   };
 });
 
-const { default: BookingFlow } = jest.requireActual('../BookingFlow') as typeof import('../BookingFlow');
+const {
+  default: BookingFlow,
+  beginHotelDocumentReadinessCheck,
+  focusHotelDocumentRetryStatus,
+} = jest.requireActual('../BookingFlow') as typeof import('../BookingFlow');
 
 function childrenOf(node: TestElement): unknown[] {
   const children = node.props?.children;
@@ -103,6 +107,24 @@ const hotelContext: BookingHotelContext = {
 describe('BookingFlow fare context review', () => {
   beforeEach(() => {
     trackMock.mockClear();
+  });
+
+  it('starts and records only one retry while a document check is pending', () => {
+    const pendingRef = { current: false };
+    const retryStarted = jest.fn();
+
+    expect(beginHotelDocumentReadinessCheck(pendingRef, retryStarted)).toBe(true);
+    expect(beginHotelDocumentReadinessCheck(pendingRef, retryStarted)).toBe(false);
+    expect(retryStarted).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves focus once to the loading status that replaces an activated retry', () => {
+    const focusPendingRef = { current: true };
+    const statusRegion = { focus: jest.fn() };
+
+    expect(focusHotelDocumentRetryStatus(focusPendingRef, statusRegion)).toBe(true);
+    expect(focusHotelDocumentRetryStatus(focusPendingRef, statusRegion)).toBe(false);
+    expect(statusRegion.focus).toHaveBeenCalledTimes(1);
   });
 
   it('blocks review when selected fare context is missing', () => {

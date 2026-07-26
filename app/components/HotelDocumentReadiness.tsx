@@ -3,6 +3,7 @@ import type {
   HotelDocumentIssuer,
   HotelDocumentReadiness,
 } from '@/lib/types'
+import type { Ref } from 'react'
 import { notProvidedHotelDocumentReadiness } from '@/lib/providers/hotelDocumentReadiness'
 
 export type {
@@ -30,6 +31,8 @@ type ReadinessDisclosureProps = {
   retryPending?: boolean
   onRetry?: () => void
   onVerificationClick?: () => void
+  statusRegionRef?: Ref<HTMLElement>
+  statusRegionFocusable?: boolean
 }
 
 export function getNotProvidedHotelDocumentReadiness(sourceLabel: string): HotelDocumentReadiness {
@@ -236,6 +239,8 @@ export function HotelDocumentReadinessDisclosure({
   retryPending = false,
   onRetry,
   onVerificationClick,
+  statusRegionRef,
+  statusRegionFocusable = false,
 }: ReadinessDisclosureProps) {
   const source = cleanLabel(readiness.source.label, 'Hotel provider')
   const hasInvoice = readiness.documentTypes.includes('invoice')
@@ -287,9 +292,11 @@ export function HotelDocumentReadinessDisclosure({
 
   return (
     <section
+      ref={statusRegionRef}
       aria-labelledby="hotel-document-readiness-title"
       aria-live={isLoading || isError ? 'polite' : undefined}
       role={isLoading ? 'status' : undefined}
+      tabIndex={statusRegionFocusable ? -1 : undefined}
       className="mt-3 min-w-0 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-3.5 py-4 sm:px-4"
     >
       <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand)]">Before you book</p>

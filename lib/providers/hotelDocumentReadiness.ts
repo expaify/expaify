@@ -72,7 +72,8 @@ export function normalizeHotelDocumentReadiness(
   if (!isRecord(value)) return fallback;
 
   const sourceInput = isRecord(value.source) ? value.source : {};
-  const sourceLabel = cleanString(sourceInput.label, 120) ?? fallback.source.label;
+  const suppliedSourceLabel = cleanString(sourceInput.label, 120);
+  const sourceLabel = suppliedSourceLabel ?? fallback.source.label;
   const policyId = cleanString(sourceInput.policyId, 200);
   const observedAtValue = cleanString(sourceInput.observedAt, 64);
   const observedAt = observedAtValue && !Number.isNaN(Date.parse(observedAtValue)) ? observedAtValue : undefined;
@@ -81,7 +82,8 @@ export function normalizeHotelDocumentReadiness(
   const status = typeof value.status === 'string' && statuses.has(value.status as HotelDocumentStatus)
     ? value.status as HotelDocumentStatus
     : 'not_provided';
-  const scope = typeof value.scope === 'string' && scopes.has(value.scope as HotelDocumentScope)
+  const hasSuppliedScope = typeof value.scope === 'string' && scopes.has(value.scope as HotelDocumentScope);
+  const scope = hasSuppliedScope
     ? value.scope as HotelDocumentScope
     : 'rate';
   const normalizedDocumentTypes = Array.isArray(value.documentTypes)
@@ -125,6 +127,7 @@ export function normalizeHotelDocumentReadiness(
   }
   if (
     (status === 'confirmed' && normalizedDocumentTypes.length === 0) ||
+    (status === 'unavailable' && (!hasSuppliedScope || !suppliedSourceLabel)) ||
     (status === 'conditional' && !conditionIsSafe) ||
     (status === 'conflicting' && conflictStatements.length < 2)
   ) {
