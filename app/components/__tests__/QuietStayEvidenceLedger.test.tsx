@@ -189,20 +189,20 @@ describe('QuietStayEvidenceLedger', () => {
     expect(html).not.toContain('street noise at night')
   })
 
-  it('keeps production mounting limited to detail and leaves DealCard and handoff unchanged', () => {
+  it('keeps production mounting in saved-detail supporting evidence and leaves DealCard and handoff unchanged', () => {
     const fs = jest.requireActual('node:fs') as typeof import('node:fs')
     const detail = fs.readFileSync('app/deals/[dealId]/page.tsx', 'utf8')
     const card = fs.readFileSync('app/components/ui/DealCard.tsx', 'utf8')
     const handoff = fs.readFileSync('app/book/BookingFlow.tsx', 'utf8')
 
-    const scoreIndex = detail.indexOf('{/* Deal score')
+    const scoreIndex = detail.lastIndexOf('<DealScoreSection deal={deal}')
     const ledgerIndex = detail.indexOf('<QuietStayEvidenceLedger evidence={NO_QUIET_STAY_EVIDENCE} />')
     const photoIndex = detail.indexOf('<PropertyPhoto src={deal.photo_url}')
-    const actionIndex = detail.indexOf('{/* Primary action zone */}')
+    const actionIndex = detail.indexOf('<section aria-labelledby="saved-provider-title"')
 
-    expect(scoreIndex).toBeLessThan(ledgerIndex)
-    expect(ledgerIndex).toBeLessThan(photoIndex)
-    expect(photoIndex).toBeLessThan(actionIndex)
+    expect(scoreIndex).toBeLessThan(actionIndex)
+    expect(actionIndex).toBeLessThan(photoIndex)
+    expect(photoIndex).toBeLessThan(ledgerIndex)
     expect(card).not.toMatch(/quiet-stay|quiet evidence/i)
     expect(handoff).toContain('Special requests')
     expect(handoff).not.toContain('QuietStayEvidenceLedger')

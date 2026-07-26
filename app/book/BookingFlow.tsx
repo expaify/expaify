@@ -12,9 +12,8 @@ import type {
   HotelParkingEvidence,
 } from '@/lib/types'
 import { normalizeHotelDocumentReadiness } from '@/lib/providers/hotelDocumentReadiness'
-import { getParkingCtaStatus, ParkingSection } from '@/app/components/HotelParking'
+import { ParkingSection } from '@/app/components/HotelParking'
 import {
-  getRateRestrictionsAccessibleSummary,
   HotelRateRestrictionsSection,
   RATE_ELIGIBILITY_NOT_PROVIDED,
 } from '@/app/components/HotelRateRestrictions'
@@ -23,7 +22,6 @@ import {
   HotelDocumentReadinessDisclosure,
 } from '@/app/components/HotelDocumentReadiness'
 import HotelFundsPolicyPanel, {
-  getHotelFundsPolicyAccessibleSuffix,
   type HotelFundsPolicyEvidence,
   type HotelFundsPolicyLoadState,
 } from '@/app/components/HotelFundsPolicyPanel'
@@ -298,18 +296,18 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
   )
 }
 
-function HotelSummary({ hotelContext, partner }: { hotelContext: BookingHotelContext; partner: HotelPartnerIdentity }) {
+function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelContext }) {
   const location = getHotelLocationDisplay(hotelContext)
   const rateSource = providerDisplayName(hotelContext.provider)
 
   return (
-    <section aria-labelledby="hotel-review-title" className={`${panelCls} p-4 sm:p-6`}>
-      <div className="flex flex-col gap-4 border-b border-[color:var(--border)] pb-5 md:flex-row md:items-start md:justify-between">
+    <>
+      <section aria-labelledby="hotel-property-title" className={`${panelCls} p-4 sm:p-6`}>
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand)]">Hotel review</p>
-          <h2 id="hotel-review-title" className="mt-2 text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">
+          <h1 id="hotel-property-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">
             {hotelContext.name}
-          </h2>
+          </h1>
           <p className="mt-2 break-words text-sm font-medium leading-6 text-[color:var(--text-2)]">
             {location.label}: {location.value}
           </p>
@@ -317,38 +315,49 @@ function HotelSummary({ hotelContext, partner }: { hotelContext: BookingHotelCon
             {location.note}
           </p>
         </div>
-        <div className="min-w-0 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--bg-raised)] px-4 py-3 md:shrink-0 md:text-right">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-3)]">Selected nightly rate</p>
-          <p className="mt-1 text-2xl font-bold leading-none text-[color:var(--text-1)]">{formatMoney(hotelContext.priceCents, hotelContext.currency)}</p>
-          <p className="mt-1 text-xs font-medium text-[color:var(--text-2)]">{getHotelPriceBasisLabel(hotelContext.priceBasis)}</p>
+        <div className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3">
+          <p className={factLabelCls}>Stay dates not provided</p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+            Stay dates are incomplete. Choose or confirm dates with the provider before comparing room options.
+          </p>
         </div>
-      </div>
-      <div className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 sm:px-5 sm:py-4">
-        <p className={factLabelCls}>Rate expectation</p>
-        <p className={`mt-2 text-sm leading-6 text-[color:var(--text-2)] ${partnerLabelWrapCls}`}>
-          This is the nightly rate expaify last saw from {rateSource}. {partner.named ? partner.label : 'The booking partner'} confirms the live rate, taxes, and fees before you pay—the total you see there may differ.
-        </p>
-        <p className="mt-2 text-xs font-medium leading-5 text-[color:var(--text-3)]">
-          Rate freshness not available from this provider.
-        </p>
-      </div>
-      <HotelRateRestrictionsSection
-        eligibility={RATE_ELIGIBILITY_NOT_PROVIDED}
-        providerName={rateSource}
-      />
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <FareFact label="Hotel" value={hotelContext.name} />
-        <FareFact label="Location" value={location.value} />
-        <FareFact label="Location precision" value={location.label} />
-        <FareFact label="Rate source" value={rateSource} />
-        <FareFact label="Price basis" value={getHotelPriceBasisLabel(hotelContext.priceBasis)} />
-        <FareFact label="Currency" value={hotelContext.currency} />
-      </div>
-      <div className="mt-4 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 text-xs">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p>
-        <p className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{hotelContext.offerId}</p>
-      </div>
-    </section>
+      </section>
+
+      <section aria-labelledby="hotel-price-score-title" className={`${panelCls} p-4 sm:p-6`}>
+        <h2 id="hotel-price-score-title" className="text-xl font-bold leading-tight text-[color:var(--text-1)] sm:text-2xl">Price and Deal Score</h2>
+        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+          <div className="min-w-0 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-4">
+            <p className={factLabelCls}>Observed nightly rate</p>
+            <p className="mt-2 break-words font-display text-3xl font-bold leading-none tabular-nums text-[color:var(--text-1)] sm:text-4xl">
+              {formatMoney(hotelContext.priceCents, hotelContext.currency)}
+            </p>
+            <p className="mt-2 text-xs font-medium text-[color:var(--text-2)]">{getHotelPriceBasisLabel(hotelContext.priceBasis)}</p>
+            <p className={`mt-2 text-xs font-medium leading-5 text-[color:var(--text-2)] ${partnerLabelWrapCls}`}>Rate observed from {rateSource}.</p>
+            <p className="mt-2 text-xs font-medium leading-5 text-[color:var(--warning)]">Last-checked time not provided.</p>
+          </div>
+          <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-4" role="status">
+            <p className={factLabelCls}>Deal Score</p>
+            <p className="mt-2 text-sm font-bold text-[color:var(--text-1)]">Deal Score unavailable</p>
+            <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">We could not compare this nightly rate with enough recent hotel prices.</p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="hotel-fit-title" className={`${panelCls} p-4 sm:p-6`}>
+        <h2 id="hotel-fit-title" className="text-xl font-bold leading-tight text-[color:var(--text-1)] sm:text-2xl">Hotel fit</h2>
+        <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className={`p-3.5 ${insetPanelCls}`}>
+            <dt className={factLabelCls}>Hotel class</dt>
+            <dd className={factValueCls}>Hotel class not provided</dd>
+          </div>
+          <div className={`p-3.5 ${insetPanelCls}`}>
+            <dt className={factLabelCls}>Guest rating</dt>
+            <dd className={factValueCls}>Guest rating not provided</dd>
+            <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
+          </div>
+        </dl>
+      </section>
+    </>
   )
 }
 
@@ -475,6 +484,21 @@ function ReviewShell({
   onBackClick?: MouseEventHandler<HTMLAnchorElement>
   children: ReactNode
 }) {
+  if (hotelContext) {
+    return (
+      <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
+        <a href="/" onClick={onBackClick} className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
+          ← Back to results
+        </a>
+        <div className="mt-4 space-y-4 sm:mt-6">
+          <HotelDecisionSummary hotelContext={hotelContext} />
+          {status}
+          {children}
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-10 lg:px-8">
       <a href="/" onClick={onBackClick} className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
@@ -490,9 +514,6 @@ function ReviewShell({
           {status}
           {fareContext && (
             <FareSummary fareContext={fareContext} duffelSandbox={duffelSandbox} />
-          )}
-          {hotelContext && (
-            <HotelSummary hotelContext={hotelContext} partner={getHotelPartnerIdentity(hotelContext.providerUrl)} />
           )}
           {hotelParking}
         </div>
@@ -914,62 +935,61 @@ function HotelHandoffReview({
     })
   }
 
-  const partnerHeading = partner.named
-    ? `You’ll book with ${partner.label}.`
-    : 'You’ll book with an external booking partner.'
-  const partnerSupport = partner.named
-    ? `expaify hands you off; ${partner.label} takes payment.`
-    : 'expaify hands you off; the booking partner takes payment.'
-  const continueLabel = partner.named ? `Continue to ${partner.label}` : 'Continue to booking partner'
+  const continueLabel = partner.named ? `Check rooms at ${partner.label}` : 'Check rooms at provider'
   const newTabCue = partner.named
-    ? `Opens ${partner.label} in a new tab. Your expaify search stays open here.`
-    : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
-  const accessiblePartner = partner.named ? partner.label : 'the booking partner’s site'
-  const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(
-    RATE_ELIGIBILITY_NOT_PROVIDED,
-    providerDisplayName(hotelContext.provider),
-    'handoff',
-  )
-  const parkingCtaStatus = getParkingCtaStatus({ evidence: parkingEvidence, malformed: parkingEvidenceMalformed })
-  const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(resolvedFundsPolicy, fundsPolicyLoadState, providerDisplayName(hotelContext.provider))
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${eligibilityAriaSummary} ${parkingCtaStatus} ${policyAriaSuffix}`
+    ? `Opens ${partner.label} in a new tab. Your expaify page stays open.`
+    : 'Opens the provider site in a new tab. Your expaify page stays open.'
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens in a new tab. The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.`
 
   return (
     <ReviewShell
-      eyebrow="Hotel handoff"
-      title="Review selected hotel"
-      message="Review the hotel, nightly rate, and any provider-reported additional-funds policy. The booking partner confirms live details before you pay."
+      eyebrow="Hotel review"
+      title={hotelContext.name}
+      message="Review the property, observed nightly rate, hotel fit, and provider handoff."
       fareContext={null}
       hotelContext={hotelContext}
-      hotelParking={(
-        <ParkingSection
-          hotelId={hotelContext.offerId}
-          evidence={parkingEvidence}
-          conflictDimensions={parkingConflictDimensions}
-          malformed={parkingEvidenceMalformed}
-          hasSearchDates={hasSearchDates}
-          bookingReview
-        />
-      )}
       duffelSandbox={duffelSandbox}
       onBackClick={handleBack}
     >
-      <div className={`${panelCls} p-4 sm:p-6`}>
-        <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand)]">Booking partner</p>
-          <h2 className={`mt-2 text-xl font-bold leading-tight text-[color:var(--text-1)] ${partnerLabelWrapCls}`}>{partnerHeading}</h2>
-          <p className={`mt-2 text-sm leading-6 text-[color:var(--text-2)] ${partnerLabelWrapCls}`}>{partnerSupport}</p>
+      <section aria-labelledby="hotel-provider-title" className={`${panelCls} border-[color:var(--border-strong)] p-4 sm:p-6`}>
+        <h2 id="hotel-provider-title" className="text-xl font-bold leading-tight text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
+        <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
+          The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.
+          {' '}Choose or confirm your dates there before comparing room options.
+        </p>
+        <div className="mt-5 flex flex-col gap-3">
+          <a
+            href={hotelContext.providerUrl}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            aria-label={accessibleName}
+            onClick={handleContinue}
+            className="btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-center text-sm font-medium"
+          >
+            <span className={partnerLabelWrapCls}>{continueLabel}</span>
+            <svg aria-hidden="true" focusable="false" className="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="none">
+              <path d="M5 11 11 5M6 5h5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
+          <p className={`text-center text-xs leading-5 text-[color:var(--text-3)] ${partnerLabelWrapCls}`}>{newTabCue}</p>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
-          <div className={`min-w-0 px-3.5 py-3 ${insetPanelCls}`}>
-            <p className={factLabelCls}>expaify shows</p>
-            <p className="mt-2 text-sm leading-5 text-[color:var(--text-2)]">Hotel name, location, nightly rate basis, and rate source.</p>
-          </div>
-          <div className={`min-w-0 px-3.5 py-3 ${insetPanelCls}`}>
-            <p className={`${factLabelCls} ${partnerLabelWrapCls}`}>{partner.named ? `${partner.label} confirms` : 'Booking partner confirms'}</p>
-            <p className="mt-2 text-sm leading-5 text-[color:var(--text-2)]">Final total, taxes, fees, room availability, and cancellation policy.</p>
-          </div>
-        </div>
+      </section>
+
+      <section aria-labelledby="hotel-supporting-title" className={`${panelCls} p-4 sm:p-6`}>
+        <h2 id="hotel-supporting-title" className="text-xl font-bold leading-tight text-[color:var(--text-1)] sm:text-2xl">Supporting evidence</h2>
+        <div className="mt-5 space-y-5">
+          <HotelRateRestrictionsSection
+            eligibility={RATE_ELIGIBILITY_NOT_PROVIDED}
+            providerName={providerDisplayName(hotelContext.provider)}
+          />
+          <ParkingSection
+            hotelId={hotelContext.offerId}
+            evidence={parkingEvidence}
+            conflictDimensions={parkingConflictDimensions}
+            malformed={parkingEvidenceMalformed}
+            hasSearchDates={hasSearchDates}
+            bookingReview
+          />
         <HotelDocumentIntentControl checked={invoiceNeeded} onChange={handleInvoiceNeedChange} />
         {invoiceNeeded ? (
           <div ref={documentDisclosureRef}>
@@ -1050,26 +1070,16 @@ function HotelHandoffReview({
             rootRef={fundsPolicyExposureRef}
           />
         </div>
-        <div className="mt-5 flex flex-col gap-3">
-          <a
-            href={hotelContext.providerUrl}
-            target="_blank"
-            rel="noopener noreferrer sponsored"
-            aria-label={accessibleName}
-            onClick={handleContinue}
-            className="btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-center text-sm font-medium"
-          >
-            <span className={partnerLabelWrapCls}>{continueLabel}</span>
-            <svg aria-hidden="true" focusable="false" className="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="none">
-              <path d="M5 11 11 5M6 5h5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </a>
-          <p className={`text-center text-xs leading-5 text-[color:var(--text-3)] ${partnerLabelWrapCls}`}>{newTabCue}</p>
-          <a href="/" onClick={handleBack} className={secondaryButtonCls}>
-            Back to search
-          </a>
+          <details className="rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
+            <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[color:var(--brand)]">Show offer details</summary>
+            <dl className="border-t border-[color:var(--border)] py-3 text-xs">
+              <dt className={factLabelCls}>Offer reference</dt>
+              <dd className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{hotelContext.offerId}</dd>
+            </dl>
+            <p className="pb-3 text-xs leading-5 text-[color:var(--text-3)]">Use this reference if you contact expaify support.</p>
+          </details>
         </div>
-      </div>
+      </section>
     </ReviewShell>
   )
 }

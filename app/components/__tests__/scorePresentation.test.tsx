@@ -551,21 +551,21 @@ describe('Deal score presentation', () => {
     expect(findFirstProp(failedPhoto, 'alt', value => value === '')).toBeUndefined()
   })
 
-  it('keeps deal-detail price claims outside the figure and orders evidence before imagery', () => {
+  it('keeps deal-detail price claims outside the figure and supporting imagery after the provider handoff', () => {
     const fs = jest.requireActual('node:fs') as typeof import('node:fs')
     const source = fs.readFileSync('app/deals/[dealId]/page.tsx', 'utf8')
-    const titleIndex = source.indexOf('{/* Title block */}')
-    const priceIndex = source.indexOf('{/* Price */}')
-    const scoreIndex = source.indexOf('{/* Deal score')
+    const titleIndex = source.indexOf('<h1 id="saved-hotel-title"')
+    const priceIndex = source.indexOf('<section aria-labelledby="saved-price-score-title"')
+    const scoreIndex = source.lastIndexOf('<DealScoreSection deal={deal}')
     const photoIndex = source.indexOf('<PropertyPhoto src={deal.photo_url}')
-    const actionIndex = source.indexOf('{/* Primary action zone */}')
+    const actionIndex = source.indexOf('<section aria-labelledby="saved-provider-title"')
 
     expect(source).toContain('PropertyPhoto src={deal.photo_url}')
     expect(source).toContain('Deal found {foundAgo}')
     expect(source).not.toContain('bg-gradient-to-t')
     expect(titleIndex).toBeLessThan(priceIndex)
     expect(priceIndex).toBeLessThan(scoreIndex)
-    expect(scoreIndex).toBeLessThan(photoIndex)
-    expect(photoIndex).toBeLessThan(actionIndex)
+    expect(scoreIndex).toBeLessThan(actionIndex)
+    expect(actionIndex).toBeLessThan(photoIndex)
   })
 })

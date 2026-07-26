@@ -4,11 +4,8 @@ import { getDealById, getPriceHistory, type DealRow } from '@/lib/pipeline/dealD
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { query } from '@/lib/db/client'
 import { formatMoney } from '@/lib/money'
-import { DealChip } from '@/app/components/ui/DealChip'
 import { TrustLine } from '@/app/components/ui/TrustLine'
 import { PriceSparkline } from '@/app/components/ui/PriceSparkline'
-import { PriceBlock } from '@/app/components/ui/PriceBlock'
-import { StarRow } from '@/app/components/ui/StarRow'
 import { ShareButton } from '@/app/components/ui/ShareButton'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
 import { WatchCityPill } from '@/app/components/ui/WatchCityPill'
@@ -69,17 +66,6 @@ function addNights(dateStr: string, nights: number): string {
   return fmtShort(d.toISOString())
 }
 
-function Fact({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
-  return (
-    <div>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">{label}</p>
-      <p className={`mt-0.5 text-[13px] font-medium leading-5 ${muted ? 'text-[color:var(--text-3)]' : 'text-[color:var(--text-1)]'}`}>
-        {value}
-      </p>
-    </div>
-  )
-}
-
 function LockedDealDetail({ city, checkInDate, checkInWindow, criteriaContext }: {
   city: string
   checkInDate: string | null
@@ -99,10 +85,10 @@ function LockedDealDetail({ city, checkInDate, checkInWindow, criteriaContext }:
           </a>
           <a
             href={criteriaContext.backHref}
-            aria-label={criteriaContext.criteria ? 'Back to hotel results for this search' : 'Search hotel deals'}
+            aria-label={criteriaContext.criteria ? 'Back to hotel results for this search' : 'Back to saved deals'}
             className="text-[14px] font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]"
           >
-            ← {criteriaContext.criteria ? 'Back to results' : 'Search hotel deals'}
+            ← {criteriaContext.criteria ? 'Back to results' : 'Back to saved deals'}
           </a>
         </div>
       </nav>
@@ -170,15 +156,19 @@ async function PriceHistorySection({ deal }: { deal: DealRow }) {
 
   if (history.length < 3) {
     return (
-      <section className="mt-8">
+      <section>
+        <h3 className="text-h3 text-[color:var(--ink)]">Price history</h3>
+        <p className="mt-2 text-sm text-[color:var(--text-2)]">Not enough historical checks are available to draw a chart.</p>
+        <div className="mt-3">
         <TrustLine snapshotCount={deal.snapshot_count} />
+        </div>
       </section>
     )
   }
 
   return (
-    <section className="mt-8">
-      <h3 className="text-h3 text-[color:var(--ink)]">60-day price history</h3>
+    <section>
+      <h3 className="text-h3 text-[color:var(--ink)]">Price history</h3>
       <div className="mt-4">
         <PriceSparkline
           history={history}
@@ -195,7 +185,7 @@ async function PriceHistorySection({ deal }: { deal: DealRow }) {
 
 function PriceHistorySkeleton() {
   return (
-    <section className="mt-8" aria-hidden>
+    <section aria-hidden>
       <div className="skeleton h-6 w-44 rounded-[var(--radius-input)]" />
       <div className="skeleton mt-4 h-[80px] w-full rounded-[var(--radius-input)]" />
       <div className="skeleton mt-3 h-3 w-64 rounded-full" />
@@ -230,15 +220,15 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
   }
 
   return (
-    <section className="mt-8">
+    <div>
       <DealScorePanel
         score={score}
         loading={false}
         scope="hotel"
         priceNoun="nightly rate"
-        unavailableCopy="Not enough price history to score this deal yet."
+        unavailableCopy="We could not compare this nightly rate with enough recent hotel prices."
       />
-    </section>
+    </div>
   )
 }
 
@@ -274,9 +264,6 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
     : null
   const showWatchPill = !!sub && TRACKED_MARKET_NAMES.includes(deal.city)
 
-  const savings = deal.median_price_cents - deal.deal_price_cents
-  const showSavings = savings >= 2000
-
   const now = Date.now()
   const isExpired = deal.expires_at ? new Date(deal.expires_at).getTime() < now : false
   const updatedAtMs = deal.updated_at ? new Date(deal.updated_at).getTime() : NaN
@@ -288,7 +275,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
 
   // check-in / check-out derived
   const checkInDisplay = deal.check_in_date ? fmtShort(deal.check_in_date) : null
-  const checkOutDisplay = deal.check_in_date ? addNights(deal.check_in_date, deal.nights ?? 1) : null
+  const checkOutDisplay = deal.check_in_date && deal.nights != null ? addNights(deal.check_in_date, deal.nights) : null
   const continuityFixtureId = parseContinuityFixture(researchParams.continuityFixture)
   const checkInMs = deal.check_in_date ? Date.parse(deal.check_in_date) : NaN
   const checkOutIso = Number.isFinite(checkInMs)
@@ -302,183 +289,131 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
     : researchParams.continuityDisclosure
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
-
-      {/* Nav */}
       <nav className="border-b border-[color:var(--line-ivory)] bg-[color:var(--bg)]">
-        <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">
+        <div className="mx-auto flex h-16 max-w-[1140px] items-center px-5">
           <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
             expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
-          </a>
-          <a href={backHref} aria-label={criteria ? 'Back to hotel results for this search' : 'Search hotel deals'} className="flex min-h-[44px] items-center text-caption font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
-            ← {criteria ? 'Back to results' : 'Search hotel deals'}
           </a>
         </div>
       </nav>
 
-      <main className="mx-auto max-w-[760px] px-5 py-8">
+      <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
+        <a
+          href={backHref}
+          aria-label={criteria ? 'Back to hotel results for this search' : 'Back to saved deals'}
+          className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)] focus-visible:rounded-[var(--radius-control)]"
+        >
+          ← {criteria ? 'Back to results' : 'Back to saved deals'}
+        </a>
 
-        {/* Stale deal banner */}
-        {isStale && (
-          <div className="mb-4 rounded-[var(--radius-card)] border border-[color:var(--gold)] bg-[color:var(--surface)] px-4 py-3" role="status">
-            <TrackOnMount event="deal_stale_banner_viewed" props={{ dealId: deal.id }} />
-            <p className="text-[13px] font-bold text-[color:var(--ink)]">Price may be out of date</p>
-            <p className="mt-0.5 text-[12px] leading-5 text-[color:var(--ink-soft)]">
-              We haven&apos;t been able to re-verify this price since {fmtCheckedDate(deal.updated_at)}. Check the provider for the current price and availability.
+        <div className="mt-4 space-y-4">
+          <section aria-labelledby="saved-hotel-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+            <p className="text-caption font-bold uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
+            <h1 id="saved-hotel-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name}</h1>
+            <p className="mt-2 text-sm font-medium leading-6 text-[color:var(--text-2)]">Area: {deal.city}</p>
+            <p className="mt-1 text-xs leading-5 text-[color:var(--text-3)]">Provider supplied an area, not a street address.</p>
+            <dl className="mt-5 grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
+              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
+                <dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Check-in</dt>
+                <dd className="mt-1 text-sm font-medium text-[color:var(--text-1)]">{checkInDisplay ?? 'Check-in not provided'}</dd>
+              </div>
+              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
+                <dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Check-out</dt>
+                <dd className="mt-1 text-sm font-medium text-[color:var(--text-1)]">{checkOutDisplay ?? 'Check-out not provided'}</dd>
+              </div>
+              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
+                <dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Nights</dt>
+                <dd className="mt-1 text-sm font-medium text-[color:var(--text-1)]">{deal.nights != null ? `${deal.nights} ${deal.nights === 1 ? 'night' : 'nights'}` : 'Night count not provided'}</dd>
+              </div>
+            </dl>
+            <p className="mt-4 text-sm leading-6 text-[color:var(--text-2)]">
+              {checkInDisplay && checkOutDisplay && deal.nights != null
+                ? 'Rate shown for this stay context; the provider confirms room-level details.'
+                : 'Stay dates are incomplete. Choose or confirm dates with the provider before comparing room options.'}
             </p>
-          </div>
-        )}
+          </section>
 
-        {/* Title block */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h2 className="text-h2 text-[color:var(--ink)]">{deal.hotel_name}</h2>
-            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption font-medium text-[color:var(--ink-soft)]">
-              <StarRow stars={deal.stars ?? 0} />
-              <span aria-hidden>·</span>
-              <span>{deal.city}</span>
-              <span aria-hidden>·</span>
-              <span>{deal.check_in_window}</span>
-              {foundAgo ? (
-                <>
-                  <span aria-hidden>·</span>
-                  <span>Deal found {foundAgo}</span>
-                </>
-              ) : null}
-              {isExpired && deal.expires_at && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span className="text-[color:var(--error)]">Expired {fmtDate(deal.expires_at)}</span>
-                </>
-              )}
+          <section aria-labelledby="saved-price-score-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+            <h2 id="saved-price-score-title" className="text-xl font-bold text-[color:var(--text-1)] sm:text-2xl">Price and Deal Score</h2>
+            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">
+                <p className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Observed nightly rate</p>
+                <p className="mt-2 break-words font-display text-3xl font-bold tabular-nums text-[color:var(--text-1)] sm:text-4xl">{formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}</p>
+                <p className="mt-1 text-sm text-[color:var(--text-2)]">per night before taxes and fees</p>
+                <p className="mt-2 text-xs text-[color:var(--text-2)]">Rate observed from a booking partner.</p>
+                {isExpired && deal.expires_at ? (
+                  <p className="mt-3 text-sm font-medium text-[color:var(--error)]">This saved rate expired {fmtDate(deal.expires_at)}. It is shown for reference only.</p>
+                ) : isStale ? (
+                  <p className="mt-3 text-sm font-medium text-[color:var(--warning)]">Price may be out of date. We have not rechecked it since {fmtCheckedDate(deal.updated_at)}.</p>
+                ) : isAging && checkedAgo ? (
+                  <p className="mt-3 text-sm font-medium text-[color:var(--warning)]">Price checked {checkedAgo}. Confirm the current rate with the provider.</p>
+                ) : checkedAgo ? (
+                  <p className="mt-3 text-sm text-[color:var(--text-2)]">Price checked {checkedAgo}.</p>
+                ) : (
+                  <p className="mt-3 text-sm font-medium text-[color:var(--warning)]">Last-checked time not provided.</p>
+                )}
+              </div>
+              <Suspense fallback={<DealScorePanel score={null} loading scope="hotel" priceNoun="nightly rate" unavailableCopy="We could not compare this nightly rate with enough recent hotel prices." />}>
+                <DealScoreSection deal={deal} />
+              </Suspense>
             </div>
-          </div>
-          <ShareButton />
+          </section>
+
+          <section aria-labelledby="saved-hotel-fit-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+            <h2 id="saved-hotel-fit-title" className="text-xl font-bold text-[color:var(--text-1)] sm:text-2xl">Hotel fit</h2>
+            <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
+                <dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Hotel class</dt>
+                <dd className="mt-1 text-sm font-medium text-[color:var(--text-1)]">{deal.stars != null ? `${deal.stars}-star hotel class from a booking partner` : 'Hotel class not provided'}</dd>
+              </div>
+              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
+                <dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Guest rating</dt>
+                <dd className="mt-1 text-sm font-medium text-[color:var(--text-1)]">Guest rating not provided</dd>
+                <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
+              </div>
+            </dl>
+          </section>
+
+          <section aria-labelledby="saved-provider-title" className="rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+            <h2 id="saved-provider-title" className="text-xl font-bold text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
+            {isExpired ? (
+              <div className="mt-4" role="status">
+                <p className="text-sm font-bold text-[color:var(--text-1)]">Saved rate expired</p>
+                <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">This observed nightly rate is no longer current. Search again before inspecting room options.</p>
+                <a href="/deals" className="btn btn-primary mt-4 inline-flex min-h-11 w-full items-center justify-center text-center">Search current deals</a>
+              </div>
+            ) : (
+              <HotelDealCriteriaHandoff context={criteriaContext} deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }} links={deal.ota_links ?? {}} hotelName={deal.hotel_name} />
+            )}
+          </section>
+
+          <section aria-labelledby="saved-supporting-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+            <h2 id="saved-supporting-title" className="text-xl font-bold text-[color:var(--text-1)] sm:text-2xl">Supporting evidence</h2>
+            <div className="mt-5 space-y-6">
+              {deal.photo_url ? <PropertyPhoto src={deal.photo_url} size="detail" loading="lazy" /> : null}
+              <HotelDealCriteriaSummary context={criteriaContext} deal={{ city: deal.city, checkInDate: deal.check_in_date }} />
+              <QuietStayEvidenceLedger evidence={NO_QUIET_STAY_EVIDENCE} />
+              <HotelContinuityPrototype dealId={deal.id} hotelName={deal.hotel_name} fixtureId={continuityFixtureId} disclosure={continuityDisclosure} initiallyExpanded={disclosureParam === 'expanded'} />
+              <Suspense fallback={<PriceHistorySkeleton />}>
+                <PriceHistorySection deal={deal} />
+              </Suspense>
+              <details className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
+                <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[color:var(--brand)]">Show offer details</summary>
+                <dl className="border-t border-[color:var(--border)] py-3">
+                  <dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</dt>
+                  <dd className="mt-2 break-all font-mono text-xs text-[color:var(--text-2)]">{deal.id}</dd>
+                </dl>
+                <p className="pb-3 text-xs text-[color:var(--text-3)]">Use this reference if you contact expaify support.</p>
+              </details>
+              <div className="flex flex-wrap items-center gap-3">
+                <ShareButton />
+                {showWatchPill && sub ? <WatchCityPill city={deal.city} initialWatching={sub.watchlist.includes(deal.city)} initialCount={sub.watchlist.length} /> : null}
+              </div>
+              {foundAgo ? <p className="text-xs text-[color:var(--text-3)]">Deal found {foundAgo}.</p> : null}
+            </div>
+          </section>
         </div>
-
-        {showWatchPill && sub && (
-          <div className="mt-3">
-            <WatchCityPill
-              city={deal.city}
-              initialWatching={sub.watchlist.includes(deal.city)}
-              initialCount={sub.watchlist.length}
-            />
-          </div>
-        )}
-
-        {/* Price */}
-        <section className="mt-6">
-          <PriceBlock
-            size="display"
-            dealPrice={{ priceCents: deal.deal_price_cents, currency: 'USD' }}
-            medianPrice={{ priceCents: deal.median_price_cents, currency: 'USD' }}
-          />
-          <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2">
-            <DealChip discountPct={deal.discount_pct} />
-          </div>
-          {showSavings && (
-            <p className="mt-2 text-[13px] font-medium text-[color:var(--primary)]">
-              Save {formatMoney({ priceCents: savings, currency: 'USD' })}/night vs the usual price
-            </p>
-          )}
-          {checkedAgo ? (
-            <p className={`mt-2 text-caption leading-5 ${isAging ? 'font-semibold text-[color:var(--gold-text)]' : 'font-medium text-[color:var(--ink-soft)]'}`}>
-              Price checked {checkedAgo}{isAging ? ' — verify with the provider' : ''}
-            </p>
-          ) : null}
-          <p className="mt-2 text-caption font-medium leading-5 text-[color:var(--ink-soft)]">
-            Nightly rate before taxes and fees. Taxes, fees, cancellation policy, and final total are confirmed by the provider.
-          </p>
-        </section>
-
-        <div className="mt-8">
-          <HotelDealCriteriaSummary context={criteriaContext} deal={{ city: deal.city, checkInDate: deal.check_in_date }} />
-        </div>
-
-        <section className="card mt-4 p-5">
-          <h3 className="mb-3 text-[13px] font-bold text-[color:var(--ink)]">This deal</h3>
-          <div className="grid grid-cols-2 gap-3 min-[680px]:grid-cols-4">
-            <Fact label="Hotel" value={deal.hotel_name || 'Hotel name unavailable'} muted={!deal.hotel_name} />
-            <Fact label="Area" value={deal.city || 'Area unavailable'} muted={!deal.city} />
-            <Fact label="Check-in" value={checkInDisplay ?? 'Check-in unavailable'} muted={!checkInDisplay} />
-            <Fact label="Check-out" value={checkOutDisplay ?? 'Check-out unavailable'} muted={!checkOutDisplay} />
-            <Fact label="Nights" value={deal.nights != null ? String(deal.nights) : 'Nights unavailable'} muted={deal.nights == null} />
-            <Fact label="Guests" value="Guest count unavailable" muted />
-            <Fact label="Room or rate" value="Room or rate unavailable" muted />
-            <Fact label="Price basis" value="Provider confirms final price and availability." />
-          </div>
-        </section>
-
         <TrackOnMount event="hotel_detail_viewed" props={{ deal_id: deal.id, context_status: contextStatus, ...(criteria ? { criteria_version: criteria.criteriaVersion } : {}) }} />
-
-        {/* Deal score — computed from price history */}
-        <Suspense fallback={null}>
-          <DealScoreSection deal={deal} />
-        </Suspense>
-
-        <QuietStayEvidenceLedger evidence={NO_QUIET_STAY_EVIDENCE} />
-
-        <div className="mt-8">
-          <PropertyPhoto src={deal.photo_url} size="detail" loading="eager" />
-        </div>
-
-        {/* Primary action zone */}
-        {isExpired ? (
-          <div className="my-8 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-4" role="status">
-            <p className="text-[13px] font-bold text-[color:var(--ink)]">Deal expired</p>
-            <p className="mt-1 text-[12px] leading-5 text-[color:var(--ink-soft)]">
-              This saved deal may no longer be available at the shown price. Search again to find current options.
-            </p>
-            <a href={backHref} className="btn btn-primary mt-3 block w-full text-center">
-              Search current deals
-            </a>
-          </div>
-        ) : (
-          <HotelDealCriteriaHandoff context={criteriaContext} deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }} links={deal.ota_links ?? {}} />
-        )}
-
-        <HotelContinuityPrototype
-          dealId={deal.id}
-          hotelName={deal.hotel_name}
-          fixtureId={continuityFixtureId}
-          disclosure={continuityDisclosure}
-          initiallyExpanded={disclosureParam === 'expanded'}
-        />
-
-        {/* Price history — streams in after the content above renders */}
-        <Suspense fallback={<PriceHistorySkeleton />}>
-          <PriceHistorySection deal={deal} />
-        </Suspense>
-
-        {/* Why this is a deal */}
-        <section className="card mt-8 p-5">
-          <h3 className="text-h3 text-[color:var(--ink)]">Why this is a deal</h3>
-          <dl className="mt-4 space-y-3">
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-[13px] text-[color:var(--ink-soft)]">Usual nightly rate</dt>
-              <dd className="text-[15px] font-medium text-[color:var(--ink)]">
-                {formatMoney({ priceCents: deal.median_price_cents, currency: 'USD' })}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-[13px] text-[color:var(--ink-soft)]">Today&rsquo;s rate</dt>
-              <dd className="font-display text-[18px] font-bold text-[color:var(--primary)]">
-                {formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-[13px] text-[color:var(--ink-soft)]">Price checks</dt>
-              <dd className="text-[15px] font-medium text-[color:var(--ink)]">
-                {deal.snapshot_count} snapshots over 60 days
-              </dd>
-            </div>
-          </dl>
-          {!isExpired && deal.expires_at ? (
-            <p className="mt-4 border-t border-[color:var(--line-ivory)] pt-3 text-caption text-[color:var(--ink-faint)]">
-              Expires {fmtDate(deal.expires_at)}
-            </p>
-          ) : null}
-        </section>
-
       </main>
     </div>
   )
