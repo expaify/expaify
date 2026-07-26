@@ -15,6 +15,7 @@ export function WatchCityCta({ city, tier, watching = false, watchlist = [] }: W
   const [saved, setSaved] = useState(watching)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showManageLink, setShowManageLink] = useState(false)
 
   useEffect(() => {
     track('city_empty_viewed', { city, tier })
@@ -22,8 +23,10 @@ export function WatchCityCta({ city, tier, watching = false, watchlist = [] }: W
 
   async function saveWatch() {
     setError(null)
+    setShowManageLink(false)
     if (watchlist.length >= 10 && !watchlist.includes(city)) {
       setError('Your watchlist is full (10 cities). Manage it in your account.')
+      setShowManageLink(true)
       return
     }
 
@@ -51,14 +54,14 @@ export function WatchCityCta({ city, tier, watching = false, watchlist = [] }: W
     return (
       <div className="mt-6 flex flex-col items-center gap-3">
         {saved ? (
-          <>
+          <div role="status" className="flex flex-col items-center gap-1">
             <p className="text-[13px] font-medium text-[color:var(--text-1)]">
               {watching ? `You're watching ${city} — you'll get an email when a deal appears.` : `Watching ${city} — new deals will be in your daily digest.`}
             </p>
-            <Link href="/account" className="text-[13px] font-medium text-[color:var(--brand)] no-underline hover:underline">
+            <Link href="/account" className="inline-flex min-h-[44px] items-center justify-center text-[13px] font-medium text-[color:var(--brand)] no-underline hover:underline">
               Manage watchlist
             </Link>
-          </>
+          </div>
         ) : (
           <button
             type="button"
@@ -66,10 +69,24 @@ export function WatchCityCta({ city, tier, watching = false, watchlist = [] }: W
             onClick={saveWatch}
             className="inline-flex min-h-[44px] items-center justify-center rounded-[var(--radius-pill)] bg-[color:var(--brand)] px-5 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? 'Saving…' : `Watch ${city}`}
+            {saving ? (
+              <>
+                <span className="spinner mr-2" aria-hidden="true" />
+                Saving…
+              </>
+            ) : `Watch ${city}`}
           </button>
         )}
-        {error ? <p className="text-[12px] font-medium text-[color:var(--error)]">{error}</p> : null}
+        {error ? (
+          <div role="alert" className="flex flex-col items-center">
+            <p className="text-[12px] font-medium text-[color:var(--error)]">{error}</p>
+            {showManageLink ? (
+              <Link href="/account" className="inline-flex min-h-[44px] items-center justify-center text-[13px] font-medium text-[color:var(--brand)] no-underline hover:underline">
+                Manage watchlist
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     )
   }

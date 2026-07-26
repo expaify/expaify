@@ -59,6 +59,37 @@ function FilterActions({
   )
 }
 
+function FilteredEmptyActions({
+  activeFilters,
+  onClearAll,
+}: Pick<ResultCoverageBoundaryProps, 'activeFilters' | 'onClearAll'>) {
+  return (
+    <>
+      <div className="mt-2 flex flex-wrap justify-center gap-2">
+        {activeFilters.map(filter => (
+          <button
+            key={filter.key}
+            type="button"
+            aria-label={`Remove filter: ${filter.label}`}
+            onClick={filter.onRemove}
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--primary)] bg-[color:var(--primary)] px-4 text-[13px] font-medium text-white"
+          >
+            {filter.label}
+            <svg aria-hidden="true" viewBox="0 0 16 16" className="h-[13px] w-[13px] fill-none stroke-current stroke-2">
+              <path d="m4 4 8 8m0-8-8 8" />
+            </svg>
+          </button>
+        ))}
+      </div>
+      {onClearAll ? (
+        <button type="button" onClick={onClearAll} className="btn btn-primary mt-3 min-h-[44px] w-full px-8 sm:w-auto">
+          Clear all filters
+        </button>
+      ) : null}
+    </>
+  )
+}
+
 export function ResultCoverageBoundary({
   surface,
   state,
@@ -137,12 +168,16 @@ export function ResultCoverageBoundary({
       break
     case 'confirmed_empty':
       title = isDeals
-        ? filtered ? 'No current expaify deals match your filters' : 'No current expaify hotel deals were returned'
+        ? filtered ? 'No deals match your filters' : 'No current expaify hotel deals were returned'
         : 'No expaify hotel results were returned for these dates'
       body = isDeals
-        ? filtered ? 'Remove one filter to expand this expaify result set.' : 'There are no current matches in expaify’s tracked deal set. Check again after the next daily update.'
+        ? filtered ? 'Remove a filter, or clear them all to see everything that’s live.' : 'There are no current matches in expaify’s tracked deal set. Check again after the next daily update.'
         : 'Try different stay dates while keeping your destination and traveler details.'
-      actions = isDeals ? showFilterActions ? filterActions : null : (
+      actions = isDeals ? showFilterActions
+        ? filtered
+          ? <FilteredEmptyActions activeFilters={activeFilters} onClearAll={onClearAll} />
+          : filterActions
+        : null : (
         <div className="mt-2 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
           {onChangeDates ? <button type="button" onClick={onChangeDates} className="btn btn-primary min-h-[44px] w-full px-6 sm:w-auto">Change dates</button> : null}
           {onEditSearch ? <button type="button" onClick={onEditSearch} className="btn btn-outline min-h-[44px] w-full px-6 sm:w-auto">Edit search</button> : null}
@@ -190,7 +225,7 @@ export function ResultCoverageBoundary({
       tabIndex={-1}
       aria-labelledby={title ? `${statusMessageId}-title` : undefined}
       aria-describedby={title ? statusMessageId : undefined}
-      role={state === 'continuation_failed' ? 'status' : state === 'unavailable' ? 'alert' : undefined}
+      role={state === 'continuation_failed' || state === 'confirmed_empty' ? 'status' : state === 'unavailable' ? 'alert' : undefined}
       data-request-origin={requestOrigin}
       className={`${panel ? 'rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-5 py-6 sm:px-8 sm:py-8' : 'mt-8 border-t border-[color:var(--border)] pt-6'} w-full focus:outline-none`}
     >

@@ -1308,16 +1308,16 @@ export function DealFeed({ initialDeals, initialPage, initialCoverage, initialRe
             <>
               {isColdSampleFeed ? (
                 <div className="mb-8 space-y-6">
-                  <section role="status" className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] px-5 py-6">
-                    <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">We&apos;re building your feed</p>
-                    <p className="mt-2 max-w-[720px] text-[14px] leading-6 text-[color:var(--ink-soft)]">
-                      These example deals show what expaify will surface after tracking completes. They use sample hotels and prices and aren&apos;t bookable.
+                  <section role="status" className="mx-auto max-w-[480px] pt-10 text-center">
+                    <h3 className="font-display text-[20px] font-bold text-[color:var(--ink)]">We&apos;re building your feed.</h3>
+                    <p className="mt-2 text-[14px] leading-6 text-[color:var(--ink-soft)]">
+                      Our tracker sweeps hotel prices across 20 destinations once a day. Real deals appear here after the next sweep — check back soon.
                     </p>
                   </section>
                   <div className="border-t border-[color:var(--line-ivory)] pt-6">
                     <h3 className="text-h3 text-[color:var(--ink)]">Example deals</h3>
                     <p className="mt-1 text-[13px] leading-5 text-[color:var(--ink-soft)]">
-                      Example deals
+                      Here&apos;s what expaify surfaces once tracking completes. These use sample hotels and prices — they&apos;re not bookable.
                     </p>
                   </div>
                 </div>

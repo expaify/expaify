@@ -64,6 +64,42 @@ describe('ResultCoverageBoundary', () => {
     expect(markup).not.toContain('Remove “Under $150”')
   })
 
+  it('renders every filtered-empty recovery action and status semantics', () => {
+    const markup = renderToStaticMarkup(
+      <ResultCoverageBoundary
+        surface="deals"
+        state="confirmed_empty"
+        visibleCount={0}
+        activeFilters={filters}
+        recommendedFilterKey="maxPrice"
+        onClearAll={jest.fn()}
+        statusMessageId="filtered-empty"
+      />,
+    )
+
+    expect(markup).toContain('role="status"')
+    expect(markup).toContain('No deals match your filters')
+    expect(markup).toContain('Remove a filter, or clear them all to see everything that’s live.')
+    expect(markup).toContain('aria-label="Remove filter: Under $150"')
+    expect(markup).toContain('aria-label="Remove filter: 4★ &amp; up"')
+    expect(markup).toContain('Clear all filters')
+  })
+
+  it('keeps clear-all available when only one filter is active', () => {
+    const markup = renderToStaticMarkup(
+      <ResultCoverageBoundary
+        surface="deals"
+        state="confirmed_empty"
+        visibleCount={0}
+        activeFilters={[filters[0]]}
+        onClearAll={jest.fn()}
+        statusMessageId="filtered-empty"
+      />,
+    )
+
+    expect(markup).toContain('Clear all filters')
+  })
+
   it('does not infer date-search completion from a provider-sized result count', () => {
     const markup = renderToStaticMarkup(
       <ResultCoverageBoundary

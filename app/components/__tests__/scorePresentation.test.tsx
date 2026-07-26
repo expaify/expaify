@@ -410,7 +410,7 @@ describe('Deal score presentation', () => {
     expect(countText(text, 'Photo unavailable')).toBe(1)
   })
 
-  it('keeps DealCard price claims outside its labeled property figure', () => {
+  it('keeps the DealCard checked pill and price claims outside its labeled property figure', () => {
     const card = DealCard({
       deal: {
         id: 'deal-1',
@@ -432,7 +432,11 @@ describe('Deal score presentation', () => {
 
     expect(text).toContain('Property photo')
     expect(text).toContain('−30% vs usual')
-    expect(text).toContain('Price checked 2h ago')
+    expect(text).toContain('checked 2h ago')
+    expect(text).not.toContain('Price checked 2h ago')
+    expect(findFirstProp(card, 'className', value => typeof value === 'string' && value.includes('absolute right-3 top-3'))).toEqual(
+      expect.stringContaining('absolute right-3 top-3'),
+    )
     expect(findFirstProp(card, 'alt', value => value === '')).toBe('')
     expect(collectText(figure)).toBe('Property photo')
   })

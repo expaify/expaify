@@ -43,20 +43,40 @@ function starChars(stars: number): string {
   return '★'.repeat(n) + '☆'.repeat(5 - n)
 }
 
+function absoluteCheckedAt(iso: string | null | undefined): string | undefined {
+  if (!iso) return undefined
+  const date = new Date(iso)
+  if (!Number.isFinite(date.getTime())) return undefined
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export function DealCard({ deal, href, onOpen }: DealCardProps) {
   const savings = deal.medianPrice.priceCents - deal.dealPrice.priceCents
   const showSavings = savings >= 2000
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
 
   const content = (
-    <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
+    <article className={`group relative overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
+      {deal.isMock ? (
+        <span className="absolute right-3 top-3 rounded-[var(--radius-pill)] border border-[color:var(--line-white)] bg-[color:var(--surface)] px-2.5 py-1 text-[12px] font-semibold leading-none text-[color:var(--ink)]">
+          Example
+        </span>
+      ) : checked ? (
+        <span
+          className="absolute right-3 top-3 rounded-[var(--radius-pill)] bg-[color:color-mix(in_srgb,var(--ink)_78%,transparent)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--bg)]"
+          title={absoluteCheckedAt(deal.updatedAt)}
+        >
+          checked {checked}
+        </span>
+      ) : null}
       <div className="space-y-3 px-4 pb-4 pt-3">
-        <div>
-          {deal.isMock ? (
-            <span className="mb-2 inline-flex rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-2 py-1 font-display text-[11px] font-bold leading-none text-[color:var(--gold-text)]">
-              Example
-            </span>
-          ) : null}
+        <div className={deal.isMock || checked ? 'pr-28' : undefined}>
           <h3 className="line-clamp-2 font-display text-[16px] font-bold leading-snug text-[color:var(--ink)]">
             {deal.hotelName}
           </h3>
@@ -83,11 +103,6 @@ export function DealCard({ deal, href, onOpen }: DealCardProps) {
           {showSavings ? (
             <p className="text-[12px] font-medium text-[color:var(--primary)]">
               Save {formatMoney({ priceCents: savings, currency: deal.dealPrice.currency })}/night
-            </p>
-          ) : null}
-          {checked ? (
-            <p title={deal.updatedAt ?? undefined} className="text-caption font-medium leading-snug text-[color:var(--ink-soft)]">
-              Price checked {checked}
             </p>
           ) : null}
         </div>
