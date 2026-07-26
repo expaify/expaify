@@ -67,7 +67,7 @@ describe('GET /api/deals sorting', () => {
 
     expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({
       sort: 'price',
-      limit: 12,
+      limit: 13,
       offset: 0,
     }))
     expect(body.premium).toBe(true)
@@ -121,6 +121,30 @@ describe('GET /api/deals sorting', () => {
   it('rejects malformed view state before querying deals', async () => {
     mockGetPaywallContext.mockResolvedValue({ userId: 'premium-user', premium: true, freeUnlockedThisWeek: 0, freeUnlockLimit: 3 })
     const response = await GET(request('sort=unknown&max_price_cents=not-money'))
+    expect(response.status).toBe(400)
+    expect(mockGetActiveDeals).not.toHaveBeenCalled()
+  })
+
+  it('returns one-row-lookahead coverage metadata without exposing the lookahead deal', async () => {
+    mockGetPaywallContext.mockResolvedValue({ userId: 'premium-user', premium: true, freeUnlockedThisWeek: 0, freeUnlockLimit: 3 })
+    mockGetActiveDeals.mockResolvedValue([
+      row,
+      { ...row, id: 'deal-next', hotel_id: 'hotel-2' },
+    ])
+
+    const response = await GET(request('sort=price&limit=1&offset=4'))
+    const body = await response.json() as { deals: Array<{ id: string }>; coverage: string; page: { hasMore: boolean; nextOffset: number | null } }
+
+    expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ limit: 2, offset: 4, sort: 'price' }))
+    expect(body.deals.map(deal => deal.id)).toEqual(['deal-cheapest'])
+    expect(body.coverage).toBe('more_available')
+    expect(body.page).toEqual({ hasMore: true, nextOffset: 5 })
+  })
+
+  it('rejects invalid pagination before querying deals', async () => {
+    mockGetPaywallContext.mockResolvedValue({ userId: 'premium-user', premium: true, freeUnlockedThisWeek: 0, freeUnlockLimit: 3 })
+    const response = await GET(request('limit=0&offset=-1'))
+
     expect(response.status).toBe(400)
     expect(mockGetActiveDeals).not.toHaveBeenCalled()
   })

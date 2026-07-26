@@ -49,7 +49,7 @@ const DEFAULT_MIN_DISCOUNT = 20
 type SortKey = HotelDealSort
 type SortAnalyticsValue = 'recently_found' | 'biggest_discount' | 'lowest_nightly_price'
 
-const SORT_OPTIONS: ReadonlyArray<{
+export const HOTEL_SORT_OPTIONS: ReadonlyArray<{
   key: SortKey
   label: string
   description: string
@@ -76,7 +76,7 @@ const SORT_OPTIONS: ReadonlyArray<{
 ]
 
 function getSortOption(key: SortKey) {
-  return SORT_OPTIONS.find(option => option.key === key) ?? SORT_OPTIONS[0]
+  return HOTEL_SORT_OPTIONS.find(option => option.key === key) ?? HOTEL_SORT_OPTIONS[0]
 }
 
 const DISCOUNT_OPTIONS = [
@@ -334,12 +334,13 @@ type DealFeedProps = {
   initialCriteria?: HotelSearchCriteriaV1
   initialView?: HotelResultsViewState
   initialError?: boolean
+  initialCoverage?: ConfirmedCoverage | null
 }
 
-export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization, initialCriteria, initialView, initialError = false }: DealFeedProps = {}) {
+export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization, initialCriteria, initialView, initialError = false, initialCoverage = null }: DealFeedProps = {}) {
   const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
-  const [confirmedCoverage, setConfirmedCoverage] = useState<ConfirmedCoverage | null>(null)
+  const [confirmedCoverage, setConfirmedCoverage] = useState<ConfirmedCoverage | null>(initialCoverage)
   const [loading, setLoading] = useState(!initialDeals)
   const [error, setError] = useState(initialError)
   const [initialLoadError, setInitialLoadError] = useState(initialError)
@@ -963,7 +964,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     setPremiumExplanationOpen(false)
     setSortMenuOpen(true)
     window.setTimeout(() => {
-      const index = focus === 'last' ? SORT_OPTIONS.length - 1 : SORT_OPTIONS.findIndex(option => option.key === displayedSort)
+      const index = focus === 'last' ? HOTEL_SORT_OPTIONS.length - 1 : HOTEL_SORT_OPTIONS.findIndex(option => option.key === displayedSort)
       sortOptionRefs.current[index]?.focus()
     }, 0)
   }
@@ -997,10 +998,10 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
 
   function handleSortOptionKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
     let nextIndex: number | null = null
-    if (event.key === 'ArrowDown') nextIndex = (index + 1) % SORT_OPTIONS.length
-    else if (event.key === 'ArrowUp') nextIndex = (index - 1 + SORT_OPTIONS.length) % SORT_OPTIONS.length
+    if (event.key === 'ArrowDown') nextIndex = (index + 1) % HOTEL_SORT_OPTIONS.length
+    else if (event.key === 'ArrowUp') nextIndex = (index - 1 + HOTEL_SORT_OPTIONS.length) % HOTEL_SORT_OPTIONS.length
     else if (event.key === 'Home') nextIndex = 0
-    else if (event.key === 'End') nextIndex = SORT_OPTIONS.length - 1
+    else if (event.key === 'End') nextIndex = HOTEL_SORT_OPTIONS.length - 1
     else if (event.key === 'Escape') {
       event.preventDefault()
       closeSortMenu(true)
@@ -1352,7 +1353,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                   aria-label="Sort hotel deals"
                   className="absolute left-0 top-full z-30 mt-2 w-full min-w-0 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-raised)] p-1 shadow-[var(--shadow-lift)] sm:w-[22rem]"
                 >
-                  {SORT_OPTIONS.map((option, index) => {
+                  {HOTEL_SORT_OPTIONS.map((option, index) => {
                     const selected = displayedSort === option.key
                     const locked = !premium && option.key !== 'newest'
                     return (
