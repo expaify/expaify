@@ -13,6 +13,7 @@ import { dedupeByStableId, HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/li
 import {
   HotelResultStatus,
 } from './HotelRecoveryUI'
+import { ColdSampleFeedIntro } from './ColdSampleFeedIntro'
 import {
   formatDealCount,
   formatFilterValue,
@@ -1307,20 +1308,7 @@ export function DealFeed({ initialDeals, initialPage, initialCoverage, initialRe
           ) : (
             <>
               {isColdSampleFeed ? (
-                <div className="mb-8 space-y-6">
-                  <section role="status" className="mx-auto max-w-[480px] pt-10 text-center">
-                    <h3 className="font-display text-[20px] font-bold text-[color:var(--ink)]">We&apos;re building your feed.</h3>
-                    <p className="mt-2 text-[14px] leading-6 text-[color:var(--ink-soft)]">
-                      Our tracker sweeps hotel prices across 20 destinations once a day. Real deals appear here after the next sweep — check back soon.
-                    </p>
-                  </section>
-                  <div className="border-t border-[color:var(--line-ivory)] pt-6">
-                    <h3 className="text-h3 text-[color:var(--ink)]">Example deals</h3>
-                    <p className="mt-1 text-[13px] leading-5 text-[color:var(--ink-soft)]">
-                      Here&apos;s what expaify surfaces once tracking completes. These use sample hotels and prices — they&apos;re not bookable.
-                    </p>
-                  </div>
-                </div>
+                <ColdSampleFeedIntro />
               ) : null}
               {!isColdSampleFeed && hasActiveFilters && recommendedCoverageFilter ? (
                 <div className="mb-4 flex flex-col gap-3 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-4 py-3 text-[13px] leading-5 text-[color:var(--text-2)] sm:flex-row sm:items-center sm:justify-between">
