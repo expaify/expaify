@@ -27,6 +27,26 @@ import {
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
 
+export function beginHotelDocumentReadinessCheck(
+  pendingRef: { current: boolean },
+  onStarted?: () => void,
+): boolean {
+  if (pendingRef.current) return false
+  pendingRef.current = true
+  onStarted?.()
+  return true
+}
+
+export function focusHotelDocumentRetryStatus(
+  focusPendingRef: { current: boolean },
+  statusRegion: Pick<HTMLElement, 'focus'> | null,
+): boolean {
+  if (!focusPendingRef.current || !statusRegion) return false
+  focusPendingRef.current = false
+  statusRegion.focus()
+  return true
+}
+
 const labelCls = 'mb-1.5 block text-xs font-medium uppercase tracking-wide text-[color:var(--text-2)]'
 const inputCls = 'field-input !px-4'
 const factLabelCls = 'text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-3)]'
@@ -638,9 +658,11 @@ function HotelHandoffReview({
   const didContinueRef = useRef(false)
   const guidanceBlockRef = useRef<HTMLElement>(null)
   const documentDisclosureRef = useRef<HTMLDivElement>(null)
+  const documentStatusRegionRef = useRef<HTMLElement>(null)
   const documentReadinessViewedRef = useRef(false)
   const documentCheckRequestRef = useRef(0)
   const documentCheckPendingRef = useRef(false)
+  const documentRetryFocusPendingRef = useRef(false)
   const invoiceNeededRef = useRef(false)
   const guidanceViewedRef = useRef(false)
   const helpOpenRef = useRef(false)
@@ -651,9 +673,8 @@ function HotelHandoffReview({
   const [documentReadiness, setDocumentReadiness] = useState(hotelContext.documentReadiness)
   const [documentCheckState, setDocumentCheckState] = useState<HotelDocumentCheckState>('idle')
 
-  const runDocumentReadinessCheck = async () => {
-    if (documentCheckPendingRef.current) return
-    documentCheckPendingRef.current = true
+  const runDocumentReadinessCheck = async (onStarted?: () => void) => {
+    if (!beginHotelDocumentReadinessCheck(documentCheckPendingRef, onStarted)) return
     const requestId = documentCheckRequestRef.current + 1
     documentCheckRequestRef.current = requestId
     setDocumentCheckState('loading')
@@ -688,13 +709,14 @@ function HotelHandoffReview({
   }
 
   const handleDocumentRetry = () => {
-    if (documentCheckState === 'loading') return
-    emitAnalytics('hotel_invoice_retry_clicked', {
-      priorCheckState: documentCheckState,
-      source: hotelInvoiceAnalyticsSource(hotelContext.provider),
-      scope: documentReadiness.scope,
+    void runDocumentReadinessCheck(() => {
+      documentRetryFocusPendingRef.current = true
+      emitAnalytics('hotel_invoice_retry_clicked', {
+        priorCheckState: documentCheckState,
+        source: hotelInvoiceAnalyticsSource(hotelContext.provider),
+        scope: documentReadiness.scope,
+      })
     })
-    void runDocumentReadinessCheck()
   }
 
   const handleDocumentVerification = () => {
@@ -705,6 +727,11 @@ function HotelHandoffReview({
       targetRole,
     })
   }
+
+  useEffect(() => {
+    if (documentCheckState !== 'loading') return
+    focusHotelDocumentRetryStatus(documentRetryFocusPendingRef, documentStatusRegionRef.current)
+  }, [documentCheckState])
 
   useEffect(() => {
     const disclosure = documentDisclosureRef.current
@@ -918,6 +945,8 @@ function HotelHandoffReview({
               retryPending={documentCheckState === 'loading'}
               onRetry={handleDocumentRetry}
               onVerificationClick={handleDocumentVerification}
+              statusRegionRef={documentStatusRegionRef}
+              statusRegionFocusable={documentCheckState === 'loading' && documentRetryFocusPendingRef.current}
             />
           </div>
         ) : null}

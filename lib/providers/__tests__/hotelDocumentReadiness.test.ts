@@ -58,4 +58,34 @@ describe('hotel document readiness normalization', () => {
     }, 'Supplier');
     expect(readiness.verificationTarget).toEqual({ role: 'property' });
   });
+
+  it('degrades an unsupported unavailable claim to the fallback without manufacturing evidence', () => {
+    expect(normalizeHotelDocumentReadiness({ status: 'unavailable' }, 'Fallback supplier')).toEqual(
+      notProvidedHotelDocumentReadiness('Fallback supplier'),
+    );
+  });
+
+  it.each([
+    ['scope', { status: 'unavailable', source: { label: 'Supplier rate terms' } }],
+    ['source', { status: 'unavailable', scope: 'selected_stay' }],
+    ['a valid source label', { status: 'unavailable', scope: 'rate', source: { label: '   ' } }],
+    ['a valid supplier scope', { status: 'unavailable', scope: 'property', source: { label: 'Supplier rate terms' } }],
+  ])('does not manufacture an unavailable claim when %s is missing', (_missingEvidence, input) => {
+    expect(normalizeHotelDocumentReadiness(input, 'Fallback supplier').status).toBe('not_provided');
+  });
+
+  it('preserves unavailable only with explicit supplier source and rate or stay scope', () => {
+    expect(normalizeHotelDocumentReadiness({
+      status: 'unavailable',
+      scope: 'selected_stay',
+      source: { label: 'Supplier stay terms' },
+    }, 'Fallback supplier')).toEqual({
+      status: 'unavailable',
+      scope: 'selected_stay',
+      documentTypes: [],
+      issuerByDocument: {},
+      billingDetailsStep: 'unknown',
+      source: { label: 'Supplier stay terms' },
+    });
+  });
 });
