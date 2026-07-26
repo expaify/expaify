@@ -22,6 +22,7 @@ type CompareRowProps = {
   /** compact: inside cards (default). primary: full-width action zone on the deal detail page. */
   size?: "compact" | "primary";
   handoffContext?: HotelHandoffAnalyticsContext
+  hotelName?: string
 };
 
 const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
@@ -87,7 +88,7 @@ export function eligibleHotelProviderLinks(links: CompareLinks): CompareLinks {
   ) as CompareLinks
 }
 
-export function CompareRow({ links, size = "compact", handoffContext }: CompareRowProps) {
+export function CompareRow({ links, size = "compact", handoffContext, hotelName }: CompareRowProps) {
   const primary = size === "primary";
 
   const base = primary
@@ -96,37 +97,42 @@ export function CompareRow({ links, size = "compact", handoffContext }: CompareR
 
   return (
     <div className={primary ? "w-full space-y-2" : "space-y-2"}>
-      <p className="text-[11px] leading-none text-[color:var(--ink-faint)]">Compare and book on:</p>
-      <div className={primary ? "grid grid-cols-2 gap-2 min-[480px]:grid-cols-4" : "grid grid-cols-2 gap-2 min-[420px]:grid-cols-4"}>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--ink-faint)]">{primary ? 'Provider options' : 'Compare and book on:'}</p>
+      <div className={primary ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : "grid grid-cols-2 gap-2 min-[420px]:grid-cols-4"}>
         {PROVIDERS.map(({ key, label }) => {
           const href = links[key];
           if (href && isAttributedHotelProviderUrl(key, href) && handoffContext?.contextStatus !== 'mismatch') {
             return (
-              <a
-                key={key}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer sponsored"
-                aria-label={`Check this deal on ${label}`}
-                onClick={() => {
-                  if (!handoffContext) return
-                  track('hotel_provider_handoff_clicked', {
-                    provider: key,
-                    deal_id: handoffContext.dealId,
-                    context_status: handoffContext.contextStatus,
-                    ...(handoffContext.criteriaVersion ? { criteria_version: handoffContext.criteriaVersion } : {}),
-                    destination_present: handoffContext.destinationPresent ?? false,
-                    date_state: handoffContext.dateState ?? 'missing',
-                    occupancy_state: 'not_captured',
-                    room_state: 'not_captured',
-                  })
-                }}
-                className={`${base} hover:border-[color:var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_4%,transparent)]`}
-              >
-                {label}
-              </a>
+              <div key={key} className="min-w-0">
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer sponsored"
+                  aria-label={primary && hotelName
+                    ? `Check rooms at ${label} for ${hotelName}. Opens in a new tab. The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.`
+                    : `Check this deal on ${label}`}
+                  onClick={() => {
+                    if (!handoffContext) return
+                    track('hotel_provider_handoff_clicked', {
+                      provider: key,
+                      deal_id: handoffContext.dealId,
+                      context_status: handoffContext.contextStatus,
+                      ...(handoffContext.criteriaVersion ? { criteria_version: handoffContext.criteriaVersion } : {}),
+                      destination_present: handoffContext.destinationPresent ?? false,
+                      date_state: handoffContext.dateState ?? 'missing',
+                      occupancy_state: 'not_captured',
+                      room_state: 'not_captured',
+                    })
+                  }}
+                  className={`${base} hover:border-[color:var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_4%,transparent)]`}
+                >
+                  {primary ? `Check rooms at ${label}` : label}
+                </a>
+                {primary ? <p className="mt-1 text-center text-xs leading-5 text-[color:var(--text-3)]">Opens {label} in a new tab. Your expaify page stays open.</p> : null}
+              </div>
             );
           }
+          if (primary) return null
           return (
             <span
               key={key}

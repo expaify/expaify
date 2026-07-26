@@ -114,18 +114,19 @@ export function HotelDealCriteriaSummary({ context, deal }: {
   )
 }
 
-export function HotelDealCriteriaHandoff({ context, deal, links }: {
+export function HotelDealCriteriaHandoff({ context, deal, links, hotelName }: {
   context: ResolvedContext
   deal: { id: string; city: string; checkInDate?: string | null }
   links: Record<string, string>
+  hotelName?: string
 }) {
   const criteria = context.criteria
   const status = criteria ? hotelCriteriaContextStatus(criteria, deal) : context.status
   if (status === 'mismatch' && criteria) {
     return (
-      <div className="my-8">
-        <HotelSearchCriteriaSummary criteria={criteria} surface="handoff" />
-        <p className="mt-4 text-[13px] font-medium">Provider options are unavailable until you review the mismatch.</p>
+      <div className="mt-4" role="status">
+        <p className="text-sm font-bold text-[color:var(--text-1)]">Provider link unavailable</p>
+        <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Review the search mismatch below before inspecting room options.</p>
       </div>
     )
   }
@@ -133,13 +134,18 @@ export function HotelDealCriteriaHandoff({ context, deal, links }: {
   const eligibleLinks = eligibleHotelProviderLinks(links)
   const hasLinks = Object.values(eligibleLinks).some(Boolean)
   return (
-    <div className="my-8">
-      {criteria ? <HotelSearchCriteriaSummary criteria={criteria} surface="handoff" /> : <HotelCriteriaContextCard status={status === 'invalid' ? 'invalid' : 'missing'} handoff />}
+    <div className="mt-4">
       {hasLinks ? (
-        <div className="mt-4">
+        <>
+          <p className="text-sm leading-6 text-[color:var(--text-2)]">
+            The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.
+            {criteria ? null : ' Choose or confirm your dates there before comparing room options.'}
+          </p>
+          <div className="mt-4">
           <CompareRow
             links={eligibleLinks}
             size="primary"
+            hotelName={hotelName}
             handoffContext={{
               dealId: deal.id,
               contextStatus: status,
@@ -148,12 +154,13 @@ export function HotelDealCriteriaHandoff({ context, deal, links }: {
               dateState: criteria?.dates.semantic ?? 'missing',
             }}
           />
-          <p className="mt-2 text-caption leading-5 text-[color:var(--ink-faint)]">Opens the provider site. Prices and availability can change.</p>
-        </div>
+          </div>
+        </>
       ) : (
-        <div className="mt-4 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-4" role="status">
-          <p className="text-[13px] font-bold text-[color:var(--ink)]">No provider options are available for this deal right now.</p>
-          <p className="mt-1 text-[12px] leading-5 text-[color:var(--ink-soft)]">This saved deal can still be reviewed here.</p>
+        <div role="status">
+          <p className="text-sm font-bold text-[color:var(--text-1)]">Provider link unavailable</p>
+          <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">You can review this hotel here, but expaify does not have a valid provider link for room inspection.</p>
+          <a href="/deals" className="btn btn-outline mt-4 inline-flex min-h-11 w-full items-center justify-center text-center">Search current deals</a>
         </div>
       )}
     </div>
