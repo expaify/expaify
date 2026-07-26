@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEventHandler, type ReactNode, type SyntheticEvent } from 'react'
 import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext, type BookingHotelContext } from '@/lib/booking/config'
 import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
-import { TrackOnMount } from '@/app/components/TrackOnMount'
 import { track } from '@/lib/analytics'
 import { providerDisplayName } from '@/lib/providerFreshness'
 import type {
@@ -62,6 +61,7 @@ const panelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(-
 const insetPanelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)]'
 const secondaryButtonCls = 'inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-medium text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:border-[color:var(--border-focus)] focus-visible:shadow-[var(--focus-ring)]'
 const actionStackCls = 'mt-5 flex flex-col gap-3'
+const partnerLabelWrapCls = 'min-w-0 [overflow-wrap:anywhere]'
 const trustClaims = [
   'Required by Duffel for this booking request',
   'Sent only when you choose verify',
@@ -325,7 +325,7 @@ function HotelSummary({ hotelContext, partner }: { hotelContext: BookingHotelCon
       </div>
       <div className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 sm:px-5 sm:py-4">
         <p className={factLabelCls}>Rate expectation</p>
-        <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+        <p className={`mt-2 text-sm leading-6 text-[color:var(--text-2)] ${partnerLabelWrapCls}`}>
           This is the nightly rate expaify last saw from {rateSource}. {partner.named ? partner.label : 'The booking partner'} confirms the live rate, taxes, and fees before you pay—the total you see there may differ.
         </p>
         <p className="mt-2 text-xs font-medium leading-5 text-[color:var(--text-3)]">
@@ -695,6 +695,10 @@ function HotelHandoffReview({
   const [documentReadiness, setDocumentReadiness] = useState(hotelContext.documentReadiness)
   const [documentCheckState, setDocumentCheckState] = useState<HotelDocumentCheckState>('idle')
 
+  useEffect(() => {
+    emitAnalytics('hotel_handoff_viewed', analyticsProps)
+  }, [analyticsProps])
+
   const runDocumentReadinessCheck = async (onStarted?: () => void) => {
     if (!beginHotelDocumentReadinessCheck(documentCheckPendingRef, onStarted)) return
     const requestId = documentCheckRequestRef.current + 1
@@ -950,12 +954,11 @@ function HotelHandoffReview({
       duffelSandbox={duffelSandbox}
       onBackClick={handleBack}
     >
-      <TrackOnMount event="hotel_handoff_viewed" props={analyticsProps} />
       <div className={`${panelCls} p-4 sm:p-6`}>
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand)]">Booking partner</p>
-          <h2 className="mt-2 break-words text-xl font-bold leading-tight text-[color:var(--text-1)]">{partnerHeading}</h2>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">{partnerSupport}</p>
+          <h2 className={`mt-2 text-xl font-bold leading-tight text-[color:var(--text-1)] ${partnerLabelWrapCls}`}>{partnerHeading}</h2>
+          <p className={`mt-2 text-sm leading-6 text-[color:var(--text-2)] ${partnerLabelWrapCls}`}>{partnerSupport}</p>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
           <div className={`min-w-0 px-3.5 py-3 ${insetPanelCls}`}>
@@ -963,7 +966,7 @@ function HotelHandoffReview({
             <p className="mt-2 text-sm leading-5 text-[color:var(--text-2)]">Hotel name, location, nightly rate basis, and rate source.</p>
           </div>
           <div className={`min-w-0 px-3.5 py-3 ${insetPanelCls}`}>
-            <p className={factLabelCls}>{partner.named ? `${partner.label} confirms` : 'Booking partner confirms'}</p>
+            <p className={`${factLabelCls} ${partnerLabelWrapCls}`}>{partner.named ? `${partner.label} confirms` : 'Booking partner confirms'}</p>
             <p className="mt-2 text-sm leading-5 text-[color:var(--text-2)]">Final total, taxes, fees, room availability, and cancellation policy.</p>
           </div>
         </div>
@@ -1012,7 +1015,7 @@ function HotelHandoffReview({
           <p className="mt-2 text-sm font-medium leading-5 text-[color:var(--text-1)]">
             Need a quiet room, high floor, or early check-in?
           </p>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+          <p className={`mt-2 text-sm leading-6 text-[color:var(--text-2)] ${partnerLabelWrapCls}`}>
             {partner.named
               ? `Add your request on ${partner.label} while booking. Nothing is selected or sent by expaify.`
               : 'Add your request on the booking partner’s site while booking. Nothing is selected or sent by expaify.'}
@@ -1056,12 +1059,12 @@ function HotelHandoffReview({
             onClick={handleContinue}
             className="btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-center text-sm font-medium"
           >
-            <span className="min-w-0 break-words">{continueLabel}</span>
+            <span className={partnerLabelWrapCls}>{continueLabel}</span>
             <svg aria-hidden="true" focusable="false" className="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="none">
               <path d="M5 11 11 5M6 5h5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </a>
-          <p className="text-center text-xs leading-5 text-[color:var(--text-3)]">{newTabCue}</p>
+          <p className={`text-center text-xs leading-5 text-[color:var(--text-3)] ${partnerLabelWrapCls}`}>{newTabCue}</p>
           <a href="/" onClick={handleBack} className={secondaryButtonCls}>
             Back to search
           </a>
