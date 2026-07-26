@@ -5,7 +5,7 @@ import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { generateMockDeals } from '@/lib/pipeline/mock'
 import type { HotelDealSort } from '@/lib/deals/feedContract'
-import { resolveHotelSearchCriteria } from '@/lib/hotels/searchCriteria'
+import { resolveHotelResultsView, resolveHotelSearchCriteria } from '@/lib/hotels/searchCriteria'
 
 export const runtime = 'nodejs'
 
@@ -106,7 +106,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const pwCtx = await getPaywallContext()
   const criteriaResolution = resolveHotelSearchCriteria(searchParams)
-  if (criteriaResolution.status === 'invalid') {
+  const requestedView = resolveHotelResultsView(searchParams)
+  if (criteriaResolution.status === 'invalid' || !requestedView) {
     return NextResponse.json({ ok: false, reason: 'Invalid hotel search criteria' }, { status: 400 })
   }
 
@@ -114,16 +115,17 @@ export async function GET(req: NextRequest) {
   const offset = Number(searchParams.get('offset') ?? '0')
   // Filters and sort are a Premium feature: for free users every filter param is
   // ignored server-side so the plain newest-first feed is the only view.
-  const minDiscount = pwCtx.premium ? Number(searchParams.get('min_discount') ?? '20') : 20
-  const maxPriceCents = pwCtx.premium && searchParams.get('max_price_cents') ? Number(searchParams.get('max_price_cents')) : undefined
-  const minStars = pwCtx.premium && searchParams.get('min_stars') ? Number(searchParams.get('min_stars')) : undefined
-  const dateFrom = searchParams.get('date_from') || undefined
-  const dateTo = searchParams.get('date_to') || undefined
+  const minDiscount = pwCtx.premium ? requestedView.minDiscount : 20
+  const maxPriceCents = pwCtx.premium ? requestedView.maxPriceCents ?? undefined : undefined
+  const minStars = pwCtx.premium ? requestedView.minStars || undefined : undefined
+  const dateFrom = criteriaResolution.status === 'valid' && criteriaResolution.criteria.dates.semantic === 'checkin_window'
+    ? criteriaResolution.criteria.dates.dateFrom
+    : searchParams.get('date_from') || undefined
+  const dateTo = criteriaResolution.status === 'valid' && criteriaResolution.criteria.dates.semantic === 'checkin_window'
+    ? criteriaResolution.criteria.dates.dateTo
+    : searchParams.get('date_to') || undefined
   let marketId = pwCtx.premium && searchParams.get('market_id') ? Number(searchParams.get('market_id')) : undefined
-  const requestedSort = searchParams.get('sort')
-  const sort: HotelDealSort = pwCtx.premium && (requestedSort === 'discount' || requestedSort === 'price')
-    ? requestedSort
-    : 'newest'
+  const sort: HotelDealSort = pwCtx.premium ? requestedView.sort : 'newest'
   const hasFilters = Boolean(
     searchParams.get('city') ||
     searchParams.get('market_id') ||
@@ -133,7 +135,9 @@ export async function GET(req: NextRequest) {
   )
 
   // Support filtering by city name (resolve to market_id)
-  const cityName = searchParams.get('city')
+  const cityName = criteriaResolution.status === 'valid' && criteriaResolution.criteria.destination.state === 'selected'
+    ? criteriaResolution.criteria.destination.city
+    : searchParams.get('city')
   if (cityName && !marketId) {
     const { query: dbQuery } = await import('@/lib/db/client')
     const res = await dbQuery<{ id: number }>('SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1', [cityName]).catch(() => null)
