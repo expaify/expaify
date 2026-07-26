@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       id: context.offerId,
       source: context.provider,
       deeplink: context.providerUrl,
-      documentReadiness: context.documentReadiness,
+      documentReadiness: normalizeHotelDocumentReadiness(context.documentReadiness, 'Hotellook'),
     });
     if (!result.ok) {
       return NextResponse.json(result, { status: 502 });

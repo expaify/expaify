@@ -775,6 +775,15 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const displayedSort = pendingSort ?? appliedSort
   const appliedSortOption = getSortOption(appliedSort)
   const displayedSortOption = getSortOption(displayedSort)
+  const returnParams = new URLSearchParams()
+  if (city) returnParams.set('city', city)
+  if (minDiscount !== DEFAULT_MIN_DISCOUNT) returnParams.set('min_discount', String(minDiscount))
+  if (maxPriceCents) returnParams.set('max_price_cents', String(maxPriceCents))
+  if (minStars > 0) returnParams.set('min_stars', String(minStars))
+  if (dateFrom) returnParams.set('date_from', dateFrom)
+  if (dateTo) returnParams.set('date_to', dateTo)
+  if (appliedSort !== 'newest') returnParams.set('sort', appliedSort)
+  const savedFeedReturnUrl = `/deals${returnParams.size ? `?${returnParams.toString()}` : ''}`
   const sortControlDisabled = loading || error || deals.length === 0 || isMockFeed
   const resultStatusMessage = loading
     ? (initialDeals && deals.length > 0 ? 'Updating deals for these filters.' : 'Finding current expaify hotel deals…')
@@ -1345,7 +1354,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                   ) : (
                     <DealCard
                       key={deal.id}
-                      href={deal.isMock ? undefined : `/deals/${deal.id}`}
+                      href={deal.isMock ? undefined : `/deals/${deal.id}?returnUrl=${encodeURIComponent(savedFeedReturnUrl)}`}
                       onOpen={deal.isMock ? undefined : () => trackCardOpen(index + 1)}
                       deal={{
                         id: deal.id,

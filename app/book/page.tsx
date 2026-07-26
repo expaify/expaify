@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { isBookingEnabled, isDuffelSandboxMode, parseBookingFareContext, parseBookingHotelContext } from '@/lib/booking/config';
+import { isBookingEnabled, isDuffelSandboxMode, parseBookingFareContext, parseBookingHotelContext, parseHotelDetailRecovery } from '@/lib/booking/config';
 import BookingFlow from './BookingFlow';
 
 export const metadata = { title: 'Booking review — expaify' };
@@ -13,6 +13,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
   const fareContext = parseBookingFareContext(params);
   const hotelContext = parseBookingHotelContext(params);
   const requestedHotelReview = params.kind === 'hotel' || (Array.isArray(params.kind) && params.kind[0] === 'hotel');
+  const hotelRecovery = parseHotelDetailRecovery(params);
 
   return (
     <div className="min-h-screen bg-[color:var(--bg-base)]">
@@ -41,6 +42,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
           fareContext={fareContext}
           hotelContext={hotelContext}
           invalidHotelSelection={requestedHotelReview && !hotelContext}
+          hotelRecovery={hotelRecovery}
         />
       </Suspense>
     </div>

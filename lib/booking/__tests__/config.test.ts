@@ -68,8 +68,12 @@ const hotel: HotelOffer = {
   deeplink: 'https://tp.media/r?marker=hotel-marker&p=4536&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
   source: 'hotellook',
   documentReadiness: {
-    status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
-    billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
+    status: 'not_provided',
+    scope: 'rate',
+    documentTypes: [],
+    issuerByDocument: {},
+    billingDetailsStep: 'unknown',
+    source: { label: 'Hotellook' },
   },
 };
 
@@ -204,32 +208,6 @@ describe('booking hotel context continuity', () => {
     expect(url.searchParams.get('currency')).toBe(hotel.pricePerNight.currency);
     expect(url.searchParams.get('priceBasis')).toBe('per_night_before_taxes_fees');
     expect(url.searchParams.get('providerUrl')).toBe(hotel.deeplink);
-    expect(url.searchParams.get('documentStatus')).toBe('not_provided');
-    expect(url.searchParams.get('documentScope')).toBe('rate');
-    expect(url.searchParams.get('documentSourceLabel')).toBe('Hotellook');
-  });
-
-  it('preserves validated document evidence and affiliate verification markers through /book', () => {
-    const verificationUrl = 'https://tp.media/r?marker=invoice%2Bmarker&u=https%3A%2F%2Fpartner.test%2Fpolicy%3Fa%3D1%26b%3D2';
-    const evidencedHotel: HotelOffer = {
-      ...hotel,
-      documentReadiness: {
-        status: 'conditional',
-        scope: 'selected_stay',
-        documentTypes: ['invoice'],
-        issuerByDocument: { invoice: { role: 'property', displayName: 'The Example Hotel Billing Desk' } },
-        billingDetailsStep: 'after_booking_contact_property',
-        condition: 'billing details being approved by the property',
-        source: { label: 'Supplier rate terms', policyId: 'rate-policy-7', observedAt: '2026-07-22T12:00:00.000Z' },
-        verificationTarget: { role: 'property', url: verificationUrl },
-      },
-    };
-    const url = new URL(buildHotelBookingHref(evidencedHotel), 'https://expaify.test');
-    const parsed = parseBookingHotelContext(Object.fromEntries(url.searchParams));
-
-    expect(parsed?.providerUrl).toBe(hotel.deeplink);
-    expect(parsed?.documentReadiness).toEqual(evidencedHotel.documentReadiness);
-    expect(parsed?.documentReadiness.verificationTarget?.url).toBe(verificationUrl);
   });
 
   it('parses valid hotel review context without changing selected display values', () => {
@@ -260,7 +238,9 @@ describe('booking hotel context continuity', () => {
       priceCents: '18900',
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
-      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
+      entrySource: 'direct',
+      returnUrl: '/',
     });
 
     expect(parsed).toEqual({
@@ -289,15 +269,9 @@ describe('booking hotel context continuity', () => {
       priceCents: 18900,
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
-      providerUrl: 'https://tp.media/r?marker=hotel-marker',
-      documentReadiness: {
-        status: 'not_provided',
-        scope: 'rate',
-        documentTypes: [],
-        issuerByDocument: {},
-        billingDetailsStep: 'unknown',
-        source: { label: 'Hotellook' },
-      },
+      providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
+      entrySource: 'direct',
+      returnUrl: '/',
     });
   });
 
@@ -310,7 +284,7 @@ describe('booking hotel context continuity', () => {
       priceCents: 18900,
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
-      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
     } as const;
 
     expect(validateBookingHotelContext({ ...baseContext, priceCents: 189.99 })).toBeNull();
@@ -332,7 +306,7 @@ describe('booking hotel context continuity', () => {
       priceCents: 18900,
       currency: 'USD',
       priceBasis: 'per_night_before_taxes_fees',
-      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123',
     } as const;
 
     const invalidCoordinates = validateBookingHotelContext({
@@ -383,5 +357,82 @@ describe('booking hotel context continuity', () => {
     expect(url.searchParams.get('locationDistanceValue')).toBeNull();
     expect(url.searchParams.get('locationAnchorId')).toBeNull();
     expect(url.searchParams.get('locationDistanceReferencePoint')).toBeNull();
+  });
+
+  it('round-trips validated decision context without converting integer money to floats', () => {
+    const score = {
+      percentile: 12,
+      pctVsMedian: -31.5,
+      medianCents: 27500,
+      currency: 'USD',
+      verdict: 'Great' as const,
+      confidence: 'high' as const,
+      explanation: 'This rate is lower than most recent prices.',
+    };
+    const contextualHotel: HotelOffer = {
+      ...hotel,
+      fetchedAt: '2026-07-21T12:00:00.000Z',
+      hotelClass: { kind: 'hotel_class', value: 4, scaleMax: 5, sourceLabel: 'Hotellook', confidence: 'provider_only' },
+      guestRating: { kind: 'guest_review', value: 8.8, scaleMax: 10, reviewCount: 412, sourceLabel: 'Hotellook', confidence: 'verified' },
+    };
+    const href = buildHotelBookingHref(contextualHotel, {
+      entrySource: 'hotel_results',
+      returnUrl: '/?destination=NYC&sort=score',
+      checkIn: '2026-08-12',
+      checkOut: '2026-08-15',
+      nightCount: 3,
+      score,
+    });
+    const url = new URL(href, 'https://expaify.test');
+    const parsed = parseBookingHotelContext(Object.fromEntries(url.searchParams));
+
+    expect(parsed).toMatchObject({
+      entrySource: 'hotel_results',
+      returnUrl: '/?destination=NYC&sort=score',
+      checkIn: '2026-08-12',
+      checkOut: '2026-08-15',
+      nightCount: 3,
+      priceCents: 18900,
+      priceCheckedAt: '2026-07-21T12:00:00.000Z',
+      score,
+      hotelClass: contextualHotel.hotelClass,
+      guestRating: contextualHotel.guestRating,
+    });
+    expect(Number.isInteger(parsed?.priceCents)).toBe(true);
+    expect(Number.isInteger(parsed?.score?.medianCents)).toBe(true);
+  });
+
+  it('rejects inconsistent stays, malformed evidence, and provider URLs without affiliate attribution', () => {
+    const baseContext = {
+      kind: 'hotel', offerId: 'hotel_123', provider: 'hotellook', name: 'The Example Hotel',
+      priceCents: 18900, currency: 'USD', priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123', entrySource: 'hotel_results', returnUrl: '/',
+    } as const;
+
+    expect(validateBookingHotelContext({ ...baseContext, checkIn: '2026-08-12', checkOut: '2026-08-15', nightCount: 2 })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, guestRatingKind: 'guest_review', guestRatingConfidence: 'verified', guestRatingValue: 11, guestRatingScaleMax: 10 })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'https://booking.com/hotel/example' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'http://booking.com/hotel/example?aid=123' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'https://evil.example/hotel?aid=123' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'https://booking.com.evil.example/hotel?aid=123' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fevil.example%2Fhotel' })).toBeNull();
+  });
+
+  it('falls back from external or privileged return destinations to the source-safe route', () => {
+    const baseContext = {
+      kind: 'hotel', offerId: 'hotel_123', provider: 'hotellook', name: 'The Example Hotel',
+      priceCents: 18900, currency: 'USD', priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker&u=https%3A%2F%2Fhotellook.com%2Fhotels%2F123', entrySource: 'saved_deals',
+    } as const;
+
+    expect(validateBookingHotelContext({ ...baseContext, returnUrl: 'https://evil.example/steal' })?.returnUrl).toBe('/deals');
+    expect(validateBookingHotelContext({ ...baseContext, returnUrl: '/api/admin' })?.returnUrl).toBe('/deals');
+    expect(validateBookingHotelContext({ ...baseContext, returnUrl: '/?destination=NYC' })?.returnUrl).toBe('/deals');
+    expect(validateBookingHotelContext({ ...baseContext, returnUrl: '/destinations/paris?sort=score' })?.returnUrl).toBe('/deals');
+    expect(validateBookingHotelContext({ ...baseContext, returnUrl: '/deals?city=Paris&sort=discount' })?.returnUrl).toBe('/deals?city=Paris&sort=discount');
+
+    expect(validateBookingHotelContext({ ...baseContext, entrySource: 'hotel_results', returnUrl: '/deals?city=Paris' })?.returnUrl).toBe('/');
+    expect(validateBookingHotelContext({ ...baseContext, entrySource: 'hotel_results', returnUrl: '/destinations/paris?sort=score' })?.returnUrl).toBe('/destinations/paris?sort=score');
+    expect(validateBookingHotelContext({ ...baseContext, entrySource: 'direct', returnUrl: '/deals' })?.returnUrl).toBe('/');
   });
 });

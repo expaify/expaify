@@ -1,21 +1,19 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEventHandler, type ReactNode, type SyntheticEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEventHandler, type ReactNode } from 'react'
 import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext, type BookingHotelContext } from '@/lib/booking/config'
 import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
-import { TrackOnMount } from '@/app/components/TrackOnMount'
-import { track } from '@/lib/analytics'
+import { HotelDecisionAnalytics, priceFreshnessState } from '@/app/components/HotelDecisionAnalytics'
+import DealScorePanel from '@/app/components/DealScorePanel'
 import { providerDisplayName } from '@/lib/providerFreshness'
 import type {
   HotelDocumentCheckState,
-  HotelDocumentReadiness,
   HotelParkingConflictDimension,
   HotelParkingEvidence,
 } from '@/lib/types'
 import { normalizeHotelDocumentReadiness } from '@/lib/providers/hotelDocumentReadiness'
-import { getParkingCtaStatus, ParkingSection } from '@/app/components/HotelParking'
+import { ParkingSection } from '@/app/components/HotelParking'
 import {
-  getRateRestrictionsAccessibleSummary,
   HotelRateRestrictionsSection,
   RATE_ELIGIBILITY_NOT_PROVIDED,
 } from '@/app/components/HotelRateRestrictions'
@@ -100,43 +98,13 @@ function getHotelPartnerIdentity(providerUrl: string): HotelPartnerIdentity {
   }
 }
 
-function getAwayDurationBucket(durationMs: number) {
-  if (durationMs < 5_000) return '<5s'
-  if (durationMs < 30_000) return '5–30s'
-  if (durationMs < 120_000) return '30–120s'
-  return '120s+'
-}
-
-function emitAnalytics(event: string, props: Record<string, string | number | boolean>) {
-  try {
-    track(event, props)
-  } catch {
-    // Analytics must never block or alter the booking handoff.
-  }
-}
-
-function hotelInvoiceAnalyticsSource(source: string): 'hotellook' | 'other' {
-  return source.trim().toLowerCase() === 'hotellook' ? 'hotellook' : 'other'
-}
-
-function invoiceReadinessAnalytics(readiness: HotelDocumentReadiness, source: string) {
-  return {
-    status: readiness.status,
-    documentTypes: readiness.documentTypes.join(',') || 'none',
-    invoiceIssuerRole: readiness.issuerByDocument.invoice?.role ?? 'unknown',
-    receiptIssuerRole: readiness.issuerByDocument.receipt?.role ?? 'unknown',
-    billingDetailsStep: readiness.billingDetailsStep,
-    source: hotelInvoiceAnalyticsSource(source),
-    scope: readiness.scope,
-  }
-}
-
 type BookingFlowProps = {
   bookingEnabled: boolean
   duffelSandbox: boolean
   fareContext: BookingFareContext | null
   hotelContext?: BookingHotelContext | null
   invalidHotelSelection?: boolean
+  hotelRecovery?: Pick<BookingHotelContext, 'entrySource' | 'returnUrl'>
   parkingEvidence?: HotelParkingEvidence | null
   parkingConflictDimensions?: readonly HotelParkingConflictDimension[]
   parkingEvidenceMalformed?: boolean
@@ -194,6 +162,97 @@ function getPriceBasisLabel(fareContext: BookingFareContext) {
 function getHotelPriceBasisLabel(priceBasis: BookingHotelContext['priceBasis']) {
   if (priceBasis === 'per_night_before_taxes_fees') return 'per night before taxes and fees'
   return 'price basis requires provider confirmation'
+}
+
+function formatStayDate(value?: string) {
+  if (!value) return null
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(`${value}T00:00:00.000Z`))
+}
+
+function formatRelativePriceCheck(checkedAt: string, now = Date.now()) {
+  const ageMinutes = Math.max(0, Math.floor((now - Date.parse(checkedAt)) / 60_000))
+  if (ageMinutes < 60) return `${ageMinutes} minute${ageMinutes === 1 ? '' : 's'} ago`
+  const ageHours = Math.floor(ageMinutes / 60)
+  return `${ageHours} hour${ageHours === 1 ? '' : 's'} ago`
+}
+
+function getPriceCheckedCopy(
+  priceCheckedAt: string | undefined,
+  freshnessState: ReturnType<typeof priceFreshnessState>,
+) {
+  if (!priceCheckedAt || freshnessState === 'unknown') return 'Last-checked time not provided.'
+  if (freshnessState === 'stale') {
+    const absoluteDate = new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(new Date(priceCheckedAt))
+    return `Price may be out of date. We have not rechecked it since ${absoluteDate}.`
+  }
+
+  const relativeTime = formatRelativePriceCheck(priceCheckedAt)
+  return freshnessState === 'aging'
+    ? `Price checked ${relativeTime}. Confirm the current rate with the provider.`
+    : `Price checked ${relativeTime}.`
+}
+
+function HotelGuestRating({ evidence, provider }: {
+  evidence: BookingHotelContext['guestRating']
+  provider: string
+}) {
+  const source = evidence?.sourceLabel ?? providerDisplayName(provider)
+
+  if (evidence?.confidence === 'inferred' || evidence?.kind === 'inferred') {
+    return (
+      <>
+        No verified guest rating
+        <span className="mt-1 block text-xs text-[color:var(--text-3)]">
+          We do not label inferred hotel data as a guest rating.
+        </span>
+      </>
+    )
+  }
+
+  if (
+    evidence?.confidence === 'provider_only'
+    && evidence.value !== undefined
+    && evidence.scaleMax !== undefined
+  ) {
+    return (
+      <>
+        {evidence.value}/{evidence.scaleMax} provider rating from {source}
+        <span className="mt-1 block text-xs text-[color:var(--text-3)]">
+          Review source not confirmed.
+        </span>
+      </>
+    )
+  }
+
+  if (
+    evidence?.kind === 'guest_review'
+    && evidence.confidence === 'verified'
+    && evidence.value !== undefined
+    && evidence.scaleMax !== undefined
+  ) {
+    return (
+      <>
+        {evidence.value}/{evidence.scaleMax} guest rating from {source}
+        {evidence.reviewCount
+          ? ` from ${evidence.reviewCount.toLocaleString('en-US')} guest reviews`
+          : ''}
+      </>
+    )
+  }
+
+  return (
+    <>
+      Guest rating not provided
+      <span className="mt-1 block text-xs text-[color:var(--text-3)]">
+        This provider did not return guest-rating evidence.
+      </span>
+    </>
+  )
 }
 
 function isChangedFareReason(reason: string) {
@@ -564,7 +623,7 @@ function InvalidBookingState({ duffelSandbox }: { duffelSandbox: boolean }) {
   )
 }
 
-function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
+function InvalidHotelState({ duffelSandbox, recovery }: { duffelSandbox: boolean; recovery?: Pick<BookingHotelContext, 'entrySource' | 'returnUrl'> }) {
   const headingRef = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
@@ -601,8 +660,8 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
           </p>
         </div>
         <div className={actionStackCls}>
-          <a href="/" className="btn-primary">
-            Back to search
+          <a href={recovery?.returnUrl ?? '/'} className="btn-primary">
+            {recovery?.entrySource === 'saved_deals' ? 'Back to saved deals' : recovery?.entrySource === 'hotel_results' ? 'Back to results' : 'Search hotels'}
           </a>
         </div>
       </div>
@@ -612,14 +671,12 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
 
 function HotelHandoffReview({
   hotelContext,
-  duffelSandbox,
   parkingEvidence,
   parkingConflictDimensions,
   parkingEvidenceMalformed = false,
   hasSearchDates = true,
 }: {
   hotelContext: BookingHotelContext
-  duffelSandbox: boolean
   parkingEvidence?: HotelParkingEvidence | null
   parkingConflictDimensions?: readonly HotelParkingConflictDimension[]
   parkingEvidenceMalformed?: boolean
@@ -627,35 +684,16 @@ function HotelHandoffReview({
 }) {
   const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
   const location = getHotelLocationDisplay(hotelContext)
-  const analyticsProps = useMemo(() => ({
-    source: hotelContext.provider,
-    partnerHost: partner.host,
-    currency: hotelContext.currency,
-    priceCents: hotelContext.priceCents,
-    priceBasis: hotelContext.priceBasis,
-    locationPrecision: location.precision,
-  }), [hotelContext.currency, hotelContext.priceBasis, hotelContext.priceCents, hotelContext.provider, location.precision, partner.host])
-  const didContinueRef = useRef(false)
-  const guidanceBlockRef = useRef<HTMLElement>(null)
-  const documentDisclosureRef = useRef<HTMLDivElement>(null)
-  const documentReadinessViewedRef = useRef(false)
-  const documentCheckRequestRef = useRef(0)
-  const documentCheckPendingRef = useRef(false)
-  const invoiceNeededRef = useRef(false)
-  const guidanceViewedRef = useRef(false)
-  const helpOpenRef = useRef(false)
-  const returnArmedRef = useRef(false)
-  const hiddenAfterContinueRef = useRef(false)
-  const continueStartedAtRef = useRef<number | undefined>(undefined)
   const [invoiceNeeded, setInvoiceNeeded] = useState(false)
-  const [documentReadiness, setDocumentReadiness] = useState(hotelContext.documentReadiness)
+  const [documentReadiness, setDocumentReadiness] = useState(() => (
+    normalizeHotelDocumentReadiness(hotelContext.documentReadiness, providerDisplayName(hotelContext.provider))
+  ))
   const [documentCheckState, setDocumentCheckState] = useState<HotelDocumentCheckState>('idle')
 
-  const runDocumentReadinessCheck = async () => {
-    if (documentCheckPendingRef.current) return
-    documentCheckPendingRef.current = true
-    const requestId = documentCheckRequestRef.current + 1
-    documentCheckRequestRef.current = requestId
+  const handleInvoiceNeedChange = async (needed: boolean) => {
+    setInvoiceNeeded(needed)
+    if (!needed || documentCheckState !== 'idle') return
+
     setDocumentCheckState('loading')
     try {
       const response = await fetch('/api/hotels/document-readiness', {
@@ -665,317 +703,91 @@ function HotelHandoffReview({
       })
       const payload = await response.json() as { ok?: unknown; data?: unknown }
       if (!response.ok || payload.ok !== true) throw new Error('document check failed')
-      if (documentCheckRequestRef.current !== requestId) return
-      setDocumentReadiness(normalizeHotelDocumentReadiness(payload.data, providerDisplayName(hotelContext.provider)))
+      setDocumentReadiness(normalizeHotelDocumentReadiness(
+        payload.data,
+        providerDisplayName(hotelContext.provider),
+      ))
       setDocumentCheckState('ready')
     } catch {
-      if (documentCheckRequestRef.current === requestId) setDocumentCheckState('error')
-    } finally {
-      if (documentCheckRequestRef.current === requestId) documentCheckPendingRef.current = false
+      setDocumentCheckState('error')
     }
   }
-
-  const handleInvoiceNeedChange = (needed: boolean) => {
-    if (needed === invoiceNeededRef.current) return
-    invoiceNeededRef.current = needed
-    setInvoiceNeeded(needed)
-    emitAnalytics('hotel_invoice_need_changed', {
-      needed,
-      source: hotelInvoiceAnalyticsSource(hotelContext.provider),
-      partnerNamed: partner.named,
-    })
-    if (needed && documentCheckState === 'idle') void runDocumentReadinessCheck()
-  }
-
-  const handleDocumentRetry = () => {
-    if (documentCheckState === 'loading') return
-    emitAnalytics('hotel_invoice_retry_clicked', {
-      priorCheckState: documentCheckState,
-      source: hotelInvoiceAnalyticsSource(hotelContext.provider),
-      scope: documentReadiness.scope,
-    })
-    void runDocumentReadinessCheck()
-  }
-
-  const handleDocumentVerification = () => {
-    const targetRole = documentReadiness.verificationTarget?.role
-    if (!targetRole || !documentReadiness.verificationTarget?.url) return
-    emitAnalytics('hotel_invoice_verification_clicked', {
-      ...invoiceReadinessAnalytics(documentReadiness, hotelContext.provider),
-      targetRole,
-    })
-  }
-
-  useEffect(() => {
-    const disclosure = documentDisclosureRef.current
-    if (!invoiceNeeded || !disclosure || typeof IntersectionObserver === 'undefined') return
-
-    let exposureTimer: ReturnType<typeof setTimeout> | undefined
-    const clearExposureTimer = () => {
-      if (exposureTimer === undefined) return
-      clearTimeout(exposureTimer)
-      exposureTimer = undefined
-    }
-    const observer = new IntersectionObserver((entries) => {
-      const exposed = entries.some(entry => (
-        entry.target === disclosure && entry.isIntersecting && entry.intersectionRatio >= 0.5
-      ))
-      if (!exposed) {
-        clearExposureTimer()
-        return
-      }
-      if (documentReadinessViewedRef.current || exposureTimer !== undefined) return
-      exposureTimer = setTimeout(() => {
-        exposureTimer = undefined
-        documentReadinessViewedRef.current = true
-        emitAnalytics('hotel_invoice_readiness_viewed', invoiceReadinessAnalytics(documentReadiness, hotelContext.provider))
-      }, 1_000)
-    }, { threshold: 0.5 })
-    observer.observe(disclosure)
-    return () => {
-      clearExposureTimer()
-      observer.disconnect()
-    }
-  }, [documentReadiness, hotelContext.provider, invoiceNeeded])
-
-  useEffect(() => {
-    const guidanceBlock = guidanceBlockRef.current
-    if (!guidanceBlock || typeof IntersectionObserver === 'undefined') return
-
-    let exposureTimer: ReturnType<typeof setTimeout> | undefined
-    const clearExposureTimer = () => {
-      if (exposureTimer === undefined) return
-      clearTimeout(exposureTimer)
-      exposureTimer = undefined
-    }
-    const observer = new IntersectionObserver((entries) => {
-      const isExposed = entries.some((entry) => (
-        entry.target === guidanceBlock && entry.isIntersecting && entry.intersectionRatio >= 0.5
-      ))
-
-      if (!isExposed) {
-        clearExposureTimer()
-        return
-      }
-      if (guidanceViewedRef.current || exposureTimer !== undefined) return
-
-      exposureTimer = setTimeout(() => {
-        exposureTimer = undefined
-        guidanceViewedRef.current = true
-        emitAnalytics('hotel_request_guidance_viewed', {
-          source: hotelContext.provider,
-          partnerHost: partner.host,
-          capabilityState: 'provider_directed_only',
-          eligibleRequestCount: 3,
-        })
-      }, 1_000)
-    }, { threshold: 0.5 })
-
-    observer.observe(guidanceBlock)
-    return () => {
-      clearExposureTimer()
-      observer.disconnect()
-    }
-  }, [hotelContext.provider, partner.host])
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return
-
-    const handleVisibilityChange = () => {
-      if (!returnArmedRef.current) return
-
-      if (document.visibilityState === 'hidden') {
-        hiddenAfterContinueRef.current = true
-        return
-      }
-
-      if (document.visibilityState !== 'visible' || !hiddenAfterContinueRef.current) return
-
-      const startedAt = continueStartedAtRef.current
-      const durationMs = startedAt === undefined ? 0 : Math.max(0, performance.now() - startedAt)
-      emitAnalytics('hotel_handoff_returned', {
-        source: hotelContext.provider,
-        partnerHost: partner.host,
-        awayDurationBucket: getAwayDurationBucket(durationMs),
-      })
-      returnArmedRef.current = false
-      hiddenAfterContinueRef.current = false
-      continueStartedAtRef.current = undefined
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [hotelContext.provider, partner.host])
-
-  const handleContinue = () => {
-    didContinueRef.current = true
-    returnArmedRef.current = true
-    hiddenAfterContinueRef.current = false
-    continueStartedAtRef.current = performance.now()
-    emitAnalytics('hotel_handoff_continue_clicked', {
-      ...analyticsProps,
-      partnerNamed: partner.named,
-      invoiceNeeded,
-      invoiceReadinessStatus: documentReadiness.status,
-    })
-    if (guidanceViewedRef.current) {
-      emitAnalytics('hotel_request_handoff_continued', {
-        source: hotelContext.provider,
-        partnerHost: partner.host,
-        capabilityState: 'provider_directed_only',
-        eligibleRequestCount: 3,
-        selectedRequestCount: 0,
-        guidanceSeen: true,
-      })
-    }
-  }
-
-  const handleHelpToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
-    const isOpen = event.currentTarget.open
-    if (isOpen && !helpOpenRef.current) {
-      emitAnalytics('hotel_request_help_opened', {
-        source: hotelContext.provider,
-        partnerHost: partner.host,
-        capabilityState: 'provider_directed_only',
-      })
-    }
-    helpOpenRef.current = isOpen
-  }
-
-  const handleBack = () => {
-    if (didContinueRef.current) return
-    emitAnalytics('hotel_handoff_back_clicked', {
-      source: hotelContext.provider,
-      partnerHost: partner.host,
-    })
-  }
-
-  const partnerHeading = partner.named
-    ? `You’ll book with ${partner.label}.`
-    : 'You’ll book with an external booking partner.'
-  const partnerSupport = partner.named
-    ? `expaify hands you off; ${partner.label} takes payment.`
-    : 'expaify hands you off; the booking partner takes payment.'
-  const continueLabel = partner.named ? `Continue to ${partner.label}` : 'Continue to booking partner'
+  const continueLabel = partner.named ? `Check rooms at ${partner.label}` : 'Check rooms at provider'
   const newTabCue = partner.named
     ? `Opens ${partner.label} in a new tab. Your expaify search stays open here.`
     : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
-  const accessiblePartner = partner.named ? partner.label : 'the booking partner’s site'
-  const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(
-    RATE_ELIGIBILITY_NOT_PROVIDED,
-    providerDisplayName(hotelContext.provider),
-    'handoff',
-  )
-  const parkingCtaStatus = getParkingCtaStatus({ evidence: parkingEvidence, malformed: parkingEvidenceMalformed })
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${eligibilityAriaSummary} ${parkingCtaStatus}`
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens in a new tab. The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.`
+  const hasDates = Boolean(hotelContext.checkIn && hotelContext.checkOut && hotelContext.nightCount)
+  const verifiedGuestRating = hotelContext.guestRating?.kind === 'guest_review' && hotelContext.guestRating.confidence === 'verified'
+  const scoreState = hotelContext.score
+    ? hotelContext.score.confidence === 'low' ? 'low_confidence' : 'confident'
+    : 'unavailable'
+  const freshnessState = priceFreshnessState(hotelContext.priceCheckedAt)
+  const checkedCopy = getPriceCheckedCopy(hotelContext.priceCheckedAt, freshnessState)
+  const backLabel = hotelContext.entrySource === 'saved_deals' ? 'Back to saved deals' : hotelContext.entrySource === 'hotel_results' ? 'Back to results' : 'Back to hotel search'
 
   return (
-    <ReviewShell
-      eyebrow="Hotel handoff"
-      title="Review selected hotel"
-      message="Review the hotel and nightly rate expaify found. The booking partner confirms the live rate and final details before you pay."
-      fareContext={null}
-      hotelContext={hotelContext}
-      hotelParking={(
-        <ParkingSection
-          hotelId={hotelContext.offerId}
-          evidence={parkingEvidence}
-          conflictDimensions={parkingConflictDimensions}
-          malformed={parkingEvidenceMalformed}
-          hasSearchDates={hasSearchDates}
-          bookingReview
-        />
-      )}
-      duffelSandbox={duffelSandbox}
-      onBackClick={handleBack}
+    <HotelDecisionAnalytics
+      hotelId={hotelContext.offerId}
+      entrySource={hotelContext.entrySource}
+      hasDates={hasDates}
+      hasVerifiedGuestRating={verifiedGuestRating}
+      scoreState={scoreState}
+      priceFreshnessState={freshnessState}
     >
-      <TrackOnMount event="hotel_handoff_viewed" props={analyticsProps} />
-      <div className={`${panelCls} p-4 sm:p-6`}>
-        <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand)]">Booking partner</p>
-          <h2 className="mt-2 break-words text-xl font-bold leading-tight text-[color:var(--text-1)]">{partnerHeading}</h2>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">{partnerSupport}</p>
-        </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
-          <div className={`min-w-0 px-3.5 py-3 ${insetPanelCls}`}>
-            <p className={factLabelCls}>expaify shows</p>
-            <p className="mt-2 text-sm leading-5 text-[color:var(--text-2)]">Hotel name, location, nightly rate basis, and rate source.</p>
+    <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
+      <a href={hotelContext.returnUrl} data-hotel-back className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)]">
+        ← {backLabel}
+      </a>
+      <div className="mt-4 space-y-4 sm:mt-6">
+        <section data-hotel-decision-section="property_stay" data-hotel-decision-position="1" aria-labelledby="hotel-property-title" className={`${panelCls} p-4 sm:p-6`}>
+          <p className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand)]">Hotel review</p>
+          <h1 id="hotel-property-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{hotelContext.name}</h1>
+          <div className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
+            <p className={factLabelCls}>{location.label}</p>
+            <p className="mt-1 break-words text-sm font-medium text-[color:var(--text-1)]">{location.value}</p>
+            <p className={`mt-1 text-xs leading-5 ${location.isWarning ? 'text-[color:var(--warning)]' : 'text-[color:var(--text-3)]'}`}>{location.note}</p>
           </div>
-          <div className={`min-w-0 px-3.5 py-3 ${insetPanelCls}`}>
-            <p className={factLabelCls}>{partner.named ? `${partner.label} confirms` : 'Booking partner confirms'}</p>
-            <p className="mt-2 text-sm leading-5 text-[color:var(--text-2)]">Final total, taxes, fees, room availability, and cancellation policy.</p>
-          </div>
-        </div>
-        <HotelDocumentIntentControl checked={invoiceNeeded} onChange={handleInvoiceNeedChange} />
-        {invoiceNeeded ? (
-          <div ref={documentDisclosureRef}>
-            <HotelDocumentReadinessDisclosure
-              readiness={documentReadiness}
-              checkState={documentCheckState === 'idle' ? 'ready' : documentCheckState}
-              partner={partner}
-              providerUrl={hotelContext.providerUrl}
-              retryAvailable={documentCheckState === 'error'}
-              retryPending={documentCheckState === 'loading'}
-              onRetry={handleDocumentRetry}
-              onVerificationClick={handleDocumentVerification}
-            />
-          </div>
-        ) : null}
-        <section
-          aria-labelledby="hotel-traveler-readiness-title"
-          className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 sm:px-4 sm:py-4"
-        >
-          <h3
-            id="hotel-traveler-readiness-title"
-            className="text-sm font-bold leading-5 text-[color:var(--text-1)]"
-          >
-            What you may need
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            Have the lead guest’s full name, a confirmation email, and a reachable phone number ready. The booking partner will show exactly what is required.
-          </p>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            Booking for someone else? Use the name of the person checking in as the lead guest. The booking partner will tell you whose email and phone it needs.
-          </p>
+          {hotelContext.checkIn || hotelContext.checkOut || hotelContext.nightCount ? <dl className="mt-3 grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
+            <FareFact label="Check-in" value={formatStayDate(hotelContext.checkIn) ?? 'Check-in not provided'} />
+            <FareFact label="Check-out" value={formatStayDate(hotelContext.checkOut) ?? 'Check-out not provided'} />
+            <FareFact label="Nights" value={hotelContext.nightCount ? `${hotelContext.nightCount} night${hotelContext.nightCount === 1 ? '' : 's'}` : 'Night count not provided'} />
+          </dl> : <div className="mt-3 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5"><p className="font-medium text-[color:var(--text-1)]">Stay dates not provided</p></div>}
+          <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">{hasDates ? 'Rate shown for this stay context; the provider confirms room-level details.' : 'Stay dates are incomplete. Choose or confirm dates with the provider before comparing room options.'}</p>
         </section>
-        <section
-          ref={guidanceBlockRef}
-          aria-labelledby="hotel-special-requests-title"
-          className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3"
-        >
-          <h3 id="hotel-special-requests-title" className="text-sm font-bold leading-5 text-[color:var(--text-1)]">
-            Special requests
-          </h3>
-          <p className="mt-2 text-sm font-medium leading-5 text-[color:var(--text-1)]">
-            Need a quiet room, high floor, or early check-in?
-          </p>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            {partner.named
-              ? `Add your request on ${partner.label} while booking. Nothing is selected or sent by expaify.`
-              : 'Add your request on the booking partner’s site while booking. Nothing is selected or sent by expaify.'}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            Requests depend on availability and are not guaranteed. After booking, use your confirmation or itinerary to contact the property and ask it to confirm what it can provide.
-          </p>
-          <details onToggle={handleHelpToggle} className="mt-3 border-t border-[color:var(--border)] pt-3">
-            <summary className="min-h-11 cursor-pointer select-none py-2 text-sm font-medium leading-6 text-[color:var(--brand)]">
-              How requests work
-            </summary>
-            <ul className="mt-2 space-y-2 pl-5 text-sm leading-6 text-[color:var(--text-2)]">
-              <li><span className="font-semibold text-[color:var(--text-1)]">Selected:</span> You have chosen a preference. expaify does not offer this step.</li>
-              <li><span className="font-semibold text-[color:var(--text-1)]">Sent:</span> The booking service says it submitted the request. Continuing from expaify does not send one.</li>
-              <li><span className="font-semibold text-[color:var(--text-1)]">Acknowledged:</span> The property has replied about the request.</li>
-              <li><span className="font-semibold text-[color:var(--text-1)]">Guaranteed:</span> The property explicitly confirms it for this stay. Until then, treat it as a preference.</li>
-            </ul>
-          </details>
+
+        <section data-hotel-decision-section="price_deal_score" data-hotel-decision-position="2" aria-labelledby="hotel-price-score-title" className={`${panelCls} p-4 sm:p-6`}>
+          <h2 id="hotel-price-score-title" className="text-xl font-bold text-[color:var(--text-1)]">Price and Deal Score</h2>
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+            <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">
+              <p className={factLabelCls}>Observed nightly rate</p>
+              <p className="mt-2 font-display text-3xl font-bold tabular-nums text-[color:var(--text-1)] sm:text-4xl">{formatMoney(hotelContext.priceCents, hotelContext.currency)}</p>
+              <p className="mt-1 text-xs text-[color:var(--text-2)]">{getHotelPriceBasisLabel(hotelContext.priceBasis)}</p>
+              <p className="mt-2 text-sm text-[color:var(--text-2)]">Rate observed from {providerDisplayName(hotelContext.provider)}</p>
+              <p className={`mt-1 text-sm ${freshnessState === 'fresh' ? 'text-[color:var(--text-2)]' : 'font-medium text-[color:var(--warning)]'}`}>{checkedCopy}</p>
+            </div>
+            <DealScorePanel score={hotelContext.score ?? null} loading={false} scope="hotel" priceNoun="nightly rate" unavailableCopy="We could not compare this nightly rate with enough recent hotel prices." />
+          </div>
         </section>
-        <div className="mt-5 flex flex-col gap-3">
+
+        <section data-hotel-decision-section="hotel_fit" data-hotel-decision-position="3" aria-labelledby="hotel-fit-title" className={`${panelCls} p-4 sm:p-6`}>
+          <h2 id="hotel-fit-title" className="text-xl font-bold text-[color:var(--text-1)]">Hotel fit</h2>
+          <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className={`p-3.5 ${insetPanelCls}`}><dt className={factLabelCls}>Hotel class</dt><dd className="mt-2 text-sm text-[color:var(--text-2)]">{hotelContext.hotelClass?.value ? `${hotelContext.hotelClass.value}${hotelContext.hotelClass.scaleMax === 5 ? '-star' : ` of ${hotelContext.hotelClass.scaleMax ?? 5}`} hotel class from ${hotelContext.hotelClass.sourceLabel ?? providerDisplayName(hotelContext.provider)}` : 'Hotel class not provided'}</dd></div>
+            <div className={`p-3.5 ${insetPanelCls}`}><dt className={factLabelCls}>Guest rating</dt><dd className="mt-2 text-sm text-[color:var(--text-2)]"><HotelGuestRating evidence={hotelContext.guestRating} provider={hotelContext.provider} /></dd></div>
+          </dl>
+        </section>
+
+        <section data-hotel-decision-section="provider_handoff" data-hotel-decision-position="4" aria-labelledby="hotel-room-check-title" className={`${panelCls} p-4 sm:p-6`}>
+          <h2 id="hotel-room-check-title" className="text-xl font-bold text-[color:var(--text-1)]">Check rooms with provider</h2>
+          <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.{!hasDates ? ' Choose or confirm your dates there before comparing room options.' : ''}{location.precision === 'missing' ? ' Confirm the property location there before choosing a room.' : ''}</p>
+          <div className="mt-5 flex flex-col gap-3">
           <a
             href={hotelContext.providerUrl}
             target="_blank"
             rel="noopener noreferrer sponsored"
+            data-hotel-provider={partner.named ? partner.label : providerDisplayName(hotelContext.provider)}
             aria-label={accessibleName}
-            onClick={handleContinue}
             className="btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-center text-sm font-medium"
           >
             <span className="min-w-0 break-words">{continueLabel}</span>
@@ -984,12 +796,73 @@ function HotelHandoffReview({
             </svg>
           </a>
           <p className="text-center text-xs leading-5 text-[color:var(--text-3)]">{newTabCue}</p>
-          <a href="/" onClick={handleBack} className={secondaryButtonCls}>
-            Back to search
-          </a>
-        </div>
+          </div>
+        </section>
+
+        <section data-hotel-decision-section="supporting_evidence" data-hotel-decision-position="5" aria-labelledby="hotel-support-title" className={`${panelCls} p-4 sm:p-6`}>
+          <h2 id="hotel-support-title" className="text-xl font-bold text-[color:var(--text-1)]">Supporting evidence</h2>
+          <ParkingSection
+            hotelId={hotelContext.offerId}
+            evidence={parkingEvidence}
+            conflictDimensions={parkingConflictDimensions}
+            malformed={parkingEvidenceMalformed}
+            hasSearchDates={hasSearchDates}
+            bookingReview
+          />
+          <HotelRateRestrictionsSection
+            eligibility={RATE_ELIGIBILITY_NOT_PROVIDED}
+            providerName={providerDisplayName(hotelContext.provider)}
+          />
+          <HotelDocumentIntentControl
+            checked={invoiceNeeded}
+            onChange={(needed) => { void handleInvoiceNeedChange(needed) }}
+          />
+          {invoiceNeeded ? (
+            <HotelDocumentReadinessDisclosure
+              readiness={documentReadiness}
+              checkState={documentCheckState}
+              partner={partner}
+              providerUrl={hotelContext.providerUrl}
+            />
+          ) : null}
+          <section
+            aria-labelledby="hotel-traveler-readiness-title"
+            className="mt-4 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 sm:px-4 sm:py-4"
+          >
+            <h3 id="hotel-traveler-readiness-title" className="text-sm font-bold leading-5 text-[color:var(--text-1)]">
+              What you may need
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+              Have the lead guest’s full name, a confirmation email, and a reachable phone number ready. The booking partner will show exactly what is required.
+            </p>
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+              Booking for someone else? Use the name of the person checking in as the lead guest. The booking partner will tell you whose email and phone it needs.
+            </p>
+          </section>
+          <section
+            aria-labelledby="hotel-special-requests-title"
+            className="mt-4 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3"
+          >
+            <h3 id="hotel-special-requests-title" className="text-sm font-bold leading-5 text-[color:var(--text-1)]">
+              Special requests
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+              Need a quiet room, high floor, or early check-in? Add your request on the provider site while booking. Nothing is selected or sent by expaify.
+            </p>
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+              Requests depend on availability and are not guaranteed. After booking, use your confirmation or itinerary to contact the property and ask it to confirm what it can provide.
+            </p>
+          </section>
+          <details className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
+            <summary className="min-h-11 cursor-pointer font-medium text-[color:var(--text-1)]">Show offer details</summary>
+            <p className={factLabelCls}>Offer reference</p>
+            <p className="mt-2 break-all font-mono text-xs text-[color:var(--text-2)]">{hotelContext.offerId}</p>
+            <p className="mt-2 text-xs text-[color:var(--text-3)]">Use this reference if you contact expaify support.</p>
+          </details>
+        </section>
       </div>
-    </ReviewShell>
+    </main>
+    </HotelDecisionAnalytics>
   )
 }
 
@@ -999,6 +872,7 @@ export default function BookingFlow({
   fareContext,
   hotelContext = null,
   invalidHotelSelection = false,
+  hotelRecovery,
   parkingEvidence,
   parkingConflictDimensions,
   parkingEvidenceMalformed = false,
@@ -1024,7 +898,6 @@ export default function BookingFlow({
     return (
       <HotelHandoffReview
         hotelContext={hotelContext}
-        duffelSandbox={duffelSandbox}
         parkingEvidence={parkingEvidence}
         parkingConflictDimensions={parkingConflictDimensions}
         parkingEvidenceMalformed={parkingEvidenceMalformed}
@@ -1034,7 +907,7 @@ export default function BookingFlow({
   }
 
   if (invalidHotelSelection) {
-    return <InvalidHotelState duffelSandbox={duffelSandbox} />
+    return <InvalidHotelState duffelSandbox={duffelSandbox} recovery={hotelRecovery} />
   }
 
   async function handleSubmit(e: FormEvent) {
