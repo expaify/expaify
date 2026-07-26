@@ -388,7 +388,9 @@ describe('Deal score presentation', () => {
     const rateClass = findFirstProp(card, 'className', value => typeof value === 'string' && value.includes('@max-[351px]:col-span-2'))
 
     expect(containerClass).toEqual(expect.stringContaining('@container'))
+    expect(summaryGridClass).toEqual(expect.stringContaining('grid-cols-[5rem_minmax(0,1fr)_minmax(6.75rem,auto)]'))
     expect(summaryGridClass).toEqual(expect.stringContaining('@max-[351px]:grid-cols-[5rem_minmax(0,1fr)]'))
+    expect(rateClass).toEqual(expect.stringContaining('@max-[351px]:col-span-2'))
     expect(rateClass).toEqual(expect.stringContaining('@max-[351px]:text-left'))
   })
 
@@ -444,7 +446,7 @@ describe('Deal score presentation', () => {
     expect(collectText(figure)).toBe('Property photo')
   })
 
-  it('keeps DealCard identity before its optional deal headline and photo', () => {
+  it('keeps DealCard identity, rate evidence, and photo in source and DOM order', () => {
     const card = DealCard({
       deal: {
         id: 'deal-order',
@@ -464,6 +466,7 @@ describe('Deal score presentation', () => {
     const text = collectText(card)
 
     expect(text.indexOf('Identity First Hotel')).toBeLessThan(text.indexOf('$140 USD'))
+    expect(text.indexOf('Lisbon')).toBeLessThan(text.indexOf('$140 USD'))
     expect(text.indexOf('$140 USD')).toBeLessThan(text.indexOf('43% below usual'))
     expect(text.indexOf('43% below usual')).toBeLessThan(text.indexOf('Property photo'))
   })
