@@ -372,6 +372,13 @@ export function DealFeed({ initialDeals, initialPage, initialCoverage, initialRe
   const continuationOriginRef = useRef<'manual' | 'automatic'>('manual')
   const continuationPendingRef = useRef(false)
 
+  // Server-prefetched feeds skip the initial API request, so the entitlement
+  // supplied by the Server Component must remain the source of truth on
+  // client-side navigation as well.
+  useEffect(() => {
+    setPremium(premiumProp)
+  }, [premiumProp])
+
   function restoreManualContinuationFocus() {
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
       (continuationControlRef.current ?? continuationBoundaryRef.current)?.focus()
