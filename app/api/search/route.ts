@@ -11,7 +11,7 @@ import { hotellook } from '../../../lib/providers/hotellook';
 import { query } from '../../../lib/db/client';
 import {
   type FlightDateCoverage,
-  type HotelOffer,
+  type HotelSearchPage,
   type NormalizedFare,
   type ProviderIssueStatus,
   type ProviderNotice,
@@ -173,7 +173,7 @@ async function searchHotelAvailability(
   area: string,
   range: { checkin: string; checkout: string },
   anchor: ReturnType<typeof getSearchLinkedAirportAnchor>
-): Promise<Result<HotelOffer[]>> {
+): Promise<Result<HotelSearchPage>> {
   try {
     return await hotellook.searchHotels(area, range, anchor ? { anchor } : undefined);
   } catch (error) {
@@ -401,10 +401,11 @@ export async function GET(request: NextRequest) {
           { checkin: depart, checkout: ret },
           getSearchLinkedAirportAnchor(destIATA)
         );
-        if (hotelsResult.ok && hotelsResult.data.length > 0) {
-          send({ type: 'hotel-status', status: 'available' });
-          send({ type: 'hotels', source: 'hotellook', data: hotelsResult.data });
-          const accessState = hotelsResult.data.some(hotel => hotel.accessEvidenceState === 'error')
+        if (hotelsResult.ok && hotelsResult.data.offers.length > 0) {
+          const { offers, ...page } = hotelsResult.data;
+          send({ type: 'hotel-status', status: 'available', coverage: page.coverage });
+          send({ type: 'hotels', source: 'hotellook', data: offers, page });
+          const accessState = offers.some(hotel => hotel.accessEvidenceState === 'error')
             ? 'error'
             : 'ready';
           send({
@@ -415,7 +416,12 @@ export async function GET(request: NextRequest) {
               : {}),
           });
         } else if (hotelsResult.ok) {
-          send({ type: 'hotel-status', status: 'empty', message: 'No hotels were returned for these dates.' });
+          send({
+            type: 'hotel-status',
+            status: 'empty',
+            coverage: hotelsResult.data.coverage,
+            message: 'No hotels were returned for these dates.',
+          });
           send({ type: 'hotel-access-status', status: 'ready' });
         } else {
           const status = classifyProviderIssue(hotelsResult.reason);
