@@ -19,6 +19,7 @@ const { default: FlightCard } = jest.requireActual('../FlightCard') as typeof im
 const { default: HotelCard } = jest.requireActual('../HotelCard') as typeof import('../HotelCard')
 const { DealCard } = jest.requireActual('../ui/DealCard') as typeof import('../ui/DealCard')
 const { LockedDealCard } = jest.requireActual('../ui/LockedDealCard') as typeof import('../ui/LockedDealCard')
+const { PropertyPhoto } = jest.requireActual('../ui/PropertyPhoto') as typeof import('../ui/PropertyPhoto')
 
 function childrenOf(node: TestElement): unknown[] {
   const children = node.props?.children
@@ -415,7 +416,7 @@ describe('Deal score presentation', () => {
     expect(countText(text, 'Photo unavailable')).toBe(1)
   })
 
-  it('keeps the DealCard checked pill and price claims outside its labeled property figure', () => {
+  it('keeps DealCard price claims and explicit price recency outside its labeled property figure', () => {
     const card = DealCard({
       deal: {
         id: 'deal-1',
@@ -437,11 +438,8 @@ describe('Deal score presentation', () => {
 
     expect(text).toContain('Property photo')
     expect(text).toContain('−30% vs usual')
-    expect(text).toContain('checked 2h ago')
-    expect(text).not.toContain('Price checked 2h ago')
-    expect(findFirstProp(card, 'className', value => typeof value === 'string' && value.includes('absolute right-3 top-3'))).toEqual(
-      expect.stringContaining('absolute right-3 top-3'),
-    )
+    expect(text).toContain('Price checked 2h ago')
+    expect(findFirstProp(card, 'className', value => typeof value === 'string' && value.includes('absolute right-3 top-3'))).toBeUndefined()
     expect(findFirstProp(card, 'alt', value => value === '')).toBe('')
     expect(collectText(figure)).toBe('Property photo')
   })
@@ -512,8 +510,45 @@ describe('Deal score presentation', () => {
       placeholderCity: 'Paris',
       stars: 5,
     }))
-    expect(withoutPhotoText).toContain('Property photo')
-    expect(withoutPhotoText).not.toContain('Photo unavailable')
+    expect(withoutPhotoText).toContain('Photo unavailable')
+    expect(withoutPhotoText).not.toContain('Property photo')
+  })
+
+  it('reserves photo space while loading and switches image errors to an announced fallback', () => {
+    const useStateMock = jest.requireMock('react').useState as jest.Mock
+    const setLoaded = jest.fn()
+    const setFailed = jest.fn()
+    const onFailure = jest.fn()
+    useStateMock
+      .mockImplementationOnce(() => [false, setLoaded])
+      .mockImplementationOnce(() => [false, setFailed])
+
+    const loadingPhoto = PropertyPhoto({
+      src: 'https://example.com/property.jpg',
+      size: 'card',
+      onFailure,
+    })
+    const onError = findFirstProp(loadingPhoto, 'onError', value => typeof value === 'function') as (() => void) | undefined
+
+    expect(collectText(loadingPhoto)).toBe('Property photo')
+    expect(findFirstProp(loadingPhoto, 'aria-busy', value => value === true)).toBe(true)
+    expect(findFirstProp(loadingPhoto, 'alt', value => value === '')).toBe('')
+    onError?.()
+    expect(setFailed).toHaveBeenCalledWith(true)
+    expect(onFailure).toHaveBeenCalledTimes(1)
+
+    useStateMock
+      .mockImplementationOnce(() => [false, jest.fn()])
+      .mockImplementationOnce(() => [true, jest.fn()])
+
+    const failedPhoto = PropertyPhoto({
+      src: 'https://example.com/property.jpg',
+      size: 'card',
+    })
+
+    expect(collectText(failedPhoto)).toBe('Photo unavailable')
+    expect(findFirstProp(failedPhoto, 'role', value => value === 'status')).toBe('status')
+    expect(findFirstProp(failedPhoto, 'alt', value => value === '')).toBeUndefined()
   })
 
   it('keeps deal-detail price claims outside the figure and orders evidence before imagery', () => {
