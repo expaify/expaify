@@ -38,6 +38,12 @@ import {
 } from './hotelFilterRecovery'
 import { ResultCoverageBoundary, type CoverageState, type CoverageFilter } from './ResultCoverageBoundary'
 
+const CITIES = [
+  'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
+  'London', 'Tokyo', 'Bangkok', 'Dubai', 'Las Vegas', 'Orlando', 'San Juan',
+  'Tulum', 'Amsterdam', 'Athens', 'Punta Cana', 'Charlotte', 'Nashville',
+]
+
 const DEFAULT_MIN_DISCOUNT = 20
 
 type SortKey = HotelDealSort
@@ -157,6 +163,7 @@ type DealsResponse = {
     hasMore: boolean
     exactTotal?: number
   }
+  criteriaVersion?: string
 }
 
 type ConfirmedCoverage = {
@@ -182,7 +189,6 @@ function appendUniqueDeals(current: ApiDeal[], incoming: ApiDeal[]) {
     return true
   })
   return { deals: [...current, ...unique], uniqueCount: unique.length }
-  criteriaVersion?: string
 }
 
 function SkeletonCard() {
@@ -480,7 +486,6 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         if (parsedMetadata.filteredTotal === 0 && data.deals.length > 0) throw new Error('invalid result metadata')
         if (parsedMetadata.filteredTotal > 0 && parsedMetadata.filteredTotal <= 3 && data.deals.length === 0) throw new Error('invalid result metadata')
       }
-      const coverage = readConfirmedCoverage(data)
       // A criteria apply is committed atomically by its caller after the
       // server echoes the requested version. Do not promote draft results here.
       if (opts.criteriaRequest) return data
@@ -706,6 +711,15 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
 
   function retryCriteriaUpdate() {
     if (failedCriteriaDraft) void applyCriteriaDraft(failedCriteriaDraft, failedCriteriaVersionRef.current ?? undefined)
+  }
+
+  function resetFilters() {
+    track('feed_clear_all_clicked')
+    const nextCity = defaultCity ?? ''
+    applyFilter(
+      { city: nextCity, minDiscount: DEFAULT_MIN_DISCOUNT, maxPriceCents: null, minStars: 0, dateFrom: '', dateTo: '' },
+      { key: 'reset', kind: 'reset' },
+    )
   }
 
   function removeRecoveryFilter(key: HotelFilterKey, source: 'promoted' | 'review_filters') {
@@ -1602,6 +1616,23 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         </>
       )}
     </>
+  )
+}
+
+function PersonalizedEmpty({ personalization, premium }: { personalization: Personalization; premium: boolean }) {
+  const { watchlist, minDiscountPct: pct, alertPreference } = personalization
+  const headline = watchlist.length >= 2
+    ? `No ${pct}%+ deals in your ${watchlist.length} destinations right now.`
+    : watchlist.length === 1
+      ? `No ${pct}%+ deals in ${watchlist[0]} right now.`
+      : `No ${pct}%+ deals right now.`
+
+  return (
+    <div className="py-20 text-center">
+      <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">{headline}</p>
+      <p className="mt-2 text-[14px] text-[color:var(--ink-soft)]">Your bar is set at {pct}%+ off — drops that big are rare, and we check every destination daily. New deals land here the moment one clears it.</p>
+      <PersonalizedEmptyActions premium={premium} alertPreference={alertPreference} />
+    </div>
   )
 }
 

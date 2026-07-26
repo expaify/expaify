@@ -128,7 +128,6 @@ export default async function CityPage({ params, searchParams }: PageProps) {
       : Promise.resolve([] as DealRow[]),
     getFreeUnlockedDealIds(),
     session?.user?.id ? getSubscription(session.user.id).catch(() => null) : Promise.resolve(null),
-    session?.user?.id ? getSubscription(session.user.id).catch(() => null) : Promise.resolve(null),
   ])
 
   const showWatchPill = !!sub && isPremium(sub.status) && TRACKED_MARKET_NAMES.includes(displayName)
