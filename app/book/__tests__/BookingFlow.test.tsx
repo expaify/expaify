@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import type { BookingFareContext, BookingHotelContext } from '@/lib/booking/config';
+import { withCalculatedAnchorDistance } from '@/lib/hotels/locationEvidence';
 
 type TestElement = ReactElement<Record<string, unknown>>;
 const trackMock = jest.fn();
@@ -193,8 +194,8 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('The Example Hotel');
     expect(text).toContain('Area');
     expect(text).toContain('Midtown');
-    expect(text).toContain('Provider supplied an area, not a street address.');
-    expect(text).toContain('Location precision');
+    expect(text).toContain('Provider supplied an area, not a property address or map pin.');
+    expect(text).toContain('Location evidence');
     expect(text).toContain('Rate source');
     expect(text).toContain('Hotellook');
     expect(text).toContain('$189.00');
@@ -339,8 +340,8 @@ describe('BookingFlow fare context review', () => {
   });
 
   it.each([
-    ['search_area', 'Only the searched destination is available. Confirm location with the provider.'],
-    ['missing', 'No provider location details were returned.'],
+    ['search_area', 'Only the searched destination is available. Confirm the property location with the provider.'],
+    ['missing', 'No property location details were returned. Confirm the location with the provider.'],
   ] as const)('preserves the %s location warning without disabling handoff', (precision, warning) => {
     const contextualHotel: BookingHotelContext = {
       ...hotelContext,
@@ -358,6 +359,58 @@ describe('BookingFlow fare context review', () => {
 
     expect(collectText(tree)).toContain(warning);
     expect(findElements(tree, element => element.type === 'a' && element.props.target === '_blank')).toHaveLength(1);
+  });
+
+  it('preserves verified location comparison and the accessible property pin in booking review', () => {
+    const location = withCalculatedAnchorDistance(
+      {
+        address: '1 Long Property Address',
+        lat: 40.7484,
+        lng: -73.9857,
+        source: 'provider',
+      },
+      {
+        kind: 'airport',
+        id: 'JFK',
+        name: 'John F. Kennedy International (JFK)',
+        lat: 40.6413,
+        lng: -73.7781,
+        source: 'search_linked',
+      },
+    );
+    const contextualHotel: BookingHotelContext = { ...hotelContext, location };
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext: contextualHotel,
+    });
+    const text = collectText(tree);
+    const pin = findElements(tree, element => (
+      element.type === 'a' && element.props['aria-label'] ===
+        'View property pin for The Example Hotel. Opens map in a new tab.'
+    ))[0];
+
+    expect(text).toContain('Address: 1 Long Property Address');
+    expect(text).toContain('13 mi from John F. Kennedy International (JFK)');
+    expect(text).toContain('Straight-line distance; travel distance and time may differ.');
+    expect(text).toContain('Location evidence');
+    expect(text).not.toContain('Location precision');
+    expect(pin.props.href).toMatch(/^https:\/\/www\.google\.com\/maps\/search\//);
+    expect(pin.props.target).toBe('_blank');
+    expect(pin.props.rel).toBe('noopener noreferrer');
+    expect(String(pin.props.className)).toContain('w-full');
+    expect(String(pin.props.className)).toContain('sm:w-auto');
+
+    (pin.props.onClick as (() => void))();
+    expect(trackMock).toHaveBeenCalledWith(
+      'hotel_location_pin_opened',
+      expect.objectContaining({
+        hotelId: 'hotel_123',
+        evidenceState: 'address_pin',
+        mapTarget: 'external_coordinate_map',
+      }),
+    );
   });
 
   it('emits the viewed and guarded back analytics events with hostname-only props', () => {

@@ -1,5 +1,12 @@
-import type { HotelLocation, HotelLocationPrecision } from '@/lib/types'
-import { hasVerifiedHotelLocationComparison } from '@/lib/hotels/locationEvidence'
+import type {
+  HotelLocation,
+  HotelLocationAnchorKind,
+  HotelLocationPrecision,
+} from '@/lib/types'
+import {
+  hasValidCoordinates,
+  hasVerifiedHotelLocationComparison,
+} from '@/lib/hotels/locationEvidence'
 
 export type { HotelLocation, HotelLocationPrecision } from '@/lib/types'
 
@@ -8,89 +15,179 @@ export type HotelLocationSource = {
   location?: HotelLocation
 }
 
+export type HotelLocationEvidenceState =
+  | 'address_pin'
+  | 'address_only'
+  | 'provider_pin'
+  | 'area_only'
+  | 'search_area_only'
+  | 'unavailable'
+
+export type HotelLocationDistanceBucket =
+  | 'lt_1'
+  | '1_5'
+  | '5_10'
+  | '10_25'
+  | 'gte_25'
+  | 'none'
+
+export type HotelLocationAnalytics = {
+  hotelId: string
+  evidenceState: HotelLocationEvidenceState
+  anchorKind: HotelLocationAnchorKind | 'none'
+  anchorId: string
+  hasDistance: boolean
+  distanceBucket: HotelLocationDistanceBucket
+}
+
 export type HotelLocationDisplay = {
   label: string
   value: string
   note: string
   precision: HotelLocationPrecision
+  evidenceState: HotelLocationEvidenceState
   isWarning: boolean
   distanceText?: string
+  distanceBucket: HotelLocationDistanceBucket
+  anchorKind: HotelLocationAnchorKind | 'none'
+  anchorId: string
+  mapUrl?: string
 }
 
 function clean(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function completeDistance(location: HotelLocation | undefined): string | undefined {
+function distanceInMiles(location: HotelLocation | undefined): number | undefined {
   if (!hasVerifiedHotelLocationComparison(location)) return undefined
-
-  const miles = location.distance.unit === 'mi'
+  return location.distance.unit === 'mi'
     ? location.distance.value
     : location.distance.value * 0.621371192237334
+}
+
+function formatDistance(location: HotelLocation | undefined): string | undefined {
+  const miles = distanceInMiles(location)
+  if (miles === undefined) return undefined
+
   const formatted = miles < 0.1
     ? '<0.1'
     : String(miles < 10 ? Math.round(miles * 10) / 10 : Math.round(miles))
 
-  return `${formatted} mi from ${location.anchor.name}`
+  return `${formatted} mi from ${location!.anchor!.name.trim()}`
+}
+
+function getDistanceBucket(location: HotelLocation | undefined): HotelLocationDistanceBucket {
+  const miles = distanceInMiles(location)
+  if (miles === undefined) return 'none'
+  if (miles < 1) return 'lt_1'
+  if (miles < 5) return '1_5'
+  if (miles < 10) return '5_10'
+  if (miles < 25) return '10_25'
+  return 'gte_25'
+}
+
+export function buildPropertyMapUrl(location: HotelLocation | undefined): string | undefined {
+  if (!location || location.source !== 'provider' || !hasValidCoordinates(location)) return undefined
+
+  const url = new URL('https://www.google.com/maps/search/')
+  url.searchParams.set('api', '1')
+  url.searchParams.set('query', `${location.lat},${location.lng}`)
+  return url.protocol === 'https:' && url.hostname === 'www.google.com' ? url.toString() : undefined
 }
 
 export function getHotelLocationDisplay(source: HotelLocationSource): HotelLocationDisplay {
-  const area = clean(source.area)
+  const fallbackArea = clean(source.area)
   const location = source.location
   const providerLocationName = clean(location?.providerLocationName)
   const locationLabel = clean(location?.label)
+  const providerArea = clean(location?.area) || fallbackArea
   const address = clean(location?.address)
-  const distanceText = completeDistance(location)
+  const hasPin = location?.source === 'provider' && hasValidCoordinates(location)
+  const distanceText = formatDistance(location)
+  const distanceBucket = getDistanceBucket(location)
+  const anchorKind: HotelLocationAnchorKind | 'none' = distanceText ? location!.anchor!.kind : 'none'
+  const anchorId = distanceText ? location!.anchor!.id.trim() : 'none'
+  const comparison = { distanceText, distanceBucket, anchorKind, anchorId }
 
-  if (location?.precision === 'exact') {
+  if (address) {
     return {
-      label: 'Exact location',
-      value: address || locationLabel || providerLocationName || area || 'Confirm with provider',
-      note: 'Provider-supplied address. Confirm final address before payment.',
+      label: 'Address',
+      value: address,
+      note: hasPin
+        ? 'Provider-supplied address and map pin. Confirm the entrance and final address before payment.'
+        : 'Provider-supplied address. A property map pin is not available.',
       precision: 'exact',
+      evidenceState: hasPin ? 'address_pin' : 'address_only',
       isWarning: false,
-      distanceText,
+      mapUrl: hasPin ? buildPropertyMapUrl(location) : undefined,
+      ...comparison,
     }
   }
 
-  if (location?.precision === 'coordinates') {
+  if (hasPin) {
     return {
-      label: 'Map position',
-      value: providerLocationName || locationLabel || area || 'Confirm with provider',
-      note: 'Provider-supplied map position. Confirm final address before payment.',
+      label: 'Provider map pin',
+      value: providerLocationName || providerArea || 'Map position provided',
+      note: 'Provider-supplied map pin. Confirm the entrance and final address before payment.',
       precision: 'coordinates',
+      evidenceState: 'provider_pin',
       isWarning: false,
-      distanceText,
+      mapUrl: buildPropertyMapUrl(location),
+      ...comparison,
     }
   }
 
-  if (location?.precision === 'area' || area) {
+  if (location?.source === 'search_fallback' || location?.precision === 'search_area') {
     return {
-      label: 'Area',
-      value: providerLocationName || locationLabel || area || 'Confirm with provider',
-      note: 'Provider supplied an area, not a street address.',
-      precision: 'area',
-      isWarning: false,
-      distanceText,
-    }
-  }
-
-  if (location?.precision === 'search_area') {
-    return {
-      label: 'Search area',
-      value: locationLabel || providerLocationName || 'Confirm with provider',
-      note: 'Only the searched destination is available. Confirm location with the provider.',
+      label: 'Search area only',
+      value: locationLabel || providerLocationName || providerArea || 'Confirm location with provider',
+      note: 'Only the searched destination is available. Confirm the property location with the provider.',
       precision: 'search_area',
+      evidenceState: 'search_area_only',
       isWarning: true,
-      distanceText,
+      distanceBucket: 'none',
+      anchorKind: 'none',
+      anchorId: 'none',
+    }
+  }
+
+  if (providerLocationName || providerArea) {
+    return {
+      label: 'Area only',
+      value: providerLocationName || providerArea,
+      note: 'Provider supplied an area, not a property address or map pin.',
+      precision: 'area',
+      evidenceState: 'area_only',
+      isWarning: false,
+      distanceBucket: 'none',
+      anchorKind: 'none',
+      anchorId: 'none',
     }
   }
 
   return {
     label: 'Location unavailable',
-    value: 'Confirm with provider',
-    note: 'No provider location details were returned.',
+    value: 'Confirm location with provider',
+    note: 'No property location details were returned. Confirm the location with the provider.',
     precision: 'missing',
+    evidenceState: 'unavailable',
     isWarning: true,
+    distanceBucket: 'none',
+    anchorKind: 'none',
+    anchorId: 'none',
+  }
+}
+
+export function getHotelLocationAnalytics(
+  hotelId: string,
+  display: HotelLocationDisplay,
+): HotelLocationAnalytics {
+  return {
+    hotelId,
+    evidenceState: display.evidenceState,
+    anchorKind: display.anchorKind,
+    anchorId: display.anchorId,
+    hasDistance: display.distanceText !== undefined,
+    distanceBucket: display.distanceBucket,
   }
 }

@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import type { HotelAmenityEvidence, HotelOffer } from '@/lib/types'
+import { withCalculatedAnchorDistance } from '@/lib/hotels/locationEvidence'
 
 type TestElement = ReactElement<Record<string, unknown>>
 
@@ -10,6 +11,7 @@ jest.mock('react', () => {
 
   return {
     ...actual,
+    useEffect: jest.fn((effect: () => void) => effect()),
     useState: jest.fn(() => [expanded, jest.fn()]),
   }
 })
@@ -313,6 +315,38 @@ describe('HotelCard access evidence', () => {
     expect(String(list?.props.className)).toContain('sm:grid-cols-2')
     expect(expandedToggle?.props['aria-expanded']).toBe(true)
     expect(collectElements(accessSection(expandedCard)).some(node => node.props.tabIndex !== undefined)).toBe(false)
+  })
+
+  it('keeps the pin in expanded details after review and details in focus order', () => {
+    expanded = true
+    const location = withCalculatedAnchorDistance(
+      { address: '1 Main St', lat: 40.7484, lng: -73.9857, source: 'provider' },
+      {
+        kind: 'airport',
+        id: 'JFK',
+        name: 'John F. Kennedy International (JFK)',
+        lat: 40.6413,
+        lng: -73.7781,
+        source: 'search_linked',
+      },
+    )
+    const card = HotelCard({ hotel: { ...hotel, location } })
+    const elements = collectElements(card)
+    const reviewIndex = elements.findIndex(node => node.type === 'a' && collectText(node).includes('Review hotel'))
+    const detailsIndex = elements.findIndex(node => node.type === 'button' && collectText(node) === 'Hide details')
+    const pinIndex = elements.findIndex(node => node.type === 'a' && collectText(node) === 'View property pin')
+    const pin = elements[pinIndex]
+
+    expect(reviewIndex).toBeGreaterThan(-1)
+    expect(detailsIndex).toBeGreaterThan(reviewIndex)
+    expect(pinIndex).toBeGreaterThan(detailsIndex)
+    expect(pin.props['aria-label']).toBe('View property pin for Access Test Hotel. Opens map in a new tab.')
+    expect(pin.props.target).toBe('_blank')
+    expect(pin.props.rel).toBe('noopener noreferrer')
+    expect(String(pin.props.className)).toContain('w-full')
+    expect(String(pin.props.className)).toContain('sm:w-auto')
+    expect(elements.some(node => node.props.tabIndex !== undefined)).toBe(false)
+    expect(collectText(card)).toContain('Straight-line distance; travel distance and time may differ.')
   })
 
   it('preserves known evidence and announces background refresh', () => {

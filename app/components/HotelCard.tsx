@@ -1,12 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DealScore, HotelAmenityEvidence, HotelOffer, type HotelParkingConflictDimension, type HotelParkingEvidence } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
 import { buildHotelBookingHref } from '@/lib/booking/config'
 import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import DealScorePanel from './DealScorePanel'
-import { getHotelLocationDisplay } from './hotelLocationContext'
+import { getHotelLocationAnalytics, getHotelLocationDisplay } from './hotelLocationContext'
+import {
+  trackHotelLocationDetailsOpened,
+  trackHotelLocationImpression,
+  trackHotelLocationPinOpened,
+} from './hotelLocationAnalytics'
 import { PropertyPhoto } from './ui/PropertyPhoto'
 import { ParkingSection, ParkingSummary } from './HotelParking'
 import {
@@ -705,6 +710,7 @@ export default function HotelCard({
   const [isExpanded, setIsExpanded] = useState(false)
   const [photoFailed, setPhotoFailed] = useState(false)
   const location = getHotelLocationDisplay(hotel)
+  const locationAnalytics = getHotelLocationAnalytics(hotel.id, location)
   const hasBookingUrl = isValidBookingUrl(hotel.deeplink)
   const hasValidPrice = isValidMoney(hotel.pricePerNight)
   const canBook = hasBookingUrl && hasValidPrice
@@ -740,6 +746,23 @@ export default function HotelCard({
   const collapsedAccessAriaLabel = collapsedAccessFact?.id === 'elevator'
     ? `Elevator. ${collapsedAccessFact.sourceLabel.trim()} confirms this property has an elevator.`
     : undefined
+
+  useEffect(() => {
+    trackHotelLocationImpression(locationAnalytics)
+  }, [
+    locationAnalytics.anchorId,
+    locationAnalytics.anchorKind,
+    locationAnalytics.distanceBucket,
+    locationAnalytics.evidenceState,
+    locationAnalytics.hasDistance,
+    locationAnalytics.hotelId,
+  ])
+
+  const handleDetailsToggle = () => {
+    const next = !isExpanded
+    if (next) trackHotelLocationDetailsOpened(locationAnalytics)
+    setIsExpanded(next)
+  }
 
   return (
     <article className="card @container overflow-hidden rounded-[var(--radius-card)]">
@@ -790,6 +813,9 @@ export default function HotelCard({
                 {location.label}
               </p>
               <p className="break-words font-medium text-[color:var(--text-2)]">{location.value}</p>
+              {location.distanceText ? (
+                <p className="break-words font-medium text-[color:var(--text-1)]">{location.distanceText}</p>
+              ) : null}
             </div>
           </div>
 
@@ -848,7 +874,7 @@ export default function HotelCard({
           type="button"
           aria-expanded={isExpanded}
           aria-controls={detailsId}
-          onClick={() => setIsExpanded(value => !value)}
+          onClick={handleDetailsToggle}
           className="mt-3 flex min-h-10 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] text-sm font-bold text-[color:var(--text-1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
         >
           {isExpanded ? 'Hide details' : 'Details'}
@@ -883,12 +909,29 @@ export default function HotelCard({
                 <span className="font-medium text-[color:var(--text-2)]">{location.label}: </span>
                 {location.value}
               </p>
-              <p className={`mt-2 ${location.isWarning ? 'font-medium text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
+              {location.distanceText ? (
+                <>
+                  <p className="mt-2 break-words font-bold text-[color:var(--text-1)]">{location.distanceText}</p>
+                  <p className="mt-1 text-[color:var(--text-3)]">
+                    Straight-line distance; travel distance and time may differ.
+                  </p>
+                </>
+              ) : null}
+              {location.mapUrl ? (
+                <a
+                  href={location.mapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`View property pin for ${hotel.name}. Opens map in a new tab.`}
+                  onClick={() => trackHotelLocationPinOpened(locationAnalytics)}
+                  className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-bold text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] sm:w-auto"
+                >
+                  View property pin
+                </a>
+              ) : null}
+              <p className={`mt-2 break-words ${location.isWarning ? 'font-medium text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
                 {location.note}
               </p>
-              {location.distanceText ? (
-                <p className="mt-2 break-words text-[color:var(--text-2)]">{location.distanceText}</p>
-              ) : null}
             </div>
 
             <ParkingSection

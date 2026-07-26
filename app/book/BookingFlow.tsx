@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEventHandler, type ReactNode, type SyntheticEvent } from 'react'
 import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext, type BookingHotelContext } from '@/lib/booking/config'
-import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
+import {
+  getHotelLocationAnalytics,
+  getHotelLocationDisplay,
+  type HotelLocationAnalytics,
+} from '@/app/components/hotelLocationContext'
+import {
+  trackHotelLocationPinOpened,
+  trackHotelProviderHandoffAfterLocation,
+  trackHotelReviewOpenedAfterLocation,
+} from '@/app/components/hotelLocationAnalytics'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
 import { track } from '@/lib/analytics'
 import { providerDisplayName } from '@/lib/providerFreshness'
@@ -289,8 +298,17 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
   )
 }
 
-function HotelSummary({ hotelContext, partner }: { hotelContext: BookingHotelContext; partner: HotelPartnerIdentity }) {
+function HotelSummary({
+  hotelContext,
+  partner,
+  onPinOpen,
+}: {
+  hotelContext: BookingHotelContext
+  partner: HotelPartnerIdentity
+  onPinOpen?: (analytics: HotelLocationAnalytics) => void
+}) {
   const location = getHotelLocationDisplay(hotelContext)
+  const locationAnalytics = getHotelLocationAnalytics(hotelContext.offerId, location)
   const rateSource = providerDisplayName(hotelContext.provider)
 
   return (
@@ -304,6 +322,28 @@ function HotelSummary({ hotelContext, partner }: { hotelContext: BookingHotelCon
           <p className="mt-2 break-words text-sm font-medium leading-6 text-[color:var(--text-2)]">
             {location.label}: {location.value}
           </p>
+          {location.distanceText ? (
+            <>
+              <p className="mt-2 break-words text-sm font-bold leading-6 text-[color:var(--text-1)]">
+                {location.distanceText}
+              </p>
+              <p className="mt-1 text-xs font-medium leading-5 text-[color:var(--text-3)]">
+                Straight-line distance; travel distance and time may differ.
+              </p>
+            </>
+          ) : null}
+          {location.mapUrl ? (
+            <a
+              href={location.mapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`View property pin for ${hotelContext.name}. Opens map in a new tab.`}
+              onClick={() => onPinOpen?.(locationAnalytics)}
+              className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-bold text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] sm:w-auto"
+            >
+              View property pin
+            </a>
+          ) : null}
           <p className={`mt-1 text-xs leading-5 ${location.isWarning ? 'font-medium text-[color:var(--warning)]' : 'font-medium text-[color:var(--text-3)]'}`}>
             {location.note}
           </p>
@@ -330,7 +370,7 @@ function HotelSummary({ hotelContext, partner }: { hotelContext: BookingHotelCon
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <FareFact label="Hotel" value={hotelContext.name} />
         <FareFact label="Location" value={location.value} />
-        <FareFact label="Location precision" value={location.label} />
+        <FareFact label="Location evidence" value={location.label} />
         <FareFact label="Rate source" value={rateSource} />
         <FareFact label="Price basis" value={getHotelPriceBasisLabel(hotelContext.priceBasis)} />
         <FareFact label="Currency" value={hotelContext.currency} />
@@ -450,6 +490,7 @@ function ReviewShell({
   fareContext,
   hotelContext = null,
   hotelParking,
+  onHotelLocationPinOpen,
   duffelSandbox,
   status,
   onBackClick,
@@ -461,6 +502,7 @@ function ReviewShell({
   fareContext: BookingFareContext | null
   hotelContext?: BookingHotelContext | null
   hotelParking?: ReactNode
+  onHotelLocationPinOpen?: (analytics: HotelLocationAnalytics) => void
   duffelSandbox: boolean
   status?: ReactNode
   onBackClick?: MouseEventHandler<HTMLAnchorElement>
@@ -483,7 +525,11 @@ function ReviewShell({
             <FareSummary fareContext={fareContext} duffelSandbox={duffelSandbox} />
           )}
           {hotelContext && (
-            <HotelSummary hotelContext={hotelContext} partner={getHotelPartnerIdentity(hotelContext.providerUrl)} />
+            <HotelSummary
+              hotelContext={hotelContext}
+              partner={getHotelPartnerIdentity(hotelContext.providerUrl)}
+              onPinOpen={onHotelLocationPinOpen}
+            />
           )}
           {hotelParking}
         </div>
@@ -647,6 +693,7 @@ function HotelHandoffReview({
 }) {
   const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
   const location = getHotelLocationDisplay(hotelContext)
+  const locationAnalytics = getHotelLocationAnalytics(hotelContext.offerId, location)
   const analyticsProps = useMemo(() => ({
     source: hotelContext.provider,
     partnerHost: partner.host,
@@ -672,6 +719,17 @@ function HotelHandoffReview({
   const [invoiceNeeded, setInvoiceNeeded] = useState(false)
   const [documentReadiness, setDocumentReadiness] = useState(hotelContext.documentReadiness)
   const [documentCheckState, setDocumentCheckState] = useState<HotelDocumentCheckState>('idle')
+
+  useEffect(() => {
+    trackHotelReviewOpenedAfterLocation(locationAnalytics)
+  }, [
+    locationAnalytics.anchorId,
+    locationAnalytics.anchorKind,
+    locationAnalytics.distanceBucket,
+    locationAnalytics.evidenceState,
+    locationAnalytics.hasDistance,
+    locationAnalytics.hotelId,
+  ])
 
   const runDocumentReadinessCheck = async (onStarted?: () => void) => {
     if (!beginHotelDocumentReadinessCheck(documentCheckPendingRef, onStarted)) return
@@ -845,6 +903,7 @@ function HotelHandoffReview({
       invoiceNeeded,
       invoiceReadinessStatus: documentReadiness.status,
     })
+    trackHotelProviderHandoffAfterLocation(locationAnalytics)
     if (guidanceViewedRef.current) {
       emitAnalytics('hotel_request_handoff_continued', {
         source: hotelContext.provider,
@@ -903,6 +962,7 @@ function HotelHandoffReview({
       message="Review the hotel and nightly rate expaify found. The booking partner confirms the live rate and final details before you pay."
       fareContext={null}
       hotelContext={hotelContext}
+      onHotelLocationPinOpen={trackHotelLocationPinOpened}
       hotelParking={(
         <ParkingSection
           hotelId={hotelContext.offerId}
@@ -999,6 +1059,9 @@ function HotelHandoffReview({
           </details>
         </section>
         <div className="mt-5 flex flex-col gap-3">
+          <p className="text-sm leading-6 text-[color:var(--text-2)]">
+            Compare the hotel name, location, provider, selected rate, currency, and price basis on the provider page before entering payment details.
+          </p>
           <a
             href={hotelContext.providerUrl}
             target="_blank"
