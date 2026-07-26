@@ -1,14 +1,19 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useCallback, useEffect, useId, useRef } from 'react'
 import { DealCard } from '../components/ui/DealCard'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
-import { SearchBar } from '../components/ui/SearchBar'
-import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
-import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { track } from '@/lib/analytics'
+import { HotelSearchCriteriaEditor, HotelSearchCriteriaSummary } from '../components/HotelSearchCriteria'
+import {
+  formatHotelCriteriaDates,
+  hotelCriteriaFromDraft,
+  hotelCriteriaToDraft,
+  resultCountBucket,
+  type HotelCriteriaDraft,
+  type HotelSearchCriteriaV1,
+} from '@/lib/hotels/searchCriteria'
 import { HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
 import {
   HotelResultStatus,
@@ -310,7 +315,7 @@ type DealFeedProps = {
 }
 
 export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization }: DealFeedProps = {}) {
-  const router = useRouter()
+  const initialCriteriaVersion = useId()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
   const [confirmedCoverage, setConfirmedCoverage] = useState<ConfirmedCoverage | null>(null)
   const [loading, setLoading] = useState(!initialDeals)
@@ -349,6 +354,18 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const [undoSnapshot, setUndoSnapshot] = useState<UndoSnapshot | null>(null)
   const [undoError, setUndoError] = useState(false)
   const [statusAnnouncement, setStatusAnnouncement] = useState('')
+  const [criteria, setCriteria] = useState<HotelSearchCriteriaV1>(() => hotelCriteriaFromDraft(
+    { city: defaultCity ?? '', dateFrom: '', dateTo: '' },
+    initialCriteriaVersion,
+    defaultCity ? 'destination_page' : 'deals_page',
+  ))
+  const [criteriaEditorOpen, setCriteriaEditorOpen] = useState(false)
+  const [criteriaEntryPoint, setCriteriaEntryPoint] = useState<'summary' | 'empty_state'>('summary')
+  const [criteriaUpdating, setCriteriaUpdating] = useState(false)
+  const [criteriaUpdateError, setCriteriaUpdateError] = useState(false)
+  const [failedCriteriaDraft, setFailedCriteriaDraft] = useState<HotelCriteriaDraft | null>(null)
+  const retryCriteriaRef = useRef<HTMLButtonElement>(null)
+  const viewedCriteriaVersionsRef = useRef(new Set<string>())
   const gridRef = useRef<HTMLDivElement>(null)
   const resultStatusRef = useRef<HTMLDivElement>(null)
   const sortControlRef = useRef<HTMLElement>(null)
@@ -495,7 +512,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       }
       if (behavior.focusOnSuccess) window.requestAnimationFrame(() => resultStatusRef.current?.focus())
       if (append && continuationOriginRef.current === 'manual') restoreManualContinuationFocus()
-      return true
+      return data
     } catch (caught) {
       if (sequence !== requestSequenceRef.current || (caught instanceof DOMException && caught.name === 'AbortError')) return false
       if (append) {
@@ -579,19 +596,65 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     } : {})
   }
 
-  function handleSearchResult(result: DealSearchFilters) {
-    applyFilter({
-      city: result.city ?? '',
-      minDiscount: result.min_discount ?? 0,
-      maxPriceCents: result.max_price ? result.max_price * 100 : null,
-      minStars: result.min_stars ?? 0,
-      dateFrom: result.date_from ?? '',
-      dateTo: result.date_to ?? '',
+  async function applyCriteriaDraft(draft: HotelCriteriaDraft) {
+    if (criteriaUpdating) return
+    setCriteriaUpdating(true)
+    setCriteriaUpdateError(false)
+    setCriteriaEditorOpen(false)
+    setStatusAnnouncement('')
+    const response = await fetchDeals({
+      city: draft.city,
+      minDiscount,
+      maxPriceCents,
+      minStars,
+      dateFrom: draft.dateFrom,
+      dateTo: draft.dateTo,
+      sort: appliedSort,
+      offset: 0,
+      append: false,
+    }, { preserveResultsOnFailure: true })
+    setCriteriaUpdating(false)
+    if (!response) {
+      setUndoError(false)
+      setFailedCriteriaDraft(draft)
+      setCriteriaUpdateError(true)
+      window.requestAnimationFrame(() => retryCriteriaRef.current?.focus())
+      return
+    }
+
+    const previousDraft = hotelCriteriaToDraft(criteria)
+    const criteriaVersion = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `criteria-${Date.now()}`
+    const nextCriteria = hotelCriteriaFromDraft(draft, criteriaVersion, 'edit')
+    const changedFields = [
+      previousDraft.city !== draft.city ? 'destination' : null,
+      previousDraft.dateFrom !== draft.dateFrom ? 'date_from' : null,
+      previousDraft.dateTo !== draft.dateTo ? 'date_to' : null,
+    ].filter((field): field is string => field !== null).sort().join(',')
+    setCity(draft.city)
+    setDateFrom(draft.dateFrom)
+    setDateTo(draft.dateTo)
+    setCriteria(nextCriteria)
+    setFailedCriteriaDraft(null)
+    setUndoError(false)
+    setStatusAnnouncement(`Results updated for ${nextCriteria.destination.state === 'selected' ? nextCriteria.destination.city : 'All destinations'}. ${formatHotelCriteriaDates(nextCriteria.dates)}. Guests and rooms not captured.`)
+    track('hotel_criteria_edit_applied', {
+      changed_fields: changedFields,
+      previous_version: criteria.criteriaVersion,
+      criteria_version: criteriaVersion,
+      result_count_bucket: resultCountBucket(response.deals.length),
     })
+    window.requestAnimationFrame(() => resultStatusRef.current?.focus())
   }
 
-  function clearSearch() {
-    applyFilter({ city: defaultCity ?? '', minDiscount: DEFAULT_MIN_DISCOUNT, maxPriceCents: null, minStars: 0, dateFrom: '', dateTo: '' })
+  function openCriteriaEditor(entryPoint: 'summary' | 'empty_state' = 'summary') {
+    setCriteriaEntryPoint(entryPoint)
+    setCriteriaEditorOpen(true)
+  }
+
+  function retryCriteriaUpdate() {
+    if (failedCriteriaDraft) void applyCriteriaDraft(failedCriteriaDraft)
   }
 
   function resetFilters() {
@@ -911,6 +974,19 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   }, [error, isColdSampleFeed, loading])
 
   useEffect(() => {
+    if (loading || error || criteriaUpdating || viewedCriteriaVersionsRef.current.has(criteria.criteriaVersion)) return
+    viewedCriteriaVersionsRef.current.add(criteria.criteriaVersion)
+    track('hotel_results_viewed', {
+      criteria_version: criteria.criteriaVersion,
+      result_state: isColdSampleFeed ? 'sample' : deals.length === 0 ? 'empty' : 'populated',
+      destination_present: criteria.destination.state === 'selected',
+      date_state: criteria.dates.semantic,
+      occupancy_state: criteria.occupancy.state,
+      room_state: criteria.occupancy.state,
+    })
+  }, [criteria, criteriaUpdating, deals.length, error, isColdSampleFeed, loading])
+
+  useEffect(() => {
     if (!sortMenuOpen) return
     function handlePointerDown(event: MouseEvent | TouchEvent) {
       if (sortControlRef.current && !sortControlRef.current.contains(event.target as Node)) {
@@ -996,69 +1072,36 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
 
   return (
     <>
-      {/* Header: title left, premium filter pills right */}
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+      {/* Results heading */}
+      <div>
         <div>
           <h2 className="text-h2 text-[color:var(--ink)]">Today&rsquo;s catches</h2>
           <p className="mt-1 text-[13px] text-[color:var(--ink-soft)]">{subtitle}</p>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {!defaultCity && (
-            <FilterPill
-              label="Destination"
-              activeLabel={city || null}
-              disabled={!premium}
-              onClear={() => applyFilter({ city: '' })}
-              options={[
-                { label: 'All destinations', selected: !city, onSelect: () => applyFilter({ city: '' }) },
-                ...TRACKED_MARKET_NAMES.map(c => ({
-                  label: c,
-                  selected: city === c,
-                  onSelect: () => {
-                    const slug = CITY_DISPLAY_TO_SLUG[c]
-                    if (slug) router.push(`/destinations/${slug}`)
-                    else applyFilter({ city: c })
-                  },
-                })),
-              ]}
-            />
-          )}
-          <FilterPill
-            label="Min discount"
-            activeLabel={minDiscount !== DEFAULT_MIN_DISCOUNT ? (activeDiscount?.label ?? `${minDiscount}%+ off`) : null}
-            disabled={!premium}
-            onClear={() => applyFilter({ minDiscount: DEFAULT_MIN_DISCOUNT })}
-            options={DISCOUNT_OPTIONS.map(o => ({
-              label: o.label,
-              selected: minDiscount === o.value,
-              onSelect: () => applyFilter({ minDiscount: o.value }),
-            }))}
-          />
-          <FilterPill
-            label="Stars"
-            activeLabel={minStars > 0 ? (activeStars?.label ?? `${minStars}★ & up`) : null}
-            disabled={!premium}
-            onClear={() => applyFilter({ minStars: 0 })}
-            options={STARS_OPTIONS.map(o => ({
-              label: o.label,
-              selected: minStars === o.value,
-              onSelect: () => applyFilter({ minStars: o.value }),
-            }))}
-          />
-          <FilterPill
-            label="Max price"
-            activeLabel={maxPriceLabel}
-            disabled={!premium}
-            onClear={() => applyFilter({ maxPriceCents: null })}
-            options={MAX_PRICE_OPTIONS.map(o => ({
-              label: o.label,
-              selected: maxPriceCents === o.value,
-              onSelect: () => applyFilter({ maxPriceCents: o.value }),
-            }))}
-          />
-        </div>
       </div>
+
+      {activeTab === 'hotels' ? (
+        <>
+          <HotelSearchCriteriaSummary
+            criteria={criteria}
+            surface="results"
+            status={criteriaUpdating ? 'updating' : 'ready'}
+            onEdit={() => openCriteriaEditor('summary')}
+            className="mt-6"
+          />
+
+          {criteriaUpdateError ? (
+            <section role="alert" className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--error)] bg-[color:var(--error-soft)] p-4 text-[color:var(--text-1)]">
+              <h3 className="text-[14px] font-bold">We couldn&apos;t update these results.</h3>
+              <p className="mt-1 text-[13px] leading-5">Your previous search is still showing.</p>
+              <div className="mt-3 flex flex-col gap-2 min-[420px]:flex-row">
+                <button ref={retryCriteriaRef} type="button" onClick={retryCriteriaUpdate} className="btn btn-primary min-h-11 px-5">Retry update</button>
+                <button type="button" onClick={() => openCriteriaEditor('summary')} className="btn btn-outline min-h-11 px-5">Edit search</button>
+              </div>
+            </section>
+          ) : null}
+        </>
+      ) : null}
 
       {/* Tab bar: Hotels active, Flights faint */}
       <div className="mb-6 mt-6 flex items-center gap-1">
@@ -1106,9 +1149,28 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         </div>
       ) : (
         <>
-          {/* Natural language search */}
-          <div className="mb-4">
-            <SearchBar premium={premium} onResult={handleSearchResult} onClear={clearSearch} />
+          <div className="mb-5 flex flex-wrap items-center gap-2" aria-label="Result filters">
+            <FilterPill
+              label="Min discount"
+              activeLabel={minDiscount !== DEFAULT_MIN_DISCOUNT ? (activeDiscount?.label ?? `${minDiscount}%+ off`) : null}
+              disabled={!premium || criteriaUpdating}
+              onClear={() => applyFilter({ minDiscount: DEFAULT_MIN_DISCOUNT })}
+              options={DISCOUNT_OPTIONS.map(o => ({ label: o.label, selected: minDiscount === o.value, onSelect: () => applyFilter({ minDiscount: o.value }) }))}
+            />
+            <FilterPill
+              label="Stars"
+              activeLabel={minStars > 0 ? (activeStars?.label ?? `${minStars}★ & up`) : null}
+              disabled={!premium || criteriaUpdating}
+              onClear={() => applyFilter({ minStars: 0 })}
+              options={STARS_OPTIONS.map(o => ({ label: o.label, selected: minStars === o.value, onSelect: () => applyFilter({ minStars: o.value }) }))}
+            />
+            <FilterPill
+              label="Max price"
+              activeLabel={maxPriceLabel}
+              disabled={!premium || criteriaUpdating}
+              onClear={() => applyFilter({ maxPriceCents: null })}
+              options={MAX_PRICE_OPTIONS.map(o => ({ label: o.label, selected: maxPriceCents === o.value, onSelect: () => applyFilter({ maxPriceCents: o.value }) }))}
+            />
           </div>
 
           <section
@@ -1255,7 +1317,20 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               onUndo={undoSnapshot ? undoRecovery : undefined}
             />
 
-          {pendingSort ? (
+          {criteriaUpdating && deals.length > 0 ? (
+            <>
+              <div className={`${gridClass} mb-6`} aria-label="Loading updated hotel deals">
+                {Array.from({ length: Math.min(Math.max(deals.length, 3), 6) }).map((_, i) => <SkeletonCard key={`criteria-${i}`} />)}
+              </div>
+              <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150`}>
+                {deals.map(deal => deal.locked ? (
+                  <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars ?? 4} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
+                ) : (
+                  <DealCard key={deal.id} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars ?? 3, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
+                ))}
+              </div>
+            </>
+          ) : pendingSort ? (
             <div className={gridClass} aria-busy="true" aria-label="Hotel deals">
               {Array.from({ length: Math.min(Math.max(deals.length, 1), 6) }).map((_, i) => <SkeletonCard key={`sort-${i}`} />)}
             </div>
@@ -1286,6 +1361,11 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 onClearAll={resetFilters}
                 statusMessageId="hotel-deals-empty"
               />
+              <div className="mt-3 text-center">
+                <button type="button" onClick={() => openCriteriaEditor('empty_state')} className="btn btn-outline min-h-11 px-6">
+                  Edit search
+                </button>
+              </div>
               {defaultCity && hasActiveFilters ? (
                 <div className="mt-3 text-center">
                   <a
@@ -1394,6 +1474,20 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
             </>
           )}
           </section>
+
+          {criteriaEditorOpen ? (
+            <HotelSearchCriteriaEditor
+              open
+              criteria={criteria}
+              cities={TRACKED_MARKET_NAMES}
+              surface="results"
+              entryPoint={criteriaEntryPoint}
+              submitting={criteriaUpdating}
+              initialDraft={criteriaUpdateError ? failedCriteriaDraft ?? undefined : undefined}
+              onClose={() => setCriteriaEditorOpen(false)}
+              onSubmit={draft => void applyCriteriaDraft(draft)}
+            />
+          ) : null}
         </>
       )}
     </>
