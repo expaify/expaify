@@ -38,6 +38,7 @@ export function HotelDealCriteriaSummary({ context, deal }: {
   const [submitting, setSubmitting] = useState(false)
   const [updateFailed, setUpdateFailed] = useState(false)
   const [failedDraft, setFailedDraft] = useState<HotelCriteriaDraft | null>(null)
+  const [restoreFailedDraft, setRestoreFailedDraft] = useState(false)
   const failedVersionRef = useRef<string | null>(null)
   const retryRef = useRef<HTMLButtonElement>(null)
   const criteria = context.criteria
@@ -47,6 +48,7 @@ export function HotelDealCriteriaSummary({ context, deal }: {
     if (!criteria || submitting) return
     setSubmitting(true)
     setUpdateFailed(false)
+    setRestoreFailedDraft(false)
     const next = hotelCriteriaFromDraft(draft, retryVersion ?? createHotelCriteriaVersion(), 'edit')
     const href = buildHotelResultsUrl(next)
     try {
@@ -83,10 +85,23 @@ export function HotelDealCriteriaSummary({ context, deal }: {
 
   return (
     <>
-      <HotelSearchCriteriaSummary criteria={criteria} surface="detail" onEdit={() => setEditorOpen(true)} />
+      <HotelSearchCriteriaSummary
+        criteria={criteria}
+        surface="detail"
+        onEdit={() => {
+          setRestoreFailedDraft(false)
+          setEditorOpen(true)
+        }}
+      />
       {status === 'mismatch' ? (
         <div className="mt-4">
-          <HotelCriteriaMismatchAlert onEdit={() => setEditorOpen(true)} backHref={context.backHref} />
+          <HotelCriteriaMismatchAlert
+            onEdit={() => {
+              setRestoreFailedDraft(false)
+              setEditorOpen(true)
+            }}
+            backHref={context.backHref}
+          />
         </div>
       ) : null}
       {updateFailed ? (
@@ -95,7 +110,16 @@ export function HotelDealCriteriaSummary({ context, deal }: {
           <p className="mt-1 text-[13px]">This deal and your previous search are still showing.</p>
           <div className="mt-3 flex flex-col gap-2 min-[420px]:flex-row">
             <button ref={retryRef} type="button" onClick={() => failedDraft && void apply(failedDraft, failedVersionRef.current ?? undefined)} className="btn btn-primary min-h-11 px-4">Retry update</button>
-            <button type="button" onClick={() => setEditorOpen(true)} className="btn btn-outline min-h-11 px-4">Edit search</button>
+            <button
+              type="button"
+              onClick={() => {
+                setRestoreFailedDraft(true)
+                setEditorOpen(true)
+              }}
+              className="btn btn-outline min-h-11 px-4"
+            >
+              Edit search
+            </button>
           </div>
         </div>
       ) : null}
@@ -106,8 +130,11 @@ export function HotelDealCriteriaSummary({ context, deal }: {
         surface="detail"
         entryPoint={status === 'mismatch' ? 'mismatch' : 'summary'}
         submitting={submitting}
-        initialDraft={updateFailed ? failedDraft ?? undefined : undefined}
-        onClose={() => setEditorOpen(false)}
+        initialDraft={updateFailed && restoreFailedDraft ? failedDraft ?? undefined : undefined}
+        onClose={() => {
+          setEditorOpen(false)
+          setRestoreFailedDraft(false)
+        }}
         onSubmit={draft => void apply(draft)}
       />
     </>

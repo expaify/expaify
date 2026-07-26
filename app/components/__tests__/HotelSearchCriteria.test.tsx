@@ -232,6 +232,21 @@ describe('HotelSearchCriteriaEditor atomic edit contract', () => {
     expect(hotelCriteriaUpdateVersion('same-failed-version')).toBe('same-failed-version')
   })
 
+  it('discards an explicitly restored failed draft when Cancel is followed by an ordinary reopen', () => {
+    const failedDraft: HotelCriteriaDraft = { city: 'Rome', dateFrom: '2026-10-01', dateTo: '2026-10-04' }
+    renderEditor({ open: false })
+    let tree = renderEditor({ open: true, initialDraft: failedDraft })
+    tree = renderEditor({ open: true, initialDraft: failedDraft })
+    expect(walk(tree).find(element => element.type === 'select')?.props.value).toBe('Rome')
+
+    ;(findByText(tree, 'button', 'Cancel').props.onClick as () => void)()
+    renderEditor({ open: false })
+    renderEditor({ open: true })
+    tree = renderEditor({ open: true })
+
+    expect(walk(tree).find(element => element.type === 'select')?.props.value).toBe('Paris')
+  })
+
   it('restores focus to the opener after Cancel', () => {
     const opener = new FakeHTMLElement()
     fakeDocument.activeElement = opener

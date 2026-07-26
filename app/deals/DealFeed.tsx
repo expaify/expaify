@@ -380,6 +380,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const [criteriaUpdating, setCriteriaUpdating] = useState(false)
   const [criteriaUpdateError, setCriteriaUpdateError] = useState(false)
   const [failedCriteriaDraft, setFailedCriteriaDraft] = useState<HotelCriteriaDraft | null>(null)
+  const [restoreFailedCriteriaDraft, setRestoreFailedCriteriaDraft] = useState(false)
   const failedCriteriaVersionRef = useRef<string | null>(null)
   const retryCriteriaRef = useRef<HTMLButtonElement>(null)
   const viewedCriteriaVersionsRef = useRef(new Set<string>())
@@ -638,6 +639,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     setCriteriaUpdating(true)
     setCriteriaUpdateError(false)
     setCriteriaEditorOpen(false)
+    setRestoreFailedCriteriaDraft(false)
     setStatusAnnouncement('')
     const proposedVersion = hotelCriteriaUpdateVersion(retryVersion)
     const nextCriteria = hotelCriteriaFromDraft(draft, proposedVersion, 'edit')
@@ -698,8 +700,12 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     window.requestAnimationFrame(() => resultStatusRef.current?.focus())
   }
 
-  function openCriteriaEditor(entryPoint: 'summary' | 'empty_state' = 'summary') {
+  function openCriteriaEditor(
+    entryPoint: 'summary' | 'empty_state' = 'summary',
+    restoreFailedDraft = false,
+  ) {
     setCriteriaEntryPoint(entryPoint)
+    setRestoreFailedCriteriaDraft(restoreFailedDraft)
     setCriteriaEditorOpen(true)
   }
 
@@ -1208,7 +1214,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               <p className="mt-1 text-[13px] leading-5">Your previous search is still showing.</p>
               <div className="mt-3 flex flex-col gap-2 min-[420px]:flex-row">
                 <button ref={retryCriteriaRef} type="button" onClick={retryCriteriaUpdate} className="btn btn-primary min-h-11 px-5">Retry update</button>
-                <button type="button" onClick={() => openCriteriaEditor('summary')} className="btn btn-outline min-h-11 px-5">Edit search</button>
+                <button type="button" onClick={() => openCriteriaEditor('summary', true)} className="btn btn-outline min-h-11 px-5">Edit search</button>
               </div>
             </section>
           ) : null}
@@ -1590,8 +1596,11 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               surface="results"
               entryPoint={criteriaEntryPoint}
               submitting={criteriaUpdating}
-              initialDraft={criteriaUpdateError ? failedCriteriaDraft ?? undefined : undefined}
-              onClose={() => setCriteriaEditorOpen(false)}
+              initialDraft={criteriaUpdateError && restoreFailedCriteriaDraft ? failedCriteriaDraft ?? undefined : undefined}
+              onClose={() => {
+                setCriteriaEditorOpen(false)
+                setRestoreFailedCriteriaDraft(false)
+              }}
               onSubmit={draft => void applyCriteriaDraft(draft)}
             />
           ) : null}
