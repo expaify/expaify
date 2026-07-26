@@ -4,6 +4,12 @@ import Link from 'next/link'
 import { CITY_SLUGS } from '@/lib/cities'
 import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DealFeed, type ApiDeal } from '@/app/deals/DealFeed'
+import {
+  createHotelCriteriaVersion,
+  hotelCriteriaFromDraft,
+  resolveHotelResultsView,
+  resolveHotelSearchCriteria,
+} from '@/lib/hotels/searchCriteria'
 import { getPaywallContext, getFreeUnlockedDealIds } from '@/lib/paywall'
 import { query } from '@/lib/db/client'
 import { auth } from '@/auth'
@@ -19,6 +25,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
       hotelName: 'Members-only deal', stars: null, photoUrl: null,
       city: row.city, dealPriceCents: 0, medianPriceCents: 0,
       discountPct: row.discount_pct, checkInWindow: row.check_in_window,
+      checkInDate: row.check_in_date,
       nights: row.nights, snapshotCount: row.snapshot_count,
       otaLinks: {}, headline: null, isMock: row.is_mock,
       firstSeen: row.first_seen, updatedAt: row.updated_at, locked: true,
@@ -29,13 +36,17 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
     stars: row.stars, photoUrl: row.photo_url, city: row.city,
     dealPriceCents: row.deal_price_cents, medianPriceCents: row.median_price_cents,
     discountPct: row.discount_pct, checkInWindow: row.check_in_window,
+    checkInDate: row.check_in_date,
     nights: row.nights, snapshotCount: row.snapshot_count,
     otaLinks: row.ota_links, headline: row.headline, isMock: row.is_mock,
     firstSeen: row.first_seen, updatedAt: row.updated_at, locked: false,
   }
 }
 
-type PageProps = { params: Promise<{ city: string }> }
+type PageProps = {
+  params: Promise<{ city: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { city } = await params
@@ -53,24 +64,68 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-export default async function CityPage({ params }: PageProps) {
+export default async function CityPage({ params, searchParams }: PageProps) {
   const { city } = await params
+  const requestedParams = await searchParams
   const displayName = CITY_SLUGS[city]
   if (!displayName) notFound()
+
+  const criteriaResolution = resolveHotelSearchCriteria(requestedParams)
+  const requestedView = resolveHotelResultsView(requestedParams)
+  const restoredCriteria = criteriaResolution.status === 'valid' ? criteriaResolution.criteria : undefined
+  if (
+    criteriaResolution.status === 'invalid' || !requestedView ||
+    (restoredCriteria && (restoredCriteria.destination.state !== 'selected' || restoredCriteria.destination.city !== displayName))
+  ) {
+    return (
+      <main className="mx-auto max-w-[760px] px-5 py-16">
+        <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-6 text-center">
+          <h1 className="text-h2 text-[color:var(--text-1)]">We couldn&apos;t restore this search.</h1>
+          <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">The search link is incomplete or no longer valid.</p>
+          <Link href={`/destinations/${city}`} className="btn btn-primary mt-5 min-h-11 px-6">Start a new search</Link>
+        </section>
+      </main>
+    )
+  }
+
+  const criteria = restoredCriteria ?? hotelCriteriaFromDraft(
+    { city: displayName, dateFrom: '', dateTo: '' },
+    createHotelCriteriaVersion(),
+    'destination_page',
+  )
+  const pwCtx = await getPaywallContext()
+  const effectiveView = pwCtx.premium ? requestedView : { minDiscount: 20, maxPriceCents: null, minStars: 0, sort: 'newest' as const }
+  let initialError = false
 
   const marketRes = await query<{ id: number }>(
     'SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1',
     [displayName]
-  ).catch(() => ({ rows: [] as { id: number }[] }))
+  ).catch(() => {
+    initialError = true
+    return { rows: [] as { id: number }[] }
+  })
   const marketId = marketRes.rows[0]?.id
+  if (!marketId) initialError = true
 
   const session = await auth().catch(() => null)
 
-  const [rows, pwCtx, unlockedIds, sub] = await Promise.all([
+  const [rows, unlockedIds, sub] = await Promise.all([
     marketId
-      ? getActiveDeals({ marketId, limit: 20, sort: 'newest', includeMock: false }).catch(() => [] as DealRow[])
+      ? getActiveDeals({
+          marketId,
+          limit: 20,
+          sort: effectiveView.sort,
+          includeMock: false,
+          minDiscount: effectiveView.minDiscount,
+          maxPriceCents: effectiveView.maxPriceCents ?? undefined,
+          minStars: effectiveView.minStars || undefined,
+          dateFrom: criteria.dates.semantic === 'checkin_window' ? criteria.dates.dateFrom : undefined,
+          dateTo: criteria.dates.semantic === 'checkin_window' ? criteria.dates.dateTo : undefined,
+        }).catch(() => {
+          initialError = true
+          return [] as DealRow[]
+        })
       : Promise.resolve([] as DealRow[]),
-    getPaywallContext(),
     getFreeUnlockedDealIds(),
     session?.user?.id ? getSubscription(session.user.id).catch(() => null) : Promise.resolve(null),
   ])
@@ -85,7 +140,6 @@ export default async function CityPage({ params }: PageProps) {
   const watchlist = sub?.watchlist ?? []
   const watchTier = !session?.user?.id ? 'anonymous' : premium ? 'premium' : 'free'
   const isWatching = watchlist.includes(displayName)
-
   return (
     <main className="mx-auto max-w-[1200px] px-4 pb-24 pt-8 sm:px-6 lg:px-8">
       <nav aria-label="breadcrumb" className="hidden md:flex items-center mb-6">
@@ -119,22 +173,13 @@ export default async function CityPage({ params }: PageProps) {
           : `Updated daily · ${initialDeals.length} deal${initialDeals.length !== 1 ? 's' : ''} found`}
       </p>
 
-      {initialDeals.length > 0 ? (
-        <DealFeed initialDeals={initialDeals} defaultCity={displayName} premium={pwCtx.premium} />
-      ) : (
-        <div className="mt-4 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] px-8 py-14 text-center">
-          <p className="text-[15px] font-medium text-[color:var(--text-1)] mb-2">
-            No {displayName} deals right now.
-          </p>
-          <p className="text-[13px] text-[color:var(--text-2)] mb-6">
-            We check {displayName} hotel prices every day — deals appear here the moment a price drops.
-          </p>
+      <DealFeed key={criteria.criteriaVersion} initialDeals={initialDeals} defaultCity={displayName} premium={pwCtx.premium} initialCriteria={criteria} initialView={effectiveView} initialError={initialError} />
+      {initialDeals.length === 0 && !initialError ? (
+        <div className="mt-6 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] px-6 py-8 text-center">
+          <p className="mb-4 text-[13px] text-[color:var(--text-2)]">Get notified when a current {displayName} deal appears.</p>
           <WatchCityCta city={displayName} tier={watchTier} watching={isWatching} watchlist={watchlist} />
-          <Link href="/deals" className="mt-5 inline-flex min-h-[44px] items-center justify-center text-[13px] font-medium text-[color:var(--brand)] no-underline hover:underline">
-            See all destinations
-          </Link>
         </div>
-      )}
+      ) : null}
     </main>
   )
 }

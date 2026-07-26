@@ -8,7 +8,6 @@ import { DealChip } from '@/app/components/ui/DealChip'
 import { TrustLine } from '@/app/components/ui/TrustLine'
 import { PriceSparkline } from '@/app/components/ui/PriceSparkline'
 import { PriceBlock } from '@/app/components/ui/PriceBlock'
-import { CompareRow } from '@/app/components/ui/CompareRow'
 import { StarRow } from '@/app/components/ui/StarRow'
 import { ShareButton } from '@/app/components/ui/ShareButton'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
@@ -27,13 +26,19 @@ import type { DealScore } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
 import { HotelContinuityPrototype } from '@/app/components/research/HotelContinuityPrototype'
 import { createContinuityFixture, parseContinuityFixture } from '@/app/components/research/hotelContinuityFixtures'
+import { HotelDealCriteriaHandoff, HotelDealCriteriaSummary } from '@/app/components/HotelDealCriteria'
+import {
+  buildHotelBackUrl,
+  hotelCriteriaContextStatus,
+  resolveHotelResultsView,
+  resolveHotelSearchCriteria,
+  type HotelCriteriaContextStatus,
+  type HotelSearchCriteriaV1,
+} from '@/lib/hotels/searchCriteria'
 
 type PageProps = {
   params: Promise<{ dealId: string }>
-  searchParams: Promise<{
-    continuityFixture?: string | string[]
-    continuityDisclosure?: string | string[]
-  }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
 function fmtDate(iso?: string | null): string {
@@ -75,7 +80,16 @@ function Fact({ label, value, muted }: { label: string; value: string; muted?: b
   )
 }
 
-function LockedDealDetail({ city, checkInWindow }: { city: string; checkInWindow: string }) {
+function LockedDealDetail({ city, checkInDate, checkInWindow, criteriaContext }: {
+  city: string
+  checkInDate: string | null
+  checkInWindow: string
+  criteriaContext: {
+    criteria?: HotelSearchCriteriaV1
+    status: HotelCriteriaContextStatus
+    backHref: string
+  }
+}) {
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
       <nav className="border-b border-[color:var(--line-ivory)] bg-[color:var(--bg)]">
@@ -83,13 +97,23 @@ function LockedDealDetail({ city, checkInWindow }: { city: string; checkInWindow
           <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
             expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
           </a>
-          <a href="/deals" className="text-[14px] font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
-            ← Back to deals
+          <a
+            href={criteriaContext.backHref}
+            aria-label={criteriaContext.criteria ? 'Back to hotel results for this search' : 'Search hotel deals'}
+            className="text-[14px] font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]"
+          >
+            ← {criteriaContext.criteria ? 'Back to results' : 'Search hotel deals'}
           </a>
         </div>
       </nav>
 
       <main className="mx-auto max-w-[560px] px-5 py-14">
+        <div className="mb-6 text-left">
+          <HotelDealCriteriaSummary
+            context={criteriaContext}
+            deal={{ city, checkInDate }}
+          />
+        </div>
         <section className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-8 text-center">
           <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
             <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-3 py-1 font-display text-[12px] font-bold leading-none text-[color:var(--gold-text)]">
@@ -224,13 +248,22 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const deal = await getDealById(dealId).catch(() => null)
   if (!deal) notFound()
 
+  const criteriaResolution = resolveHotelSearchCriteria(researchParams)
+  const resultsView = resolveHotelResultsView(researchParams)
+  const criteria = criteriaResolution.status === 'valid' && resultsView ? criteriaResolution.criteria : undefined
+  const contextStatus: HotelCriteriaContextStatus = criteria
+    ? hotelCriteriaContextStatus(criteria, { city: deal.city, checkInDate: deal.check_in_date })
+    : criteriaResolution.status === 'invalid' || !resultsView ? 'invalid' : 'missing'
+  const backHref = criteria && resultsView ? buildHotelBackUrl(criteria, resultsView, researchParams) : '/deals'
+  const criteriaContext = { criteria, status: contextStatus, backHref }
+
   // Server-side paywall: render the locked state instead of the deal for
   // free/anonymous visitors when this deal is outside the weekly unlock set.
   const pwCtx = await getPaywallContext()
   if (!pwCtx.premium) {
     const unlockedIds = await getFreeUnlockedDealIds()
     if (!unlockedIds.has(deal.id)) {
-      return <LockedDealDetail city={deal.city} checkInWindow={deal.check_in_window} />
+      return <LockedDealDetail city={deal.city} checkInDate={deal.check_in_date} checkInWindow={deal.check_in_window} criteriaContext={criteriaContext} />
     }
   }
 
@@ -252,8 +285,6 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const isStale = !isExpired && updatedAgeHours !== null && updatedAgeHours >= 48
   const foundAgo = timeAgo(deal.first_seen)
 
-  const hasOtaLinks = Object.keys(deal.ota_links ?? {}).length > 0
-
   // check-in / check-out derived
   const checkInDisplay = deal.check_in_date ? fmtShort(deal.check_in_date) : null
   const checkOutDisplay = deal.check_in_date ? addNights(deal.check_in_date, deal.nights ?? 1) : null
@@ -268,7 +299,6 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const disclosureParam = Array.isArray(researchParams.continuityDisclosure)
     ? researchParams.continuityDisclosure[0]
     : researchParams.continuityDisclosure
-
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
 
@@ -278,21 +308,9 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
             expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
           </a>
-          <div className="flex items-center gap-4">
-            <a href="/deals" className="flex min-h-[44px] items-center text-caption font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
-              ← Back to deals
-            </a>
-            <a
-              href="/account#alerts"
-              aria-label="Your account"
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" />
-              </svg>
-            </a>
-          </div>
+          <a href={backHref} aria-label={criteria ? 'Back to hotel results for this search' : 'Search hotel deals'} className="flex min-h-[44px] items-center text-caption font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
+            ← {criteria ? 'Back to results' : 'Search hotel deals'}
+          </a>
         </div>
       </nav>
 
@@ -371,6 +389,26 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           </p>
         </section>
 
+        <div className="mt-8">
+          <HotelDealCriteriaSummary context={criteriaContext} deal={{ city: deal.city, checkInDate: deal.check_in_date }} />
+        </div>
+
+        <section className="card mt-4 p-5">
+          <h3 className="mb-3 text-[13px] font-bold text-[color:var(--ink)]">This deal</h3>
+          <div className="grid grid-cols-2 gap-3 min-[680px]:grid-cols-4">
+            <Fact label="Hotel" value={deal.hotel_name || 'Hotel name unavailable'} muted={!deal.hotel_name} />
+            <Fact label="Area" value={deal.city || 'Area unavailable'} muted={!deal.city} />
+            <Fact label="Check-in" value={checkInDisplay ?? 'Check-in unavailable'} muted={!checkInDisplay} />
+            <Fact label="Check-out" value={checkOutDisplay ?? 'Check-out unavailable'} muted={!checkOutDisplay} />
+            <Fact label="Nights" value={deal.nights != null ? String(deal.nights) : 'Nights unavailable'} muted={deal.nights == null} />
+            <Fact label="Guests" value="Guest count unavailable" muted />
+            <Fact label="Room or rate" value="Room or rate unavailable" muted />
+            <Fact label="Price basis" value="Provider confirms final price and availability." />
+          </div>
+        </section>
+
+        <TrackOnMount event="hotel_detail_viewed" props={{ deal_id: deal.id, context_status: contextStatus, ...(criteria ? { criteria_version: criteria.criteriaVersion } : {}) }} />
+
         {/* Deal score — computed from price history */}
         <Suspense fallback={null}>
           <DealScoreSection deal={deal} />
@@ -389,24 +427,12 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             <p className="mt-1 text-[12px] leading-5 text-[color:var(--ink-soft)]">
               This saved deal may no longer be available at the shown price. Search again to find current options.
             </p>
-            <a href="/deals" className="btn btn-primary mt-3 block w-full text-center">
+            <a href={backHref} className="btn btn-primary mt-3 block w-full text-center">
               Search current deals
             </a>
           </div>
-        ) : hasOtaLinks ? (
-          <div className="my-8">
-            <CompareRow links={deal.ota_links} size="primary" />
-            <p className="mt-2 text-caption leading-5 text-[color:var(--ink-faint)]">
-              Opens the provider site. Prices and availability can change.
-            </p>
-          </div>
         ) : (
-          <div className="my-8 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-4" role="status">
-            <p className="text-[13px] font-bold text-[color:var(--ink)]">Provider link unavailable</p>
-            <p className="mt-1 text-[12px] leading-5 text-[color:var(--ink-soft)]">
-              This saved deal can be reviewed here, but expaify does not have a current external booking link.
-            </p>
-          </div>
+          <HotelDealCriteriaHandoff context={criteriaContext} deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }} links={deal.ota_links ?? {}} />
         )}
 
         <HotelContinuityPrototype
@@ -452,20 +478,6 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           ) : null}
         </section>
 
-        {/* Hotel continuity facts */}
-        <section className="card mt-4 p-5">
-          <h3 className="mb-3 text-[13px] font-bold text-[color:var(--ink)]">Stay details</h3>
-          <div className="grid grid-cols-2 gap-3 min-[680px]:grid-cols-4">
-            <Fact label="Hotel" value={deal.hotel_name} />
-            <Fact label="Area" value={deal.city ?? 'Area unavailable'} muted={!deal.city} />
-            <Fact label="Check-in" value={checkInDisplay ?? 'Check-in unavailable'} muted={!checkInDisplay} />
-            <Fact label="Check-out" value={checkOutDisplay ?? 'Check-out unavailable'} muted={!checkOutDisplay} />
-            <Fact label="Nights" value={deal.nights != null ? String(deal.nights) : 'Nights unavailable'} muted={deal.nights == null} />
-            <Fact label="Guests" value="Guest count unavailable" muted />
-            <Fact label="Room or rate" value="Room or rate unavailable" muted />
-            <Fact label="Price basis" value="Provider confirms final price and availability." />
-          </div>
-        </section>
       </main>
     </div>
   )

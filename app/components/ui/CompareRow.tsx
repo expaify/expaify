@@ -1,14 +1,27 @@
-type CompareLinks = {
+'use client'
+
+import { track } from '@/lib/analytics'
+
+export type CompareLinks = {
   expedia?: string;
   booking?: string;
   kiwi?: string;
   trip?: string;
 };
 
+export type HotelHandoffAnalyticsContext = {
+  dealId: string
+  contextStatus: 'matched' | 'mismatch' | 'missing' | 'invalid'
+  criteriaVersion?: string
+  destinationPresent?: boolean
+  dateState?: 'checkin_window' | 'missing'
+}
+
 type CompareRowProps = {
   links: CompareLinks;
   /** compact: inside cards (default). primary: full-width action zone on the deal detail page. */
   size?: "compact" | "primary";
+  handoffContext?: HotelHandoffAnalyticsContext
 };
 
 const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
@@ -18,7 +31,63 @@ const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
   { key: "trip", label: "Trip.com" },
 ];
 
-export function CompareRow({ links, size = "compact" }: CompareRowProps) {
+export function isAttributedHotelProviderUrl(provider: keyof CompareLinks, href: string): boolean {
+  try {
+    const url = new URL(href)
+    if (url.protocol !== 'https:') return false
+    const attributionParam: Record<keyof CompareLinks, string> = {
+      expedia: 'affcid',
+      booking: 'aid',
+      kiwi: 'affilid',
+      trip: 'marker',
+    }
+    const providerHost: Record<keyof CompareLinks, string> = {
+      expedia: 'expedia.com',
+      booking: 'booking.com',
+      kiwi: 'kiwi.com',
+      trip: 'tp.media',
+    }
+    const expectedHost = providerHost[provider]
+    if (url.hostname !== expectedHost && !url.hostname.endsWith(`.${expectedHost}`)) return false
+    if (!url.searchParams.get(attributionParam[provider])) return false
+
+    const occupancyKeys = new Set(['adults', 'adult', 'rooms', 'room_qty', 'children', 'childages', 'child_ages'])
+    const containsOccupancy = (candidate: URL): boolean => {
+      if ([...candidate.searchParams.keys()].some(key => occupancyKeys.has(key.toLocaleLowerCase('en-US')))) return true
+      const nested = candidate.searchParams.get('u')
+      if (!nested) return false
+      try {
+        return containsOccupancy(new URL(nested))
+      } catch {
+        return true
+      }
+    }
+    if (containsOccupancy(url)) return false
+    if (provider === 'trip') {
+      const nested = url.searchParams.get('u')
+      if (!nested) return false
+      try {
+        const nestedUrl = new URL(nested)
+        if (nestedUrl.protocol !== 'https:' || (nestedUrl.hostname !== 'trip.com' && !nestedUrl.hostname.endsWith('.trip.com'))) return false
+      } catch {
+        return false
+      }
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function eligibleHotelProviderLinks(links: CompareLinks): CompareLinks {
+  return Object.fromEntries(
+    Object.entries(links).filter(([provider, href]) => (
+      typeof href === 'string' && isAttributedHotelProviderUrl(provider as keyof CompareLinks, href)
+    )),
+  ) as CompareLinks
+}
+
+export function CompareRow({ links, size = "compact", handoffContext }: CompareRowProps) {
   const primary = size === "primary";
 
   const base = primary
@@ -31,13 +100,27 @@ export function CompareRow({ links, size = "compact" }: CompareRowProps) {
       <div className={primary ? "grid grid-cols-2 gap-2 min-[480px]:grid-cols-4" : "grid grid-cols-2 gap-2 min-[420px]:grid-cols-4"}>
         {PROVIDERS.map(({ key, label }) => {
           const href = links[key];
-          if (href) {
+          if (href && isAttributedHotelProviderUrl(key, href) && handoffContext?.contextStatus !== 'mismatch') {
             return (
               <a
                 key={key}
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
+                aria-label={`Check this deal on ${label}`}
+                onClick={() => {
+                  if (!handoffContext) return
+                  track('hotel_provider_handoff_clicked', {
+                    provider: key,
+                    deal_id: handoffContext.dealId,
+                    context_status: handoffContext.contextStatus,
+                    ...(handoffContext.criteriaVersion ? { criteria_version: handoffContext.criteriaVersion } : {}),
+                    destination_present: handoffContext.destinationPresent ?? false,
+                    date_state: handoffContext.dateState ?? 'missing',
+                    occupancy_state: 'not_captured',
+                    room_state: 'not_captured',
+                  })
+                }}
                 className={`${base} hover:border-[color:var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_4%,transparent)]`}
               >
                 {label}
