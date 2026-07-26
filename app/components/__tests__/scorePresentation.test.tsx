@@ -8,6 +8,8 @@ jest.mock('react', () => {
 
   return {
     ...actual,
+    useEffect: jest.fn(),
+    useRef: jest.fn(() => ({ current: null })),
     useState: jest.fn((initialValue: unknown) => [initialValue, jest.fn()]),
   }
 })
@@ -119,6 +121,7 @@ const hotel: HotelOffer = {
     status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
     billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
   },
+  fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
 }
 
 describe('Deal score presentation', () => {

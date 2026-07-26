@@ -10,6 +10,8 @@ jest.mock('react', () => {
 
   return {
     ...actual,
+    useEffect: jest.fn(),
+    useRef: jest.fn(() => ({ current: null })),
     useState: jest.fn(() => [expanded, jest.fn()]),
   }
 })
@@ -28,6 +30,7 @@ const hotel: HotelOffer = {
     status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
     billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
   },
+  fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
 }
 
 function evidence(overrides: Partial<HotelAmenityEvidence> = {}): HotelAmenityEvidence {
@@ -82,6 +85,69 @@ function accessSection(root: unknown): TestElement {
 describe('HotelCard access evidence', () => {
   beforeEach(() => {
     expanded = false
+  })
+
+  it('shows the Hotellook not-returned funds policy before review and between price and handoff detail', () => {
+    const collapsedCard = HotelCard({ hotel })
+    const collapsedText = collectText(collapsedCard)
+    const reviewLink = collectElements(collapsedCard).find(node => node.type === 'a' && collectText(node).includes('Review hotel'))
+
+    expect(collapsedText).toContain('Deposit and hold policy not provided. Additional available funds may still be required.')
+    expect(collapsedText.indexOf('Deposit and hold policy not provided')).toBeLessThan(collapsedText.indexOf('Review hotel'))
+    expect(reviewLink?.props['aria-label']).toContain('Deposit and hold policy was not provided.')
+    expect(reviewLink?.props.className).toContain('min-h-11')
+    const detailsButton = collectElements(collapsedCard).find(node => node.type === 'button' && collectText(node) === 'Details')
+    expect(detailsButton?.props.className).toContain('min-h-11')
+
+    expanded = true
+    const expandedText = collectText(HotelCard({ hotel }))
+    expect(expandedText).toContain('Additional funds at the property')
+    expect(expandedText).toContain('Source checked: Hotellook · Scope not provided')
+    expect(expandedText.indexOf('Price scope')).toBeLessThan(expandedText.indexOf('Additional funds at the property'))
+    expect(expandedText.indexOf('Additional funds at the property')).toBeLessThan(expandedText.indexOf('Provider handoff'))
+  })
+
+  it('hands off the same structured policy supplied by the display override', () => {
+    const fundsPolicy = {
+      state: 'explicit_none' as const,
+      obligations: [],
+      sourceLabel: 'Property policy',
+      scope: 'selected_stay' as const,
+    }
+    const card = HotelCard({ hotel, fundsPolicy })
+    const reviewLink = collectElements(card).find(node => node.type === 'a' && collectText(node).includes('Review hotel'))
+    const href = String(reviewLink?.props.href ?? '')
+    const parsedPolicy = JSON.parse(new URL(href, 'https://expaify.test').searchParams.get('fundsPolicy') ?? 'null')
+
+    expect(parsedPolicy).toEqual(fundsPolicy)
+    expect(reviewLink?.props['aria-label']).toContain('Provider reports no deposit or incidental hold for this selected stay.')
+  })
+
+  it('uses an actionable button instead of exposing an oversized fallback URL', () => {
+    const wording = 'Documented provider condition '.repeat(30).trim()
+    const fundsPolicy = {
+      state: 'complete' as const,
+      sourceLabel: 'Property policy',
+      scope: 'selected_stay' as const,
+      obligations: Array.from({ length: 10 }, (_, index) => ({
+        type: 'authorization_hold' as const,
+        amount: { kind: 'exact' as const, money: { priceCents: 20_000 + index, currency: 'USD' } },
+        basis: 'per_stay' as const,
+        applicationWording: wording,
+        paymentMethodWording: wording,
+        returnOrRelease: { action: 'release' as const, providerWording: wording },
+        sourceLabel: 'Property policy',
+        scope: 'selected_stay' as const,
+      })),
+    }
+    const card = HotelCard({ hotel, fundsPolicy })
+    const reviewButton = collectElements(card).find(node => (
+      node.type === 'button' && String(node.props['aria-label'] ?? '').startsWith('Review Access Test Hotel.')
+    ))
+
+    expect(reviewButton).toBeDefined()
+    expect(reviewButton?.props.href).toBeUndefined()
+    expect(reviewButton?.props.className).toContain('min-h-11')
   })
 
   it('shows only the highest-priority guaranteed property chip when collapsed', () => {

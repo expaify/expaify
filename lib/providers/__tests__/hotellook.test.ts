@@ -174,8 +174,46 @@ describe('HotellookProvider.searchHotels', () => {
         },
         amenityEvidence: notReturnedEvidence,
         accessEvidenceState: 'ready',
+        fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
       },
     ]);
+  });
+
+  it('ignores unsupported policy-shaped fields in live Hotellook payloads', async () => {
+    const provider = new HotellookProvider();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue([{
+        hotelId: 24680,
+        hotelName: 'Unverified Policy Hotel',
+        priceFrom: 175,
+        fundsPolicy: {
+          state: 'explicit_none',
+          obligations: [],
+          sourceLabel: 'Undocumented payload field',
+          scope: 'selected_stay',
+        },
+      }]),
+    });
+
+    const result = await provider.searchHotels('LAX', {
+      checkin: '2026-09-22',
+      checkout: '2026-09-29',
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        offers: [{
+          fundsPolicy: {
+            state: 'not_returned',
+            obligations: [],
+            sourceLabel: 'Hotellook',
+            scope: 'not_returned',
+          },
+        }],
+      },
+    });
   });
 
   it('preserves provider coordinates without promoting them to a street address', async () => {
@@ -446,6 +484,30 @@ describe('HotellookProvider.searchHotels', () => {
           },
           amenityEvidence: notReturnedEvidence,
           accessEvidenceState: 'ready',
+          fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
+        }],
+      },
+    });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('normalizes legacy or unsupported cached policy claims to Hotellook not-returned', async () => {
+    cacheGetMock.mockResolvedValueOnce([{
+      id: 'cached-policy', name: 'Cached Policy Hotel', area: 'Rome', stars: 4,
+      pricePerNight: { priceCents: 15000, currency: 'USD' },
+      deeplink: 'https://example.com/cached', source: 'hotellook',
+      fundsPolicy: {
+        state: 'complete', sourceLabel: 'Unverified cache field', scope: 'selected_stay',
+        obligations: [{ type: 'authorization_hold', amount: { kind: 'exact', money: { priceCents: 50000, currency: 'USD' } } }],
+      },
+    }]);
+
+    const result = await new HotellookProvider().searchHotels('ROM', { checkin: '2026-09-22', checkout: '2026-09-29' });
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        offers: [{
+          fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
         }],
       },
     });
