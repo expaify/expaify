@@ -129,7 +129,9 @@ export default async function CityPage({ params }: PageProps) {
           <p className="text-[13px] text-[color:var(--text-2)] mb-6">
             We check {displayName} hotel prices every day — deals appear here the moment a price drops.
           </p>
-          <WatchCityCta city={displayName} tier={watchTier} watching={isWatching} watchlist={watchlist} />
+          {!premium ? (
+            <WatchCityCta city={displayName} tier={watchTier} watching={isWatching} watchlist={watchlist} />
+          ) : null}
           <Link href="/deals" className="mt-5 inline-flex min-h-[44px] items-center justify-center text-[13px] font-medium text-[color:var(--brand)] no-underline hover:underline">
             See all destinations
           </Link>
