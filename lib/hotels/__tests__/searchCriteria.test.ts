@@ -63,6 +63,42 @@ describe('HotelSearchCriteriaV1', () => {
     expect(resolveHotelSearchCriteria(new URLSearchParams(query))).toEqual({ status: 'invalid' })
   })
 
+  it.each([
+    'children=2',
+    'child_ages=4%2C7',
+    'child_ages%5B%5D=4',
+    'room_qty=1',
+    'roomQty=1',
+    'guests=2',
+    'GROUP_ADULTS=2',
+  ])('rejects occupancy alias in URL criteria: %s', occupancyQuery => {
+    const query = `criteriaSchema=1&criteriaVersion=785d80de-8954-46c7-90f7-a4a04f719e5f&city=Paris&${occupancyQuery}`
+    expect(resolveHotelSearchCriteria(new URLSearchParams(query))).toEqual({ status: 'invalid' })
+  })
+
+  it.each(['children', 'child_ages', 'child_ages[]', 'roomQty', 'guests'])(
+    'rejects occupancy alias %s from Next.js server search params',
+    key => {
+      expect(resolveHotelSearchCriteria({
+        criteriaSchema: '1',
+        criteriaVersion: '785d80de-8954-46c7-90f7-a4a04f719e5f',
+        city: 'Paris',
+        [key]: '2',
+      })).toEqual({ status: 'invalid' })
+    },
+  )
+
+  it.each(['criteriaSource', 'city', 'date_from', 'date_to'])(
+    'rejects duplicate %s values from Next.js server search params',
+    key => {
+      expect(resolveHotelSearchCriteria({
+        criteriaSchema: '1',
+        criteriaVersion: '785d80de-8954-46c7-90f7-a4a04f719e5f',
+        [key]: ['Paris', 'Rome'],
+      })).toEqual({ status: 'invalid' })
+    },
+  )
+
   it('classifies destination and check-in matches without comparing checkout', () => {
     const criteria = hotelCriteriaFromDraft(
       { city: 'Paris', dateFrom: '2026-09-10', dateTo: '2026-09-13' },

@@ -1,6 +1,7 @@
 'use client'
 
 import { track } from '@/lib/analytics'
+import { isHotelOccupancyParamKey, normalizeHotelSearchParamKey } from '@/lib/hotels/occupancyParams'
 
 export type CompareLinks = {
   expedia?: string;
@@ -31,6 +32,38 @@ const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
   { key: "trip", label: "Trip.com" },
 ];
 
+const NESTED_URL_PARAM_KEYS = new Set([
+  'u',
+  'url',
+  'redirect',
+  'redirecturl',
+  'target',
+  'targeturl',
+  'deeplink',
+  'landingurl',
+])
+
+function normalizedSearchParamValues(url: URL, normalizedKey: string): string[] {
+  return [...url.searchParams.entries()]
+    .filter(([key]) => normalizeHotelSearchParamKey(key) === normalizedKey)
+    .map(([, value]) => value)
+}
+
+function containsOccupancyParam(candidate: URL, depth = 0): boolean {
+  if ([...candidate.searchParams.keys()].some(isHotelOccupancyParamKey)) return true
+  if (depth >= 4) return true
+
+  for (const [key, value] of candidate.searchParams.entries()) {
+    if (!NESTED_URL_PARAM_KEYS.has(normalizeHotelSearchParamKey(key))) continue
+    try {
+      if (containsOccupancyParam(new URL(value), depth + 1)) return true
+    } catch {
+      return true
+    }
+  }
+  return false
+}
+
 export function isAttributedHotelProviderUrl(provider: keyof CompareLinks, href: string): boolean {
   try {
     const url = new URL(href)
@@ -51,23 +84,12 @@ export function isAttributedHotelProviderUrl(provider: keyof CompareLinks, href:
     if (url.hostname !== expectedHost && !url.hostname.endsWith(`.${expectedHost}`)) return false
     if (!url.searchParams.get(attributionParam[provider])) return false
 
-    const occupancyKeys = new Set(['adults', 'adult', 'rooms', 'room_qty', 'children', 'childages', 'child_ages'])
-    const containsOccupancy = (candidate: URL): boolean => {
-      if ([...candidate.searchParams.keys()].some(key => occupancyKeys.has(key.toLocaleLowerCase('en-US')))) return true
-      const nested = candidate.searchParams.get('u')
-      if (!nested) return false
-      try {
-        return containsOccupancy(new URL(nested))
-      } catch {
-        return true
-      }
-    }
-    if (containsOccupancy(url)) return false
+    if (containsOccupancyParam(url)) return false
     if (provider === 'trip') {
-      const nested = url.searchParams.get('u')
-      if (!nested) return false
+      const nestedValues = normalizedSearchParamValues(url, 'u')
+      if (nestedValues.length !== 1) return false
       try {
-        const nestedUrl = new URL(nested)
+        const nestedUrl = new URL(nestedValues[0])
         if (nestedUrl.protocol !== 'https:' || (nestedUrl.hostname !== 'trip.com' && !nestedUrl.hostname.endsWith('.trip.com'))) return false
       } catch {
         return false

@@ -102,11 +102,18 @@ export function HotelSearchCriteriaEditor({ open, criteria, cities, surface, ent
   const [draft, setDraft] = useState(() => initialDraft ?? hotelCriteriaToDraft(criteria))
   const [attempted, setAttempted] = useState(false)
   const startedRef = useRef(false)
+  const previousOpenRef = useRef(false)
 
   useEffect(() => {
+    const opening = open && !previousOpenRef.current
+    previousOpenRef.current = open
     if (!open) {
       startedRef.current = false
       return
+    }
+    if (opening) {
+      setDraft(initialDraft ?? hotelCriteriaToDraft(criteria))
+      setAttempted(false)
     }
     if (!startedRef.current) {
       startedRef.current = true
@@ -118,7 +125,7 @@ export function HotelSearchCriteriaEditor({ open, criteria, cities, surface, ent
       })
     }
     window.requestAnimationFrame(() => destinationRef.current?.focus())
-  }, [criteria.criteriaVersion, entryPoint, open, surface])
+  }, [criteria, entryPoint, initialDraft, open, surface])
 
   const validation = useMemo(() => {
     const destinationInvalid = draft.city !== '' && !cities.includes(draft.city)
@@ -163,6 +170,8 @@ export function HotelSearchCriteriaEditor({ open, criteria, cities, surface, ent
       entry_point: entryPoint,
       draft_changed: changed,
     })
+    setDraft(hotelCriteriaToDraft(criteria))
+    setAttempted(false)
     onClose()
     window.requestAnimationFrame(() => returnFocusRef.current?.focus())
   }

@@ -19,6 +19,7 @@ import {
   formatHotelCriteriaDates,
   hotelCriteriaFromDraft,
   hotelCriteriaToDraft,
+  hotelCriteriaUpdateVersion,
   resultCountBucket,
   type HotelCriteriaDraft,
   type HotelResultsViewState,
@@ -638,7 +639,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     setCriteriaUpdateError(false)
     setCriteriaEditorOpen(false)
     setStatusAnnouncement('')
-    const proposedVersion = retryVersion ?? createHotelCriteriaVersion()
+    const proposedVersion = hotelCriteriaUpdateVersion(retryVersion)
     const nextCriteria = hotelCriteriaFromDraft(draft, proposedVersion, 'edit')
     const response = await fetchDeals({
       city: draft.city,
@@ -677,12 +678,11 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       dateFrom: draft.dateFrom,
       dateTo: draft.dateTo,
     }, defaultCity))
-    setHasMore(response.deals.length === HOTEL_DEAL_PAGE_SIZE)
+    setConfirmedCoverage(readConfirmedCoverage(response))
     setPremium(Boolean(response.premium))
     setCity(draft.city)
     setDateFrom(draft.dateFrom)
     setDateTo(draft.dateTo)
-    setOffset(0)
     setCriteria(nextCriteria)
     setFailedCriteriaDraft(null)
     failedCriteriaVersionRef.current = null
@@ -701,6 +701,14 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   function openCriteriaEditor(entryPoint: 'summary' | 'empty_state' = 'summary') {
     setCriteriaEntryPoint(entryPoint)
     setCriteriaEditorOpen(true)
+  }
+
+  function resetFilters() {
+    track('feed_clear_all_clicked')
+    applyFilter(
+      { city: defaultCity ?? '', minDiscount: DEFAULT_MIN_DISCOUNT, maxPriceCents: null, minStars: 0, dateFrom: '', dateTo: '' },
+      { key: 'reset', kind: 'reset' },
+    )
   }
 
   function retryCriteriaUpdate() {
@@ -1578,7 +1586,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
             <HotelSearchCriteriaEditor
               open
               criteria={criteria}
-              cities={CITIES}
+              cities={TRACKED_MARKET_NAMES}
               surface="results"
               entryPoint={criteriaEntryPoint}
               submitting={criteriaUpdating}

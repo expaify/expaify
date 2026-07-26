@@ -1,5 +1,6 @@
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
+import { isHotelOccupancyParamKey } from './occupancyParams'
 
 export type HotelSearchCriteriaV1 = {
   schemaVersion: 1
@@ -50,6 +51,10 @@ function readSearchParam(source: SearchParamSource, key: string): string | null 
 function hasSearchParam(source: SearchParamSource, key: string): boolean {
   if (source instanceof URLSearchParams) return source.has(key)
   return source[key] !== undefined
+}
+
+function searchParamKeys(source: SearchParamSource): string[] {
+  return source instanceof URLSearchParams ? [...source.keys()] : Object.keys(source)
 }
 
 function canonicalCity(value: string): string | null {
@@ -137,13 +142,14 @@ export function resolveHotelSearchCriteria(source: SearchParamSource): HotelCrit
   const hasReference = hasSearchParam(source, 'criteriaVersion') || hasSearchParam(source, 'criteriaSchema')
   if (!hasReference) return { status: 'missing' }
 
-  if (source instanceof URLSearchParams) {
-    const singletonKeys = [
-      'criteriaSchema', 'criteriaVersion', 'criteriaSource', 'city',
-      'date_from', 'date_to', 'occupancy', 'adults', 'rooms', 'market_id', 'criteriaReturn',
-    ]
-    if (singletonKeys.some(key => source.getAll(key).length > 1)) return { status: 'invalid' }
-  }
+  const singletonKeys = [
+    'criteriaSchema', 'criteriaVersion', 'criteriaSource', 'city',
+    'date_from', 'date_to', 'occupancy', 'adults', 'rooms', 'market_id', 'criteriaReturn',
+  ]
+  const hasAmbiguousValue = source instanceof URLSearchParams
+    ? singletonKeys.some(key => source.getAll(key).length > 1)
+    : singletonKeys.some(key => Array.isArray(source[key]))
+  if (hasAmbiguousValue) return { status: 'invalid' }
 
   const schema = readSearchParam(source, 'criteriaSchema')
   const criteriaVersion = readSearchParam(source, 'criteriaVersion')
@@ -151,6 +157,7 @@ export function resolveHotelSearchCriteria(source: SearchParamSource): HotelCrit
   const dateFrom = readSearchParam(source, 'date_from') ?? ''
   const dateTo = readSearchParam(source, 'date_to') ?? ''
   const sourceValue = readSearchParam(source, 'criteriaSource') ?? 'restored'
+  const hasOccupancyParam = searchParamKeys(source).some(isHotelOccupancyParamKey)
 
   if (
     schema !== '1' ||
@@ -158,9 +165,7 @@ export function resolveHotelSearchCriteria(source: SearchParamSource): HotelCrit
     !CRITERIA_SOURCES.includes(sourceValue as HotelSearchCriteriaV1['source']) ||
     !isValidHotelDate(dateFrom) || !isValidHotelDate(dateTo) ||
     Boolean(dateFrom && dateTo && dateTo < dateFrom) ||
-    hasSearchParam(source, 'occupancy') ||
-    hasSearchParam(source, 'adults') ||
-    hasSearchParam(source, 'rooms') ||
+    hasOccupancyParam ||
     hasSearchParam(source, 'market_id') ||
     (hasSearchParam(source, 'criteriaReturn') && readSearchParam(source, 'criteriaReturn') !== 'destination') ||
     (cityValue !== null && canonicalCity(cityValue) === null)
@@ -279,6 +284,10 @@ export function hotelCriteriaContextStatus(
 
 export function createHotelCriteriaVersion(): string {
   return crypto.randomUUID()
+}
+
+export function hotelCriteriaUpdateVersion(retryVersion?: string): string {
+  return retryVersion ?? createHotelCriteriaVersion()
 }
 
 export function resultCountBucket(count: number): '0' | '1_5' | '6_20' | '21_plus' {
