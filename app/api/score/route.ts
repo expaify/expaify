@@ -82,6 +82,7 @@ export async function GET(request: Request) {
     deeplink: '',
     source: 'score-api',
     documentReadiness: notProvidedHotelDocumentReadiness('Hotel provider'),
+    fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotel provider', scope: 'not_returned' },
   };
 
   const dealScore = scoreDeal(hotel, history);

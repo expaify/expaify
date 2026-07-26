@@ -102,6 +102,7 @@ const hotelContext: BookingHotelContext = {
     status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
     billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
   },
+  fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
 };
 
 describe('BookingFlow fare context review', () => {
@@ -232,10 +233,10 @@ describe('BookingFlow fare context review', () => {
     expect(text).not.toContain('What you’ll need');
     expect(text).not.toContain('Confirm booking');
 
-    const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
+    const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank' && String(element.props.className).includes('btn-primary'))[0];
     expect(outbound.props.href).toBe(hotelContext.providerUrl);
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
-    expect(outbound.props['aria-label']).toBe("Continue to booking partner for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ. Hotellook did not provide complete rate restrictions. Check the partner's terms before paying. Parking space not confirmed.");
+    expect(outbound.props['aria-label']).toBe("Continue to booking partner for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ. Hotellook did not provide complete rate restrictions. Check the partner's terms before paying. Parking space not confirmed. Deposit and hold policy was not provided.");
   });
 
   it('names a resolved destination without changing its affiliate URL', () => {
@@ -247,7 +248,7 @@ describe('BookingFlow fare context review', () => {
       hotelContext: { ...hotelContext, providerUrl },
     });
     const text = collectText(tree);
-    const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
+    const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank' && String(element.props.className).includes('btn-primary'))[0];
 
     expect(text).toContain('You’ll book with Booking.com.');
     expect(text).toContain('Continue to Booking.com');
@@ -357,7 +358,7 @@ describe('BookingFlow fare context review', () => {
     });
 
     expect(collectText(tree)).toContain(warning);
-    expect(findElements(tree, element => element.type === 'a' && element.props.target === '_blank')).toHaveLength(1);
+    expect(findElements(tree, element => element.type === 'a' && element.props.target === '_blank' && String(element.props.className).includes('btn-primary'))).toHaveLength(1);
   });
 
   it('emits the viewed and guarded back analytics events with hostname-only props', () => {
@@ -377,12 +378,16 @@ describe('BookingFlow fare context review', () => {
       priceCents: 18900,
       priceBasis: 'per_night_before_taxes_fees',
       locationPrecision: 'area',
+      policyState: 'not_returned',
+      obligationTypes: 'unknown',
     });
 
     (backLink?.props.onClick as (() => void))();
     expect(trackMock).toHaveBeenCalledWith('hotel_handoff_back_clicked', {
       source: 'hotellook',
       partnerHost: 'tp.media',
+      policyState: 'not_returned',
+      obligationTypes: 'unknown',
     });
   });
 
@@ -410,7 +415,7 @@ describe('BookingFlow fare context review', () => {
         hotelContext: { ...hotelContext, providerUrl: 'https://www.booking.com/hotel/x?aid=123' },
       });
       const anchors = findElements(tree, element => element.type === 'a');
-      const outbound = anchors.find(element => element.props.target === '_blank');
+      const outbound = anchors.find(element => element.props.target === '_blank' && String(element.props.className).includes('btn-primary'));
       const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function');
 
       (outbound?.props.onClick as (() => void))();
@@ -430,6 +435,8 @@ describe('BookingFlow fare context review', () => {
         source: 'hotellook',
         partnerHost: 'www.booking.com',
         awayDurationBucket: '5–30s',
+        policyState: 'not_returned',
+        obligationTypes: 'unknown',
       });
       expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_handoff_returned')).toHaveLength(1);
 
@@ -540,7 +547,7 @@ describe('BookingFlow fare context review', () => {
         hotelContext: { ...hotelContext, providerUrl },
       });
       const rendered = resolveFunctionElement(tree as TestElement);
-      const outbound = findElements(rendered, element => element.type === 'a' && element.props.target === '_blank')[0];
+      const outbound = findElements(rendered, element => element.type === 'a' && element.props.target === '_blank' && String(element.props.className).includes('btn-primary'))[0];
       const details = findElements(rendered, element => element.type === 'details')[0];
 
       (outbound.props.onClick as (() => void))();
@@ -632,7 +639,7 @@ describe('BookingFlow fare context review', () => {
     });
     const rendered = resolveFunctionElement(tree as TestElement);
     const details = findElements(rendered, element => element.type === 'details')[0];
-    const outbound = findElements(rendered, element => element.type === 'a' && element.props.target === '_blank')[0];
+    const outbound = findElements(rendered, element => element.type === 'a' && element.props.target === '_blank' && String(element.props.className).includes('btn-primary'))[0];
     trackMock.mockImplementation(() => { throw new Error('analytics unavailable'); });
 
     expect(() => (details.props.onToggle as (event: unknown) => void)({ currentTarget: { open: true } })).not.toThrow();

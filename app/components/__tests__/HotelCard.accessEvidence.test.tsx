@@ -14,6 +14,11 @@ jest.mock('react', () => {
   }
 })
 
+jest.mock('../hotelFundsPolicyAnalytics', () => ({
+  trackHotelFundsPolicyDetailsOpened: jest.fn(),
+  useHotelFundsPolicyExposure: jest.fn(() => ({ current: null })),
+}))
+
 const { default: HotelCard } = jest.requireActual('../HotelCard') as typeof import('../HotelCard')
 
 const hotel: HotelOffer = {
@@ -28,6 +33,7 @@ const hotel: HotelOffer = {
     status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
     billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
   },
+  fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
 }
 
 function evidence(overrides: Partial<HotelAmenityEvidence> = {}): HotelAmenityEvidence {
@@ -325,5 +331,23 @@ describe('HotelCard access evidence', () => {
 
     expect(collectText(section)).toContain('Provider confirms this property has an elevator.')
     expect(collectText(section)).toContain('Refreshing access details…')
+  })
+
+  it('builds review continuity from the displayed policy override and keeps mobile actions at 44px', () => {
+    const overriddenPolicy = {
+      state: 'explicit_none' as const,
+      obligations: [],
+      sourceLabel: 'Selected rate policy',
+      scope: 'rate' as const,
+    }
+    const card = HotelCard({ hotel, fundsPolicy: overriddenPolicy })
+    const elements = collectElements(card)
+    const review = elements.find(node => node.type === 'a' && collectText(node).includes('Review hotel'))
+    const details = elements.find(node => node.type === 'button' && collectText(node) === 'Details')
+    const policyParam = new URL(String(review?.props.href), 'https://expaify.test').searchParams.get('fundsPolicy')
+
+    expect(JSON.parse(policyParam ?? '{}')).toMatchObject(overriddenPolicy)
+    expect(String(review?.props.className)).toContain('min-h-11')
+    expect(String(details?.props.className)).toContain('min-h-11')
   })
 })

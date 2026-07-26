@@ -5,6 +5,7 @@ import type {
   HotelLocationEvidenceSource,
   HotelLocationPrecision,
   HotelDocumentReadiness,
+  HotelFundsPolicyEvidence,
   HotelOffer,
   NormalizedFare,
 } from '../types';
@@ -12,6 +13,7 @@ import {
   normalizeHotelDocumentReadiness,
   notProvidedHotelDocumentReadiness,
 } from '../providers/hotelDocumentReadiness';
+import { normalizeHotelFundsPolicyEvidence } from '../hotels/fundsPolicy';
 import {
   hasValidCoordinates,
   hasVerifiedHotelLocationComparison,
@@ -44,9 +46,12 @@ export type BookingHotelContext = {
   priceBasis: 'per_night_before_taxes_fees';
   providerUrl: string;
   documentReadiness: HotelDocumentReadiness;
+  fundsPolicy: HotelFundsPolicyEvidence;
 };
 
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
+export const MAX_INLINE_HOTEL_BOOKING_HREF_LENGTH = 4_096;
+export const HOTEL_CONTEXT_REFERENCE_REQUIRED = 'required';
 
 type SearchParams = Record<string, string | string[] | undefined>;
 type FareContextInput = Partial<Record<keyof BookingFareContext, unknown>>;
@@ -93,6 +98,7 @@ type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
   documentConflict4Statement?: unknown;
   documentVerificationRole?: unknown;
   documentVerificationUrl?: unknown;
+  fundsPolicy?: unknown;
 };
 
 export function isBookingEnabled(): boolean {
@@ -468,6 +474,7 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     documentReadinessInput(input, provider),
     providerEvidenceLabel(provider),
   );
+  const fundsPolicy = normalizeHotelFundsPolicyEvidence(input.fundsPolicy, provider || 'Hotel provider');
 
   if (
     kind !== 'hotel' ||
@@ -496,6 +503,7 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     priceBasis,
     providerUrl,
     documentReadiness,
+    fundsPolicy,
   };
 }
 
@@ -552,7 +560,61 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     currency: firstParam(params.currency),
     priceBasis: firstParam(params.priceBasis),
     providerUrl: firstParam(params.providerUrl),
+    fundsPolicy: parseHotelFundsPolicyParam(firstParam(params.fundsPolicy)),
   });
+}
+
+export function validateStructuredBookingHotelContext(input: unknown): BookingHotelContext | null {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) return null;
+  const value = input as Record<string, unknown>;
+  const location = typeof value.location === 'object' && value.location !== null && !Array.isArray(value.location)
+    ? value.location as Record<string, unknown>
+    : undefined;
+  const anchor = location && typeof location.anchor === 'object' && location.anchor !== null && !Array.isArray(location.anchor)
+    ? location.anchor as Record<string, unknown>
+    : undefined;
+  const distance = location && typeof location.distance === 'object' && location.distance !== null && !Array.isArray(location.distance)
+    ? location.distance as Record<string, unknown>
+    : undefined;
+
+  const context = validateBookingHotelContext({
+    ...value,
+    locationPrecision: location?.precision,
+    locationLabel: location?.label,
+    locationAddress: location?.address,
+    locationLat: location?.lat,
+    locationLng: location?.lng,
+    locationArea: location?.area,
+    locationSource: location?.source,
+    locationAnchorKind: anchor?.kind,
+    locationAnchorId: anchor?.id,
+    locationAnchorName: anchor?.name,
+    locationAnchorLat: anchor?.lat,
+    locationAnchorLng: anchor?.lng,
+    locationAnchorSource: anchor?.source,
+    locationDistanceValue: distance?.value,
+    locationDistanceUnit: distance?.unit,
+    locationDistanceMethod: distance?.method,
+    locationDistanceSource: distance?.source,
+    locationProviderName: location?.providerLocationName,
+  });
+  if (!context) return null;
+  return {
+    ...context,
+    documentReadiness: normalizeHotelDocumentReadiness(
+      value.documentReadiness,
+      providerEvidenceLabel(context.provider),
+    ),
+  };
+}
+
+function parseHotelFundsPolicyParam(value: string): unknown {
+  if (!value) return undefined;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
 }
 
 export function buildBookingHref(fare: NormalizedFare): string {
@@ -575,47 +637,66 @@ export function buildBookingHref(fare: NormalizedFare): string {
   return `/book?${params.toString()}`;
 }
 
-export function buildHotelBookingHref(hotel: HotelOffer): string {
+export function buildBookingHotelContext(hotel: HotelOffer): BookingHotelContext {
   const documentReadiness = normalizeHotelDocumentReadiness(hotel.documentReadiness, providerEvidenceLabel(hotel.source));
-  const params = new URLSearchParams({
+  return {
     kind: 'hotel',
     offerId: hotel.id,
     provider: hotel.source,
     name: hotel.name,
-    priceCents: String(hotel.pricePerNight.priceCents),
+    area: hotel.area,
+    location: hotel.location,
+    priceCents: hotel.pricePerNight.priceCents,
     currency: hotel.pricePerNight.currency,
     priceBasis: hotel.priceBasis ?? 'per_night_before_taxes_fees',
     providerUrl: hotel.deeplink,
+    documentReadiness,
+    fundsPolicy: normalizeHotelFundsPolicyEvidence(hotel.fundsPolicy, hotel.source),
+  };
+}
+
+function buildInlineHotelBookingHref(context: BookingHotelContext): string {
+  const documentReadiness = context.documentReadiness;
+  const params = new URLSearchParams({
+    kind: 'hotel',
+    offerId: context.offerId,
+    provider: context.provider,
+    name: context.name,
+    priceCents: String(context.priceCents),
+    currency: context.currency,
+    priceBasis: context.priceBasis,
+    providerUrl: context.providerUrl,
     documentStatus: documentReadiness.status,
     documentScope: documentReadiness.scope,
     documentTypes: documentReadiness.documentTypes.join(','),
     documentBillingDetailsStep: documentReadiness.billingDetailsStep,
     documentSourceLabel: documentReadiness.source.label,
+    fundsPolicy: JSON.stringify(context.fundsPolicy),
   });
 
-  if (hotel.area) params.set('area', hotel.area);
-  if (hotel.location?.precision) params.set('locationPrecision', hotel.location.precision);
-  if (hotel.location?.label) params.set('locationLabel', hotel.location.label);
-  if (hotel.location?.address) params.set('locationAddress', hotel.location.address);
-  if (hotel.location?.area) params.set('locationArea', hotel.location.area);
-  if (hotel.location?.source) params.set('locationSource', hotel.location.source);
-  if (hotel.location && hasValidCoordinates(hotel.location)) {
-    params.set('locationLat', String(hotel.location.lat));
-    params.set('locationLng', String(hotel.location.lng));
+  if (context.area) params.set('area', context.area);
+  if (context.location?.precision) params.set('locationPrecision', context.location.precision);
+  if (context.location?.label) params.set('locationLabel', context.location.label);
+  if (context.location?.address) params.set('locationAddress', context.location.address);
+  if (context.location?.area) params.set('locationArea', context.location.area);
+  if (context.location?.source) params.set('locationSource', context.location.source);
+  if (context.location && hasValidCoordinates(context.location)) {
+    params.set('locationLat', String(context.location.lat));
+    params.set('locationLng', String(context.location.lng));
   }
-  if (hasVerifiedHotelLocationComparison(hotel.location)) {
-    params.set('locationAnchorKind', hotel.location.anchor.kind);
-    params.set('locationAnchorId', hotel.location.anchor.id);
-    params.set('locationAnchorName', hotel.location.anchor.name);
-    params.set('locationAnchorLat', String(hotel.location.anchor.lat));
-    params.set('locationAnchorLng', String(hotel.location.anchor.lng));
-    params.set('locationAnchorSource', hotel.location.anchor.source);
-    params.set('locationDistanceValue', String(hotel.location.distance.value));
-    params.set('locationDistanceUnit', hotel.location.distance.unit);
-    params.set('locationDistanceMethod', hotel.location.distance.method);
-    params.set('locationDistanceSource', hotel.location.distance.source);
+  if (hasVerifiedHotelLocationComparison(context.location)) {
+    params.set('locationAnchorKind', context.location.anchor.kind);
+    params.set('locationAnchorId', context.location.anchor.id);
+    params.set('locationAnchorName', context.location.anchor.name);
+    params.set('locationAnchorLat', String(context.location.anchor.lat));
+    params.set('locationAnchorLng', String(context.location.anchor.lng));
+    params.set('locationAnchorSource', context.location.anchor.source);
+    params.set('locationDistanceValue', String(context.location.distance.value));
+    params.set('locationDistanceUnit', context.location.distance.unit);
+    params.set('locationDistanceMethod', context.location.distance.method);
+    params.set('locationDistanceSource', context.location.distance.source);
   }
-  if (hotel.location?.providerLocationName) params.set('locationProviderName', hotel.location.providerLocationName);
+  if (context.location?.providerLocationName) params.set('locationProviderName', context.location.providerLocationName);
   const issuerParams = [
     ['invoice', 'documentInvoiceIssuerRole', 'documentInvoiceIssuerName'],
     ['receipt', 'documentReceiptIssuerRole', 'documentReceiptIssuerName'],
@@ -643,4 +724,15 @@ export function buildHotelBookingHref(hotel: HotelOffer): string {
   }
 
   return `/book?${params.toString()}`;
+}
+
+export function buildHotelBookingHref(hotel: HotelOffer): string {
+  const href = buildInlineHotelBookingHref(buildBookingHotelContext(hotel));
+  if (href.length <= MAX_INLINE_HOTEL_BOOKING_HREF_LENGTH) return href;
+  return `/book?kind=hotel&hotelContextRef=${HOTEL_CONTEXT_REFERENCE_REQUIRED}`;
+}
+
+export function hotelBookingHrefRequiresReference(href: string): boolean {
+  const query = href.split('?', 2)[1] ?? '';
+  return new URLSearchParams(query).get('hotelContextRef') === HOTEL_CONTEXT_REFERENCE_REQUIRED;
 }

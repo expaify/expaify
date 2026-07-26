@@ -12,6 +12,11 @@ jest.mock('react', () => {
   }
 })
 
+jest.mock('../hotelFundsPolicyAnalytics', () => ({
+  trackHotelFundsPolicyDetailsOpened: jest.fn(),
+  useHotelFundsPolicyExposure: jest.fn(() => ({ current: null })),
+}))
+
 const { default: DealBadge } = jest.requireActual('../DealBadge') as typeof import('../DealBadge')
 const { default: FlightCard } = jest.requireActual('../FlightCard') as typeof import('../FlightCard')
 const { default: HotelCard } = jest.requireActual('../HotelCard') as typeof import('../HotelCard')
@@ -119,6 +124,7 @@ const hotel: HotelOffer = {
     status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
     billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
   },
+  fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
 }
 
 describe('Deal score presentation', () => {

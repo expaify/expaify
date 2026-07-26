@@ -158,6 +158,12 @@ describe('HotellookProvider.searchHotels', () => {
           billingDetailsStep: 'unknown',
           source: { label: 'Hotellook' },
         },
+        fundsPolicy: {
+          state: 'not_returned',
+          obligations: [],
+          sourceLabel: 'Hotellook',
+          scope: 'not_returned',
+        },
         hotelClass: {
           kind: 'hotel_class',
           value: 4,
