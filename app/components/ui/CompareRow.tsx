@@ -9,11 +9,19 @@ type CompareLinks = {
   trip?: string;
 };
 
+export type HotelHandoffAnalyticsContext = {
+  dealId: string
+  contextStatus: 'matched' | 'mismatch' | 'missing' | 'invalid'
+  criteriaVersion?: string
+  destinationPresent?: boolean
+  dateState?: 'checkin_window' | 'missing'
+}
+
 type CompareRowProps = {
   links: CompareLinks;
   /** compact: inside cards (default). primary: full-width action zone on the deal detail page. */
   size?: "compact" | "primary";
-  handoffContext?: { dealId: string; contextStatus: 'missing' | 'invalid' };
+  handoffContext?: HotelHandoffAnalyticsContext
 };
 
 const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
@@ -22,6 +30,22 @@ const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
   { key: "kiwi", label: "Kiwi" },
   { key: "trip", label: "Trip.com" },
 ];
+
+export function isAttributedHotelProviderUrl(provider: keyof CompareLinks, href: string): boolean {
+  try {
+    const url = new URL(href)
+    if (url.protocol !== 'https:') return false
+    const attributionParam: Record<keyof CompareLinks, string> = {
+      expedia: 'affcid',
+      booking: 'aid',
+      kiwi: 'affilid',
+      trip: 'marker',
+    }
+    return Boolean(url.searchParams.get(attributionParam[provider]))
+  } catch {
+    return false
+  }
+}
 
 export function CompareRow({ links, size = "compact", handoffContext }: CompareRowProps) {
   const primary = size === "primary";
@@ -36,7 +60,7 @@ export function CompareRow({ links, size = "compact", handoffContext }: CompareR
       <div className={primary ? "grid grid-cols-2 gap-2 min-[480px]:grid-cols-4" : "grid grid-cols-2 gap-2 min-[420px]:grid-cols-4"}>
         {PROVIDERS.map(({ key, label }) => {
           const href = links[key];
-          if (href) {
+          if (href && isAttributedHotelProviderUrl(key, href) && handoffContext?.contextStatus !== 'mismatch') {
             return (
               <a
                 key={key}
@@ -50,8 +74,9 @@ export function CompareRow({ links, size = "compact", handoffContext }: CompareR
                     provider: key,
                     deal_id: handoffContext.dealId,
                     context_status: handoffContext.contextStatus,
-                    destination_present: false,
-                    date_state: 'missing',
+                    ...(handoffContext.criteriaVersion ? { criteria_version: handoffContext.criteriaVersion } : {}),
+                    destination_present: handoffContext.destinationPresent ?? false,
+                    date_state: handoffContext.dateState ?? 'missing',
                     occupancy_state: 'not_captured',
                     room_state: 'not_captured',
                   })
