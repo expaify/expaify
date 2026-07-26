@@ -107,6 +107,7 @@ export function CompareRow({ links, size = "compact", handoffContext }: CompareR
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
+                data-hotel-provider={key}
                 aria-label={`Check this deal on ${label}`}
                 onClick={() => {
                   if (!handoffContext) return

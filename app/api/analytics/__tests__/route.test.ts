@@ -63,6 +63,50 @@ describe('POST /api/analytics', () => {
     expect(mockQuery).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['hotel_detail_viewed', {}],
+    ['hotel_decision_section_reached', { section: 'property_stay', position: 1 }],
+    ['hotel_room_handoff_started', { provider: 'hotellook' }],
+    ['hotel_detail_back_to_results', {}],
+  ])('stores privacy-bounded hotel decision event %s', async (event, extraProps) => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event,
+      occurredAt: new Date().toISOString(),
+      path: '/book',
+      props: {
+        hotel_id: 'hotel_123',
+        entry_source: 'hotel_results',
+        viewport_group: 'desktop',
+        has_dates: true,
+        has_verified_guest_rating: false,
+        score_state: 'confident',
+        price_freshness_state: 'fresh',
+        ...extraProps,
+      },
+    }))
+
+    expect(response.status).toBe(202)
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO analytics_events'),
+      expect.arrayContaining([event]),
+    )
+  })
+
+  it('rejects raw provider URLs from hotel decision events', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_room_handoff_started',
+      occurredAt: new Date().toISOString(),
+      path: '/book',
+      props: { provider: 'hotellook', provider_url: 'https://tp.media/r?marker=secret' },
+    }))
+    expect(response.status).toBe(400)
+    expect(mockQuery).not.toHaveBeenCalled()
+  })
+
   it('rejects unknown event names rather than accepting arbitrary properties', async () => {
     const response = await POST(request({
       eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',

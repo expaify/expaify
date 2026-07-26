@@ -307,6 +307,7 @@ export interface HotelOffer {
   guestRating?: HotelRatingEvidence;
   amenityEvidence?: HotelAmenityEvidence[];
   accessEvidenceState?: HotelAccessEvidenceState;
+  fetchedAt?: string;
 }
 
 export type NormalizedHotelOffer = HotelOffer;

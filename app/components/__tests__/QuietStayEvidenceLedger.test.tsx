@@ -201,8 +201,8 @@ describe('QuietStayEvidenceLedger', () => {
     const actionIndex = detail.indexOf('{/* Primary action zone */}')
 
     expect(scoreIndex).toBeLessThan(ledgerIndex)
-    expect(ledgerIndex).toBeLessThan(photoIndex)
-    expect(photoIndex).toBeLessThan(actionIndex)
+    expect(ledgerIndex).toBeLessThan(actionIndex)
+    expect(actionIndex).toBeLessThan(photoIndex)
     expect(card).not.toMatch(/quiet-stay|quiet evidence/i)
     expect(handoff).toContain('Special requests')
     expect(handoff).not.toContain('QuietStayEvidenceLedger')

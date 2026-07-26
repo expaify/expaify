@@ -98,6 +98,8 @@ const hotelContext: BookingHotelContext = {
   currency: 'USD',
   priceBasis: 'per_night_before_taxes_fees',
   providerUrl: 'https://tp.media/r?marker=hotel-marker',
+  entrySource: 'hotel_results',
+  returnUrl: '/?destination=NYC',
   documentReadiness: {
     status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
     billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
@@ -368,7 +370,7 @@ describe('BookingFlow fare context review', () => {
       hotelContext,
     });
     const anchors = findElements(tree, element => element.type === 'a');
-    const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function');
+    const backLink = anchors.find(element => element.props['data-hotel-back'] && typeof element.props.onClick === 'function');
 
     expect(trackMock).toHaveBeenCalledWith('hotel_handoff_viewed', {
       source: 'hotellook',
@@ -411,7 +413,7 @@ describe('BookingFlow fare context review', () => {
       });
       const anchors = findElements(tree, element => element.type === 'a');
       const outbound = anchors.find(element => element.props.target === '_blank');
-      const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function');
+      const backLink = anchors.find(element => element.props['data-hotel-back'] && typeof element.props.onClick === 'function');
 
       (outbound?.props.onClick as (() => void))();
       expect(trackMock).toHaveBeenCalledWith('hotel_handoff_continue_clicked', expect.objectContaining({
@@ -653,7 +655,7 @@ describe('BookingFlow fare context review', () => {
 
     expect(text).toContain("We can't identify this hotel");
     expect(text).toContain('integer-cent price, currency, price basis, and provider handoff URL');
-    expect(text).toContain('Back to search');
+    expect(text).toContain('Search hotels');
     expect(text).not.toContain("We can't identify this fare");
     expect(text).not.toContain('What you may need');
     expect(text).not.toContain('Special requests');

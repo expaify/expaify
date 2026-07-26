@@ -27,6 +27,8 @@ import { timeAgo } from '@/lib/timeAgo'
 import { HotelContinuityPrototype } from '@/app/components/research/HotelContinuityPrototype'
 import { createContinuityFixture, parseContinuityFixture } from '@/app/components/research/hotelContinuityFixtures'
 import { HotelDealCriteriaHandoff, HotelDealCriteriaSummary } from '@/app/components/HotelDealCriteria'
+import { HotelDecisionAnalytics, priceFreshnessState } from '@/app/components/HotelDecisionAnalytics'
+import { validateHotelReturnUrl } from '@/lib/booking/config'
 import {
   buildHotelBackUrl,
   hotelCriteriaContextStatus,
@@ -254,7 +256,9 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const contextStatus: HotelCriteriaContextStatus = criteria
     ? hotelCriteriaContextStatus(criteria, { city: deal.city, checkInDate: deal.check_in_date })
     : criteriaResolution.status === 'invalid' || !resultsView ? 'invalid' : 'missing'
-  const backHref = criteria && resultsView ? buildHotelBackUrl(criteria, resultsView, researchParams) : '/deals'
+  const suppliedReturnUrl = Array.isArray(researchParams.returnUrl) ? researchParams.returnUrl[0] : researchParams.returnUrl
+  const savedReturnUrl = validateHotelReturnUrl(suppliedReturnUrl, 'saved_deals')
+  const backHref = criteria && resultsView ? buildHotelBackUrl(criteria, resultsView, researchParams) : savedReturnUrl
   const criteriaContext = { criteria, status: contextStatus, backHref }
 
   // Server-side paywall: render the locked state instead of the deal for
@@ -293,6 +297,11 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const checkOutIso = Number.isFinite(checkInMs)
     ? new Date(checkInMs + (deal.nights ?? 1) * 86400000).toISOString()
     : null
+  const hasDates = Boolean(deal.check_in_date && checkOutIso && deal.nights && deal.nights > 0)
+  const savedScoreState = deal.snapshot_count > 0
+    ? deal.snapshot_count < 10 ? 'low_confidence' : 'confident'
+    : 'unavailable'
+  const freshnessState = priceFreshnessState(deal.updated_at, isExpired, now)
   const continuityDisclosure = continuityFixtureId === 'control'
     ? null
     : createContinuityFixture(continuityFixtureId, deal.check_in_date, checkOutIso, now)
@@ -300,6 +309,14 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
     ? researchParams.continuityDisclosure[0]
     : researchParams.continuityDisclosure
   return (
+    <HotelDecisionAnalytics
+      hotelId={deal.hotel_id}
+      entrySource="saved_deals"
+      hasDates={hasDates}
+      hasVerifiedGuestRating={false}
+      scoreState={savedScoreState}
+      priceFreshnessState={freshnessState}
+    >
     <div className="min-h-screen bg-[color:var(--bg)]">
 
       {/* Nav */}
@@ -308,7 +325,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
             expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
           </a>
-          <a href={backHref} aria-label={criteria ? 'Back to hotel results for this search' : 'Search hotel deals'} className="flex min-h-[44px] items-center text-caption font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
+          <a href={backHref} data-hotel-back aria-label={criteria ? 'Back to hotel results for this search' : 'Back to saved deals'} className="flex min-h-[44px] items-center text-caption font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
             ← {criteria ? 'Back to results' : 'Search hotel deals'}
           </a>
         </div>
@@ -328,7 +345,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
         )}
 
         {/* Title block */}
-        <div className="flex items-start justify-between gap-4">
+        <div data-hotel-decision-section="property_stay" data-hotel-decision-position="1" className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-h2 text-[color:var(--ink)]">{deal.hotel_name}</h2>
             <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption font-medium text-[color:var(--ink-soft)]">
@@ -365,7 +382,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
         )}
 
         {/* Price */}
-        <section className="mt-6">
+        <section data-hotel-decision-section="price_deal_score" data-hotel-decision-position="2" className="mt-6">
           <PriceBlock
             size="display"
             dealPrice={{ priceCents: deal.deal_price_cents, currency: 'USD' }}
@@ -393,7 +410,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           <HotelDealCriteriaSummary context={criteriaContext} deal={{ city: deal.city, checkInDate: deal.check_in_date }} />
         </div>
 
-        <section className="card mt-4 p-5">
+        <section data-hotel-decision-section="hotel_fit" data-hotel-decision-position="3" className="card mt-4 p-5">
           <h3 className="mb-3 text-[13px] font-bold text-[color:var(--ink)]">This deal</h3>
           <div className="grid grid-cols-2 gap-3 min-[680px]:grid-cols-4">
             <Fact label="Hotel" value={deal.hotel_name || 'Hotel name unavailable'} muted={!deal.hotel_name} />
@@ -407,8 +424,6 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           </div>
         </section>
 
-        <TrackOnMount event="hotel_detail_viewed" props={{ deal_id: deal.id, context_status: contextStatus, ...(criteria ? { criteria_version: criteria.criteriaVersion } : {}) }} />
-
         {/* Deal score — computed from price history */}
         <Suspense fallback={null}>
           <DealScoreSection deal={deal} />
@@ -416,11 +431,8 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
 
         <QuietStayEvidenceLedger evidence={NO_QUIET_STAY_EVIDENCE} />
 
-        <div className="mt-8">
-          <PropertyPhoto src={deal.photo_url} size="detail" loading="eager" />
-        </div>
-
         {/* Primary action zone */}
+        <div data-hotel-decision-section="provider_handoff" data-hotel-decision-position="4">
         {isExpired ? (
           <div className="my-8 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-4" role="status">
             <p className="text-[13px] font-bold text-[color:var(--ink)]">Deal expired</p>
@@ -434,7 +446,12 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
         ) : (
           <HotelDealCriteriaHandoff context={criteriaContext} deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }} links={deal.ota_links ?? {}} />
         )}
+        </div>
 
+        <div data-hotel-decision-section="supporting_evidence" data-hotel-decision-position="5">
+        <div className="mt-8">
+          <PropertyPhoto src={deal.photo_url} size="detail" loading="eager" />
+        </div>
         <HotelContinuityPrototype
           dealId={deal.id}
           hotelName={deal.hotel_name}
@@ -477,8 +494,10 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             </p>
           ) : null}
         </section>
+        </div>
 
       </main>
     </div>
+    </HotelDecisionAnalytics>
   )
 }

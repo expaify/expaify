@@ -14,7 +14,24 @@ const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries
     hotel_criteria_edit_cancelled: ['surface', 'criteria_version', 'entry_point', 'draft_changed'],
     hotel_criteria_edit_applied: ['changed_fields', 'previous_version', 'criteria_version', 'result_count_bucket'],
     hotel_results_viewed: ['criteria_version', 'result_state', 'destination_present', 'date_state', 'occupancy_state', 'room_state'],
-    hotel_detail_viewed: ['criteria_version', 'context_status', 'deal_id'],
+    hotel_detail_viewed: [
+      'criteria_version', 'context_status', 'deal_id',
+      'hotel_id', 'entry_source', 'viewport_group', 'has_dates',
+      'has_verified_guest_rating', 'score_state', 'price_freshness_state',
+    ],
+    hotel_decision_section_reached: [
+      'hotel_id', 'entry_source', 'viewport_group', 'has_dates',
+      'has_verified_guest_rating', 'score_state', 'price_freshness_state',
+      'section', 'position',
+    ],
+    hotel_room_handoff_started: [
+      'hotel_id', 'entry_source', 'viewport_group', 'has_dates',
+      'has_verified_guest_rating', 'score_state', 'price_freshness_state', 'provider',
+    ],
+    hotel_detail_back_to_results: [
+      'hotel_id', 'entry_source', 'viewport_group', 'has_dates',
+      'has_verified_guest_rating', 'score_state', 'price_freshness_state',
+    ],
     hotel_provider_handoff_clicked: ['provider', 'deal_id', 'criteria_version', 'context_status', 'destination_present', 'date_state', 'occupancy_state', 'room_state'],
     feed_empty_filtered_viewed: [],
     feed_empty_cold_viewed: [],

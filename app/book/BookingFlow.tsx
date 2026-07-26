@@ -23,6 +23,7 @@ import {
   HotelDocumentIntentControl,
   HotelDocumentReadinessDisclosure,
 } from '@/app/components/HotelDocumentReadiness'
+import { HotelDecisionAnalytics, priceFreshnessState } from '@/app/components/HotelDecisionAnalytics'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -161,6 +162,7 @@ type BookingFlowProps = {
   parkingConflictDimensions?: readonly HotelParkingConflictDimension[]
   parkingEvidenceMalformed?: boolean
   hasSearchDates?: boolean
+  hotelRecovery?: Pick<BookingHotelContext, 'entrySource' | 'returnUrl'>
 }
 
 function formatMoney(cents: number, currency: string) {
@@ -294,7 +296,12 @@ function HotelSummary({ hotelContext, partner }: { hotelContext: BookingHotelCon
   const rateSource = providerDisplayName(hotelContext.provider)
 
   return (
-    <section aria-labelledby="hotel-review-title" className={`${panelCls} p-4 sm:p-6`}>
+    <section
+      data-hotel-decision-section="property_stay"
+      data-hotel-decision-position="1"
+      aria-labelledby="hotel-review-title"
+      className={`${panelCls} p-4 sm:p-6`}
+    >
       <div className="flex flex-col gap-4 border-b border-[color:var(--border)] pb-5 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand)]">Hotel review</p>
@@ -314,7 +321,11 @@ function HotelSummary({ hotelContext, partner }: { hotelContext: BookingHotelCon
           <p className="mt-1 text-xs font-medium text-[color:var(--text-2)]">{getHotelPriceBasisLabel(hotelContext.priceBasis)}</p>
         </div>
       </div>
-      <div className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 sm:px-5 sm:py-4">
+      <div
+        data-hotel-decision-section="price_deal_score"
+        data-hotel-decision-position="2"
+        className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 sm:px-5 sm:py-4"
+      >
         <p className={factLabelCls}>Rate expectation</p>
         <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
           This is the nightly rate expaify last saw from {rateSource}. {partner.named ? partner.label : 'The booking partner'} confirms the live rate, taxes, and fees before you pay—the total you see there may differ.
@@ -327,17 +338,17 @@ function HotelSummary({ hotelContext, partner }: { hotelContext: BookingHotelCon
         eligibility={RATE_ELIGIBILITY_NOT_PROVIDED}
         providerName={rateSource}
       />
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+      <div
+        data-hotel-decision-section="hotel_fit"
+        data-hotel-decision-position="3"
+        className="mt-5 grid gap-3 sm:grid-cols-2"
+      >
         <FareFact label="Hotel" value={hotelContext.name} />
         <FareFact label="Location" value={location.value} />
         <FareFact label="Location precision" value={location.label} />
         <FareFact label="Rate source" value={rateSource} />
         <FareFact label="Price basis" value={getHotelPriceBasisLabel(hotelContext.priceBasis)} />
         <FareFact label="Currency" value={hotelContext.currency} />
-      </div>
-      <div className="mt-4 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 text-xs">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p>
-        <p className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{hotelContext.offerId}</p>
       </div>
     </section>
   )
@@ -453,6 +464,9 @@ function ReviewShell({
   duffelSandbox,
   status,
   onBackClick,
+  backHref = '/',
+  backLabel = 'Back to search',
+  hotelDecisionBack = false,
   children,
 }: {
   eyebrow?: string
@@ -464,12 +478,20 @@ function ReviewShell({
   duffelSandbox: boolean
   status?: ReactNode
   onBackClick?: MouseEventHandler<HTMLAnchorElement>
+  backHref?: string
+  backLabel?: string
+  hotelDecisionBack?: boolean
   children: ReactNode
 }) {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-10 lg:px-8">
-      <a href="/" onClick={onBackClick} className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
-        ← Back to search
+      <a
+        href={backHref}
+        onClick={onBackClick}
+        {...(hotelDecisionBack ? { 'data-hotel-back': true } : {})}
+        className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]"
+      >
+        ← {backLabel}
       </a>
       <div className="mt-4 grid gap-5 lg:mt-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
         <div className="min-w-0 space-y-5">
@@ -584,7 +606,13 @@ function InvalidBookingState({ duffelSandbox }: { duffelSandbox: boolean }) {
   )
 }
 
-function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
+function InvalidHotelState({
+  duffelSandbox,
+  recovery,
+}: {
+  duffelSandbox: boolean
+  recovery?: Pick<BookingHotelContext, 'entrySource' | 'returnUrl'>
+}) {
   const headingRef = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
@@ -597,6 +625,12 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
       message="Return to search and choose a current hotel result before reviewing provider handoff options."
       fareContext={null}
       duffelSandbox={duffelSandbox}
+      backHref={recovery?.returnUrl ?? '/'}
+      backLabel={recovery?.entrySource === 'saved_deals'
+        ? 'Back to saved deals'
+        : recovery?.entrySource === 'hotel_results'
+          ? 'Back to results'
+          : 'Search hotels'}
       status={
         <StatusPanel
           title="Selection details are missing"
@@ -621,8 +655,12 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
           </p>
         </div>
         <div className={actionStackCls}>
-          <a href="/" className="btn-primary">
-            Back to search
+          <a href={recovery?.returnUrl ?? '/'} className="btn-primary">
+            {recovery?.entrySource === 'saved_deals'
+              ? 'Back to saved deals'
+              : recovery?.entrySource === 'hotel_results'
+                ? 'Back to results'
+                : 'Search hotels'}
           </a>
         </div>
       </div>
@@ -895,8 +933,22 @@ function HotelHandoffReview({
   )
   const parkingCtaStatus = getParkingCtaStatus({ evidence: parkingEvidence, malformed: parkingEvidenceMalformed })
   const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${eligibilityAriaSummary} ${parkingCtaStatus}`
+  const hasDates = Boolean(hotelContext.checkIn && hotelContext.checkOut && hotelContext.nightCount)
+  const scoreState = hotelContext.score
+    ? hotelContext.score.confidence === 'low' ? 'low_confidence' : 'confident'
+    : 'unavailable'
+  const hasVerifiedGuestRating = hotelContext.guestRating?.kind === 'guest_review'
+    && hotelContext.guestRating.confidence === 'verified'
 
   return (
+    <HotelDecisionAnalytics
+      hotelId={hotelContext.offerId}
+      entrySource={hotelContext.entrySource}
+      hasDates={hasDates}
+      hasVerifiedGuestRating={hasVerifiedGuestRating}
+      scoreState={scoreState}
+      priceFreshnessState={priceFreshnessState(hotelContext.priceCheckedAt)}
+    >
     <ReviewShell
       eyebrow="Hotel handoff"
       title="Review selected hotel"
@@ -915,9 +967,20 @@ function HotelHandoffReview({
       )}
       duffelSandbox={duffelSandbox}
       onBackClick={handleBack}
+      backHref={hotelContext.returnUrl}
+      backLabel={hotelContext.entrySource === 'saved_deals'
+        ? 'Back to saved deals'
+        : hotelContext.entrySource === 'hotel_results'
+          ? 'Back to results'
+          : 'Back to hotel search'}
+      hotelDecisionBack
     >
       <TrackOnMount event="hotel_handoff_viewed" props={analyticsProps} />
-      <div className={`${panelCls} p-4 sm:p-6`}>
+      <div
+        data-hotel-decision-section="provider_handoff"
+        data-hotel-decision-position="4"
+        className={`${panelCls} p-4 sm:p-6`}
+      >
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand)]">Booking partner</p>
           <h2 className="mt-2 break-words text-xl font-bold leading-tight text-[color:var(--text-1)]">{partnerHeading}</h2>
@@ -1003,6 +1066,7 @@ function HotelHandoffReview({
             href={hotelContext.providerUrl}
             target="_blank"
             rel="noopener noreferrer sponsored"
+            data-hotel-provider={hotelContext.provider}
             aria-label={accessibleName}
             onClick={handleContinue}
             className="btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-center text-sm font-medium"
@@ -1013,12 +1077,34 @@ function HotelHandoffReview({
             </svg>
           </a>
           <p className="text-center text-xs leading-5 text-[color:var(--text-3)]">{newTabCue}</p>
-          <a href="/" onClick={handleBack} className={secondaryButtonCls}>
-            Back to search
+          <a href={hotelContext.returnUrl} data-hotel-back onClick={handleBack} className={secondaryButtonCls}>
+            {hotelContext.entrySource === 'saved_deals'
+              ? 'Back to saved deals'
+              : hotelContext.entrySource === 'hotel_results'
+                ? 'Back to results'
+                : 'Back to hotel search'}
           </a>
         </div>
       </div>
+      <section
+        data-hotel-decision-section="supporting_evidence"
+        data-hotel-decision-position="5"
+        aria-labelledby="hotel-supporting-evidence-title"
+        className={`${panelCls} mt-5 p-4 sm:p-6`}
+      >
+        <h2 id="hotel-supporting-evidence-title" className="text-lg font-bold text-[color:var(--text-1)]">
+          Supporting evidence
+        </h2>
+        <details className={`mt-4 p-3.5 ${insetPanelCls}`}>
+          <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-[color:var(--text-1)]">
+            Offer details
+          </summary>
+          <p className={factLabelCls}>Offer reference</p>
+          <p className="mt-2 break-all font-mono text-xs leading-5 text-[color:var(--text-2)]">{hotelContext.offerId}</p>
+        </details>
+      </section>
     </ReviewShell>
+    </HotelDecisionAnalytics>
   )
 }
 
@@ -1032,6 +1118,7 @@ export default function BookingFlow({
   parkingConflictDimensions,
   parkingEvidenceMalformed = false,
   hasSearchDates = true,
+  hotelRecovery,
 }: BookingFlowProps) {
   const [state, setState] = useState<BookingState>('idle')
   const [bookingRef, setBookingRef] = useState('')
@@ -1063,7 +1150,7 @@ export default function BookingFlow({
   }
 
   if (invalidHotelSelection) {
-    return <InvalidHotelState duffelSandbox={duffelSandbox} />
+    return <InvalidHotelState duffelSandbox={duffelSandbox} recovery={hotelRecovery} />
   }
 
   async function handleSubmit(e: FormEvent) {
