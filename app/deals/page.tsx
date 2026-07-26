@@ -7,7 +7,6 @@ import { generateMockDeals } from '@/lib/pipeline/mock'
 import { redirect } from 'next/navigation'
 import { LandingNav } from '../components/LandingNav'
 import { DealFeed, type ApiDeal } from './DealFeed'
-import { HOTEL_DEAL_PAGE_SIZE } from '@/lib/deals/feedContract'
 
 export const metadata: Metadata = {
   title: 'Hotel deals today — expaify',
@@ -37,7 +36,37 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
   }
 }
 
-export default async function DealsPage() {
+type DealsPageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> }
+
+function first(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] ?? '' : value ?? ''
+}
+
+function positiveInteger(value: string, max: number): number | undefined {
+  if (!/^\d+$/.test(value)) return undefined
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) && parsed > 0 && parsed <= max ? parsed : undefined
+}
+
+export default async function DealsPage({ searchParams }: DealsPageProps) {
+  const queryParams = await searchParams
+  const city = first(queryParams.city).trim().slice(0, 100)
+  const minDiscount = positiveInteger(first(queryParams.min_discount), 100)
+  const maxPriceCents = positiveInteger(first(queryParams.max_price_cents), 100_000_000)
+  const minStars = positiveInteger(first(queryParams.min_stars), 5)
+  const dateFrom = /^\d{4}-\d{2}-\d{2}$/.test(first(queryParams.date_from)) ? first(queryParams.date_from) : ''
+  const dateTo = /^\d{4}-\d{2}-\d{2}$/.test(first(queryParams.date_to)) ? first(queryParams.date_to) : ''
+  const sort = first(queryParams.sort) === 'discount' ? 'discount' as const : undefined
+  const hasReturnFilters = Boolean(city || minDiscount || maxPriceCents || minStars || dateFrom || dateTo || sort)
+  const initialFilters = hasReturnFilters ? {
+    city: city || undefined,
+    minDiscount,
+    maxPriceCents,
+    minStars,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    sort,
+  } : undefined
   const session = await auth()
   if (session?.user?.id) {
     const sub = await getSubscription(session.user.id).catch(() => null)
@@ -46,7 +75,7 @@ export default async function DealsPage() {
 
   // Pre-fetch initial deals server-side so the page renders immediately without a client round-trip
   const [rows, pwCtx, unlockedIds] = await Promise.all([
-    getActiveDeals({ limit: HOTEL_DEAL_PAGE_SIZE, sort: 'newest', includeMock: false, minDiscount: 20 }).catch(() => [] as DealRow[]),
+    getActiveDeals({ limit: 20, sort: 'newest', includeMock: false, minDiscount: 20 }).catch(() => [] as DealRow[]),
     getPaywallContext(),
     getFreeUnlockedDealIds(),
   ])
@@ -85,7 +114,7 @@ export default async function DealsPage() {
     <>
       <LandingNav />
       <main className="mx-auto max-w-[1140px] px-5 pb-24 pt-10">
-        <DealFeed initialDeals={initialDeals} premium={pwCtx.premium} />
+        <DealFeed initialDeals={initialDeals} initialFilters={initialFilters} />
       </main>
     </>
   )
