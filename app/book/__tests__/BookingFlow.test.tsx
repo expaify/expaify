@@ -503,7 +503,10 @@ describe('BookingFlow fare context review', () => {
       }).not.toThrow();
 
       const anchors = findElements(tree!, element => element.type === 'a');
-      const outbound = anchors.find(element => element.props.target === '_blank') as TestElement;
+      const outbound = anchors.find(element =>
+        element.props.target === '_blank' &&
+        element.props.href === 'https://www.booking.com/hotel/x?aid=123'
+      ) as TestElement;
       const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function') as TestElement;
 
       expect(() => (backLink.props.onClick as (() => void))()).not.toThrow();
