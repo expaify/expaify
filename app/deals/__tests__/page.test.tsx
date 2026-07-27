@@ -98,4 +98,14 @@ describe('/deals server reconstruction', () => {
     expect((props.initialDeals as unknown[])).toHaveLength(12)
     expect(props.initialCoverage).toEqual({ state: 'more_available', nextOffset: 12 })
   })
+
+  it('mints a stable criteriaVersion for a clean visit instead of a new one on every refresh', async () => {
+    mockGetActiveDeals.mockResolvedValue([])
+    const first = await DealsPage({ searchParams: Promise.resolve({}) }) as ReactElement<Record<string, unknown>>
+    const second = await DealsPage({ searchParams: Promise.resolve({}) }) as ReactElement<Record<string, unknown>>
+
+    const firstVersion = (dealFeedProps(first).initialCriteria as { criteriaVersion: string }).criteriaVersion
+    const secondVersion = (dealFeedProps(second).initialCriteria as { criteriaVersion: string }).criteriaVersion
+    expect(firstVersion).toBe(secondVersion)
+  })
 })

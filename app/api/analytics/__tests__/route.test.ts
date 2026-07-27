@@ -26,7 +26,14 @@ describe('POST /api/analytics', () => {
       event: 'hotel_results_viewed',
       occurredAt: new Date().toISOString(),
       path: '/deals',
-      props: { criteria_version: 'opaque-version', destination_present: true },
+      props: {
+        criteria_version: 'opaque-version',
+        result_state: 'populated',
+        destination_present: true,
+        date_state: 'missing',
+        occupancy_state: 'not_captured',
+        room_state: 'not_captured',
+      },
     }))
 
     expect(response.status).toBe(202)
@@ -84,8 +91,76 @@ describe('POST /api/analytics', () => {
       event: 'hotel_provider_handoff_clicked',
       occurredAt: new Date().toISOString(),
       path: '/deals/example',
-      props: { context_status: 'matched' },
+      props: {
+        provider: 'booking',
+        deal_id: 'deal_example',
+        context_status: 'matched',
+        destination_present: true,
+        date_state: 'missing',
+        occupancy_state: 'not_captured',
+        room_state: 'not_captured',
+      },
     }))
     expect(response.status).toBe(503)
+  })
+
+  it('rejects an out-of-enum value for a bounded property even when the key is allowlisted', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_results_viewed',
+      occurredAt: new Date().toISOString(),
+      path: '/deals',
+      props: {
+        criteria_version: 'opaque-version',
+        result_state: 'anything-i-want',
+        destination_present: true,
+        date_state: 'missing',
+        occupancy_state: 'not_captured',
+        room_state: 'not_captured',
+      },
+    }))
+    expect(response.status).toBe(400)
+    expect(mockQuery).not.toHaveBeenCalled()
+  })
+
+  it('rejects an event missing one of its required properties', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_results_viewed',
+      occurredAt: new Date().toISOString(),
+      path: '/deals',
+      props: {
+        criteria_version: 'opaque-version',
+        destination_present: true,
+        date_state: 'missing',
+        occupancy_state: 'not_captured',
+        room_state: 'not_captured',
+      },
+    }))
+    expect(response.status).toBe(400)
+    expect(mockQuery).not.toHaveBeenCalled()
+  })
+
+  it('rejects a provider value outside the closed affiliate set', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_provider_handoff_clicked',
+      occurredAt: new Date().toISOString(),
+      path: '/deals/example',
+      props: {
+        provider: 'some-other-site',
+        deal_id: 'deal_example',
+        context_status: 'matched',
+        destination_present: true,
+        date_state: 'missing',
+        occupancy_state: 'not_captured',
+        room_state: 'not_captured',
+      },
+    }))
+    expect(response.status).toBe(400)
+    expect(mockQuery).not.toHaveBeenCalled()
   })
 })

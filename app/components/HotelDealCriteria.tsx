@@ -11,6 +11,7 @@ import {
   hotelCriteriaContextStatus,
   hotelCriteriaFromDraft,
   hotelCriteriaToDraft,
+  resolveHotelEditSubmitUrl,
   resultCountBucket,
   type HotelCriteriaContextStatus,
   type HotelCriteriaDraft,
@@ -68,7 +69,7 @@ export function HotelDealCriteriaSummary({ context, deal }: {
       })
       setFailedDraft(null)
       failedVersionRef.current = null
-      router.push(href)
+      router.push(resolveHotelEditSubmitUrl(context.backHref, next))
     } catch {
       setSubmitting(false)
       setEditorOpen(false)
