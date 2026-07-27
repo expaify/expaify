@@ -5,7 +5,7 @@ import { CITY_SLUGS } from '@/lib/cities'
 import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DealFeed, type ApiDeal } from '@/app/deals/DealFeed'
 import {
-  createHotelCriteriaVersion,
+  deterministicHotelCriteriaVersion,
   hotelCriteriaFromDraft,
   resolveHotelResultsView,
   resolveHotelSearchCriteria,
@@ -90,7 +90,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
 
   const criteria = restoredCriteria ?? hotelCriteriaFromDraft(
     { city: displayName, dateFrom: '', dateTo: '' },
-    createHotelCriteriaVersion(),
+    deterministicHotelCriteriaVersion({ city: displayName, dateFrom: '', dateTo: '', source: 'destination_page' }),
     'destination_page',
   )
   const pwCtx = await getPaywallContext()
