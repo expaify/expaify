@@ -8,11 +8,14 @@ jest.mock('react', () => {
 
   return {
     ...actual,
-    useEffect: jest.fn(),
-    useRef: jest.fn(() => ({ current: null })),
     useState: jest.fn((initialValue: unknown) => [initialValue, jest.fn()]),
   }
 })
+
+jest.mock('../hotelFundsPolicyAnalytics', () => ({
+  trackHotelFundsPolicyDetailsOpened: jest.fn(),
+  useHotelFundsPolicyExposure: jest.fn(() => ({ current: null })),
+}))
 
 const { default: DealBadge } = jest.requireActual('../DealBadge') as typeof import('../DealBadge')
 const { default: FlightCard } = jest.requireActual('../FlightCard') as typeof import('../FlightCard')

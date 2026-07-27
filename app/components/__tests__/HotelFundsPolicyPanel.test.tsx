@@ -166,7 +166,7 @@ describe('HotelFundsPolicyPanel', () => {
       obligations: [],
       conflictingRecords: [
         { type: 'authorization_hold', amount: { kind: 'exact', money: { priceCents: 10000, currency: 'USD' } }, sourceLabel: 'Property policy', scope: 'property' },
-        { type: 'refundable_deposit', amount: { kind: 'range', min: { priceCents: 20000, currency: 'USD' }, max: { priceCents: 30000, currency: 'USD' } }, sourceLabel: 'Rate policy', scope: 'rate' },
+        { type: 'authorization_hold', amount: { kind: 'range', min: { priceCents: 20000, currency: 'USD' }, max: { priceCents: 30000, currency: 'USD' } }, sourceLabel: 'Second property policy', scope: 'property' },
       ],
     }
     const text = collectText(panel(evidence))
@@ -175,7 +175,7 @@ describe('HotelFundsPolicyPanel', () => {
     expect(text).toContain('Provider detail 1')
     expect(text).toContain('Provider detail 2')
     expect(text).toContain('Source: Property policy · Property-level policy')
-    expect(text).toContain('Source: Rate policy · Rate-level policy')
+    expect(text).toContain('Source: Second property policy · Property-level policy')
   })
 
   it('uses polite, stable loading and non-blocking error states', () => {
