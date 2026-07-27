@@ -11,6 +11,11 @@ import type {
   HotelQualityConfidence,
   HotelQualityKind,
   HotelRatingEvidence,
+  HotelSmokingDimension,
+  HotelSmokingPolicy,
+  PropertySmokingPolicyValue,
+  RoomSmokingPolicyValue,
+  SupplierSmokingStatement,
   NormalizedFare,
 } from '../types';
 import { normalizeHotelFundsPolicyEvidence } from '../hotels/fundsPolicy';
@@ -22,6 +27,7 @@ import {
   hasValidCoordinates,
   hasVerifiedHotelLocationComparison,
 } from '../hotels/locationEvidence';
+import { normalizeHotelSmokingPolicy, unavailableHotelSmokingPolicy } from '../hotels/smokingPolicy';
 
 export type BookingFareContext = {
   offerId: string;
@@ -62,6 +68,7 @@ export type BookingHotelContext = {
   priceCheckedAt?: string;
   hotelClass?: HotelRatingEvidence;
   guestRating?: HotelRatingEvidence;
+  smokingPolicy?: HotelSmokingPolicy;
 };
 
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
@@ -114,6 +121,7 @@ type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
   documentVerificationRole?: unknown;
   documentVerificationUrl?: unknown;
   fundsPolicy?: unknown;
+  smokingPolicy?: unknown;
 };
 
 export function isBookingEnabled(): boolean {
@@ -616,6 +624,9 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const hotelClass = validateHotelRatingEvidence(input.hotelClass);
   const guestRating = validateHotelRatingEvidence(input.guestRating);
   const dealScore = validateHotelDealScore(input.dealScore, currency);
+  const smokingPolicy = input.smokingPolicy === undefined
+    ? unavailableHotelSmokingPolicy()
+    : normalizeHotelSmokingPolicy(input.smokingPolicy, provider);
 
   if (
     kind !== 'hotel' ||
@@ -660,7 +671,52 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     ...(priceCheckedAt !== undefined ? { priceCheckedAt } : {}),
     ...(hotelClass !== undefined ? { hotelClass } : {}),
     ...(guestRating !== undefined ? { guestRating } : {}),
+    smokingPolicy,
   };
+}
+
+const SMOKING_STATEMENT_FIELDS = [
+  'id', 'value', 'scope', 'sourceLabel', 'sourceText', 'fetchedAt',
+  'checkin', 'checkout', 'roomId', 'rateId',
+] as const;
+
+function parseSmokingDimensionParams(params: SearchParams, kind: 'Room' | 'Property'): Record<string, unknown> {
+  const prefix = `smoking${kind}`;
+  const countValue = firstParam(params[`${prefix}StatementCount`]);
+  const count = /^\d+$/.test(countValue) ? Number(countValue) : -1;
+  const statements = count >= 0 && count <= 20
+    ? Array.from({ length: count }, (_, index) => {
+        const statement: Record<string, unknown> = {};
+        for (const field of SMOKING_STATEMENT_FIELDS) {
+          const value = firstParam(params[`${prefix}Statement${index}${field[0].toUpperCase()}${field.slice(1)}`]);
+          if (value !== '') statement[field] = value;
+        }
+        return statement;
+      })
+    : [{}];
+
+  const dimension: Record<string, unknown> = {
+    state: firstParam(params[`${prefix}State`]),
+    statements,
+  };
+  const value = firstParam(params[`${prefix}Value`]);
+  const scope = firstParam(params[`${prefix}Scope`]);
+  if (value) dimension.value = value;
+  if (scope) dimension.scope = scope;
+  if (firstParam(params[`${prefix}Stale`]) === '1') dimension.isStale = true;
+  return dimension;
+}
+
+function parseSmokingPolicyParams(params: SearchParams): HotelSmokingPolicy | undefined {
+  const version = firstParam(params.smokingPolicyVersion);
+  if (!version) return undefined;
+  if (version !== '1') return unavailableHotelSmokingPolicy();
+  return normalizeHotelSmokingPolicy({
+    loadState: firstParam(params.smokingLoadState),
+    refreshFailed: firstParam(params.smokingRefreshFailed) === '1',
+    room: parseSmokingDimensionParams(params, 'Room'),
+    property: parseSmokingDimensionParams(params, 'Property'),
+  }, firstParam(params.provider));
 }
 
 export function parseBookingHotelContext(params: SearchParams): BookingHotelContext | null {
@@ -726,6 +782,7 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     dealScore: parseJsonQueryParam(firstParam(params.dealScore)),
     hotelClass: parseJsonQueryParam(firstParam(params.hotelClass)),
     guestRating: parseJsonQueryParam(firstParam(params.guestRating)),
+    smokingPolicy: parseSmokingPolicyParams(params),
   });
 }
 
@@ -814,6 +871,9 @@ export function buildBookingHotelContext(hotel: HotelOffer, continuity?: Booking
     providerUrl: hotel.deeplink,
     documentReadiness,
     fundsPolicy: normalizeHotelFundsPolicyEvidence(hotel.fundsPolicy, hotel.source),
+    smokingPolicy: hotel.smokingPolicy === undefined
+      ? unavailableHotelSmokingPolicy()
+      : normalizeHotelSmokingPolicy(hotel.smokingPolicy, hotel.source),
     ...(continuity?.entrySource !== undefined ? { entrySource: continuity.entrySource } : {}),
     ...(continuity?.returnUrl !== undefined ? { returnUrl: continuity.returnUrl } : {}),
     ...(continuity?.checkIn !== undefined ? { checkIn: continuity.checkIn } : {}),
@@ -901,6 +961,7 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
       params.set('documentVerificationUrl', context.documentReadiness.verificationTarget.url);
     }
   }
+  serializeSmokingPolicy(params, context.smokingPolicy ?? unavailableHotelSmokingPolicy());
 
   return `/book?${params.toString()}`;
 }
@@ -914,4 +975,34 @@ export function buildHotelBookingHref(hotel: HotelOffer): string {
 export function hotelBookingHrefRequiresReference(href: string): boolean {
   const query = href.split('?', 2)[1] ?? '';
   return new URLSearchParams(query).get('hotelContextRef') === HOTEL_CONTEXT_REFERENCE_REQUIRED;
+}
+
+function serializeSmokingDimension<T extends RoomSmokingPolicyValue | PropertySmokingPolicyValue>(
+  params: URLSearchParams,
+  kind: 'Room' | 'Property',
+  dimension: HotelSmokingDimension<T>,
+): void {
+  const prefix = `smoking${kind}`;
+  params.set(`${prefix}State`, dimension.state);
+  if (dimension.value) params.set(`${prefix}Value`, dimension.value);
+  if (dimension.scope) params.set(`${prefix}Scope`, dimension.scope);
+  if (dimension.isStale) params.set(`${prefix}Stale`, '1');
+  params.set(`${prefix}StatementCount`, String(dimension.statements.length));
+
+  dimension.statements.forEach((statement: SupplierSmokingStatement, index: number) => {
+    for (const field of SMOKING_STATEMENT_FIELDS) {
+      const value = statement[field];
+      if (value !== undefined) {
+        params.set(`${prefix}Statement${index}${field[0].toUpperCase()}${field.slice(1)}`, value);
+      }
+    }
+  });
+}
+
+function serializeSmokingPolicy(params: URLSearchParams, policy: HotelSmokingPolicy): void {
+  params.set('smokingPolicyVersion', '1');
+  params.set('smokingLoadState', policy.loadState);
+  if (policy.refreshFailed) params.set('smokingRefreshFailed', '1');
+  serializeSmokingDimension(params, 'Room', policy.room);
+  serializeSmokingDimension(params, 'Property', policy.property);
 }

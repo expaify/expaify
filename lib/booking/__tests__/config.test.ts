@@ -306,6 +306,11 @@ describe('booking hotel context continuity', () => {
         source: { label: 'Hotellook' },
       },
       fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'hotellook', scope: 'not_returned' },
+      smokingPolicy: {
+        loadState: 'error',
+        room: { state: 'unavailable', statements: [] },
+        property: { state: 'unavailable', statements: [] },
+      },
     });
   });
 

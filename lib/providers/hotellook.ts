@@ -8,6 +8,10 @@ import {
   notProvidedHotelDocumentReadiness,
 } from './hotelDocumentReadiness';
 import { createNotReturnedHotelFundsPolicy } from '../hotels/fundsPolicy';
+import {
+  normalizeHotelSmokingPolicy,
+  notProvidedHotelSmokingPolicy,
+} from '../hotels/smokingPolicy';
 
 const ENGINE_BASE = 'https://engine.hotellook.com/api/v2/cache.json';
 const CACHE_TTL = 21600; // 6 hours
@@ -33,6 +37,7 @@ interface HotelLookCacheEntry {
   photoUrl?: string;
   propertyType?: string;
   amenityEvidence?: unknown;
+  smokingPolicy?: unknown;
 }
 
 type HotelLookOffer = HotelOffer & {
@@ -246,7 +251,7 @@ function buildHotelClassEvidence(input: {
       value: input.stars,
       scaleMax: 5,
       sourceLabel: sourceLabel(input.source),
-      fetchedAt: input.fetchedAt,
+      ...(input.fetchedAt ? { fetchedAt: input.fetchedAt } : {}),
       confidence: 'provider_only',
     };
   }
@@ -254,7 +259,7 @@ function buildHotelClassEvidence(input: {
   return {
     kind: 'unknown',
     sourceLabel: sourceLabel(input.source),
-    fetchedAt: input.fetchedAt,
+    ...(input.fetchedAt ? { fetchedAt: input.fetchedAt } : {}),
     confidence: 'unavailable',
   };
 }
@@ -267,7 +272,7 @@ function buildGuestRatingEvidence(input: {
 }): HotelRatingEvidence {
   const base = {
     sourceLabel: sourceLabel(input.source),
-    fetchedAt: input.fetchedAt,
+    ...(input.fetchedAt ? { fetchedAt: input.fetchedAt } : {}),
   };
 
   if (input.legacyRating !== undefined) {
@@ -375,6 +380,9 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     });
   const access = normalizeHotelAmenityEvidence(value.amenityEvidence, sourceLabel(value.source));
   const accessEvidenceState = value.accessEvidenceState === 'error' ? 'error' : access.state;
+  const smokingPolicy = value.smokingPolicy === undefined
+    ? notProvidedHotelSmokingPolicy()
+    : normalizeHotelSmokingPolicy(value.smokingPolicy, value.source);
 
   return {
     id: value.id,
@@ -383,7 +391,7 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     location,
     stars,
     rating: normalizedRating,
-    photoUrl,
+    ...(photoUrl ? { photoUrl } : {}),
     pricePerNight: {
       priceCents,
       currency,
@@ -396,6 +404,7 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     amenityEvidence: access.evidence,
     accessEvidenceState,
     fundsPolicy: createNotReturnedHotelFundsPolicy('Hotellook'),
+    smokingPolicy,
   };
 }
 
@@ -515,6 +524,9 @@ export class HotellookProvider implements HotelProvider {
           amenityEvidence: access.evidence,
           accessEvidenceState: access.state,
           fundsPolicy: createNotReturnedHotelFundsPolicy('Hotellook'),
+          // cache.json exposes no supported, scoped smoking-policy fields. A
+          // successful check is explicit absence, never a policy inference.
+          smokingPolicy: notProvidedHotelSmokingPolicy(),
         };
       });
 

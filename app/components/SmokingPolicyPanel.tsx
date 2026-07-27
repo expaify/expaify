@@ -1,63 +1,23 @@
-export type HotelSmokingEvidenceState =
-  | 'confirmed'
-  | 'ambiguous'
-  | 'conflicting'
-  | 'not_provided'
-  | 'unavailable'
+import type {
+  HotelSmokingDimension,
+  HotelSmokingEvidenceState,
+  HotelSmokingPolicy,
+  HotelSmokingScope,
+  PropertySmokingPolicyValue,
+  RoomSmokingPolicyValue,
+  SupplierSmokingStatement,
+} from '@/lib/types'
 
-export type HotelSmokingPolicyLoadState = 'loading' | 'ready' | 'refreshing' | 'error'
+export type {
+  HotelSmokingDimension,
+  HotelSmokingEvidenceState,
+  HotelSmokingScope,
+  PropertySmokingPolicyValue,
+  RoomSmokingPolicyValue,
+  SupplierSmokingStatement,
+} from '@/lib/types'
 
-export type RoomSmokingPolicyValue =
-  | 'all_rooms_non_smoking'
-  | 'smoking_rooms_offered'
-  | 'selected_room_non_smoking'
-  | 'selected_room_smoking'
-
-export type PropertySmokingPolicyValue =
-  | 'smoke_free_property'
-  | 'indoor_common_areas_smoke_free'
-  | 'designated_smoking_areas'
-  | 'smoking_permitted_in_stated_areas'
-
-export type HotelSmokingScope =
-  | 'property_room_inventory'
-  | 'property_room_capability'
-  | 'selected_room_rate'
-  | 'entire_property'
-  | 'indoor_common_areas'
-  | 'designated_areas'
-  | 'stated_areas'
-  | 'unclear'
-
-export type SupplierSmokingStatement = {
-  id: string
-  value?: RoomSmokingPolicyValue | PropertySmokingPolicyValue
-  scope: HotelSmokingScope
-  sourceLabel: string
-  sourceText: string
-  fetchedAt: string
-  checkin?: string
-  checkout?: string
-  roomId?: string
-  rateId?: string
-}
-
-export type HotelSmokingDimension<T> = {
-  state: HotelSmokingEvidenceState
-  value?: T
-  scope?: HotelSmokingScope
-  statements: readonly SupplierSmokingStatement[]
-  /** A previously valid statement that the data layer has expired. */
-  isStale?: boolean
-}
-
-export type HotelSmokingPolicyView = {
-  loadState: HotelSmokingPolicyLoadState
-  room: HotelSmokingDimension<RoomSmokingPolicyValue>
-  property: HotelSmokingDimension<PropertySmokingPolicyValue>
-  /** Set only when a refresh failed and the stale snapshot is intentionally retained. */
-  refreshFailed?: boolean
-}
+export type HotelSmokingPolicyView = HotelSmokingPolicy
 
 type DimensionKind = 'room' | 'property'
 

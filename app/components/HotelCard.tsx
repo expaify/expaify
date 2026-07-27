@@ -29,7 +29,8 @@ import {
 } from './HotelRateRestrictions'
 import { HotelPetPolicyDetails, HotelPetPolicyScan } from './HotelPetPolicy'
 import type { HotelPetPolicyPresentation } from './HotelPetPolicy'
-import SmokingPolicyPanel, { getCollapsedSmokingPolicy, type HotelSmokingPolicyView } from './SmokingPolicyPanel'
+import { getCollapsedSmokingPolicy, type HotelSmokingPolicyView } from './SmokingPolicyPanel'
+import TrackedSmokingPolicyPanel from './TrackedSmokingPolicyPanel'
 
 type Props = {
   hotel: HotelOffer
@@ -771,7 +772,8 @@ export default function HotelCard({
   const collapsedAccessAriaLabel = collapsedAccessFact?.id === 'elevator'
     ? `Elevator. ${collapsedAccessFact.sourceLabel.trim()} confirms this property has an elevator.`
     : undefined
-  const collapsedSmokingPolicy = getCollapsedSmokingPolicy(smokingPolicy)
+  const resolvedSmokingPolicy = smokingPolicy ?? hotel.smokingPolicy
+  const collapsedSmokingPolicy = getCollapsedSmokingPolicy(resolvedSmokingPolicy)
   const fundsPolicyExposureRef = useHotelFundsPolicyExposure({
     evidence: resolvedFundsPolicy,
     loadState: fundsPolicyLoadState,
@@ -1029,8 +1031,8 @@ export default function HotelCard({
               />
             ) : null}
 
-            {smokingPolicy ? (
-              <SmokingPolicyPanel offerId={hotel.id} policy={smokingPolicy} surface="result_detail" />
+            {resolvedSmokingPolicy ? (
+              <TrackedSmokingPolicyPanel offerId={hotel.id} provider={hotel.source} policy={resolvedSmokingPolicy} surface="result_detail" />
             ) : null}
 
             <AccessEvidencePanel

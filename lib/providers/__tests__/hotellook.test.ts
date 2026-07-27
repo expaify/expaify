@@ -175,6 +175,11 @@ describe('HotellookProvider.searchHotels', () => {
         amenityEvidence: notReturnedEvidence,
         accessEvidenceState: 'ready',
         fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
+        smokingPolicy: {
+          loadState: 'ready',
+          room: { state: 'not_provided', statements: [] },
+          property: { state: 'not_provided', statements: [] },
+        },
       },
     ]);
   });
@@ -465,13 +470,11 @@ describe('HotellookProvider.searchHotels', () => {
             billingDetailsStep: 'unknown',
             source: { label: 'Hotellook' },
           },
-          photoUrl: undefined,
           hotelClass: {
             kind: 'hotel_class',
             value: 4,
             scaleMax: 5,
             sourceLabel: 'Hotellook',
-            fetchedAt: undefined,
             confidence: 'provider_only',
           },
           guestRating: {
@@ -479,7 +482,6 @@ describe('HotellookProvider.searchHotels', () => {
             value: 4,
             scaleMax: 5,
             sourceLabel: 'Hotellook',
-            fetchedAt: undefined,
             confidence: 'inferred',
           },
           amenityEvidence: notReturnedEvidence,

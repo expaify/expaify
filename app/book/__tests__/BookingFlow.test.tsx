@@ -226,7 +226,7 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Need a quiet room, high floor, or early check-in?');
     expect(text).toContain('Add your request on the booking partner’s site while booking. Nothing is selected or sent by expaify.');
     expect(text).toContain('Requests depend on availability and are not guaranteed. After booking, use your confirmation or itinerary to contact the property and ask it to confirm what it can provide.');
-    expect(text).toContain('Opens the provider site in a new tab. Your expaify page stays open.');
+    expect(text).toContain('Opens the booking partner’s site in a new tab. Your expaify search stays open here.');
     expect(text).not.toContain('Provider confirmation required');
     expect(text).not.toContain('Before you continue');
     expect(text).not.toContain('tp.media takes payment');
@@ -240,7 +240,7 @@ describe('BookingFlow fare context review', () => {
     const outbound = findElements(tree, element => element.type === 'a' && typeof element.props['aria-label'] === 'string' && element.props['aria-label'].startsWith('Check rooms at'))[0];
     expect(outbound.props.href).toBe(hotelContext.providerUrl);
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
-    expect(outbound.props['aria-label']).toBe('Check rooms at provider for The Example Hotel. Opens in a new tab. The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.');
+    expect(outbound.props['aria-label']).toBe('Check rooms at provider for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ. Confirm the room\'s smoking status and the property\'s current smoking rules on the booking partner.');
   });
 
   it('names a resolved destination without changing its affiliate URL', () => {
@@ -255,7 +255,7 @@ describe('BookingFlow fare context review', () => {
     const outbound = findElements(tree, element => element.type === 'a' && typeof element.props['aria-label'] === 'string' && element.props['aria-label'].startsWith('Check rooms at'))[0];
 
     expect(text).toContain('Check rooms at Booking.com');
-    expect(text).toContain('Opens Booking.com in a new tab. Your expaify page stays open.');
+    expect(text).toContain('Opens Booking.com in a new tab. Your expaify search stays open here.');
     expect(text).toContain('Add your request on Booking.com while booking. Nothing is selected or sent by expaify.');
     expect(text).toContain('The booking partner will show exactly what is required.');
     expect(text).not.toContain('Booking.com requires');

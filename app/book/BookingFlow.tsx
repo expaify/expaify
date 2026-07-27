@@ -27,9 +27,25 @@ import HotelFundsPolicyPanel, {
 } from '@/app/components/HotelFundsPolicyPanel'
 import { useHotelFundsPolicyExposure } from '@/app/components/hotelFundsPolicyAnalytics'
 import { getHotelFundsAnalyticsDimensions } from '@/lib/hotels/fundsPolicy'
+import type { HotelSmokingPolicyView } from '@/app/components/SmokingPolicyPanel'
+import TrackedSmokingPolicyPanel from '@/app/components/TrackedSmokingPolicyPanel'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
+type HotelReturnReason =
+  | 'smoking_policy_or_room_mismatch'
+  | 'price_or_fees_mismatch'
+  | 'room_availability_mismatch'
+  | 'other_hotel_details_mismatch'
+  | 'prefer_not_to_say'
+
+const HOTEL_RETURN_REASONS: ReadonlyArray<{ value: HotelReturnReason; label: string }> = [
+  { value: 'smoking_policy_or_room_mismatch', label: 'Smoking policy or room did not match' },
+  { value: 'price_or_fees_mismatch', label: 'Price or fees did not match' },
+  { value: 'room_availability_mismatch', label: 'Room availability did not match' },
+  { value: 'other_hotel_details_mismatch', label: 'Other hotel details did not match' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+]
 
 export function beginHotelDocumentReadinessCheck(
   pendingRef: { current: boolean },
@@ -168,6 +184,7 @@ type BookingFlowProps = {
   hasSearchDates?: boolean
   hotelFundsPolicy?: HotelFundsPolicyEvidence | null
   hotelFundsPolicyLoadState?: HotelFundsPolicyLoadState
+  hotelSmokingPolicy?: HotelSmokingPolicyView
 }
 
 function formatMoney(cents: number, currency: string) {
@@ -471,6 +488,7 @@ function ReviewShell({
   duffelSandbox,
   status,
   onBackClick,
+  hotelSupplement,
   children,
 }: {
   eyebrow?: string
@@ -482,6 +500,7 @@ function ReviewShell({
   duffelSandbox: boolean
   status?: ReactNode
   onBackClick?: MouseEventHandler<HTMLAnchorElement>
+  hotelSupplement?: ReactNode
   children: ReactNode
 }) {
   if (hotelContext) {
@@ -669,6 +688,7 @@ function HotelHandoffReview({
   hasSearchDates = true,
   fundsPolicy,
   fundsPolicyLoadState = 'ready',
+  hotelSmokingPolicy,
 }: {
   hotelContext: BookingHotelContext
   duffelSandbox: boolean
@@ -678,6 +698,7 @@ function HotelHandoffReview({
   hasSearchDates?: boolean
   fundsPolicy?: HotelFundsPolicyEvidence | null
   fundsPolicyLoadState?: HotelFundsPolicyLoadState
+  hotelSmokingPolicy?: HotelSmokingPolicyView
 }) {
   const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
   const location = getHotelLocationDisplay(hotelContext)
@@ -818,6 +839,13 @@ function HotelHandoffReview({
     provider: hotelContext.provider,
     surface: 'book_handoff',
   })
+  const handoffSessionIdRef = useRef<string | undefined>(undefined)
+  const feedbackTriggerRef = useRef<HTMLButtonElement>(null)
+  const [showReturnPrompt, setShowReturnPrompt] = useState(false)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [selectedReturnReason, setSelectedReturnReason] = useState<HotelReturnReason | ''>('')
+  const [feedbackSent, setFeedbackSent] = useState(false)
+  const policy = hotelSmokingPolicy ?? hotelContext.smokingPolicy
 
   useEffect(() => {
     const guidanceBlock = guidanceBlockRef.current
@@ -881,6 +909,7 @@ function HotelHandoffReview({
         policyState: policyDimensions.policyState,
         obligationTypes: policyDimensions.obligationTypes,
       })
+      setShowReturnPrompt(true)
       returnArmedRef.current = false
       hiddenAfterContinueRef.current = false
       continueStartedAtRef.current = undefined
@@ -895,6 +924,9 @@ function HotelHandoffReview({
     returnArmedRef.current = true
     hiddenAfterContinueRef.current = false
     continueStartedAtRef.current = performance.now()
+    handoffSessionIdRef.current = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `handoff-${Date.now()}`
     emitAnalytics('hotel_handoff_continue_clicked', {
       ...analyticsProps,
       partnerNamed: partner.named,
@@ -911,6 +943,20 @@ function HotelHandoffReview({
         guidanceSeen: true,
       })
     }
+  }
+
+  const handleReturnFeedback = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selectedReturnReason || !handoffSessionIdRef.current) return
+    emitAnalytics('hotel_handoff_return_reason_selected', {
+      reason: selectedReturnReason,
+      offerId: hotelContext.offerId,
+      provider: hotelContext.provider,
+      partnerHost: partner.host,
+      handoffSessionId: handoffSessionIdRef.current,
+    })
+    setFeedbackSent(true)
+    setFeedbackOpen(false)
   }
 
   const handleHelpToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
@@ -937,9 +983,10 @@ function HotelHandoffReview({
 
   const continueLabel = partner.named ? `Check rooms at ${partner.label}` : 'Check rooms at provider'
   const newTabCue = partner.named
-    ? `Opens ${partner.label} in a new tab. Your expaify page stays open.`
-    : 'Opens the provider site in a new tab. Your expaify page stays open.'
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens in a new tab. The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.`
+    ? `Opens ${partner.label} in a new tab. Your expaify search stays open here.`
+    : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
+  const accessiblePartner = partner.named ? partner.label : 'the booking partner’s site'
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
 
   return (
     <ReviewShell
@@ -950,6 +997,56 @@ function HotelHandoffReview({
       hotelContext={hotelContext}
       duffelSandbox={duffelSandbox}
       onBackClick={handleBack}
+      hotelSupplement={policy ? (
+        <div className="space-y-3">
+          <TrackedSmokingPolicyPanel offerId={hotelContext.offerId} provider={hotelContext.provider} policy={policy} surface="review" />
+          {showReturnPrompt ? (
+            <section className="rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4" aria-labelledby="hotel-return-feedback-title">
+              <h3 id="hotel-return-feedback-title" className="text-sm font-bold text-[color:var(--text-1)]">Did the partner details match?</h3>
+              <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Optional: tell us what changed so we can improve hotel evidence.</p>
+              {feedbackSent ? (
+                <p className="mt-3 text-sm font-medium text-[color:var(--brand)]" role="status">Thanks. Your feedback was recorded.</p>
+              ) : feedbackOpen ? (
+                <form className="mt-3" onSubmit={handleReturnFeedback}>
+                  <fieldset>
+                    <legend className="text-sm font-bold text-[color:var(--text-1)]">What did not match?</legend>
+                    <div className="mt-2 space-y-1">
+                      {HOTEL_RETURN_REASONS.map(reason => (
+                        <label key={reason.value} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm text-[color:var(--text-2)] focus-within:shadow-[var(--focus-ring)]">
+                          <input
+                            type="radio"
+                            name="hotel-return-reason"
+                            value={reason.value}
+                            checked={selectedReturnReason === reason.value}
+                            onChange={() => setSelectedReturnReason(reason.value)}
+                          />
+                          <span>{reason.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <button type="submit" disabled={!selectedReturnReason} className="btn-primary min-h-11 rounded-lg px-4 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">Send feedback</button>
+                    <button
+                      type="button"
+                      className={secondaryButtonCls}
+                      onClick={() => {
+                        setFeedbackOpen(false)
+                        setSelectedReturnReason('')
+                        window.setTimeout(() => feedbackTriggerRef.current?.focus(), 0)
+                      }}
+                    >Cancel</button>
+                  </div>
+                </form>
+              ) : (
+                <button ref={feedbackTriggerRef} type="button" onClick={() => setFeedbackOpen(true)} className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-[color:var(--border)] px-4 text-sm font-medium text-[color:var(--text-1)] focus-visible:shadow-[var(--focus-ring)]">
+                  Report a mismatch
+                </button>
+              )}
+            </section>
+          ) : null}
+        </div>
+      ) : undefined}
     >
       <section aria-labelledby="hotel-provider-title" className={`${panelCls} border-[color:var(--border-strong)] p-4 sm:p-6`}>
         <h2 id="hotel-provider-title" className="text-xl font-bold leading-tight text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
@@ -1096,6 +1193,7 @@ export default function BookingFlow({
   hasSearchDates = true,
   hotelFundsPolicy,
   hotelFundsPolicyLoadState = 'ready',
+  hotelSmokingPolicy,
 }: BookingFlowProps) {
   const [state, setState] = useState<BookingState>('idle')
   const [bookingRef, setBookingRef] = useState('')
@@ -1124,6 +1222,7 @@ export default function BookingFlow({
         hasSearchDates={hasSearchDates}
         fundsPolicy={hotelFundsPolicy}
         fundsPolicyLoadState={hotelFundsPolicyLoadState}
+        hotelSmokingPolicy={hotelSmokingPolicy}
       />
     )
   }
