@@ -6,6 +6,7 @@ import { CompareRow, eligibleHotelProviderLinks } from '@/app/components/ui/Comp
 import { track } from '@/lib/analytics'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import {
+  buildHotelDestinationUrl,
   buildHotelResultsUrl,
   createHotelCriteriaVersion,
   hotelCriteriaContextStatus,
@@ -49,7 +50,9 @@ export function HotelDealCriteriaSummary({ context, deal }: {
     setSubmitting(true)
     setUpdateFailed(false)
     const next = hotelCriteriaFromDraft(draft, retryVersion ?? createHotelCriteriaVersion(), 'edit')
-    const href = buildHotelResultsUrl(next)
+    const href = context.backHref.startsWith('/destinations/')
+      ? buildHotelDestinationUrl(next)
+      : buildHotelResultsUrl(next)
     try {
       const response = await fetch(`/api/deals?${href.split('?')[1]}&limit=1`, { headers: { accept: 'application/json' } })
       if (!response.ok) throw new Error('request failed')
