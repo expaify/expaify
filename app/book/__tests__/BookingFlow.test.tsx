@@ -243,6 +243,33 @@ describe('BookingFlow fare context review', () => {
     expect(outbound.props['aria-label']).toBe('Check rooms at provider for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ. Confirm the room\'s smoking status and the property\'s current smoking rules on the booking partner.');
   });
 
+  it('carries a hotel Deal Score through to the booking review when present', () => {
+    const scoredHotelContext: BookingHotelContext = {
+      ...hotelContext,
+      dealScore: {
+        percentile: 8,
+        pctVsMedian: -34,
+        medianCents: 28600,
+        currency: 'USD',
+        verdict: 'Great',
+        confidence: 'high',
+        explanation: '$189.00 — about 34% below the usual $286.00 for this hotel over the last 90 days.',
+        sampleSize: 43,
+      },
+    };
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: true,
+      fareContext: null,
+      hotelContext: scoredHotelContext,
+    });
+    const text = collectText(tree);
+
+    expect(text).toContain('Great');
+    expect(text).toContain(scoredHotelContext.dealScore!.explanation);
+    expect(text).not.toContain('Deal Score unavailable');
+  });
+
   it('names a resolved destination without changing its affiliate URL', () => {
     const providerUrl = 'https://www.booking.com/hotel/x?aid=123&label=a%2Bb';
     const tree = BookingFlow({

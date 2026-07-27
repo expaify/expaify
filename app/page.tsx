@@ -4,6 +4,7 @@ import { LockedDealCard } from './components/ui/LockedDealCard'
 import { LandingNav } from './components/LandingNav'
 import { FaqAccordion } from './components/FaqAccordion'
 import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
+import { DEAL_THRESHOLD, MIN_SNAPSHOTS } from '@/lib/pipeline/dealRules'
 
 export const metadata: Metadata = {
   title: 'expaify — Never overpay for a hotel again',
@@ -79,7 +80,7 @@ const MOCK_HERO: DealCardDeal = {
   checkInWindow: exampleCheckInWindow(38, 2),
   snapshotCount: 43,
   links: { expedia: '#', booking: '#', kiwi: '#', trip: '#' },
-  headline: '54% below its 60-day average',
+  headline: '54% below its 60-day median',
   isMock: true,
   firstSeen: THREE_HOURS_AGO,
   updatedAt: null,
@@ -234,7 +235,7 @@ export default async function LandingPage() {
                 {
                   n: '02',
                   title: 'We detect real drops',
-                  body: 'A deal is only flagged when a price falls 30% below its rolling median — with at least 3 days of price history behind it.',
+                  body: `A deal is only flagged when a price drops to ${Math.round(DEAL_THRESHOLD * 100)}% or below its rolling 60-day median — with at least ${MIN_SNAPSHOTS} price checks behind it.`,
                 },
                 {
                   n: '03',

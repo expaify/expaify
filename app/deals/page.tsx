@@ -19,7 +19,7 @@ import {
 
 export const metadata: Metadata = {
   title: 'Hotel deals today — expaify',
-  description: 'We track 20 destinations daily and surface hotel deals 30–50% below their 60-day average price.',
+  description: 'We track 20 destinations daily and surface hotel deals at least 30% below their 60-day median price.',
 }
 
 function toApiDeal(row: DealRow, locked: boolean): ApiDeal {

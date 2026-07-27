@@ -18,6 +18,7 @@ jest.mock('../hotelFundsPolicyAnalytics', () => ({
 }))
 
 const { default: DealBadge } = jest.requireActual('../DealBadge') as typeof import('../DealBadge')
+const { default: DealScorePanel } = jest.requireActual('../DealScorePanel') as typeof import('../DealScorePanel')
 const { default: FlightCard } = jest.requireActual('../FlightCard') as typeof import('../FlightCard')
 const { default: HotelCard } = jest.requireActual('../HotelCard') as typeof import('../HotelCard')
 const { DealCard } = jest.requireActual('../ui/DealCard') as typeof import('../ui/DealCard')
@@ -570,5 +571,150 @@ describe('Deal score presentation', () => {
     expect(priceIndex).toBeLessThan(scoreIndex)
     expect(scoreIndex).toBeLessThan(actionIndex)
     expect(actionIndex).toBeLessThan(photoIndex)
+  })
+})
+
+describe('DealScorePanel — presentation clarity', () => {
+  const scoredHigh: DealScore = {
+    percentile: 23,
+    pctVsMedian: -9,
+    medianCents: 41200,
+    currency: 'USD',
+    verdict: 'Good',
+    confidence: 'high',
+    explanation: '$375.00 — about 9% below the usual $412.00 for this route over the last 90 days.',
+    sampleSize: 43,
+  }
+
+  const lowConfidence: DealScore = {
+    percentile: 50,
+    pctVsMedian: -25,
+    medianCents: 18000,
+    currency: 'USD',
+    verdict: 'Typical',
+    confidence: 'low',
+    explanation: '$135.00 — limited price history for this hotel, so this is treated as a typical price for now.',
+  }
+
+  function panel(score: DealScore | null, overrides?: Partial<{ loading: boolean; scope: 'route' | 'hotel'; priceNoun: 'fare' | 'nightly rate'; unavailableCopy: string }>) {
+    return DealScorePanel({
+      score,
+      loading: false,
+      scope: 'route',
+      priceNoun: 'fare',
+      unavailableCopy: 'unavailable copy',
+      ...overrides,
+    })
+  }
+
+  it('never renders an ordinal percentile in loading, unavailable, low-confidence, or scored states', () => {
+    const states = [
+      DealScorePanel({ score: null, loading: true, scope: 'route', priceNoun: 'fare', unavailableCopy: 'x' }),
+      panel(null),
+      panel(lowConfidence),
+      panel(scoredHigh),
+    ]
+
+    for (const state of states) {
+      expect(collectText(state)).not.toMatch(/\d+(st|nd|rd|th)\s+percentile/)
+    }
+  })
+
+  it('places the explanation sentence before the evidence grid in the scored state', () => {
+    const text = collectText(panel(scoredHigh))
+    expect(text.indexOf(scoredHigh.explanation)).toBeLessThan(text.indexOf('Usual fare'))
+  })
+
+  it('states the price-check count on the scored fact when sampleSize is present, singular when 1, and degrades gracefully when absent', () => {
+    const text43 = collectText(panel(scoredHigh))
+    expect(text43).toContain('43 price checks')
+
+    const text1 = collectText(panel({ ...scoredHigh, sampleSize: 1 }))
+    expect(text1).toContain('1 price check,')
+    expect(text1).not.toContain('1 price checks')
+
+    const { sampleSize: _omit, ...withoutSampleSize } = scoredHigh
+    const textNone = collectText(panel(withoutSampleSize))
+    expect(textNone).toContain('Last 90 days')
+    expect(textNone).not.toContain('NaN')
+    expect(textNone).not.toContain('undefined')
+    expect(textNone).not.toContain('0 price checks')
+  })
+
+  it('suppresses the evidence grid entirely for low confidence and never restates the disowned median', () => {
+    const text = collectText(panel(lowConfidence, { scope: 'hotel', priceNoun: 'nightly rate' }))
+    expect(text).not.toContain('$180.00')
+    expect(text).not.toContain('25% below usual')
+    expect(text).not.toContain('Usual nightly rate')
+  })
+
+  it('states the low-confidence count line precisely for known sample sizes and suppresses it at zero', () => {
+    const text4 = collectText(panel({ ...lowConfidence, sampleSize: 4 }))
+    expect(text4).toContain('4 recent prices')
+    expect(text4).toContain('not enough to confirm a rating')
+
+    const text1 = collectText(panel({ ...lowConfidence, sampleSize: 1 }))
+    expect(text1).toContain('1 recent price —')
+
+    const text0 = collectText(panel({ ...lowConfidence, sampleSize: 0 }))
+    expect(text0).not.toContain('Compared with')
+  })
+
+  it('states limited history at most twice in a rendered low-confidence expanded FlightCard', () => {
+    const useStateMock = jest.requireMock('react').useState as jest.Mock
+    useStateMock.mockImplementationOnce(() => [true, jest.fn()])
+
+    const text = collectText(FlightCard({ fare, score: lowConfidence, loading: false }))
+    expect(countText(text, 'Limited history')).toBeLessThanOrEqual(2)
+  })
+
+  it('carries the verdict in the group aria-label for scored and low-confidence states', () => {
+    const goodLabel = findFirstProp(
+      panel(scoredHigh),
+      'aria-label',
+      value => typeof value === 'string' && value.includes('Deal Score for this fare')
+    )
+    expect(goodLabel).toBe('Deal Score for this fare: Good.')
+
+    const lowLabel = findFirstProp(
+      panel(lowConfidence),
+      'aria-label',
+      value => typeof value === 'string' && value.includes('Deal Score for this fare')
+    )
+    expect(lowLabel).toBe('Deal Score for this fare: limited price history.')
+  })
+
+  it('renders loading and unavailable states unchanged', () => {
+    const loadingText = collectText(DealScorePanel({ score: null, loading: true, scope: 'route', priceNoun: 'fare', unavailableCopy: 'x' }))
+    expect(loadingText).toContain('Deal Score')
+    expect(loadingText).toContain('Checking recent price history')
+
+    const unavailableText = collectText(panel(null, { unavailableCopy: 'We could not compare this fare against route history yet. The live price is still shown when available.' }))
+    expect(unavailableText).toContain('Deal Score unavailable')
+    expect(unavailableText).toContain('We could not compare this fare against route history yet. The live price is still shown when available.')
+  })
+})
+
+describe('Homepage rule copy stays derived from dealRules.ts', () => {
+  it('interpolates MIN_SNAPSHOTS from lib/pipeline/dealRules instead of a hardcoded literal', () => {
+    const fs = jest.requireActual('node:fs') as typeof import('node:fs')
+    const source = fs.readFileSync('app/page.tsx', 'utf8')
+
+    expect(source).toContain("import { DEAL_THRESHOLD, MIN_SNAPSHOTS } from '@/lib/pipeline/dealRules'")
+    expect(source).toContain('${MIN_SNAPSHOTS} price checks behind it')
+    expect(source).not.toContain('at least 3 days of price history')
+    expect(source).not.toContain('30% below its rolling median')
+  })
+
+  it('never restates the invented 30–50% discount range or the average-vs-median mixup', () => {
+    const fs = jest.requireActual('node:fs') as typeof import('node:fs')
+    const dealsSource = fs.readFileSync('app/deals/page.tsx', 'utf8')
+    const destinationSource = fs.readFileSync('app/destinations/[city]/page.tsx', 'utf8')
+
+    for (const source of [dealsSource, destinationSource]) {
+      expect(source).not.toMatch(/30[–-]50%/)
+      expect(source).not.toContain('60-day average')
+      expect(source).toContain('60-day median')
+    }
   })
 })

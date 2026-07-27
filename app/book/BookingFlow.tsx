@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEventHandler, type ReactNode, type SyntheticEvent } from 'react'
 import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext, type BookingHotelContext } from '@/lib/booking/config'
 import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
+import DealScorePanel from '@/app/components/DealScorePanel'
 import { track } from '@/lib/analytics'
 import { providerDisplayName } from '@/lib/providerFreshness'
 import type {
@@ -353,11 +354,13 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
             <p className={`mt-2 text-xs font-medium leading-5 text-[color:var(--text-2)] ${partnerLabelWrapCls}`}>Rate observed from {rateSource}.</p>
             <p className="mt-2 text-xs font-medium leading-5 text-[color:var(--warning)]">Last-checked time not provided.</p>
           </div>
-          <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-4" role="status">
-            <p className={factLabelCls}>Deal Score</p>
-            <p className="mt-2 text-sm font-bold text-[color:var(--text-1)]">Deal Score unavailable</p>
-            <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">We could not compare this nightly rate with enough recent hotel prices.</p>
-          </div>
+          <DealScorePanel
+            score={hotelContext.dealScore ?? null}
+            loading={false}
+            scope="hotel"
+            priceNoun="nightly rate"
+            unavailableCopy="We could not compare this nightly rate with enough recent hotel prices."
+          />
         </div>
       </section>
 

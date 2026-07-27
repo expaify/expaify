@@ -79,6 +79,29 @@ describe('FlightResults', () => {
     expect(text).not.toContain('No current fares matched');
   });
 
+  it('does not count a low-confidence Great verdict toward the best-deal stat', () => {
+    const text = collectText({
+      ...defaultProps,
+      flights: [fare],
+      displayFlights: [fare],
+      scores: {
+        'fare-1': {
+          percentile: 5,
+          pctVsMedian: -30,
+          medianCents: 30000,
+          currency: 'USD',
+          verdict: 'Great',
+          confidence: 'low',
+          explanation: 'limited history',
+        },
+      },
+    });
+
+    const statSlice = text.slice(text.indexOf('Great deals'), text.indexOf('Ranked well'));
+    expect(statSlice).toContain('0');
+    expect(statSlice).not.toContain('1');
+  });
+
   it('explains missing departure date context before showing an empty inventory state', () => {
     const text = collectText({
       ...defaultProps,

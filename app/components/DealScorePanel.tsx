@@ -1,5 +1,6 @@
 import { DealScore } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
+import { MIN_COMPARABLE_PRICES } from '@/lib/scoring/scoreDeal'
 import DealBadge from './DealBadge'
 
 type Props = {
@@ -11,11 +12,7 @@ type Props = {
 }
 
 const LOW_CONFIDENCE_RULE =
-  'Fewer than 10 comparable prices are available, so this is not a confirmed deal rating.'
-
-function scopeLabel(scope: Props['scope']) {
-  return scope === 'route' ? 'Compared with route history' : 'Compared with hotel history'
-}
+  `Fewer than ${MIN_COMPARABLE_PRICES} comparable prices are available, so this is not a confirmed deal rating.`
 
 function unavailableAriaLabel(scope: Props['scope']) {
   return scope === 'route'
@@ -35,24 +32,6 @@ function panelClasses(score: DealScore | null) {
     return 'border-[color:var(--border-strong)] bg-[color:var(--brand-soft)]'
   }
   return 'border-[color:var(--border)] bg-[color:var(--bg-raised)]'
-}
-
-function formatOrdinal(value: number) {
-  const rounded = Math.round(value)
-  const mod100 = rounded % 100
-
-  if (mod100 >= 11 && mod100 <= 13) return `${rounded}th`
-
-  switch (rounded % 10) {
-    case 1:
-      return `${rounded}st`
-    case 2:
-      return `${rounded}nd`
-    case 3:
-      return `${rounded}rd`
-    default:
-      return `${rounded}th`
-  }
 }
 
 function formatPctVsMedian(value: number) {
@@ -77,17 +56,39 @@ function Fact({ label, value }: { label: string; value: string }) {
   )
 }
 
+function basedOnFact(sampleSize: number | undefined) {
+  if (sampleSize === undefined) return { label: 'Window', value: 'Last 90 days' }
+
+  const value =
+    sampleSize === 1
+      ? '1 price check, last 90 days'
+      : `${sampleSize} price checks, last 90 days`
+
+  return { label: 'Based on', value }
+}
+
+function lowConfidenceCountLine(sampleSize: number | undefined) {
+  if (sampleSize === undefined) return LOW_CONFIDENCE_RULE
+  if (sampleSize === 0) return null
+  if (sampleSize === 1) return 'Compared with 1 recent price — not enough to confirm a rating.'
+  return `Compared with ${sampleSize} recent prices — not enough to confirm a rating.`
+}
+
 function EvidenceGrid({
   usual,
   usualLabel,
   vsUsual,
   showComparison,
+  sampleSize,
 }: {
   usual: string
   usualLabel: string
   vsUsual: string
   showComparison: boolean
+  sampleSize: number | undefined
 }) {
+  const basedOn = basedOnFact(sampleSize)
+
   return (
     <div className="grid grid-cols-2 gap-2 text-xs min-[420px]:grid-cols-3">
       <Fact
@@ -95,7 +96,7 @@ function EvidenceGrid({
         value={usual === 'Unavailable' ? 'Not enough valid price data' : usual}
       />
       {showComparison ? <Fact label="Vs usual" value={vsUsual} /> : null}
-      <Fact label="Window" value="Last 90 days" />
+      <Fact label={basedOn.label} value={basedOn.value} />
     </div>
   )
 }
@@ -160,15 +161,15 @@ export default function DealScorePanel({
   const hasValidUsual = isValidMoney(usualMoney)
   const usual = hasValidUsual ? formatMoney(usualMoney) : 'Unavailable'
   const usualLabel = priceNoun === 'nightly rate' ? 'Usual nightly rate' : 'Usual fare'
-  const percentile = isLowConfidence
-    ? 'Not enough comparable prices for a confirmed rating'
-    : `${formatOrdinal(score.percentile)} percentile`
+  const verdictForLabel = isLowConfidence ? 'limited price history' : score.verdict
+  const groupLabel = `Deal Score for this ${priceNoun}: ${verdictForLabel}.`
+  const countLine = isLowConfidence ? lowConfidenceCountLine(score.sampleSize) : null
 
   return (
     <section
       className={`flex flex-col gap-2 rounded-[var(--radius-card)] border px-3.5 py-3 ${panelClasses(score)}`}
       role="group"
-      aria-label={`Deal Score for this ${priceNoun}`}
+      aria-label={groupLabel}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -180,28 +181,24 @@ export default function DealScorePanel({
           <DealBadge verdict={score.verdict} confidence={score.confidence} />
         </div>
       </div>
-      <div className="min-w-0">
-        <p className="mt-0.5 text-xs font-medium leading-5 text-[color:var(--text-2)]">
-          {isLowConfidence ? 'Limited price history' : scopeLabel(scope)}
-        </p>
-        <p className="text-xs font-medium leading-5 text-[color:var(--text-2)]">
-          {percentile}
-        </p>
-      </div>
-      <EvidenceGrid
-        usual={usual}
-        usualLabel={usualLabel}
-        vsUsual={formatPctVsMedian(score.pctVsMedian)}
-        showComparison={hasValidUsual && Number.isFinite(score.pctVsMedian)}
-      />
-      {isLowConfidence ? (
-        <p className="text-xs font-medium leading-5 text-[color:var(--warning)]">
-          {LOW_CONFIDENCE_RULE}
-        </p>
-      ) : null}
-      <p className="text-xs font-medium leading-5 text-[color:var(--text-2)]">
+      <p className="text-sm font-medium leading-5 text-[color:var(--text-1)]">
         {score.explanation}
       </p>
+      {isLowConfidence ? (
+        countLine ? (
+          <p className="text-xs font-medium leading-5 text-[color:var(--warning)]">
+            {countLine}
+          </p>
+        ) : null
+      ) : (
+        <EvidenceGrid
+          usual={usual}
+          usualLabel={usualLabel}
+          vsUsual={formatPctVsMedian(score.pctVsMedian)}
+          showComparison={hasValidUsual && Number.isFinite(score.pctVsMedian)}
+          sampleSize={score.sampleSize}
+        />
+      )}
     </section>
   )
 }
