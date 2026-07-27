@@ -1,0 +1,24 @@
+name: Trial Ending Emails
+
+on:
+  schedule:
+    - cron: '0 13 * * *'  # once daily, 9am ET
+  workflow_dispatch:
+
+jobs:
+  trial-ending:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger trial-ending reminders on prod
+        env:
+          PIPELINE_SECRET: ${{ secrets.PIPELINE_SECRET }}
+        run: |
+          curl -fsSL --max-time 60 \
+            -X POST https://expaify.com/api/alerts/trial-ending \
+            -H "Authorization: Bearer ${PIPELINE_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{}' | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          print(f'Sent: {d.get(\"recipients\", 0)}, Skipped: {d.get(\"skipped\", 0)}')
+          "
