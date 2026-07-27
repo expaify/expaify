@@ -30,6 +30,7 @@ import { HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContra
 import {
   HotelResultStatus,
 } from './HotelRecoveryUI'
+import { ColdSampleFeedIntro } from './ColdSampleFeedIntro'
 import {
   formatDealCount,
   formatFilterValue,
@@ -1581,20 +1582,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
           ) : (
             <>
               {isColdSampleFeed ? (
-                <div className="mb-8 space-y-6">
-                  <section role="status" className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] px-5 py-6">
-                    <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">We&apos;re building your feed</p>
-                    <p className="mt-2 max-w-[720px] text-[14px] leading-6 text-[color:var(--ink-soft)]">
-                      These example deals show what expaify will surface after tracking completes. They use sample hotels and prices and aren&apos;t bookable.
-                    </p>
-                  </section>
-                  <div className="border-t border-[color:var(--line-ivory)] pt-6">
-                    <h3 className="text-h3 text-[color:var(--ink)]">Example deals</h3>
-                    <p className="mt-1 text-[13px] leading-5 text-[color:var(--ink-soft)]">
-                      Example deals
-                    </p>
-                  </div>
-                </div>
+                <ColdSampleFeedIntro />
               ) : null}
               {!isColdSampleFeed && hasActiveFilters && recommendedCoverageFilter ? (
                 <div className="mb-4 flex flex-col gap-3 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-4 py-3 text-[13px] leading-5 text-[color:var(--text-2)] sm:flex-row sm:items-center sm:justify-between">
