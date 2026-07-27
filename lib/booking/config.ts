@@ -1,4 +1,5 @@
 import type {
+  DealScore,
   HotelLocation,
   HotelLocationAnchorKind,
   HotelLocationAnchorSource,
@@ -7,6 +8,9 @@ import type {
   HotelDocumentReadiness,
   HotelFundsPolicyEvidence,
   HotelOffer,
+  HotelQualityConfidence,
+  HotelQualityKind,
+  HotelRatingEvidence,
   NormalizedFare,
 } from '../types';
 import { normalizeHotelFundsPolicyEvidence } from '../hotels/fundsPolicy';
@@ -34,6 +38,8 @@ export type BookingFareContext = {
   priceScope: 'per_person' | 'party_total';
 };
 
+export type BookingHotelEntrySource = 'search' | 'saved' | 'direct';
+
 export type BookingHotelContext = {
   kind: 'hotel';
   offerId: string;
@@ -47,6 +53,15 @@ export type BookingHotelContext = {
   providerUrl: string;
   documentReadiness: HotelDocumentReadiness;
   fundsPolicy: HotelFundsPolicyEvidence;
+  entrySource?: BookingHotelEntrySource;
+  returnUrl?: string;
+  checkIn?: string;
+  checkOut?: string;
+  nightCount?: number;
+  dealScore?: DealScore;
+  priceCheckedAt?: string;
+  hotelClass?: HotelRatingEvidence;
+  guestRating?: HotelRatingEvidence;
 };
 
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
@@ -166,13 +181,40 @@ function isCurrencyCode(value: string): boolean {
   return /^[A-Z]{3}$/.test(value);
 }
 
-function isSafeProviderUrl(value: string): boolean {
+const AFFILIATE_MARKER_PARAMS = ['marker', 'aid', 'affcid', 'affilid', 'affiliate_id', 'aff_id'];
+
+export function isValidatedAffiliateProviderUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' || url.protocol === 'http:';
+    if (url.protocol !== 'https:') return false;
+    return AFFILIATE_MARKER_PARAMS.some(param => Boolean(url.searchParams.get(param)));
   } catch {
     return false;
   }
+}
+
+const HOTEL_RETURN_URL_ALLOWED_PATHS = [/^\/$/, /^\/deals(?:\/.*)?$/, /^\/destinations\/[A-Za-z0-9_-]+(?:\/.*)?$/];
+
+export function validateHotelReturnUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1f\x7f]/.test(trimmed)) return undefined;
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//') || trimmed.startsWith('/\\')) return undefined;
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) return undefined;
+
+  let url: URL;
+  try {
+    url = new URL(trimmed, 'https://expaify.internal');
+  } catch {
+    return undefined;
+  }
+
+  if (url.username || url.password || url.hostname !== 'expaify.internal') return undefined;
+  if (!HOTEL_RETURN_URL_ALLOWED_PATHS.some(pattern => pattern.test(url.pathname))) return undefined;
+
+  return `${url.pathname}${url.search}`;
 }
 
 function providerEvidenceLabel(provider: string): string {
@@ -459,6 +501,98 @@ export function parseBookingFareContext(params: SearchParams): BookingFareContex
   });
 }
 
+function isBookingHotelEntrySource(value: string): value is BookingHotelEntrySource {
+  return value === 'search' || value === 'saved' || value === 'direct';
+}
+
+type StayContinuity = { checkIn?: string; checkOut?: string; nightCount?: number };
+
+function validateHotelStayContinuity(input: HotelContextInput): StayContinuity | null {
+  const checkIn = cleanOptional(input.checkIn);
+  const checkOut = cleanOptional(input.checkOut);
+  const nightCountRaw = parseOptionalNumber(input.nightCount);
+
+  if (checkIn !== undefined && !isValidDateInput(checkIn)) return null;
+  if (checkOut !== undefined && !isValidDateInput(checkOut)) return null;
+  if (nightCountRaw === null) return null;
+  const nightCount = nightCountRaw === undefined ? undefined : nightCountRaw;
+  if (nightCount !== undefined && (!Number.isInteger(nightCount) || nightCount <= 0)) return null;
+
+  if (checkIn !== undefined && checkOut !== undefined) {
+    const checkInMs = Date.parse(checkIn);
+    const checkOutMs = Date.parse(checkOut);
+    if (checkOutMs <= checkInMs) return null;
+    const observedNights = Math.round((checkOutMs - checkInMs) / 86_400_000);
+    if (nightCount !== undefined && nightCount !== observedNights) return null;
+    return { checkIn, checkOut, nightCount: nightCount ?? observedNights };
+  }
+
+  return { checkIn, checkOut, nightCount };
+}
+
+function isHotelQualityKind(value: unknown): value is HotelQualityKind {
+  return value === 'hotel_class' || value === 'guest_review' || value === 'provider_quality' ||
+    value === 'inferred' || value === 'unknown';
+}
+
+function isHotelQualityConfidence(value: unknown): value is HotelQualityConfidence {
+  return value === 'verified' || value === 'provider_only' || value === 'inferred' || value === 'unavailable';
+}
+
+function validateHotelRatingEvidence(value: unknown): HotelRatingEvidence | null | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const kind = record.kind;
+  const confidence = record.confidence;
+  if (!isHotelQualityKind(kind) || !isHotelQualityConfidence(confidence)) return null;
+
+  const evidenceValue = parseOptionalNumber(record.value);
+  const scaleMax = parseOptionalNumber(record.scaleMax);
+  const reviewCount = parseOptionalNumber(record.reviewCount);
+  if (evidenceValue === null || scaleMax === null || reviewCount === null) return null;
+  const sourceLabel = cleanOptional(record.sourceLabel);
+  const fetchedAt = cleanOptional(record.fetchedAt);
+  if (fetchedAt !== undefined && !isValidDateInput(fetchedAt)) return null;
+
+  return {
+    kind,
+    confidence,
+    ...(evidenceValue !== undefined ? { value: evidenceValue } : {}),
+    ...(scaleMax !== undefined ? { scaleMax } : {}),
+    ...(sourceLabel !== undefined ? { sourceLabel } : {}),
+    ...(reviewCount !== undefined ? { reviewCount } : {}),
+    ...(fetchedAt !== undefined ? { fetchedAt } : {}),
+  };
+}
+
+function validateHotelDealScore(value: unknown, observedCurrency: string): DealScore | null | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const percentile = parseNumber(record.percentile);
+  const pctVsMedian = parseNumber(record.pctVsMedian);
+  const medianCents = parseInteger(record.medianCents);
+  const currency = cleanRequired(record.currency);
+  const verdict = record.verdict;
+  const confidence = record.confidence;
+  const explanation = cleanRequired(record.explanation);
+
+  if (
+    percentile === null ||
+    pctVsMedian === null ||
+    medianCents === null || medianCents <= 0 ||
+    !isCurrencyCode(currency) || currency !== observedCurrency ||
+    (verdict !== 'Great' && verdict !== 'Good' && verdict !== 'Typical') ||
+    (confidence !== 'high' && confidence !== 'low') ||
+    !explanation
+  ) {
+    return null;
+  }
+
+  return { percentile, pctVsMedian, medianCents, currency, verdict, confidence, explanation };
+}
+
 export function validateBookingHotelContext(input: HotelContextInput): BookingHotelContext | null {
   const kind = cleanRequired(input.kind);
   const offerId = cleanRequired(input.offerId);
@@ -475,6 +609,13 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     providerEvidenceLabel(provider),
   );
   const fundsPolicy = normalizeHotelFundsPolicyEvidence(input.fundsPolicy, provider || 'Hotel provider');
+  const entrySourceValue = cleanOptional(input.entrySource);
+  const returnUrl = validateHotelReturnUrl(input.returnUrl);
+  const stayContinuity = validateHotelStayContinuity(input);
+  const priceCheckedAt = cleanOptional(input.priceCheckedAt);
+  const hotelClass = validateHotelRatingEvidence(input.hotelClass);
+  const guestRating = validateHotelRatingEvidence(input.guestRating);
+  const dealScore = validateHotelDealScore(input.dealScore, currency);
 
   if (
     kind !== 'hotel' ||
@@ -485,8 +626,14 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     priceCents === null ||
     priceCents <= 0 ||
     priceBasis !== 'per_night_before_taxes_fees' ||
-    !isSafeProviderUrl(providerUrl) ||
-    location === null
+    !isValidatedAffiliateProviderUrl(providerUrl) ||
+    location === null ||
+    (entrySourceValue !== undefined && !isBookingHotelEntrySource(entrySourceValue)) ||
+    stayContinuity === null ||
+    (priceCheckedAt !== undefined && !isValidDateInput(priceCheckedAt)) ||
+    hotelClass === null ||
+    guestRating === null ||
+    dealScore === null
   ) {
     return null;
   }
@@ -504,6 +651,15 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     providerUrl,
     documentReadiness,
     fundsPolicy,
+    ...(entrySourceValue !== undefined ? { entrySource: entrySourceValue as BookingHotelEntrySource } : {}),
+    ...(returnUrl !== undefined ? { returnUrl } : {}),
+    ...(stayContinuity?.checkIn !== undefined ? { checkIn: stayContinuity.checkIn } : {}),
+    ...(stayContinuity?.checkOut !== undefined ? { checkOut: stayContinuity.checkOut } : {}),
+    ...(stayContinuity?.nightCount !== undefined ? { nightCount: stayContinuity.nightCount } : {}),
+    ...(dealScore !== undefined ? { dealScore } : {}),
+    ...(priceCheckedAt !== undefined ? { priceCheckedAt } : {}),
+    ...(hotelClass !== undefined ? { hotelClass } : {}),
+    ...(guestRating !== undefined ? { guestRating } : {}),
   };
 }
 
@@ -560,7 +716,16 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     currency: firstParam(params.currency),
     priceBasis: firstParam(params.priceBasis),
     providerUrl: firstParam(params.providerUrl),
-    fundsPolicy: parseHotelFundsPolicyParam(firstParam(params.fundsPolicy)),
+    fundsPolicy: parseJsonQueryParam(firstParam(params.fundsPolicy)),
+    entrySource: firstParam(params.entrySource),
+    returnUrl: firstParam(params.returnUrl),
+    checkIn: firstParam(params.checkIn),
+    checkOut: firstParam(params.checkOut),
+    nightCount: firstParam(params.nightCount),
+    priceCheckedAt: firstParam(params.priceCheckedAt),
+    dealScore: parseJsonQueryParam(firstParam(params.dealScore)),
+    hotelClass: parseJsonQueryParam(firstParam(params.hotelClass)),
+    guestRating: parseJsonQueryParam(firstParam(params.guestRating)),
   });
 }
 
@@ -600,7 +765,7 @@ export function validateStructuredBookingHotelContext(input: unknown): BookingHo
   });
 }
 
-function parseHotelFundsPolicyParam(value: string): unknown {
+function parseJsonQueryParam(value: string): unknown {
   if (!value) return undefined;
   try {
     return JSON.parse(value);
@@ -629,7 +794,12 @@ export function buildBookingHref(fare: NormalizedFare): string {
   return `/book?${params.toString()}`;
 }
 
-export function buildBookingHotelContext(hotel: HotelOffer): BookingHotelContext {
+export type BookingHotelContinuity = Partial<Pick<
+  BookingHotelContext,
+  'entrySource' | 'returnUrl' | 'checkIn' | 'checkOut' | 'nightCount' | 'dealScore' | 'priceCheckedAt' | 'hotelClass' | 'guestRating'
+>>;
+
+export function buildBookingHotelContext(hotel: HotelOffer, continuity?: BookingHotelContinuity): BookingHotelContext {
   const documentReadiness = normalizeHotelDocumentReadiness(hotel.documentReadiness, providerEvidenceLabel(hotel.source));
   return {
     kind: 'hotel',
@@ -644,6 +814,15 @@ export function buildBookingHotelContext(hotel: HotelOffer): BookingHotelContext
     providerUrl: hotel.deeplink,
     documentReadiness,
     fundsPolicy: normalizeHotelFundsPolicyEvidence(hotel.fundsPolicy, hotel.source),
+    ...(continuity?.entrySource !== undefined ? { entrySource: continuity.entrySource } : {}),
+    ...(continuity?.returnUrl !== undefined ? { returnUrl: continuity.returnUrl } : {}),
+    ...(continuity?.checkIn !== undefined ? { checkIn: continuity.checkIn } : {}),
+    ...(continuity?.checkOut !== undefined ? { checkOut: continuity.checkOut } : {}),
+    ...(continuity?.nightCount !== undefined ? { nightCount: continuity.nightCount } : {}),
+    ...(continuity?.dealScore !== undefined ? { dealScore: continuity.dealScore } : {}),
+    ...(continuity?.priceCheckedAt !== undefined ? { priceCheckedAt: continuity.priceCheckedAt } : {}),
+    ...(continuity?.hotelClass !== undefined ? { hotelClass: continuity.hotelClass } : {}),
+    ...(continuity?.guestRating !== undefined ? { guestRating: continuity.guestRating } : {}),
   };
 }
 
@@ -688,6 +867,15 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
     params.set('locationDistanceSource', context.location.distance.source);
   }
   if (context.location?.providerLocationName) params.set('locationProviderName', context.location.providerLocationName);
+  if (context.entrySource) params.set('entrySource', context.entrySource);
+  if (context.returnUrl) params.set('returnUrl', context.returnUrl);
+  if (context.checkIn) params.set('checkIn', context.checkIn);
+  if (context.checkOut) params.set('checkOut', context.checkOut);
+  if (context.nightCount !== undefined) params.set('nightCount', String(context.nightCount));
+  if (context.priceCheckedAt) params.set('priceCheckedAt', context.priceCheckedAt);
+  if (context.dealScore) params.set('dealScore', JSON.stringify(context.dealScore));
+  if (context.hotelClass) params.set('hotelClass', JSON.stringify(context.hotelClass));
+  if (context.guestRating) params.set('guestRating', JSON.stringify(context.guestRating));
   const issuerParams = [
     ['invoice', 'documentInvoiceIssuerRole', 'documentInvoiceIssuerName'],
     ['receipt', 'documentReceiptIssuerRole', 'documentReceiptIssuerName'],

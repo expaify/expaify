@@ -108,6 +108,7 @@ export function CompareRow({ links, size = "compact", handoffContext, hotelName 
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer sponsored"
+                  data-hotel-provider={key}
                   aria-label={primary && hotelName
                     ? `Check rooms at ${label} for ${hotelName}. Opens in a new tab. The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.`
                     : `Check this deal on ${label}`}
