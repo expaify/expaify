@@ -30,6 +30,7 @@ type DealCardDeal = {
   isMock?: boolean
   firstSeen?: string
   updatedAt?: string | null
+  expired?: boolean
 }
 
 type DealCardProps = {
@@ -62,7 +63,7 @@ export function DealCard({ deal, href, onOpen }: DealCardProps) {
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
 
   const content = (
-    <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
+    <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
       <div className="space-y-3 px-4 pb-4 pt-3">
         <div>
           {deal.isMock ? (
@@ -88,7 +89,13 @@ export function DealCard({ deal, href, onOpen }: DealCardProps) {
             <span className="text-[14px] leading-none text-[color:var(--ink-faint)] line-through">
               usually {formatMoney(deal.medianPrice)}
             </span>
-            <DealChip discountPct={deal.discountPct} />
+            {deal.expired ? (
+              <span className="inline-flex items-center rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)] px-[12px] py-[5px] font-display text-[13px] font-bold leading-none text-[color:var(--ink-faint)]">
+                Expired
+              </span>
+            ) : (
+              <DealChip discountPct={deal.discountPct} />
+            )}
           </div>
           {deal.headline ? (
             <p className="text-[12px] font-medium leading-snug text-[color:var(--primary)]">{deal.headline}</p>
@@ -110,7 +117,7 @@ export function DealCard({ deal, href, onOpen }: DealCardProps) {
 
         <PropertyPhoto src={deal.photoUrl} size="card" />
 
-        {deal.isMock ? (
+        {deal.expired ? null : deal.isMock ? (
           <p className="text-caption font-medium leading-snug text-[color:var(--ink-faint)]">Sample hotel — not bookable</p>
         ) : href ? (
           <p className="flex min-h-11 items-center justify-center rounded-[var(--radius-input)] border border-[color:var(--primary)] text-[13px] font-semibold text-[color:var(--primary)]">View deal</p>
@@ -118,7 +125,7 @@ export function DealCard({ deal, href, onOpen }: DealCardProps) {
           <CompareRow links={deal.links} />
         )}
 
-        {!deal.isMock ? (
+        {!deal.isMock && !deal.expired ? (
           <p className="text-caption leading-snug text-[color:var(--ink-faint)]">
             Based on {deal.snapshotCount} price checks over 60 days · expaify never adds fees
           </p>
