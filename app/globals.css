@@ -25,6 +25,7 @@
   --radius-pill: 999px;
   --radius-input: 12px;
   --shadow-card-hover: 0 8px 24px rgba(20,18,16,0.08);
+  --shadow-header: 0 1px 0 var(--line-ivory);
 
   --bg-base: var(--bg);
   --bg-surface: var(--surface);

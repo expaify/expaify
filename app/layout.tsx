@@ -59,6 +59,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   colorScheme: "light",
+  // Browser chrome cannot read CSS custom properties; must mirror --bg in app/globals.css.
   themeColor: "#FAF7F2",
 };
 

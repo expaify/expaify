@@ -57,15 +57,26 @@ function rowToCard(row: DealRow): DealCardDeal {
 
 const THREE_HOURS_AGO = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
 
+/** Example cards must never show a check-in window that has already passed. */
+function exampleCheckInWindow(daysOut: number, nights: number): string {
+  const start = new Date(Date.now() + daysOut * 24 * 60 * 60 * 1000)
+  const end = new Date(start.getTime() + nights * 24 * 60 * 60 * 1000)
+  const format = (date: Date) =>
+    date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+  return start.getUTCMonth() === end.getUTCMonth()
+    ? `${format(start)} – ${end.getUTCDate()}`
+    : `${format(start)} – ${format(end)}`
+}
+
 const MOCK_HERO: DealCardDeal = {
   id: 'demo-1',
-  hotelName: 'Hotel Miramar Rooftop',
+  hotelName: 'Riverside Rooftop Hotel',
   city: 'Lisbon, Portugal',
   stars: 4,
   dealPrice: { priceCents: 18900, currency: 'USD' },
   medianPrice: { priceCents: 41000, currency: 'USD' },
   discountPct: 54,
-  checkInWindow: 'Mar 12 – 14',
+  checkInWindow: exampleCheckInWindow(38, 2),
   snapshotCount: 43,
   links: { expedia: '#', booking: '#', kiwi: '#', trip: '#' },
   headline: '54% below its 60-day average',
@@ -76,13 +87,13 @@ const MOCK_HERO: DealCardDeal = {
 
 const MOCK_TEASER: DealCardDeal = {
   id: 'teaser-1',
-  hotelName: 'Kimpton Shorebreak Resort',
+  hotelName: 'Shorebreak Coast Hotel',
   city: 'Huntington Beach',
   stars: 4,
   dealPrice: { priceCents: 11200, currency: 'USD' },
   medianPrice: { priceCents: 19800, currency: 'USD' },
   discountPct: 43,
-  checkInWindow: 'Oct 3 – 5',
+  checkInWindow: exampleCheckInWindow(61, 2),
   snapshotCount: 18,
   links: { expedia: '#', booking: '#', kiwi: '#', trip: '#' },
   headline: '43% below usual',
@@ -113,10 +124,10 @@ export default async function LandingPage() {
           <div className="flex flex-col items-center gap-12 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-16">
             {/* Left */}
             <div className="flex max-w-[440px] flex-col items-start gap-6">
-              <h1 className="font-display text-[36px] font-bold leading-[1.1] text-[color:var(--ink)] min-[480px]:text-[44px]">
+              <h1 className="text-display text-[color:var(--ink)]">
                 Never overpay for a hotel again.
               </h1>
-              <p className="text-[17px] leading-relaxed text-[color:var(--ink-soft)]">
+              <p className="text-body text-[color:var(--ink-soft)]">
                 We watch prices across Expedia, Booking.com, Kiwi, and Trip.com — and tell you the moment a hotel drops 30%+ below normal.
               </p>
               <div className="flex flex-wrap items-center gap-3">
@@ -125,13 +136,13 @@ export default async function LandingPage() {
                 </a>
                 <a
                   href="/deals"
-                  className="text-[15px] font-medium text-[color:var(--ink-soft)] underline decoration-[color:var(--line-white)] underline-offset-2 transition-colors hover:text-[color:var(--ink)] hover:decoration-[color:var(--ink-soft)]"
+                  className="text-body font-medium text-[color:var(--ink-soft)] underline decoration-[color:var(--line-white)] underline-offset-2 transition-colors hover:text-[color:var(--ink)] hover:decoration-[color:var(--ink-soft)]"
                 >
                   See live deals
                 </a>
               </div>
-              <p className="flex items-center gap-1.5 text-[13px] text-[color:var(--ink-faint)]">
-                <span aria-hidden className="text-[color:var(--gold)]">★★★★★</span>
+              <p className="flex items-center gap-1.5 text-small text-[color:var(--ink-faint)]">
+                <span aria-hidden className="text-[color:var(--primary)]">★★★★★</span>
                 Trusted by 2,400+ deal hunters
               </p>
             </div>
@@ -142,6 +153,7 @@ export default async function LandingPage() {
               <div
                 className="absolute inset-0 top-3 mx-auto hidden w-[calc(100%-32px)] opacity-60 min-[380px]:block min-[900px]:rotate-[3deg]"
                 aria-hidden
+                inert
               >
                 <LockedDealCard
                   placeholderName="Boutique Urban Stays"
@@ -161,7 +173,7 @@ export default async function LandingPage() {
         <section className="border-y border-[color:var(--line-ivory)] bg-[color:var(--surface)] py-6">
           <div className="mx-auto max-w-[1140px] px-5">
             <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-              <span className="text-[13px] text-[color:var(--ink-faint)]">Deals found across</span>
+              <span className="text-small text-[color:var(--ink-faint)]">Deals found across</span>
               {['Expedia', 'Booking.com', 'Kiwi', 'Trip.com'].map((name) => (
                 <span
                   key={name}
@@ -176,13 +188,13 @@ export default async function LandingPage() {
 
         {/* ── Live teaser ─────────────────────────────── */}
         <section className="mx-auto max-w-[1140px] px-5 py-20">
-          <div className="mb-8 flex items-baseline justify-between">
-            <h2 className="font-display text-[30px] font-bold text-[color:var(--ink)]">
+          <div className="mb-8 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+            <h2 className="text-h2 text-[color:var(--ink)]">
               {hasReal ? 'Live deals right now' : 'Caught this week'}
             </h2>
             <a
               href="/deals"
-              className="text-[14px] font-medium text-[color:var(--primary)] no-underline hover:underline"
+              className="text-small font-medium text-[color:var(--primary)] no-underline hover:underline"
             >
               See all deals →
             </a>
@@ -209,7 +221,7 @@ export default async function LandingPage() {
         {/* ── How it works ────────────────────────────── */}
         <section id="how-it-works" className="bg-[color:var(--surface)] py-20">
           <div className="mx-auto max-w-[1140px] px-5">
-            <h2 className="mb-12 text-center font-display text-[30px] font-bold text-[color:var(--ink)]">
+            <h2 className="text-h2 mb-12 text-center text-[color:var(--ink)]">
               How it works
             </h2>
             <div className="grid gap-10 min-[640px]:grid-cols-3">
@@ -238,10 +250,10 @@ export default async function LandingPage() {
                   >
                     {n}
                   </span>
-                  <h3 className="font-display text-[20px] font-bold text-[color:var(--ink)]">
+                  <h3 className="text-h3 text-[color:var(--ink)]">
                     {title}
                   </h3>
-                  <p className="text-[15px] leading-relaxed text-[color:var(--ink-soft)]">{body}</p>
+                  <p className="text-body text-[color:var(--ink-soft)]">{body}</p>
                 </div>
               ))}
             </div>
@@ -254,12 +266,12 @@ export default async function LandingPage() {
             <div className="flex flex-col items-center gap-12 min-[900px]:flex-row min-[900px]:items-center">
               {/* Text */}
               <div className="max-w-[440px] flex-shrink-0">
-                <h2 className="font-display text-[36px] font-bold leading-[1.1] text-white min-[480px]:text-[44px]">
+                <h2 className="text-display text-[color:var(--text-inverse)]">
                   One deal.{' '}
                   <span className="text-[color:var(--primary-soft)]">Four marketplaces.</span>{' '}
                   Zero tabs.
                 </h2>
-                <p className="mt-6 text-[15px] leading-relaxed text-[color:var(--ink-faint-on-dark)]">
+                <p className="text-body mt-6 text-[color:var(--ink-faint-on-dark)]">
                   You always book directly with the marketplace — we just find the moment to strike.
                 </p>
               </div>
@@ -273,10 +285,10 @@ export default async function LandingPage() {
 
         {/* ── Pricing ─────────────────────────────────── */}
         <section id="pricing" className="mx-auto max-w-[1140px] px-5 py-20">
-          <h2 className="mb-3 text-center font-display text-[30px] font-bold text-[color:var(--ink)]">
+          <h2 className="text-h2 mb-3 text-center text-[color:var(--ink)]">
             Simple pricing
           </h2>
-          <p className="mb-12 text-center text-[15px] text-[color:var(--ink-soft)]">
+          <p className="text-body mb-12 text-center text-[color:var(--ink-soft)]">
             Start free. Upgrade when a deal pays for itself.
           </p>
 
@@ -284,12 +296,12 @@ export default async function LandingPage() {
             {/* Free */}
             <div className="flex flex-col gap-6 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-7">
               <div>
-                <p className="text-[13px] font-medium uppercase tracking-wider text-[color:var(--ink-faint)]">
+                <p className="text-small font-medium uppercase tracking-wider text-[color:var(--ink-faint)]">
                   Free
                 </p>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="font-display text-[36px] font-bold text-[color:var(--ink)]">$0</span>
-                  <span className="text-[15px] text-[color:var(--ink-faint)]">/ month</span>
+                <div className="mt-2 flex flex-wrap items-baseline gap-1">
+                  <span className="font-display text-[36px] font-bold leading-[1.1] text-[color:var(--ink)]">$0</span>
+                  <span className="text-body text-[color:var(--ink-faint)]">/ month</span>
                 </div>
               </div>
               <ul className="flex flex-col gap-3">
@@ -298,7 +310,7 @@ export default async function LandingPage() {
                   'Browse full feed (blurred)',
                   'No email alerts',
                 ].map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-[14px] text-[color:var(--ink-soft)]">
+                  <li key={f} className="text-small flex items-start gap-2.5 text-[color:var(--ink-soft)]">
                     <svg
                       width="16"
                       height="16"
@@ -325,16 +337,16 @@ export default async function LandingPage() {
             >
               <div>
                 <div className="mb-2 flex items-center gap-2">
-                  <p className="text-[13px] font-medium uppercase tracking-wider text-[color:var(--ink-faint)]">
+                  <p className="text-small font-medium uppercase tracking-wider text-[color:var(--ink-faint)]">
                     Premium
                   </p>
                   <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-2 py-0.5 font-display text-[11.5px] font-bold leading-none text-[color:var(--gold-text)]">
                     2 months free
                   </span>
                 </div>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="font-display text-[36px] font-bold text-[color:var(--ink)]">$8</span>
-                  <span className="text-[15px] text-[color:var(--ink-faint)]">/ month, billed annually</span>
+                <div className="mt-2 flex flex-wrap items-baseline gap-1">
+                  <span className="font-display text-[36px] font-bold leading-[1.1] text-[color:var(--ink)]">$8</span>
+                  <span className="text-body text-[color:var(--ink-faint)]">/ month, billed annually</span>
                 </div>
               </div>
               <ul className="flex flex-col gap-3">
@@ -345,7 +357,7 @@ export default async function LandingPage() {
                   'Filter by discount, stars, price',
                   '7-day free trial',
                 ].map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-[14px] text-[color:var(--ink)]">
+                  <li key={f} className="text-small flex items-start gap-2.5 text-[color:var(--ink)]">
                     <svg
                       width="16"
                       height="16"
@@ -370,13 +382,13 @@ export default async function LandingPage() {
               <a href="/join?plan=annual" className="btn btn-conversion mt-auto w-full justify-center">
                 Start free trial
               </a>
-              <p className="text-center text-[12px] text-[color:var(--ink-faint)]">
+              <p className="text-caption text-center text-[color:var(--ink-faint)]">
                 Cancel anytime before day 7 — no charge.
               </p>
             </div>
           </div>
 
-          <p className="mt-6 text-center text-[13px] text-[color:var(--ink-faint)]">
+          <p className="text-small mt-6 text-center text-[color:var(--ink-faint)]">
             Monthly plan also available at $12/month.
           </p>
         </section>
@@ -384,7 +396,7 @@ export default async function LandingPage() {
         {/* ── FAQ ─────────────────────────────────────── */}
         <section id="faq" className="bg-[color:var(--surface)] py-20">
           <div className="mx-auto max-w-[720px] px-5">
-            <h2 className="mb-10 text-center font-display text-[30px] font-bold text-[color:var(--ink)]">
+            <h2 className="text-h2 mb-10 text-center text-[color:var(--ink)]">
               Questions
             </h2>
             <FaqAccordion />
@@ -400,20 +412,20 @@ export default async function LandingPage() {
             <div className="flex flex-col gap-3">
               <a
                 href="/"
-                className="flex items-center gap-0.5 font-display text-[20px] font-bold leading-none text-white no-underline"
+                className="flex items-center gap-0.5 font-display text-[20px] font-bold leading-none text-[color:var(--text-inverse)] no-underline"
                 aria-label="expaify home"
               >
                 expaify
-                <span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
+                <span className="h-2 w-2 rounded-[var(--radius-pill)] bg-[color:var(--primary-soft)]" aria-hidden />
               </a>
-              <p className="max-w-[180px] text-[13px] leading-relaxed text-[color:var(--ink-faint-on-dark)]">
+              <p className="text-small max-w-[180px] text-[color:var(--ink-faint-on-dark)]">
                 Never overpay for a hotel again.
               </p>
             </div>
 
             {/* Product */}
             <div>
-              <p className="mb-3 text-[11.5px] font-medium uppercase tracking-wider text-[color:var(--ink-faint-on-dark)]">
+              <p className="text-caption mb-3 font-medium uppercase tracking-wider text-[color:var(--ink-faint-on-dark)]">
                 Product
               </p>
               <ul className="flex flex-col gap-2">
@@ -423,7 +435,7 @@ export default async function LandingPage() {
                   { label: 'How it works', href: '#how-it-works' },
                 ].map(({ label, href }) => (
                   <li key={label}>
-                    <a href={href} className="text-[14px] text-[color:var(--ink-faint-on-dark)] no-underline hover:text-white">
+                    <a href={href} className="text-small text-[color:var(--ink-faint-on-dark)] no-underline hover:text-[color:var(--text-inverse)]">
                       {label}
                     </a>
                   </li>
@@ -433,7 +445,7 @@ export default async function LandingPage() {
 
             {/* Account */}
             <div>
-              <p className="mb-3 text-[11.5px] font-medium uppercase tracking-wider text-[color:var(--ink-faint-on-dark)]">
+              <p className="text-caption mb-3 font-medium uppercase tracking-wider text-[color:var(--ink-faint-on-dark)]">
                 Account
               </p>
               <ul className="flex flex-col gap-2">
@@ -443,7 +455,7 @@ export default async function LandingPage() {
                   { label: 'FAQ', href: '#faq' },
                 ].map(({ label, href }) => (
                   <li key={label}>
-                    <a href={href} className="text-[14px] text-[color:var(--ink-faint-on-dark)] no-underline hover:text-white">
+                    <a href={href} className="text-small text-[color:var(--ink-faint-on-dark)] no-underline hover:text-[color:var(--text-inverse)]">
                       {label}
                     </a>
                   </li>
@@ -453,7 +465,7 @@ export default async function LandingPage() {
 
             {/* Legal */}
             <div>
-              <p className="mb-3 text-[11.5px] font-medium uppercase tracking-wider text-[color:var(--ink-faint-on-dark)]">
+              <p className="text-caption mb-3 font-medium uppercase tracking-wider text-[color:var(--ink-faint-on-dark)]">
                 Legal
               </p>
               <ul className="flex flex-col gap-2">
@@ -462,7 +474,7 @@ export default async function LandingPage() {
                   { label: 'Terms', href: '/terms' },
                 ].map(({ label, href }) => (
                   <li key={label}>
-                    <a href={href} className="text-[14px] text-[color:var(--ink-faint-on-dark)] no-underline hover:text-white">
+                    <a href={href} className="text-small text-[color:var(--ink-faint-on-dark)] no-underline hover:text-[color:var(--text-inverse)]">
                       {label}
                     </a>
                   </li>
@@ -472,10 +484,10 @@ export default async function LandingPage() {
           </div>
 
           <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[color:color-mix(in_srgb,var(--surface)_8%,transparent)] pt-8 min-[640px]:flex-row min-[640px]:items-center">
-            <p className="text-[13px] text-[color:var(--ink-faint-on-dark)]">
+            <p className="text-small text-[color:var(--ink-faint-on-dark)]">
               © 2026 expaify. All rights reserved.
             </p>
-            <p className="text-[12px] text-[color:var(--ink-faint-on-dark)]">
+            <p className="text-caption text-[color:var(--ink-faint-on-dark)]">
               Prices change fast — always confirm at checkout.
             </p>
           </div>

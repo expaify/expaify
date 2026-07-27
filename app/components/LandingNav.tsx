@@ -21,7 +21,7 @@ export function LandingNav() {
   return (
     <header
       className="sticky top-0 z-50 w-full bg-[color:var(--bg)] transition-shadow duration-150"
-      style={{ boxShadow: scrolled ? '0 1px 0 var(--line-ivory)' : 'none' }}
+      style={{ boxShadow: scrolled ? 'var(--shadow-header)' : 'none' }}
     >
       <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">
         <a
@@ -30,7 +30,7 @@ export function LandingNav() {
           aria-label="expaify home"
         >
           expaify
-          <span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
+          <span className="h-2 w-2 rounded-[var(--radius-pill)] bg-[color:var(--primary)]" aria-hidden />
         </a>
 
         <nav className="flex items-center gap-1" aria-label="Main navigation">
@@ -46,7 +46,7 @@ export function LandingNav() {
                 href="/account"
                 aria-label="Your account"
                 title={session.user?.email ?? 'Account'}
-                className="ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--primary)] text-[13px] font-medium uppercase text-white no-underline transition-opacity hover:opacity-80"
+                className="ml-1 flex h-8 w-8 items-center justify-center rounded-[var(--radius-pill)] bg-[color:var(--primary)] text-[13px] font-medium uppercase text-[color:var(--text-inverse)] no-underline transition-opacity hover:opacity-80"
               >
                 {initial.toUpperCase()}
               </a>
@@ -84,7 +84,7 @@ export function LandingNav() {
               </a>
               <a
                 href="/join"
-                className="btn btn-conversion ml-1 min-h-9 px-4 text-[14px]"
+                className="btn btn-conversion ml-1 min-h-9 px-4 text-[13px]"
               >
                 Join the club
               </a>

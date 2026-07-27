@@ -92,12 +92,12 @@ export function CompareRow({ links, size = "compact", handoffContext, hotelName 
   const primary = size === "primary";
 
   const base = primary
-    ? "flex min-h-[52px] items-center justify-center rounded-[var(--radius-input)] border-[1.5px] border-[color:var(--line-white)] bg-[color:var(--surface)] px-3 text-center text-[14px] font-semibold leading-none text-[color:var(--ink)] no-underline transition-colors duration-100"
-    : "block rounded-[var(--radius-input)] border-[0.5px] border-[color:var(--line-white)] py-2 text-center text-[11px] font-medium leading-none text-[color:var(--ink)] no-underline transition-colors duration-100";
+    ? "flex min-h-13 items-center justify-center rounded-[var(--radius-input)] border-[1.5px] border-[color:var(--line-white)] bg-[color:var(--surface)] px-3 text-center text-[13px] font-medium leading-none text-[color:var(--ink)] no-underline transition-colors duration-100"
+    : "block rounded-[var(--radius-input)] border-[0.5px] border-[color:var(--line-white)] py-2 text-center text-[11.5px] font-medium leading-none text-[color:var(--ink)] no-underline transition-colors duration-100";
 
   return (
     <div className={primary ? "w-full space-y-2" : "space-y-2"}>
-      <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--ink-faint)]">{primary ? 'Provider options' : 'Compare and book on:'}</p>
+      <p className="text-[11.5px] font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">{primary ? 'Provider options' : 'Compare and book on:'}</p>
       <div className={primary ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : "grid grid-cols-2 gap-2 min-[420px]:grid-cols-4"}>
         {PROVIDERS.map(({ key, label }) => {
           const href = links[key];
@@ -129,7 +129,7 @@ export function CompareRow({ links, size = "compact", handoffContext, hotelName 
                 >
                   {primary ? `Check rooms at ${label}` : label}
                 </a>
-                {primary ? <p className="mt-1 text-center text-xs leading-5 text-[color:var(--text-3)]">Opens {label} in a new tab. Your expaify page stays open.</p> : null}
+                {primary ? <p className="text-caption mt-1 text-center text-[color:var(--text-3)]">Opens {label} in a new tab. Your expaify page stays open.</p> : null}
               </div>
             );
           }

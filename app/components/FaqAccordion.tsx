@@ -47,11 +47,11 @@ export function FaqAccordion() {
             aria-expanded={open === i}
             className="flex w-full items-center justify-between gap-4 py-5 text-left"
           >
-            <span className="font-display text-[17px] font-bold text-[color:var(--ink)]">
+            <span className="text-h3 text-[color:var(--ink)]">
               {item.q}
             </span>
             <span
-              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-[color:var(--line-white)] text-[color:var(--ink-soft)] transition-transform duration-[160ms]"
+              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[var(--radius-pill)] border border-[color:var(--line-white)] text-[color:var(--ink-soft)] transition-transform duration-[160ms]"
               style={{ transform: open === i ? 'rotate(45deg)' : 'rotate(0deg)' }}
               aria-hidden
             >
@@ -64,7 +64,7 @@ export function FaqAccordion() {
             className="overflow-hidden transition-all duration-[160ms]"
             style={{ maxHeight: open === i ? '400px' : '0px', opacity: open === i ? 1 : 0 }}
           >
-            <p className="pb-5 text-[15px] leading-relaxed text-[color:var(--ink-soft)]">{item.a}</p>
+            <p className="text-body pb-5 text-[color:var(--ink-soft)]">{item.a}</p>
           </div>
         </div>
       ))}
