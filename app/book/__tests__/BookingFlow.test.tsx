@@ -392,8 +392,8 @@ describe('BookingFlow fare context review', () => {
   });
 
   it.each([
-    ['search_area', 'Only the searched destination is available. Confirm location with the provider.'],
-    ['missing', 'No provider location details were returned.'],
+    ['search_area', 'Only the searched destination is available. Confirm the property location with the provider.'],
+    ['missing', 'No property location details were returned.'],
   ] as const)('preserves the %s location warning without disabling handoff', (precision, warning) => {
     const contextualHotel: BookingHotelContext = {
       ...hotelContext,
