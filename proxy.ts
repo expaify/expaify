@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // Routes that require authentication
-const PROTECTED_ROUTES = ['/account']
+const PROTECTED_ROUTES = ['/account', '/admin']
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -21,5 +21,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/account/:path*'],
+  matcher: ['/account/:path*', '/admin/:path*'],
 }
