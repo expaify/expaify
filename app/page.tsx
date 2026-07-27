@@ -62,7 +62,6 @@ const MOCK_HERO: DealCardDeal = {
   hotelName: 'Hotel Miramar Rooftop',
   city: 'Lisbon, Portugal',
   stars: 4,
-  photoUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80',
   dealPrice: { priceCents: 18900, currency: 'USD' },
   medianPrice: { priceCents: 41000, currency: 'USD' },
   discountPct: 54,
@@ -80,7 +79,6 @@ const MOCK_TEASER: DealCardDeal = {
   hotelName: 'Kimpton Shorebreak Resort',
   city: 'Huntington Beach',
   stars: 4,
-  photoUrl: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=900&q=80',
   dealPrice: { priceCents: 11200, currency: 'USD' },
   medianPrice: { priceCents: 19800, currency: 'USD' },
   discountPct: 43,
@@ -133,7 +131,7 @@ export default async function LandingPage() {
                 </a>
               </div>
               <p className="flex items-center gap-1.5 text-[13px] text-[color:var(--ink-faint)]">
-                <span aria-hidden className="text-[color:var(--primary-soft)]">★★★★★</span>
+                <span aria-hidden className="text-[color:var(--gold)]">★★★★★</span>
                 Trusted by 2,400+ deal hunters
               </p>
             </div>
