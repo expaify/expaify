@@ -79,8 +79,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       break
     }
 
-    case 'customer.subscription.deleted':
-    case 'invoice.payment_failed': {
+    // Only an actual Stripe cancellation hard-revokes access here. A single
+    // invoice.payment_failed is not authoritative — Stripe retries failed
+    // payments automatically (Smart Retries) and the subscription itself
+    // stays active/past_due throughout, often recovering without ever being
+    // canceled. The subscription's real status is synced separately via
+    // customer.subscription.updated, which Stripe fires on every actual
+    // status transition (including the eventual cancel if all retries fail).
+    case 'customer.subscription.deleted': {
       const obj = event.data.object as { customer?: string | Stripe.Customer }
       const customerId = getStripeId(obj.customer)
       if (!customerId) break
@@ -100,10 +106,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 function mapStripeStatus(status: Stripe.Subscription.Status): 'free' | 'trialing' | 'active' | 'canceled' {
   switch (status) {
     case 'trialing': return 'trialing'
-    case 'active': return 'active'
+    // past_due means Stripe is still retrying a failed payment on an
+    // otherwise-active subscription — not a cancellation. Access is retained
+    // through the retry/dunning window; only unpaid/canceled (retries
+    // exhausted or subscription actually ended) revoke it.
+    case 'active':
+    case 'past_due': return 'active'
     case 'canceled':
     case 'unpaid':
-    case 'past_due':
     case 'incomplete_expired': return 'canceled'
     default: return 'free'
   }
