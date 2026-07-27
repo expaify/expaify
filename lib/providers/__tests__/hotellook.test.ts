@@ -112,7 +112,6 @@ describe('HotellookProvider.searchHotels', () => {
           address: { en: '123 Example Street, New York' },
           distance: 1.24,
           priceFrom: 129.99,
-          photoUrl: 'https://example.com/hotel.jpg',
           propertyType: 'Hotel',
         },
       ]),
@@ -148,7 +147,7 @@ describe('HotellookProvider.searchHotels', () => {
         stars: 4,
         pricePerNight: { priceCents: 12999, currency: 'USD' },
         deeplink: 'https://tp.media/r?marker=hotel-marker42&trs=233847&p=4536&u=https://hotellook.com/hotels/12345',
-        photoUrl: 'https://example.com/hotel.jpg',
+        photoUrl: 'https://photo.hotellook.com/image_v2/limit/h12345_0/640/400.auto',
         source: 'hotellook',
         documentReadiness: {
           status: 'not_provided',

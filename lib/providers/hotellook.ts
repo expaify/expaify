@@ -34,7 +34,6 @@ interface HotelLookCacheEntry {
   address?: string | Record<string, unknown>;
   distance?: number | string;
   priceFrom?: number | string;
-  photoUrl?: string;
   propertyType?: string;
   amenityEvidence?: unknown;
   smokingPolicy?: unknown;
@@ -434,6 +433,13 @@ export class HotellookProvider implements HotelProvider {
     return `https://tp.media/r?marker=${encodeURIComponent(this.marker)}&trs=233847&p=4536&u=https://hotellook.com/hotels/${encodeURIComponent(String(hotelId))}`;
   }
 
+  // cache.json never returns a photo field for a hotel entry — Hotellook's real
+  // photo product is the static image_v2 endpoint, keyed off hotelId directly.
+  // See https://photo.hotellook.com/image_v2/limit/h{hotelId}_{index}/{w}/{h}.auto
+  private buildPhotoUrl(hotelId: number): string {
+    return `https://photo.hotellook.com/image_v2/limit/h${hotelId}_0/640/400.auto`;
+  }
+
   async searchHotels(
     area: string,
     range: { checkin: string; checkout: string },
@@ -508,7 +514,7 @@ export class HotellookProvider implements HotelProvider {
             currency: 'USD',
           },
           deeplink: this.buildDeeplink(hotelId),
-          photoUrl: entry.photoUrl || undefined,
+          photoUrl: this.buildPhotoUrl(hotelId),
           source: 'hotellook',
           documentReadiness: notProvidedHotelDocumentReadiness('Hotellook'),
           hotelClass: buildHotelClassEvidence({
