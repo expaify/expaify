@@ -7,7 +7,12 @@ let expanded = false
 
 jest.mock('react', () => {
   const actual = jest.requireActual('react') as typeof import('react')
-  return { ...actual, useState: jest.fn(() => [expanded, jest.fn()]) }
+  return {
+    ...actual,
+    useEffect: jest.fn(),
+    useRef: jest.fn(() => ({ current: null })),
+    useState: jest.fn(() => [expanded, jest.fn()]),
+  }
 })
 
 const { default: HotelCard } = jest.requireActual('../HotelCard') as typeof import('../HotelCard')
@@ -20,6 +25,11 @@ const hotel: HotelOffer = {
   pricePerNight: { priceCents: 17900, currency: 'USD' },
   deeplink: 'https://example.com/hotel?aid=expaify',
   source: 'Example Provider',
+  documentReadiness: {
+    status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
+    billingDetailsStep: 'unknown', source: { label: 'Example Provider' },
+  },
+  fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Example Provider', scope: 'not_returned' },
 }
 
 function childrenOf(node: TestElement): unknown[] {
