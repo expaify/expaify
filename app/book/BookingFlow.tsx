@@ -951,28 +951,12 @@ function HotelHandoffReview({
       duffelSandbox={duffelSandbox}
       onBackClick={handleBack}
     >
-      <section aria-labelledby="hotel-provider-title" className={`${panelCls} border-[color:var(--border-strong)] p-4 sm:p-6`}>
+      <section aria-labelledby="hotel-provider-title" className={`${panelCls} p-4 sm:p-6`}>
         <h2 id="hotel-provider-title" className="text-xl font-bold leading-tight text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
         <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
           The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.
           {' '}Choose or confirm your dates there before comparing room options.
         </p>
-        <div className="mt-5 flex flex-col gap-3">
-          <a
-            href={hotelContext.providerUrl}
-            target="_blank"
-            rel="noopener noreferrer sponsored"
-            aria-label={accessibleName}
-            onClick={handleContinue}
-            className="btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-center text-sm font-medium"
-          >
-            <span className={partnerLabelWrapCls}>{continueLabel}</span>
-            <svg aria-hidden="true" focusable="false" className="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="none">
-              <path d="M5 11 11 5M6 5h5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </a>
-          <p className={`text-center text-xs leading-5 text-[color:var(--text-3)] ${partnerLabelWrapCls}`}>{newTabCue}</p>
-        </div>
       </section>
 
       <section aria-labelledby="hotel-supporting-title" className={`${panelCls} p-4 sm:p-6`}>
@@ -1055,29 +1039,50 @@ function HotelHandoffReview({
             </ul>
           </details>
         </section>
-        <div className="mt-5">
-          <HotelFundsPolicyPanel
-            evidence={resolvedFundsPolicy}
-            loadState={fundsPolicyLoadState}
-            surface="book_handoff"
-            partnerLabel={partner.named ? partner.label : undefined}
-            confirmHref={hotelContext.providerUrl}
-            hotelName={hotelContext.name}
-            sourceLabel={providerDisplayName(hotelContext.provider)}
-            variant="full"
-            offerId={hotelContext.offerId}
-            provider={hotelContext.provider}
-            rootRef={fundsPolicyExposureRef}
-          />
+        <details className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
+          <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[color:var(--brand)]">Show offer details</summary>
+          <dl className="border-t border-[color:var(--border)] py-3 text-xs">
+            <dt className={factLabelCls}>Offer reference</dt>
+            <dd className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{hotelContext.offerId}</dd>
+          </dl>
+          <p className="pb-3 text-xs leading-5 text-[color:var(--text-3)]">Use this reference if you contact expaify support.</p>
+        </details>
         </div>
-          <details className="rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
-            <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[color:var(--brand)]">Show offer details</summary>
-            <dl className="border-t border-[color:var(--border)] py-3 text-xs">
-              <dt className={factLabelCls}>Offer reference</dt>
-              <dd className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{hotelContext.offerId}</dd>
-            </dl>
-            <p className="pb-3 text-xs leading-5 text-[color:var(--text-3)]">Use this reference if you contact expaify support.</p>
-          </details>
+      </section>
+
+      <div>
+        <HotelFundsPolicyPanel
+          evidence={resolvedFundsPolicy}
+          loadState={fundsPolicyLoadState}
+          surface="book_handoff"
+          partnerLabel={partner.named ? partner.label : undefined}
+          confirmHref={hotelContext.providerUrl}
+          hotelName={hotelContext.name}
+          sourceLabel={providerDisplayName(hotelContext.provider)}
+          variant="full"
+          offerId={hotelContext.offerId}
+          provider={hotelContext.provider}
+          rootRef={fundsPolicyExposureRef}
+        />
+      </div>
+
+      <section aria-labelledby="hotel-continue-title" className={`${panelCls} border-[color:var(--border-strong)] p-4 sm:p-6`}>
+        <h2 id="hotel-continue-title" className="sr-only">Continue to provider</h2>
+        <div className="flex flex-col gap-3">
+          <a
+            href={hotelContext.providerUrl}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            aria-label={accessibleName}
+            onClick={handleContinue}
+            className="btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-center text-sm font-medium"
+          >
+            <span className={partnerLabelWrapCls}>{continueLabel}</span>
+            <svg aria-hidden="true" focusable="false" className="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="none">
+              <path d="M5 11 11 5M6 5h5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
+          <p className={`text-center text-xs leading-5 text-[color:var(--text-3)] ${partnerLabelWrapCls}`}>{newTabCue}</p>
         </div>
       </section>
     </ReviewShell>

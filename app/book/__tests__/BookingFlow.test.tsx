@@ -315,7 +315,7 @@ describe('BookingFlow fare context review', () => {
     expect(summary.props.className).toContain('min-h-11');
   });
 
-  it('keeps the provider action before supporting invoice, readiness, and funds evidence', () => {
+  it('places the funds policy panel immediately before the continue action, after supporting guidance', () => {
     const tree = BookingFlow({
       bookingEnabled: false,
       duffelSandbox: false,
@@ -323,18 +323,22 @@ describe('BookingFlow fare context review', () => {
       hotelContext,
     });
     const sections = findElements(tree, element => element.type === 'section');
-    const providerIndex = sections.findIndex(section => section.props['aria-labelledby'] === 'hotel-provider-title');
     const supportingIndex = sections.findIndex(section => section.props['aria-labelledby'] === 'hotel-supporting-title');
-    const providerText = collectText(sections[providerIndex]);
+    const fundsIndex = sections.findIndex(section => (
+      typeof section.props['aria-labelledby'] === 'string' && section.props['aria-labelledby'].startsWith('hotel-funds-policy-')
+    ));
+    const continueIndex = sections.findIndex(section => section.props['aria-labelledby'] === 'hotel-continue-title');
     const supportingText = collectText(sections[supportingIndex]);
+    const continueText = collectText(sections[continueIndex]);
 
-    expect(providerIndex).toBeGreaterThanOrEqual(0);
-    expect(supportingIndex).toBeGreaterThan(providerIndex);
-    expect(providerText).toContain('Check rooms at provider');
-    expect(providerText).not.toContain('Additional funds at the property');
+    expect(supportingIndex).toBeGreaterThanOrEqual(0);
+    expect(fundsIndex).toBeGreaterThan(supportingIndex);
+    expect(continueIndex).toBe(fundsIndex + 1);
     expect(supportingText).toContain('I need an invoice or receipt for this stay');
     expect(supportingText).toContain('What you may need');
-    expect(supportingText).toContain('Additional funds at the property');
+    expect(supportingText).not.toContain('Additional funds at the property');
+    expect(continueText).toContain('Check rooms at provider');
+    expect(continueText).not.toContain('Additional funds at the property');
   });
 
   it('renders traveler readiness as static, neutrally styled supporting guidance', () => {
@@ -503,7 +507,9 @@ describe('BookingFlow fare context review', () => {
       }).not.toThrow();
 
       const anchors = findElements(tree!, element => element.type === 'a');
-      const outbound = anchors.find(element => element.props.target === '_blank') as TestElement;
+      const outbound = anchors.find(element => (
+        element.props.target === '_blank' && typeof element.props['aria-label'] === 'string' && element.props['aria-label'].startsWith('Check rooms at')
+      )) as TestElement;
       const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function') as TestElement;
 
       expect(() => (backLink.props.onClick as (() => void))()).not.toThrow();
