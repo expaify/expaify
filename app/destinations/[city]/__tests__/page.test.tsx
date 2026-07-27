@@ -1,0 +1,51 @@
+import type { ReactElement } from 'react'
+import { auth } from '@/auth'
+import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
+import { getActiveDeals } from '@/lib/pipeline/dealDetection'
+import { query } from '@/lib/db/client'
+import CityPage from '../page'
+import { DealFeed } from '@/app/deals/DealFeed'
+
+jest.mock('@/auth', () => ({ auth: jest.fn() }))
+jest.mock('@/lib/paywall', () => ({ getPaywallContext: jest.fn(), getFreeUnlockedDealIds: jest.fn() }))
+jest.mock('@/lib/pipeline/dealDetection', () => ({ getActiveDeals: jest.fn() }))
+jest.mock('@/lib/db/client', () => ({ query: jest.fn() }))
+jest.mock('@/lib/subscription', () => ({ getSubscription: jest.fn(), isPremium: jest.fn(() => false) }))
+
+const mockAuth = auth as jest.MockedFunction<typeof auth>
+const mockGetPaywallContext = getPaywallContext as jest.MockedFunction<typeof getPaywallContext>
+const mockGetFreeUnlockedDealIds = getFreeUnlockedDealIds as jest.MockedFunction<typeof getFreeUnlockedDealIds>
+const mockGetActiveDeals = getActiveDeals as jest.MockedFunction<typeof getActiveDeals>
+const mockQuery = query as jest.MockedFunction<typeof query>
+
+function walk(node: unknown): ReactElement<Record<string, unknown>>[] {
+  if (!node || typeof node !== 'object') return []
+  const element = node as ReactElement<Record<string, unknown>>
+  const children = element.props?.children
+  return [element, ...(Array.isArray(children) ? children : [children]).flatMap(walk)]
+}
+
+describe('destination criteria continuity', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockAuth.mockResolvedValue(null as never)
+    mockGetPaywallContext.mockResolvedValue({ userId: null, premium: false, freeUnlockedThisWeek: 0, freeUnlockLimit: 3 })
+    mockGetFreeUnlockedDealIds.mockResolvedValue(new Set())
+    mockGetActiveDeals.mockResolvedValue([])
+    mockQuery.mockResolvedValue({ rows: [{ id: 7 }], command: 'SELECT', rowCount: 1, oid: 0, fields: [] })
+  })
+
+  it('reuses the same default criteria version across clean-url refreshes', async () => {
+    const props = { params: Promise.resolve({ city: 'miami' }), searchParams: Promise.resolve({}) }
+    const first = await CityPage(props)
+    const refreshed = await CityPage(props)
+    const firstFeed = walk(first).find(element => element.type === DealFeed)
+    const refreshedFeed = walk(refreshed).find(element => element.type === DealFeed)
+
+    expect(firstFeed).toBeDefined()
+    expect(refreshedFeed).toBeDefined()
+    expect((refreshedFeed!.props.initialCriteria as { criteriaVersion: string }).criteriaVersion)
+      .toBe((firstFeed!.props.initialCriteria as { criteriaVersion: string }).criteriaVersion)
+    expect((firstFeed!.props.initialCriteria as { source: string }).source).toBe('destination_page')
+  })
+})

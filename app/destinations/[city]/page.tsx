@@ -5,10 +5,10 @@ import { CITY_SLUGS } from '@/lib/cities'
 import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DealFeed, type ApiDeal } from '@/app/deals/DealFeed'
 import {
-  createHotelCriteriaVersion,
   hotelCriteriaFromDraft,
   resolveHotelResultsView,
   resolveHotelSearchCriteria,
+  stableHotelCriteriaVersion,
 } from '@/lib/hotels/searchCriteria'
 import { getPaywallContext, getFreeUnlockedDealIds } from '@/lib/paywall'
 import { query } from '@/lib/db/client'
@@ -90,7 +90,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
 
   const criteria = restoredCriteria ?? hotelCriteriaFromDraft(
     { city: displayName, dateFrom: '', dateTo: '' },
-    createHotelCriteriaVersion(),
+    stableHotelCriteriaVersion('destination_page', displayName),
     'destination_page',
   )
   const pwCtx = await getPaywallContext()

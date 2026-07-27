@@ -110,6 +110,8 @@ export function HotelSearchCriteriaEditor({ open, criteria, cities, surface, ent
     }
     if (!startedRef.current) {
       startedRef.current = true
+      setDraft(initialDraft ?? hotelCriteriaToDraft(criteria))
+      setAttempted(false)
       returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
       track('hotel_criteria_edit_started', {
         surface,
@@ -118,7 +120,7 @@ export function HotelSearchCriteriaEditor({ open, criteria, cities, surface, ent
       })
     }
     window.requestAnimationFrame(() => destinationRef.current?.focus())
-  }, [criteria.criteriaVersion, entryPoint, open, surface])
+  }, [criteria, entryPoint, initialDraft, open, surface])
 
   const validation = useMemo(() => {
     const destinationInvalid = draft.city !== '' && !cities.includes(draft.city)

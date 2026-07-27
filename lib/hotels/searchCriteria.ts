@@ -282,6 +282,19 @@ export function createHotelCriteriaVersion(): string {
   return crypto.randomUUID()
 }
 
+/** Stable opaque version for server-rendered default criteria that have not
+ * been edited yet. This prevents refreshes of clean destination URLs from
+ * minting a logically new criteria set. */
+export function stableHotelCriteriaVersion(scope: 'deals_page' | 'destination_page', key: string): string {
+  let hash = 2166136261
+  const input = `${scope}\0${key.normalize('NFKC').toLocaleLowerCase('en-US')}`
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `criteria_${(hash >>> 0).toString(16).padStart(8, '0')}`
+}
+
 export function resultCountBucket(count: number): '0' | '1_5' | '6_20' | '21_plus' {
   if (count === 0) return '0'
   if (count <= 5) return '1_5'

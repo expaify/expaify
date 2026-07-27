@@ -19,6 +19,8 @@ import {
   formatHotelCriteriaDates,
   hotelCriteriaFromDraft,
   hotelCriteriaToDraft,
+  resolveHotelResultsView,
+  resolveHotelSearchCriteria,
   resultCountBucket,
   type HotelCriteriaDraft,
   type HotelResultsViewState,
@@ -592,6 +594,89 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       }
     }
   }, [criteria, defaultCity, initialDeals, personalizationActive])
+
+  useEffect(() => {
+    async function restoreFromHistory() {
+      const params = new URLSearchParams(window.location.search)
+      const criteriaResolution = resolveHotelSearchCriteria(params)
+      const view = resolveHotelResultsView(params)
+      const restoredCriteria = criteriaResolution.status === 'valid' ? criteriaResolution.criteria : null
+      const destinationMatchesPath = !defaultCity || (
+        restoredCriteria?.destination.state === 'selected' &&
+        restoredCriteria.destination.city === defaultCity &&
+        params.get('criteriaReturn') === 'destination'
+      )
+      if (!restoredCriteria || !view || !destinationMatchesPath) {
+        router.refresh()
+        return
+      }
+
+      setCriteriaUpdating(true)
+      setCriteriaUpdateError(false)
+      const draft = hotelCriteriaToDraft(restoredCriteria)
+      const response = await fetchDeals({
+        city: draft.city,
+        minDiscount: view.minDiscount,
+        maxPriceCents: view.maxPriceCents,
+        minStars: view.minStars,
+        dateFrom: draft.dateFrom,
+        dateTo: draft.dateTo,
+        sort: view.sort,
+        offset: 0,
+        append: false,
+        criteriaRequest: restoredCriteria,
+      }, { preserveResultsOnFailure: true })
+
+      if (!response) {
+        setDeals([])
+        setCriteria(restoredCriteria)
+        setCity(draft.city)
+        setDateFrom(draft.dateFrom)
+        setDateTo(draft.dateTo)
+        setMinDiscount(view.minDiscount)
+        setMaxPriceCents(view.maxPriceCents)
+        setMinStars(view.minStars)
+        setAppliedSort(view.sort)
+        setInitialLoadError(true)
+        setError(true)
+        setCriteriaUpdating(false)
+        return
+      }
+
+      setDeals(response.deals)
+      setResultMetadata(parseHotelResultMetadata(response.resultMetadata, {
+        city: draft.city,
+        minDiscount: view.minDiscount,
+        maxPriceCents: view.maxPriceCents,
+        minStars: view.minStars,
+        dateFrom: draft.dateFrom,
+        dateTo: draft.dateTo,
+      }, defaultCity))
+      setConfirmedCoverage(readConfirmedCoverage(response))
+      setPremium(Boolean(response.premium))
+      setCity(draft.city)
+      setDateFrom(draft.dateFrom)
+      setDateTo(draft.dateTo)
+      setMinDiscount(view.minDiscount)
+      setMaxPriceCents(view.maxPriceCents)
+      setMinStars(view.minStars)
+      setPreviousSort(view.sort)
+      setAppliedSort(view.sort)
+      setCriteria(restoredCriteria)
+      setFailedCriteriaDraft(null)
+      failedCriteriaVersionRef.current = null
+      setInitialLoadError(false)
+      setError(false)
+      setCriteriaUpdating(false)
+      setStatusAnnouncement(`Restored results for ${restoredCriteria.destination.state === 'selected' ? restoredCriteria.destination.city : 'All destinations'}. ${formatHotelCriteriaDates(restoredCriteria.dates)}. Guests and rooms not captured.`)
+    }
+
+    function handlePopState() {
+      void restoreFromHistory()
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [defaultCity, fetchDeals, router])
 
   useEffect(() => {
     // Skip initial fetch when deals were pre-fetched server-side

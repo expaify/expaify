@@ -26,7 +26,14 @@ describe('POST /api/analytics', () => {
       event: 'hotel_results_viewed',
       occurredAt: new Date().toISOString(),
       path: '/deals',
-      props: { criteria_version: 'opaque-version', destination_present: true },
+      props: {
+        criteria_version: 'opaque-version',
+        result_state: 'populated',
+        destination_present: true,
+        date_state: 'missing',
+        occupancy_state: 'not_captured',
+        room_state: 'not_captured',
+      },
     }))
 
     expect(response.status).toBe(202)
@@ -84,7 +91,15 @@ describe('POST /api/analytics', () => {
       event: 'hotel_provider_handoff_clicked',
       occurredAt: new Date().toISOString(),
       path: '/deals/example',
-      props: { context_status: 'matched' },
+      props: {
+        provider: 'booking',
+        deal_id: 'deal-123',
+        context_status: 'matched',
+        destination_present: true,
+        date_state: 'missing',
+        occupancy_state: 'not_captured',
+        room_state: 'not_captured',
+      },
     }))
     expect(response.status).toBe(503)
   })
