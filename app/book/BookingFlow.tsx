@@ -29,6 +29,7 @@ import { useHotelFundsPolicyExposure } from '@/app/components/hotelFundsPolicyAn
 import { getHotelFundsAnalyticsDimensions } from '@/lib/hotels/fundsPolicy'
 import type { HotelSmokingPolicyView } from '@/app/components/SmokingPolicyPanel'
 import TrackedSmokingPolicyPanel from '@/app/components/TrackedSmokingPolicyPanel'
+import { HotelBookingOwnershipDisclosure } from '@/app/components/HotelBookingOwnership'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -730,6 +731,7 @@ function HotelHandoffReview({
   const invoiceNeededRef = useRef(false)
   const guidanceViewedRef = useRef(false)
   const helpOpenRef = useRef(false)
+  const helpViewedRef = useRef(false)
   const returnArmedRef = useRef(false)
   const hiddenAfterContinueRef = useRef(false)
   const continueStartedAtRef = useRef<number | undefined>(undefined)
@@ -932,6 +934,7 @@ function HotelHandoffReview({
       partnerNamed: partner.named,
       invoiceNeeded,
       invoiceReadinessStatus: documentReadiness.status,
+      helpViewed: helpViewedRef.current,
     })
     if (guidanceViewedRef.current) {
       emitAnalytics('hotel_request_handoff_continued', {
@@ -957,6 +960,27 @@ function HotelHandoffReview({
     })
     setFeedbackSent(true)
     setFeedbackOpen(false)
+  }
+
+  const handleBookingOwnershipOpen = () => {
+    helpViewedRef.current = true
+    emitAnalytics('hotel_booking_help_opened', {
+      source: analyticsProps.source,
+      partnerHost: analyticsProps.partnerHost,
+      partnerNamed: partner.named,
+      locationPrecision: analyticsProps.locationPrecision,
+    })
+  }
+
+  const handleBookingOwnershipContactClick = (owner: 'partner' | 'expaify', destinationType: 'help_center' | 'mailto') => {
+    emitAnalytics('hotel_booking_help_contact_clicked', {
+      source: analyticsProps.source,
+      partnerHost: analyticsProps.partnerHost,
+      partnerNamed: partner.named,
+      locationPrecision: analyticsProps.locationPrecision,
+      owner,
+      destinationType,
+    })
   }
 
   const handleHelpToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
@@ -1054,6 +1078,12 @@ function HotelHandoffReview({
           The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.
           {' '}Choose or confirm your dates there before comparing room options.
         </p>
+        <HotelBookingOwnershipDisclosure
+          partner={partner}
+          expaifyIssueRoute={null}
+          onOpen={handleBookingOwnershipOpen}
+          onContactClick={handleBookingOwnershipContactClick}
+        />
         <div className="mt-5 flex flex-col gap-3">
           <a
             href={hotelContext.providerUrl}
