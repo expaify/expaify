@@ -64,8 +64,8 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
         <main className="mx-auto max-w-[760px] px-5 py-16">
           <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-6 text-center">
             <h1 className="text-h2 text-[color:var(--text-1)]">We couldn&apos;t restore this search.</h1>
-            <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">The search link is incomplete or no longer valid.</p>
-            <Link href="/deals" className="btn btn-primary mt-5 min-h-11 px-6">Start a new search</Link>
+            <p className="mt-2 text-body leading-6 text-[color:var(--text-2)]">The search link is incomplete or no longer valid.</p>
+            <Link href="/deals" className="btn btn-primary mt-5">Start a new search</Link>
           </section>
         </main>
       </>

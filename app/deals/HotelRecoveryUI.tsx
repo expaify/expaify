@@ -70,7 +70,7 @@ export function HotelResultStatus({
   if (!message && !undoLabel && !undoError) return null
   return (
     <div className="mb-4">
-      <div className="flex min-w-0 flex-col gap-2 text-[13px] leading-5 text-[color:var(--text-2)] sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-col gap-2 text-small leading-5 text-[color:var(--text-2)] sm:flex-row sm:items-center sm:justify-between">
         <div ref={statusRef} tabIndex={-1} role="status" aria-live="polite" aria-atomic="true" className="focus:outline-none">
           {message}
         </div>
@@ -86,7 +86,7 @@ export function HotelResultStatus({
         ) : null}
       </div>
       {undoError ? (
-        <p role="alert" className="mt-2 text-[13px] font-medium leading-5 text-[color:var(--error)]">
+        <p role="alert" className="mt-2 text-small font-medium leading-5 text-[color:var(--error)]">
           We couldn&apos;t restore your previous filters. Try again.
         </p>
       ) : null}
@@ -139,12 +139,12 @@ export function HotelFilterRecoveryPanel({
       <h3 id="hotel-recovery-title" className="text-h3 text-[color:var(--text-1)]">
         No current deals match these filters
       </h3>
-      <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">
+      <p className="mt-2 text-body leading-6 text-[color:var(--text-2)]">
         {promotedOption
           ? 'Try one filter change while keeping the rest of your search.'
           : 'Review one filter at a time. Your other filters will stay the same.'}
       </p>
-      <p className="mt-3 text-[13px] font-medium leading-5 text-[color:var(--text-1)]">
+      <p className="mt-3 text-small font-medium leading-5 text-[color:var(--text-1)]">
         {preservedContext(filters)}
       </p>
 
@@ -155,7 +155,7 @@ export function HotelFilterRecoveryPanel({
             disabled={pendingKey !== null}
             aria-label={expandedRemoveLabel(promotedOption.filterKey, filters, promotedOption)}
             onClick={() => onRemove(promotedOption.filterKey, 'promoted')}
-            className="btn btn-primary min-h-11 w-full whitespace-normal break-words text-center sm:w-auto"
+            className="btn btn-primary w-full whitespace-normal break-words text-center sm:w-auto"
           >
             {pendingKey === promotedOption.filterKey ? 'Updating deals…' : optionLabel(promotedOption, filters)}
           </button>
@@ -166,7 +166,7 @@ export function HotelFilterRecoveryPanel({
           aria-expanded={disclosure === 'review'}
           aria-controls="hotel-filter-review"
           onClick={() => setDisclosure(current => current === 'review' ? null : 'review')}
-          className="btn btn-outline min-h-11 w-full sm:w-auto"
+          className="btn btn-outline w-full sm:w-auto"
         >
           Review filters
         </button>
@@ -179,11 +179,11 @@ export function HotelFilterRecoveryPanel({
                 return (
                   <li key={key} className="flex min-w-0 flex-col gap-2 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-base)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
-                      <p className="text-[13px] font-medium leading-5 text-[color:var(--text-1)]">
+                      <p className="text-small font-medium leading-5 text-[color:var(--text-1)]">
                         {FILTER_NAMES[key]}: <span className="break-words">{value}</span>
                       </p>
                       {option ? (
-                        <p className="mt-0.5 text-[12px] leading-5 text-[color:var(--text-2)]">
+                        <p className="mt-0.5 text-caption leading-5 text-[color:var(--text-2)]">
                           See {formatDealCount(option.resultingTotal)}
                         </p>
                       ) : null}
@@ -193,7 +193,7 @@ export function HotelFilterRecoveryPanel({
                       disabled={pendingKey !== null}
                       aria-label={expandedRemoveLabel(key, filters, option)}
                       onClick={() => onRemove(key, 'review_filters')}
-                      className="btn btn-outline min-h-11 w-full whitespace-normal break-words sm:w-auto"
+                      className="btn btn-outline w-full whitespace-normal break-words sm:w-auto"
                     >
                       {pendingKey === key ? 'Updating deals…' : `Remove ${value}`}
                     </button>
@@ -209,7 +209,7 @@ export function HotelFilterRecoveryPanel({
           aria-expanded={disclosure === 'reset'}
           aria-controls="hotel-filter-reset-confirmation"
           onClick={() => setDisclosure(current => current === 'reset' ? null : 'reset')}
-          className="min-h-11 self-start px-1 text-[13px] font-medium text-[color:var(--brand)] underline-offset-4 hover:underline"
+          className="min-h-11 self-start px-1 text-small font-medium text-[color:var(--brand)] underline-offset-4 hover:underline"
         >
           Reset feed filters
         </button>
@@ -219,13 +219,13 @@ export function HotelFilterRecoveryPanel({
             onKeyDown={event => handleDisclosureEscape(event, 'reset')}
             className="w-full rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-base)] px-4 py-4"
           >
-            <p className="text-[13px] leading-5 text-[color:var(--text-1)]">
+            <p className="text-small leading-5 text-[color:var(--text-1)]">
               {defaultCity
                 ? `Reset to 20%+ off, any hotel class, any price, and any dates? ${defaultCity} will stay selected.`
                 : 'Reset to all destinations, 20%+ off, any hotel class, any price, and any dates?'}
             </p>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-              <button type="button" disabled={pendingKey !== null} onClick={onReset} className="btn btn-primary min-h-11 w-full sm:w-auto">
+              <button type="button" disabled={pendingKey !== null} onClick={onReset} className="btn btn-primary w-full sm:w-auto">
                 {pendingKey === 'reset' ? 'Updating deals…' : 'Reset filters'}
               </button>
               <button
@@ -234,7 +234,7 @@ export function HotelFilterRecoveryPanel({
                   setDisclosure(null)
                   window.setTimeout(() => resetButtonRef.current?.focus(), 0)
                 }}
-                className="btn btn-outline min-h-11 w-full sm:w-auto"
+                className="btn btn-outline w-full sm:w-auto"
               >
                 Keep my filters
               </button>
@@ -259,7 +259,7 @@ export function HotelShortListHelper({
 }) {
   return (
     <aside className="mb-6 flex min-w-0 flex-col gap-3 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-      <p className="min-w-0 text-[13px] leading-5 text-[color:var(--text-2)]">
+      <p className="min-w-0 text-small leading-5 text-[color:var(--text-2)]">
         Want more choices? Change one filter and keep the rest of your search.
       </p>
       <button
@@ -267,7 +267,7 @@ export function HotelShortListHelper({
         disabled={pending}
         aria-label={expandedRemoveLabel(option.filterKey, filters, option)}
         onClick={onRemove}
-        className="btn btn-outline min-h-11 w-full whitespace-normal break-words sm:w-auto"
+        className="btn btn-outline w-full whitespace-normal break-words sm:w-auto"
       >
         {pending ? 'Updating deals…' : optionLabel(option, filters)}
       </button>
