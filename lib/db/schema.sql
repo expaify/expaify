@@ -223,6 +223,7 @@ ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS alert_timezone TEXT NOT NULL 
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS alert_unsubscribe_token UUID NOT NULL DEFAULT gen_random_uuid();
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS last_alerted_at TIMESTAMPTZ;
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS onboarding_done BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS trial_ending_email_sent BOOLEAN NOT NULL DEFAULT false;
 
 DO $$
 BEGIN
