@@ -990,23 +990,6 @@ function HotelHandoffReview({
             hasSearchDates={hasSearchDates}
             bookingReview
           />
-        <HotelDocumentIntentControl checked={invoiceNeeded} onChange={handleInvoiceNeedChange} />
-        {invoiceNeeded ? (
-          <div ref={documentDisclosureRef}>
-            <HotelDocumentReadinessDisclosure
-              readiness={documentReadiness}
-              checkState={documentCheckState === 'idle' ? 'ready' : documentCheckState}
-              partner={partner}
-              providerUrl={hotelContext.providerUrl}
-              retryAvailable={documentCheckState === 'error'}
-              retryPending={documentCheckState === 'loading'}
-              onRetry={handleDocumentRetry}
-              onVerificationClick={handleDocumentVerification}
-              statusRegionRef={documentStatusRegionRef}
-              statusRegionFocusable={documentCheckState === 'loading' && documentRetryFocusPendingRef.current}
-            />
-          </div>
-        ) : null}
         <section
           aria-labelledby="hotel-traveler-readiness-title"
           className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 sm:px-4 sm:py-4"
@@ -1024,6 +1007,23 @@ function HotelHandoffReview({
             Booking for someone else? Use the name of the person checking in as the lead guest. The booking partner will tell you whose email and phone it needs.
           </p>
         </section>
+        <HotelDocumentIntentControl checked={invoiceNeeded} onChange={handleInvoiceNeedChange} />
+        {invoiceNeeded ? (
+          <div ref={documentDisclosureRef}>
+            <HotelDocumentReadinessDisclosure
+              readiness={documentReadiness}
+              checkState={documentCheckState === 'idle' ? 'ready' : documentCheckState}
+              partner={partner}
+              providerUrl={hotelContext.providerUrl}
+              retryAvailable={documentCheckState === 'error'}
+              retryPending={documentCheckState === 'loading'}
+              onRetry={handleDocumentRetry}
+              onVerificationClick={handleDocumentVerification}
+              statusRegionRef={documentStatusRegionRef}
+              statusRegionFocusable={documentCheckState === 'loading' && documentRetryFocusPendingRef.current}
+            />
+          </div>
+        ) : null}
         <section
           ref={guidanceBlockRef}
           aria-labelledby="hotel-special-requests-title"

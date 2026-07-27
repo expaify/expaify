@@ -362,6 +362,35 @@ describe('BookingFlow fare context review', () => {
     expect(findElements(readiness, element => ['input', 'button', 'a', 'details'].includes(String(element.type)))).toHaveLength(0);
   });
 
+  it('places traveler readiness directly after the partner fact grid and before invoice intent', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext,
+    });
+    const supportingSection = findElements(tree, element => (
+      element.type === 'section'
+      && element.props['aria-labelledby'] === 'hotel-supporting-title'
+    ))[0];
+    const container = childrenOf(supportingSection)[1] as TestElement;
+    const items = (childrenOf(container) as TestElement[]).map(item => resolveFunctionElement(item)) as TestElement[];
+    const labelledBy = items.map(item => (
+      item && typeof item === 'object' ? (item as TestElement).props?.['aria-labelledby'] : undefined
+    ));
+
+    const readinessIndex = labelledBy.indexOf('hotel-traveler-readiness-title');
+    const specialRequestsIndex = labelledBy.indexOf('hotel-special-requests-title');
+    const invoiceControlIndex = items.findIndex(item => collectText(item).includes('I need an invoice or receipt for this stay'));
+
+    expect(readinessIndex).toBeGreaterThan(-1);
+    expect(invoiceControlIndex).toBeGreaterThan(-1);
+    expect(specialRequestsIndex).toBeGreaterThan(-1);
+    expect(readinessIndex).toBe(2);
+    expect(invoiceControlIndex).toBeGreaterThan(readinessIndex);
+    expect(specialRequestsIndex).toBeGreaterThan(invoiceControlIndex);
+  });
+
   it.each([
     ['search_area', 'Only the searched destination is available. Confirm location with the provider.'],
     ['missing', 'No provider location details were returned.'],
