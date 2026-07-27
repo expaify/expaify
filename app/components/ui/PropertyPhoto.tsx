@@ -27,7 +27,7 @@ export function PropertyPhoto({ src, size, loading = 'lazy', onFailure }: Proper
         className={`flex items-center justify-center border border-[color:var(--border)] bg-[color:var(--bg-muted)] px-4 text-center ${classes.container} ${classes.missing}`}
         {...(failed ? { role: 'status' as const } : {})}
       >
-        <p className="text-caption font-medium leading-5 text-[color:var(--text-3)]">Photo unavailable</p>
+        <p className="text-caption font-medium leading-5 text-[color:var(--text-2)]">Photo unavailable</p>
       </div>
     )
   }

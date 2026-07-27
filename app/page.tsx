@@ -131,7 +131,7 @@ export default async function LandingPage() {
                 We watch prices across Expedia, Booking.com, Kiwi, and Trip.com — and tell you the moment a hotel drops 30%+ below normal.
               </p>
               <div className="flex flex-wrap items-center gap-3">
-                <a href="/join" className="btn btn-conversion px-6">
+                <a href="/join" className="btn btn-conversion btn-lg">
                   Join for free
                 </a>
                 <a
@@ -177,7 +177,7 @@ export default async function LandingPage() {
               {['Expedia', 'Booking.com', 'Kiwi', 'Trip.com'].map((name) => (
                 <span
                   key={name}
-                  className="font-display text-[15px] font-bold text-[color:var(--ink-faint)]"
+                  className="font-display text-body font-bold text-[color:var(--ink-faint)]"
                 >
                   {name}
                 </span>
@@ -244,7 +244,7 @@ export default async function LandingPage() {
               ].map(({ n, title, body }) => (
                 <div key={n} className="flex flex-col gap-4">
                   <span
-                    className="font-display text-[44px] font-bold leading-none"
+                    className="text-display leading-none"
                     style={{ color: 'var(--line-ivory)' }}
                     aria-hidden
                   >
@@ -300,7 +300,7 @@ export default async function LandingPage() {
                   Free
                 </p>
                 <div className="mt-2 flex flex-wrap items-baseline gap-1">
-                  <span className="font-display text-[36px] font-bold leading-[1.1] text-[color:var(--ink)]">$0</span>
+                  <span className="text-stat text-[color:var(--ink)]">$0</span>
                   <span className="text-body text-[color:var(--ink-faint)]">/ month</span>
                 </div>
               </div>
@@ -340,12 +340,12 @@ export default async function LandingPage() {
                   <p className="text-small font-medium uppercase tracking-wider text-[color:var(--ink-faint)]">
                     Premium
                   </p>
-                  <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-2 py-0.5 font-display text-[11.5px] font-bold leading-none text-[color:var(--gold-text)]">
+                  <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-2 py-0.5 font-display text-caption font-bold leading-none text-[color:var(--gold-text)]">
                     2 months free
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap items-baseline gap-1">
-                  <span className="font-display text-[36px] font-bold leading-[1.1] text-[color:var(--ink)]">$8</span>
+                  <span className="text-stat text-[color:var(--ink)]">$8</span>
                   <span className="text-body text-[color:var(--ink-faint)]">/ month, billed annually</span>
                 </div>
               </div>
@@ -412,7 +412,7 @@ export default async function LandingPage() {
             <div className="flex flex-col gap-3">
               <a
                 href="/"
-                className="flex items-center gap-0.5 font-display text-[20px] font-bold leading-none text-[color:var(--text-inverse)] no-underline"
+                className="text-h3 flex items-center gap-0.5 leading-none text-[color:var(--text-inverse)] no-underline"
                 aria-label="expaify home"
               >
                 expaify
