@@ -12,6 +12,7 @@ import {
   normalizeHotelSmokingPolicy,
   notProvidedHotelSmokingPolicy,
 } from '../hotels/smokingPolicy';
+import { HOTEL_RATE_ELIGIBILITY_UNSUPPORTED } from '../hotels/rateEligibility';
 
 const ENGINE_BASE = 'https://engine.hotellook.com/api/v2/cache.json';
 const CACHE_TTL = 21600; // 6 hours
@@ -404,6 +405,7 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     accessEvidenceState,
     fundsPolicy: createNotReturnedHotelFundsPolicy('Hotellook'),
     smokingPolicy,
+    rateEligibilityCapability: HOTEL_RATE_ELIGIBILITY_UNSUPPORTED,
   };
 }
 
@@ -533,6 +535,7 @@ export class HotellookProvider implements HotelProvider {
           // cache.json exposes no supported, scoped smoking-policy fields. A
           // successful check is explicit absence, never a policy inference.
           smokingPolicy: notProvidedHotelSmokingPolicy(),
+          rateEligibilityCapability: HOTEL_RATE_ELIGIBILITY_UNSUPPORTED,
         };
       });
 

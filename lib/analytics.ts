@@ -2,6 +2,7 @@ type AnalyticsProps = Record<string, string | number | boolean>
 
 const SESSION_KEY = 'expaify.analytics.session.v1'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const EVENT_NAME = /^[a-z][a-z0-9_]{1,79}$/
 let inMemorySessionId: string | null = null
 
 function sessionId(): string {
@@ -21,51 +22,58 @@ function sessionId(): string {
   return created
 }
 
+/** The validated, always-on production sink: `/api/analytics` writes to Postgres. */
+function sendToInternalSink(event: string, props?: AnalyticsProps): void {
+  const body = JSON.stringify({
+    eventId: crypto.randomUUID(),
+    sessionId: sessionId(),
+    event,
+    occurredAt: new Date().toISOString(),
+    path: window.location.pathname,
+    props: props ?? {},
+  })
+  if (navigator.sendBeacon?.('/api/analytics', new Blob([body], { type: 'application/json' }))) return
+  void fetch('/api/analytics', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body,
+    keepalive: true,
+    credentials: 'same-origin',
+  }).catch(() => undefined)
+}
+
+/** Optional secondary delivery to an externally approved collector, production only. */
+function sendToExternalSink(event: string, props?: AnalyticsProps): void {
+  if (process.env.NODE_ENV !== 'production') return
+  const endpoint = process.env.NEXT_PUBLIC_ANALYTICS_ENDPOINT
+  if (!endpoint) return
+
+  const body = JSON.stringify({ event, properties: props ?? {}, occurredAt: new Date().toISOString() })
+  if (navigator.sendBeacon?.(endpoint, new Blob([body], { type: 'application/json' }))) return
+  void fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    keepalive: true,
+    credentials: 'omit',
+  }).catch(() => undefined)
+}
+
 export function track(event: string, props?: AnalyticsProps): void {
   if (process.env.NODE_ENV === 'development') {
     console.debug('[analytics]', event, props ?? {})
     return
   }
 
-  if (process.env.NODE_ENV !== 'production' || typeof window === 'undefined') return
-  const endpoint = process.env.NEXT_PUBLIC_ANALYTICS_ENDPOINT
-  if (!endpoint) return
+  if (typeof window === 'undefined' || !EVENT_NAME.test(event)) return
 
-  const body = JSON.stringify({ event, properties: props ?? {}, occurredAt: new Date().toISOString() })
   try {
-    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-      const queued = navigator.sendBeacon(endpoint, new Blob([body], { type: 'application/json' }))
-      if (queued) return
-    }
-    void fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-      keepalive: true,
-      credentials: 'omit',
-    }).catch(() => undefined)
+    sendToInternalSink(event, props)
   } catch {
-    // Analytics must never block navigation or an in-progress booking handoff.
+    // Measurement must never block a search, edit, or provider handoff.
   }
-
-  if (typeof window === 'undefined' || !/^[a-z][a-z0-9_]{1,79}$/.test(event)) return
   try {
-    const body = JSON.stringify({
-      eventId: crypto.randomUUID(),
-      sessionId: sessionId(),
-      event,
-      occurredAt: new Date().toISOString(),
-      path: window.location.pathname,
-      props: props ?? {},
-    })
-    if (navigator.sendBeacon?.('/api/analytics', new Blob([body], { type: 'application/json' }))) return
-    void fetch('/api/analytics', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body,
-      keepalive: true,
-      credentials: 'same-origin',
-    }).catch(() => undefined)
+    sendToExternalSink(event, props)
   } catch {
     // Measurement must never block a search, edit, or provider handoff.
   }

@@ -423,6 +423,54 @@ export interface HotelSearchContext {
   anchor?: HotelLocationAnchor;
 }
 
+export type RateRestrictionFamily = 'residency' | 'age' | 'membership' | 'refundability';
+
+export type RateRestrictionCondition = {
+  family: RateRestrictionFamily;
+  label: string;
+};
+
+export type RateEligibilityPresentation =
+  | { state: 'restricted'; conditions: readonly RateRestrictionCondition[]; coverageIncomplete?: boolean; fetchedAt?: string }
+  | { state: 'clear'; fetchedAt?: string }
+  | { state: 'not_provided'; fetchedAt?: string }
+  | { state: 'loading' }
+  | { state: 'error' };
+
+export type HotelRateFamilyState = 'restricted' | 'clear' | 'not_provided';
+
+/** Structured evidence a supplier attaches to one selected-rate restriction family. */
+export interface HotelRateFamilyEvidence {
+  state: HotelRateFamilyState;
+  /** Present only when membership is restricted; a raw supplier program/group label. */
+  membershipLabel?: string;
+  /** Present only when residency is restricted; a raw supplier place label. */
+  residencyPlace?: string;
+  /** Present only when age is restricted; at least one bound must be set. */
+  minAge?: number;
+  maxAge?: number;
+}
+
+export interface HotelRateEligibilityEvidence {
+  /** Must match the offer/rate this evidence is attached to; mismatch degrades to not_provided. */
+  offerId: string;
+  /** Must match HotelOffer.source; mismatch degrades to not_provided. */
+  supplier: string;
+  fetchedAt?: string;
+  membership: HotelRateFamilyEvidence;
+  residency: HotelRateFamilyEvidence;
+  age: HotelRateFamilyEvidence;
+  refundability: HotelRateFamilyEvidence;
+}
+
+/** Declares whether an adapter's contract can explicitly return `restricted` and `clear` per family. */
+export interface HotelRateEligibilityCapability {
+  membership: boolean;
+  residency: boolean;
+  age: boolean;
+  refundability: boolean;
+}
+
 export interface HotelOffer {
   id: string;
   name: string;
@@ -442,6 +490,8 @@ export interface HotelOffer {
   accessEvidenceState?: HotelAccessEvidenceState;
   fundsPolicy: HotelFundsPolicyEvidence;
   smokingPolicy?: HotelSmokingPolicy;
+  rateEligibility?: HotelRateEligibilityEvidence;
+  rateEligibilityCapability?: HotelRateEligibilityCapability;
 }
 
 export type NormalizedHotelOffer = HotelOffer;

@@ -10,6 +10,9 @@ import type {
   HotelOffer,
   HotelQualityConfidence,
   HotelQualityKind,
+  HotelRateEligibilityCapability,
+  HotelRateEligibilityEvidence,
+  HotelRateFamilyEvidence,
   HotelRatingEvidence,
   HotelSmokingDimension,
   HotelSmokingPolicy,
@@ -69,6 +72,8 @@ export type BookingHotelContext = {
   hotelClass?: HotelRatingEvidence;
   guestRating?: HotelRatingEvidence;
   smokingPolicy?: HotelSmokingPolicy;
+  rateEligibility?: HotelRateEligibilityEvidence;
+  rateEligibilityCapability?: HotelRateEligibilityCapability;
 };
 
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
@@ -607,6 +612,73 @@ function validateHotelDealScore(value: unknown, observedCurrency: string): DealS
   };
 }
 
+const RATE_ELIGIBILITY_FAMILY_STATES = new Set(['restricted', 'clear', 'not_provided']);
+
+/** A malformed family is isolated to that family; it never blocks the surrounding hotel context. */
+function validateHotelRateFamilyEvidence(value: unknown): HotelRateFamilyEvidence | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (!RATE_ELIGIBILITY_FAMILY_STATES.has(record.state as string)) return null;
+  const state = record.state as HotelRateFamilyEvidence['state'];
+  if (state !== 'restricted') return { state };
+
+  const membershipLabel = cleanOptional(record.membershipLabel);
+  const residencyPlace = cleanOptional(record.residencyPlace);
+  const minAge = parseOptionalNumber(record.minAge);
+  const maxAge = parseOptionalNumber(record.maxAge);
+  if (minAge === null || maxAge === null) return null;
+
+  return {
+    state: 'restricted',
+    ...(membershipLabel !== undefined ? { membershipLabel } : {}),
+    ...(residencyPlace !== undefined ? { residencyPlace } : {}),
+    ...(minAge !== undefined ? { minAge } : {}),
+    ...(maxAge !== undefined ? { maxAge } : {}),
+  };
+}
+
+/** Preserved verbatim through cache/URL round-trip; conservative derivation happens at read time. */
+function validateHotelRateEligibilityEvidence(value: unknown): HotelRateEligibilityEvidence | null | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const offerId = cleanRequired(record.offerId);
+  const supplier = cleanRequired(record.supplier);
+  const fetchedAt = cleanOptional(record.fetchedAt);
+  if (!offerId || !supplier) return null;
+  if (fetchedAt !== undefined && !isValidDateInput(fetchedAt)) return null;
+
+  const membership = validateHotelRateFamilyEvidence(record.membership);
+  const residency = validateHotelRateFamilyEvidence(record.residency);
+  const age = validateHotelRateFamilyEvidence(record.age);
+  const refundability = validateHotelRateFamilyEvidence(record.refundability);
+  if (!membership || !residency || !age || !refundability) return null;
+
+  return {
+    offerId,
+    supplier,
+    ...(fetchedAt !== undefined ? { fetchedAt } : {}),
+    membership,
+    residency,
+    age,
+    refundability,
+  };
+}
+
+function validateHotelRateEligibilityCapability(value: unknown): HotelRateEligibilityCapability | null | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const keys = ['membership', 'residency', 'age', 'refundability'] as const;
+  if (keys.some(key => typeof record[key] !== 'boolean')) return null;
+  return {
+    membership: record.membership as boolean,
+    residency: record.residency as boolean,
+    age: record.age as boolean,
+    refundability: record.refundability as boolean,
+  };
+}
+
 export function validateBookingHotelContext(input: HotelContextInput): BookingHotelContext | null {
   const kind = cleanRequired(input.kind);
   const offerId = cleanRequired(input.offerId);
@@ -633,6 +705,10 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const smokingPolicy = input.smokingPolicy === undefined
     ? unavailableHotelSmokingPolicy()
     : normalizeHotelSmokingPolicy(input.smokingPolicy, provider);
+  // Invalid/tampered eligibility context degrades to "not provided" at read time; it
+  // must never block an otherwise-valid hotel context or the review/handoff gate.
+  const rateEligibility = validateHotelRateEligibilityEvidence(input.rateEligibility) ?? undefined;
+  const rateEligibilityCapability = validateHotelRateEligibilityCapability(input.rateEligibilityCapability) ?? undefined;
 
   if (
     kind !== 'hotel' ||
@@ -678,6 +754,8 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     ...(hotelClass !== undefined ? { hotelClass } : {}),
     ...(guestRating !== undefined ? { guestRating } : {}),
     smokingPolicy,
+    ...(rateEligibility !== undefined ? { rateEligibility } : {}),
+    ...(rateEligibilityCapability !== undefined ? { rateEligibilityCapability } : {}),
   };
 }
 
@@ -789,6 +867,8 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     hotelClass: parseJsonQueryParam(firstParam(params.hotelClass)),
     guestRating: parseJsonQueryParam(firstParam(params.guestRating)),
     smokingPolicy: parseSmokingPolicyParams(params),
+    rateEligibility: parseJsonQueryParam(firstParam(params.rateEligibility)),
+    rateEligibilityCapability: parseJsonQueryParam(firstParam(params.rateEligibilityCapability)),
   });
 }
 
@@ -880,6 +960,8 @@ export function buildBookingHotelContext(hotel: HotelOffer, continuity?: Booking
     smokingPolicy: hotel.smokingPolicy === undefined
       ? unavailableHotelSmokingPolicy()
       : normalizeHotelSmokingPolicy(hotel.smokingPolicy, hotel.source),
+    ...(hotel.rateEligibility !== undefined ? { rateEligibility: hotel.rateEligibility } : {}),
+    ...(hotel.rateEligibilityCapability !== undefined ? { rateEligibilityCapability: hotel.rateEligibilityCapability } : {}),
     ...(continuity?.entrySource !== undefined ? { entrySource: continuity.entrySource } : {}),
     ...(continuity?.returnUrl !== undefined ? { returnUrl: continuity.returnUrl } : {}),
     ...(continuity?.checkIn !== undefined ? { checkIn: continuity.checkIn } : {}),
@@ -942,6 +1024,8 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
   if (context.dealScore) params.set('dealScore', JSON.stringify(context.dealScore));
   if (context.hotelClass) params.set('hotelClass', JSON.stringify(context.hotelClass));
   if (context.guestRating) params.set('guestRating', JSON.stringify(context.guestRating));
+  if (context.rateEligibility) params.set('rateEligibility', JSON.stringify(context.rateEligibility));
+  if (context.rateEligibilityCapability) params.set('rateEligibilityCapability', JSON.stringify(context.rateEligibilityCapability));
   const issuerParams = [
     ['invoice', 'documentInvoiceIssuerRole', 'documentInvoiceIssuerName'],
     ['receipt', 'documentReceiptIssuerRole', 'documentReceiptIssuerName'],

@@ -14,10 +14,8 @@ import type {
 } from '@/lib/types'
 import { normalizeHotelDocumentReadiness } from '@/lib/providers/hotelDocumentReadiness'
 import { ParkingSection } from '@/app/components/HotelParking'
-import {
-  HotelRateRestrictionsSection,
-  RATE_ELIGIBILITY_NOT_PROVIDED,
-} from '@/app/components/HotelRateRestrictions'
+import { HotelRateRestrictionsSection } from '@/app/components/HotelRateRestrictions'
+import { deriveRateEligibilityPresentation } from '@/lib/hotels/rateEligibility'
 import {
   HotelDocumentIntentControl,
   HotelDocumentReadinessDisclosure,
@@ -1109,7 +1107,12 @@ function HotelHandoffReview({
         <h2 id="hotel-supporting-title" className="text-xl font-bold leading-tight text-[color:var(--text-1)] sm:text-2xl">Supporting evidence</h2>
         <div className="mt-5 space-y-5">
           <HotelRateRestrictionsSection
-            eligibility={RATE_ELIGIBILITY_NOT_PROVIDED}
+            eligibility={deriveRateEligibilityPresentation({
+              offerId: hotelContext.offerId,
+              supplier: hotelContext.provider,
+              evidence: hotelContext.rateEligibility,
+              capability: hotelContext.rateEligibilityCapability,
+            })}
             providerName={providerDisplayName(hotelContext.provider)}
           />
           <ParkingSection
