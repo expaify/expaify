@@ -5,7 +5,7 @@ const NIGHTS = 2
 
 // Instead of relative offsets (which shift every day, preventing snapshot accumulation),
 // we use two fixed calendar anchors per month so the same hotel+date gets re-scanned
-// and builds up MIN_SNAPSHOTS=3 within days rather than never.
+// and builds up MIN_SNAPSHOTS=8 within days rather than never.
 // Alternating between 2 anchors keeps the daily API call count at 19 (1 per market),
 // well within the RapidAPI quota that previously exhausted after ~7 markets.
 function getAnchorCheckInDate(): string {
