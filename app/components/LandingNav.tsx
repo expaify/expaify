@@ -21,16 +21,16 @@ export function LandingNav() {
   return (
     <header
       className="sticky top-0 z-50 w-full bg-[color:var(--bg)] transition-shadow duration-150"
-      style={{ boxShadow: scrolled ? '0 1px 0 var(--line-ivory)' : 'none' }}
+      style={{ boxShadow: scrolled ? 'var(--shadow-header)' : 'none' }}
     >
       <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">
         <a
           href="/"
-          className="flex items-center gap-0.5 font-display text-[20px] font-bold leading-none text-[color:var(--ink)] no-underline"
+          className="text-h3 flex items-center gap-0.5 leading-none text-[color:var(--ink)] no-underline"
           aria-label="expaify home"
         >
           expaify
-          <span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
+          <span className="h-2 w-2 rounded-[var(--radius-pill)] bg-[color:var(--primary)]" aria-hidden />
         </a>
 
         <nav className="flex items-center gap-1" aria-label="Main navigation">
@@ -38,7 +38,7 @@ export function LandingNav() {
             <>
               <a
                 href="/deals"
-                className="rounded-[var(--radius-input)] px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
+                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
               >
                 Deals
               </a>
@@ -46,14 +46,14 @@ export function LandingNav() {
                 href="/account"
                 aria-label="Your account"
                 title={session.user?.email ?? 'Account'}
-                className="ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--primary)] text-[13px] font-medium uppercase text-white no-underline transition-opacity hover:opacity-80"
+                className="ml-1 flex h-8 w-8 items-center justify-center rounded-[var(--radius-pill)] bg-[color:var(--primary)] text-small font-medium uppercase text-[color:var(--text-inverse)] no-underline transition-opacity hover:opacity-80"
               >
                 {initial.toUpperCase()}
               </a>
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: '/' })}
-                className="rounded-[var(--radius-input)] px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] transition-colors hover:text-[color:var(--ink)]"
+                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] transition-colors hover:text-[color:var(--ink)]"
               >
                 Sign out
               </button>
@@ -64,13 +64,13 @@ export function LandingNav() {
                 <>
                   <a
                     href="#pricing"
-                    className="hidden rounded-[var(--radius-input)] px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block"
+                    className="hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block"
                   >
                     Pricing
                   </a>
                   <a
                     href="#faq"
-                    className="hidden rounded-[var(--radius-input)] px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block"
+                    className="hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block"
                   >
                     FAQ
                   </a>
@@ -78,13 +78,13 @@ export function LandingNav() {
               )}
               <a
                 href="/login"
-                className="rounded-[var(--radius-input)] px-3 py-2 text-[15px] font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
+                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
               >
                 Login
               </a>
               <a
                 href="/join"
-                className="btn btn-conversion ml-1 min-h-9 px-4 text-[14px]"
+                className="btn btn-conversion btn-sm ml-1"
               >
                 Join the club
               </a>

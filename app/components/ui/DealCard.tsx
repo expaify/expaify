@@ -67,14 +67,14 @@ export function DealCard({ deal, href, onOpen }: DealCardProps) {
       <div className="space-y-3 px-4 pb-4 pt-3">
         <div>
           {deal.isMock ? (
-            <span className="mb-2 inline-flex rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-2 py-1 font-display text-[11px] font-bold leading-none text-[color:var(--gold-text)]">
+            <span className="mb-2 inline-flex rounded-[var(--radius-pill)] bg-[color:var(--bg-muted)] px-2 py-1 font-display text-caption font-bold leading-none text-[color:var(--ink-soft)]">
               Example
             </span>
           ) : null}
-          <h3 className="line-clamp-2 font-display text-[16px] font-bold leading-snug text-[color:var(--ink)]">
+          <h3 className="text-body line-clamp-2 font-display font-bold leading-snug text-[color:var(--ink)]">
             {deal.hotelName}
           </h3>
-          <p className="mt-[2px] text-[12px] leading-snug text-[color:var(--ink-faint)]">
+          <p className="text-caption mt-0.5 leading-snug text-[color:var(--ink-faint)]">
             <span aria-label={`${Math.round(deal.stars)} stars`} aria-hidden>{starChars(deal.stars)}</span>
             {' · '}{deal.city}{' · '}{deal.checkInWindow}
           </p>
@@ -82,15 +82,15 @@ export function DealCard({ deal, href, onOpen }: DealCardProps) {
 
         <div className="space-y-2">
           <div className="flex min-w-0 flex-wrap items-baseline gap-2">
-            <span className="font-display text-[26px] font-bold leading-none text-[color:var(--primary)]">
+            <span className="text-h2 leading-none text-[color:var(--primary)]">
               {formatMoney(deal.dealPrice)}
             </span>
-            <span className="self-end pb-[2px] text-[11px] leading-none text-[color:var(--ink-faint)]">/ night</span>
-            <span className="text-[14px] leading-none text-[color:var(--ink-faint)] line-through">
+            <span className="text-caption self-end pb-0.5 leading-none text-[color:var(--ink-faint)]">/ night</span>
+            <span className="text-small leading-none text-[color:var(--ink-faint)] line-through">
               usually {formatMoney(deal.medianPrice)}
             </span>
             {deal.expired ? (
-              <span className="inline-flex items-center rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)] px-[12px] py-[5px] font-display text-[13px] font-bold leading-none text-[color:var(--ink-faint)]">
+              <span className="inline-flex items-center rounded-[var(--radius-pill)] bg-[color:var(--bg-muted)] px-3 py-1.5 font-display text-small font-bold leading-none text-[color:var(--ink-soft)]">
                 Expired
               </span>
             ) : (
@@ -98,10 +98,10 @@ export function DealCard({ deal, href, onOpen }: DealCardProps) {
             )}
           </div>
           {deal.headline ? (
-            <p className="text-[12px] font-medium leading-snug text-[color:var(--primary)]">{deal.headline}</p>
+            <p className="text-caption font-medium leading-snug text-[color:var(--primary)]">{deal.headline}</p>
           ) : null}
           {showSavings ? (
-            <p className="text-[12px] font-medium text-[color:var(--primary)]">
+            <p className="text-caption font-medium text-[color:var(--primary)]">
               Save {formatMoney({ priceCents: savings, currency: deal.dealPrice.currency })}/night
             </p>
           ) : null}
@@ -120,7 +120,7 @@ export function DealCard({ deal, href, onOpen }: DealCardProps) {
         {deal.expired ? null : deal.isMock ? (
           <p className="text-caption font-medium leading-snug text-[color:var(--ink-faint)]">Sample hotel — not bookable</p>
         ) : href ? (
-          <p className="flex min-h-11 items-center justify-center rounded-[var(--radius-input)] border border-[color:var(--primary)] text-[13px] font-semibold text-[color:var(--primary)]">View deal</p>
+          <p className="flex min-h-11 items-center justify-center rounded-[var(--radius-input)] border border-[color:var(--primary)] text-small font-medium text-[color:var(--primary)]">View deal</p>
         ) : (
           <CompareRow links={deal.links} />
         )}
