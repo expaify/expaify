@@ -7,7 +7,11 @@ import { formatMoney } from '@/lib/money'
 import { TrustLine } from '@/app/components/ui/TrustLine'
 import { PriceSparkline } from '@/app/components/ui/PriceSparkline'
 import { ShareButton } from '@/app/components/ui/ShareButton'
-import { TrackOnMount } from '@/app/components/TrackOnMount'
+import {
+  HotelDecisionAnalytics,
+  type HotelDecisionPriceFreshnessState,
+  type HotelDecisionScoreState,
+} from '@/app/components/HotelDecisionAnalytics'
 import { WatchCityPill } from '@/app/components/ui/WatchCityPill'
 import { getSubscription } from '@/lib/subscription'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
@@ -288,6 +292,22 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const disclosureParam = Array.isArray(researchParams.continuityDisclosure)
     ? researchParams.continuityDisclosure[0]
     : researchParams.continuityDisclosure
+
+  const priceFreshnessState: HotelDecisionPriceFreshnessState = isExpired
+    ? 'expired'
+    : isStale
+      ? 'stale'
+      : isAging
+        ? 'aging'
+        : checkedAgo
+          ? 'fresh'
+          : 'unknown'
+  const scoreState: HotelDecisionScoreState = deal.snapshot_count <= 0
+    ? 'unavailable'
+    : deal.snapshot_count < 10
+      ? 'low_confidence'
+      : 'confident'
+
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
       <nav className="border-b border-[color:var(--line-ivory)] bg-[color:var(--bg)]">
@@ -302,13 +322,14 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
         <a
           href={backHref}
           aria-label={criteria ? 'Back to hotel results for this search' : 'Back to saved deals'}
+          data-hotel-back
           className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)] focus-visible:rounded-[var(--radius-control)]"
         >
           ← {criteria ? 'Back to results' : 'Back to saved deals'}
         </a>
 
         <div className="mt-4 space-y-4">
-          <section aria-labelledby="saved-hotel-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+          <section aria-labelledby="saved-hotel-title" data-hotel-decision-section="property_stay" data-hotel-decision-position="1" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <p className="text-caption font-bold uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
             <h1 id="saved-hotel-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name}</h1>
             <p className="mt-2 text-sm font-medium leading-6 text-[color:var(--text-2)]">Area: {deal.city}</p>
@@ -334,7 +355,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             </p>
           </section>
 
-          <section aria-labelledby="saved-price-score-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+          <section aria-labelledby="saved-price-score-title" data-hotel-decision-section="price_deal_score" data-hotel-decision-position="2" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="saved-price-score-title" className="text-xl font-bold text-[color:var(--text-1)] sm:text-2xl">Price and Deal Score</h2>
             <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
               <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">
@@ -360,7 +381,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             </div>
           </section>
 
-          <section aria-labelledby="saved-hotel-fit-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+          <section aria-labelledby="saved-hotel-fit-title" data-hotel-decision-section="hotel_fit" data-hotel-decision-position="3" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="saved-hotel-fit-title" className="text-xl font-bold text-[color:var(--text-1)] sm:text-2xl">Hotel fit</h2>
             <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
@@ -375,7 +396,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             </dl>
           </section>
 
-          <section aria-labelledby="saved-provider-title" className="rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+          <section aria-labelledby="saved-provider-title" data-hotel-decision-section="provider_handoff" data-hotel-decision-position="4" className="rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="saved-provider-title" className="text-xl font-bold text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
             {isExpired ? (
               <div className="mt-4" role="status">
@@ -388,7 +409,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             )}
           </section>
 
-          <section aria-labelledby="saved-supporting-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+          <section aria-labelledby="saved-supporting-title" data-hotel-decision-section="supporting_evidence" data-hotel-decision-position="5" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="saved-supporting-title" className="text-xl font-bold text-[color:var(--text-1)] sm:text-2xl">Supporting evidence</h2>
             <div className="mt-5 space-y-6">
               {deal.photo_url ? <PropertyPhoto src={deal.photo_url} size="detail" loading="lazy" /> : null}
@@ -414,7 +435,15 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             </div>
           </section>
         </div>
-        <TrackOnMount event="hotel_detail_viewed" props={{ deal_id: deal.id, context_status: contextStatus, ...(criteria ? { criteria_version: criteria.criteriaVersion } : {}) }} />
+        <HotelDecisionAnalytics
+          hotelId={deal.id}
+          entrySource="saved"
+          hasDates={!datesIncomplete}
+          hasVerifiedGuestRating={false}
+          scoreState={scoreState}
+          priceFreshnessState={priceFreshnessState}
+          viewedProps={{ deal_id: deal.id, context_status: contextStatus, ...(criteria ? { criteria_version: criteria.criteriaVersion } : {}) }}
+        />
       </main>
     </div>
   )

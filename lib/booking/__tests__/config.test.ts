@@ -8,6 +8,7 @@ import {
   parseBookingHotelContext,
   validateBookingFareContext,
   validateBookingHotelContext,
+  validateHotelReturnUrl,
   validateStructuredBookingHotelContext,
 } from '../config';
 import type { HotelOffer, NormalizedFare } from '@/lib/types';
@@ -458,5 +459,107 @@ describe('booking hotel context continuity', () => {
   it('validates a structured booking context without losing nested location or policy evidence', () => {
     const context = buildBookingHotelContext(hotel);
     expect(validateStructuredBookingHotelContext(JSON.parse(JSON.stringify(context)))).toEqual(context);
+  });
+
+  it('rejects provider URLs that are not HTTPS or omit an affiliate marker', () => {
+    const baseContext = {
+      kind: 'hotel',
+      offerId: 'hotel_123',
+      provider: 'hotellook',
+      name: 'The Example Hotel',
+      priceCents: 18900,
+      currency: 'USD',
+      priceBasis: 'per_night_before_taxes_fees',
+    } as const;
+
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'http://tp.media/r?marker=hotel-marker' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'https://tp.media/r?p=4536' })).toBeNull();
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'https://tp.media/r?aid=4536' })?.providerUrl)
+      .toBe('https://tp.media/r?aid=4536');
+    expect(validateBookingHotelContext({ ...baseContext, providerUrl: 'https://booking.com/r?affilid=4536' })?.providerUrl)
+      .toBe('https://booking.com/r?affilid=4536');
+  });
+
+  it('preserves entry source, return destination, stay continuity, deal score, and quality evidence through a structured round trip', () => {
+    const context = buildBookingHotelContext(hotel, {
+      entrySource: 'saved',
+      returnUrl: '/deals?city=Paris',
+      checkIn: '2026-08-12',
+      checkOut: '2026-08-15',
+      nightCount: 3,
+      priceCheckedAt: '2026-08-01T00:00:00.000Z',
+      dealScore: {
+        percentile: 12,
+        pctVsMedian: -18,
+        medianCents: 22000,
+        currency: 'USD',
+        verdict: 'Great',
+        confidence: 'high',
+        explanation: 'This rate is cheaper than 88% of recent prices for this hotel.',
+      },
+      hotelClass: { kind: 'hotel_class', value: 4, scaleMax: 5, sourceLabel: 'Hotellook', confidence: 'provider_only' },
+      guestRating: { kind: 'guest_review', value: 8.9, scaleMax: 10, reviewCount: 512, sourceLabel: 'Hotellook', confidence: 'verified' },
+    });
+
+    expect(context.entrySource).toBe('saved');
+    expect(context.returnUrl).toBe('/deals?city=Paris');
+    expect(context.checkIn).toBe('2026-08-12');
+    expect(context.checkOut).toBe('2026-08-15');
+    expect(context.nightCount).toBe(3);
+
+    const roundTripped = validateStructuredBookingHotelContext(JSON.parse(JSON.stringify(context)));
+    expect(roundTripped).toEqual(context);
+  });
+
+  it('rejects a night count that does not match the check-in/check-out span', () => {
+    const context = {
+      kind: 'hotel',
+      offerId: 'hotel_123',
+      provider: 'hotellook',
+      name: 'The Example Hotel',
+      priceCents: 18900,
+      currency: 'USD',
+      priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      checkIn: '2026-08-12',
+      checkOut: '2026-08-15',
+      nightCount: 5,
+    };
+    expect(validateBookingHotelContext(context)).toBeNull();
+  });
+
+  it('rejects a deal score whose currency does not match the observed nightly rate currency', () => {
+    const context = {
+      kind: 'hotel',
+      offerId: 'hotel_123',
+      provider: 'hotellook',
+      name: 'The Example Hotel',
+      priceCents: 18900,
+      currency: 'USD',
+      priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      dealScore: {
+        percentile: 12,
+        pctVsMedian: -18,
+        medianCents: 22000,
+        currency: 'EUR',
+        verdict: 'Great',
+        confidence: 'high',
+        explanation: 'Mismatched currency.',
+      },
+    };
+    expect(validateBookingHotelContext(context)).toBeNull();
+  });
+
+  it('confines validated return destinations to /, /deals, and /destinations/*', () => {
+    expect(validateHotelReturnUrl('/')).toBe('/');
+    expect(validateHotelReturnUrl('/deals?city=Paris&min_discount=20')).toBe('/deals?city=Paris&min_discount=20');
+    expect(validateHotelReturnUrl('/destinations/paris?criteriaReturn=destination')).toBe('/destinations/paris?criteriaReturn=destination');
+    expect(validateHotelReturnUrl('//evil.example.com')).toBeUndefined();
+    expect(validateHotelReturnUrl('https://evil.example.com/deals')).toBeUndefined();
+    expect(validateHotelReturnUrl('/@evil.example.com')).toBeUndefined();
+    expect(validateHotelReturnUrl('/deals ')).toBeUndefined();
+    expect(validateHotelReturnUrl('/book')).toBeUndefined();
+    expect(validateHotelReturnUrl(42)).toBeUndefined();
   });
 });
