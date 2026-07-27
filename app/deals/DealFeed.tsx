@@ -1,14 +1,11 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { DealCard } from '../components/ui/DealCard'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
 import { SearchBar } from '../components/ui/SearchBar'
 import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
-import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
-import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { track } from '@/lib/analytics'
 import { HotelSearchCriteriaEditor, HotelSearchCriteriaSummary } from '../components/HotelSearchCriteria'
 import {
@@ -104,6 +101,23 @@ const MAX_PRICE_OPTIONS: Array<{ label: string; value: number | null }> = [
   { label: 'Under $300', value: 300_00 },
 ]
 
+const FREE_TIER_STATUS_SENTENCE = 'Showing every expaify deal at 20% or more off, newest first. Filters and sorting are included with Premium.'
+
+/** What is constraining the list right now, from the server's point of view.
+    Reads effective (not raw) filter values so it is never wrong for a free
+    user clamped to the 20% floor. */
+function statusSentence(filters: HotelFilterState, premiumFlag: boolean): string {
+  if (!premiumFlag) return FREE_TIER_STATUS_SENTENCE
+  const fragments: string[] = []
+  if (filters.minDiscount > 0) fragments.push(`deals ${filters.minDiscount}% or more off`)
+  if (filters.minStars > 0) fragments.push(`${filters.minStars} stars and up`)
+  if (filters.maxPriceCents !== null) fragments.push(`under $${Math.round(filters.maxPriceCents / 100)} a night`)
+  if (fragments.length === 0) return ''
+  if (fragments.length === 1) return `Showing ${fragments[0]}.`
+  if (fragments.length === 2) return `Showing ${fragments[0]} and ${fragments[1]}.`
+  return `Showing ${fragments[0]}, ${fragments[1]}, and ${fragments[2]}.`
+}
+
 export type ApiDeal = {
   id: string
   hotelId: string
@@ -149,9 +163,10 @@ type UndoSnapshot = {
 
 type RequestBehavior = {
   focusOnSuccess?: boolean
-  successKind?: 'single' | 'reset' | 'undo'
+  successKind?: 'apply' | 'single' | 'reset' | 'undo'
   undoOnSuccess?: UndoSnapshot
   preserveResultsOnFailure?: boolean
+  failureKind?: 'filter' | 'undo'
 }
 
 type DealsResponse = {
@@ -208,111 +223,209 @@ function SkeletonCard() {
   )
 }
 
-type FilterOption = { label: string; selected: boolean; onSelect: () => void }
+type FilterPillKey = 'minDiscount' | 'minStars' | 'maxPrice'
+
+type FilterPillState = 'neutral' | 'set' | 'locked'
+
+type FilterOption = {
+  label: string
+  value: string
+  selected: boolean
+  locked: boolean
+  onSelect: () => void
+}
 
 type FilterPillProps = {
   label: string
-  activeLabel: string | null
-  disabled: boolean
+  filterKey: FilterPillKey
+  valueLabel: string | null
+  state: FilterPillState
+  busy: boolean
+  inert: boolean
   options: FilterOption[]
+  align: 'start' | 'end'
   onClear: () => void
+  onLockedAttempt: () => void
 }
 
-/** Outline pill that opens a popover of options. Active filters render as a
-    teal fill with white text and an × that clears the filter. */
-function FilterPill({ label, activeLabel, disabled, options, onClear }: FilterPillProps) {
+const FILTER_REMOVE_NAMES: Record<FilterPillKey, string> = {
+  minDiscount: 'minimum discount',
+  minStars: 'hotel class',
+  maxPrice: 'maximum price',
+}
+
+const LockGlyph = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </svg>
+)
+
+/** Outline pill that opens a popover of options. Three states — neutral,
+    set (premium fill + removable ×), locked (free tier, server-effective
+    value, no ×) — never uses the `disabled` attribute so focus is preserved. */
+function FilterPill({ label, filterKey, valueLabel, state, busy, inert, options, align, onClear, onLockedAttempt }: FilterPillProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const blocked = busy || inert
 
   useEffect(() => {
     if (!open) return
     function onDocPointer(e: MouseEvent | TouchEvent) {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
     }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setOpen(false)
-        btnRef.current?.focus()
-      }
-    }
     document.addEventListener('mousedown', onDocPointer)
     document.addEventListener('touchstart', onDocPointer)
-    document.addEventListener('keydown', onKey)
     return () => {
       document.removeEventListener('mousedown', onDocPointer)
       document.removeEventListener('touchstart', onDocPointer)
-      document.removeEventListener('keydown', onKey)
     }
   }, [open])
 
-  const active = activeLabel !== null
+  function openMenu(focus: 'checked' | 'last' = 'checked') {
+    if (blocked) return
+    setOpen(true)
+    window.setTimeout(() => {
+      const index = focus === 'last' ? options.length - 1 : options.findIndex(o => o.selected)
+      optionRefs.current[Math.max(index, 0)]?.focus()
+    }, 0)
+  }
+
+  function closeMenu(returnFocus: boolean) {
+    setOpen(false)
+    if (returnFocus) window.setTimeout(() => btnRef.current?.focus(), 0)
+  }
+
+  function activateOption(option: FilterOption) {
+    if (option.locked) {
+      closeMenu(false)
+      onLockedAttempt()
+      return
+    }
+    if (option.selected) {
+      closeMenu(true)
+      return
+    }
+    closeMenu(true)
+    option.onSelect()
+  }
+
+  function handleOptionKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    let nextIndex: number | null = null
+    if (event.key === 'ArrowDown') nextIndex = (index + 1) % options.length
+    else if (event.key === 'ArrowUp') nextIndex = (index - 1 + options.length) % options.length
+    else if (event.key === 'Home') nextIndex = 0
+    else if (event.key === 'End') nextIndex = options.length - 1
+    else if (event.key === 'Escape') {
+      event.preventDefault()
+      closeMenu(true)
+      return
+    } else if (event.key === 'Tab') {
+      setOpen(false)
+      return
+    }
+    if (nextIndex !== null) {
+      event.preventDefault()
+      optionRefs.current[nextIndex]?.focus()
+    }
+  }
+
+  const baseName = state === 'locked'
+    ? `${label}: ${valueLabel}, included with Premium`
+    : state === 'set'
+      ? `${label}: ${valueLabel}`
+      : label
+  const accessibleName = busy ? `${baseName}, updating deals` : baseName
+
+  const containerClass = state === 'set'
+    ? 'inline-flex items-stretch rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--brand)] bg-[color:var(--brand)] text-white'
+    : 'inline-flex items-stretch rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] text-[color:var(--text-1)]'
 
   return (
     <div ref={rootRef} className="relative">
-      <span
-        className={
-          active
-            ? 'inline-flex items-stretch rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--primary)] bg-[color:var(--primary)] text-white'
-            : 'inline-flex items-stretch rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--line-white)] bg-[color:var(--surface)] text-[color:var(--ink)]'
-        }
-      >
+      <span className={containerClass}>
         <button
           ref={btnRef}
           type="button"
-          disabled={disabled}
+          data-filter-trigger={filterKey}
           aria-haspopup="menu"
           aria-expanded={open}
-          onClick={() => setOpen(o => !o)}
-          className={`flex min-h-[36px] items-center gap-1.5 rounded-l-[var(--radius-pill)] pl-4 text-[13px] font-medium disabled:cursor-not-allowed disabled:opacity-50 ${active ? 'pr-1' : 'rounded-r-[var(--radius-pill)] pr-3'}`}
+          aria-disabled={blocked ? true : undefined}
+          aria-label={accessibleName}
+          onClick={() => {
+            if (blocked) return
+            if (open) closeMenu(false)
+            else openMenu()
+          }}
+          onKeyDown={event => {
+            if (blocked) return
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault()
+              openMenu(event.key === 'ArrowUp' ? 'last' : 'checked')
+            }
+          }}
+          className={`flex min-h-11 items-center gap-1.5 rounded-l-[var(--radius-pill)] px-4 text-[13px] font-medium ${blocked ? 'cursor-not-allowed' : ''} ${inert ? 'opacity-60' : ''} ${state === 'set' ? 'pr-1' : 'rounded-r-[var(--radius-pill)] pr-3'}`}
         >
-          {active ? activeLabel : label}
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="m6 9 6 6 6-6" />
-          </svg>
+          {state === 'locked' ? <LockGlyph /> : null}
+          <span className="min-w-0 truncate">{state === 'neutral' ? label : valueLabel}</span>
+          {busy ? (
+            <svg className="h-4 w-4 shrink-0 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+              <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          )}
         </button>
-        {active && (
+        {state === 'set' ? (
           <button
             type="button"
-            disabled={disabled}
+            aria-disabled={blocked ? true : undefined}
+            aria-label={`Remove ${FILTER_REMOVE_NAMES[filterKey]} filter`}
             onClick={() => {
+              if (blocked) return
               setOpen(false)
               onClear()
             }}
-            aria-label={`Clear ${label.toLowerCase()} filter`}
-            className="flex items-center rounded-r-[var(--radius-pill)] pl-1 pr-3 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`flex min-h-11 items-center rounded-r-[var(--radius-pill)] pl-1 pr-3 ${blocked ? 'cursor-not-allowed' : ''}`}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
           </button>
-        )}
+        ) : null}
       </span>
 
       {open && (
         <div
           role="menu"
           aria-label={`${label} options`}
-          className="absolute left-0 top-full z-30 mt-2 max-h-[320px] min-w-[176px] overflow-y-auto rounded-[var(--radius-input)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-1 shadow-[var(--shadow-card-hover)] min-[680px]:left-auto min-[680px]:right-0"
+          className={`absolute top-full z-30 mt-2 max-h-[320px] min-w-[176px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-1 shadow-[var(--shadow-lift)] ${align === 'end' ? 'right-0' : 'left-0'}`}
         >
-          {options.map(opt => (
+          {options.map((opt, index) => (
             <button
-              key={opt.label}
+              key={opt.value}
+              ref={element => { optionRefs.current[index] = element }}
               type="button"
               role="menuitemradio"
               aria-checked={opt.selected}
-              onClick={() => {
-                opt.onSelect()
-                setOpen(false)
-                btnRef.current?.focus()
-              }}
-              className={`block w-full rounded-[var(--radius-input)] px-3 py-2 text-left text-[13px] ${
-                opt.selected
-                  ? 'bg-[color:var(--primary-soft)] font-medium text-[color:var(--primary-deep)]'
-                  : 'text-[color:var(--ink)] hover:bg-[color:var(--line-ivory)]'
-              }`}
+              aria-disabled={opt.locked ? true : undefined}
+              aria-label={opt.locked ? `${opt.label}, included with Premium` : undefined}
+              onClick={() => activateOption(opt)}
+              onKeyDown={event => handleOptionKeyDown(event, index)}
+              className={`flex min-h-11 w-full items-center gap-3 rounded-[calc(var(--radius-control)-0.125rem)] px-3 py-2.5 text-left text-[13px] hover:bg-[color:var(--bg-muted)] ${opt.selected ? 'bg-[color:var(--brand-soft)] font-medium text-[color:var(--primary-deep)]' : 'text-[color:var(--text-1)]'}`}
             >
-              {opt.label}
+              <span className="min-w-0 flex-1">{opt.label}</span>
+              {opt.locked ? (
+                <span aria-hidden="true" className="flex shrink-0 items-center gap-1 text-[12px] font-bold leading-5 text-[color:var(--text-1)]">
+                  <LockGlyph />
+                  Premium
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -364,6 +477,10 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const [failedSort, setFailedSort] = useState<SortKey | null>(null)
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
   const [premiumExplanationOpen, setPremiumExplanationOpen] = useState(false)
+  const [pendingFilterKey, setPendingFilterKey] = useState<FilterPillKey | null>(null)
+  const [failedFilter, setFailedFilter] = useState<{ key: FilterPillKey; attempted: HotelFilterState } | null>(null)
+  const [filterExplanationOpen, setFilterExplanationOpen] = useState(false)
+  const [filterExplanationKey, setFilterExplanationKey] = useState<FilterPillKey | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
   const [premium, setPremium] = useState(premiumProp)
   const [resultMetadata, setResultMetadata] = useState<HotelResultMetadata | null>(() => {
@@ -399,6 +516,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const sortMenuRef = useRef<HTMLDivElement>(null)
   const sortOptionRefs = useRef<Array<HTMLButtonElement | null>>([])
   const premiumExplanationRef = useRef<HTMLDivElement>(null)
+  const filterExplanationRef = useRef<HTMLDivElement>(null)
   const sortViewedRef = useRef(false)
   const pendingSortEventRef = useRef<{ from: SortKey; to: SortKey; startedAt: number } | null>(null)
   const requestSequenceRef = useRef(0)
@@ -504,7 +622,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       const coverage = readConfirmedCoverage(data)
       const filteredRequest = Boolean(
         (defaultCity ? opts.city !== defaultCity : opts.city) ||
-        opts.minDiscount !== DEFAULT_MIN_DISCOUNT ||
+        opts.minDiscount > 0 ||
         opts.maxPriceCents || opts.minStars || opts.dateFrom || opts.dateTo
       )
       if (append) {
@@ -555,12 +673,13 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         setUndoSnapshot(null)
       }
       if (!append) {
-        const count = parsedMetadata?.inventoryKind === 'live' ? parsedMetadata.filteredTotal : null
-        const countCopy = count === null ? null : `${formatDealCount(count)} ${count === 1 ? 'matches' : 'match'}.`
-        if (behavior.successKind === 'single') setStatusAnnouncement(countCopy ? `Filter removed. ${countCopy}` : 'Deals updated.')
-        else if (behavior.successKind === 'reset') setStatusAnnouncement(countCopy ? `Filters reset. ${countCopy}` : 'Filters reset.')
-        else if (behavior.successKind === 'undo') setStatusAnnouncement(countCopy ? `Filter change undone. ${countCopy}` : 'Filter change undone.')
-        else setStatusAnnouncement(countCopy ?? '')
+        const sentence = statusSentence(requestedFilters, Boolean(data.premium))
+        const widestSentence = 'Showing all current expaify deals.'
+        if (behavior.successKind === 'apply') setStatusAnnouncement(sentence ? `Filters applied. ${sentence}` : `Filters applied. ${widestSentence}`)
+        else if (behavior.successKind === 'single') setStatusAnnouncement(sentence ? `Filter removed. ${sentence}` : `Filter removed. ${widestSentence}`)
+        else if (behavior.successKind === 'reset') setStatusAnnouncement(`Filters cleared. ${widestSentence}`)
+        else if (behavior.successKind === 'undo') setStatusAnnouncement(sentence ? `Filter change undone. ${sentence}` : `Filter change undone. ${widestSentence}`)
+        else setStatusAnnouncement('')
         retryBehaviorRef.current = null
       }
       if (behavior.focusOnSuccess) window.requestAnimationFrame(() => resultStatusRef.current?.focus())
@@ -574,6 +693,8 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         setConfirmedCoverage(null)
         setCoverageAnnouncement('We couldn’t load more deals. The deals already shown are still available to compare.')
         if (continuationOriginRef.current === 'manual') restoreManualContinuationFocus()
+      } else if (behavior.failureKind === 'filter') {
+        setStatusAnnouncement('Deals couldn’t be updated. Your previous filters are still shown.')
       } else if (behavior.preserveResultsOnFailure) {
         setUndoError(true)
         setStatusAnnouncement('')
@@ -627,9 +748,16 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       dateFrom: nextDateFrom,
       dateTo: nextDateTo,
     }
+    const plainFilterKey: FilterPillKey | null =
+      next.minDiscount !== undefined ? 'minDiscount' :
+      next.minStars !== undefined ? 'minStars' :
+      next.maxPriceCents !== undefined ? 'maxPrice' : null
+
     setSortMenuOpen(false)
     setPremiumExplanationOpen(false)
+    setFilterExplanationOpen(false)
     setFailedSort(null)
+    setFailedFilter(null)
     setCity(nextCity)
     setMinDiscount(nextDiscount)
     setMaxPriceCents(nextMax)
@@ -638,16 +766,73 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     setDateTo(nextDateTo)
     setStatusAnnouncement('')
     setUndoError(false)
-    if (recovery) setPendingRecoveryKey(recovery.key)
-    else setUndoSnapshot(null)
-    void fetchDeals({ ...nextFilters, sort: appliedSort, offset: 0, append: false }, recovery ? {
+
+    if (recovery) {
+      setPendingRecoveryKey(recovery.key)
+      void fetchDeals({ ...nextFilters, sort: appliedSort, offset: 0, append: false }, {
+        focusOnSuccess: true,
+        successKind: recovery.kind,
+        undoOnSuccess: {
+          target: { ...currentFilters, sort: appliedSort, queryId: resultMetadata?.queryId },
+          kind: recovery.kind,
+        },
+      })
+      return
+    }
+
+    setUndoSnapshot(null)
+    if (plainFilterKey) setPendingFilterKey(plainFilterKey)
+    // Captured before the (synchronous) increment inside fetchDeals, so a
+    // request superseded by a later pill press can tell it is stale and
+    // must not revert state the newer request already owns.
+    const sequenceForThisCall = requestSequenceRef.current + 1
+    void fetchDeals({ ...nextFilters, sort: appliedSort, offset: 0, append: false }, {
       focusOnSuccess: true,
-      successKind: recovery.kind,
+      successKind: 'apply',
+      failureKind: 'filter',
+      preserveResultsOnFailure: true,
       undoOnSuccess: {
         target: { ...currentFilters, sort: appliedSort, queryId: resultMetadata?.queryId },
-        kind: recovery.kind,
+        kind: 'single',
       },
-    } : {})
+    }).then(result => {
+      if (!plainFilterKey || requestSequenceRef.current !== sequenceForThisCall) return
+      if (!result) {
+        setCity(currentFilters.city)
+        setMinDiscount(currentFilters.minDiscount)
+        setMinStars(currentFilters.minStars)
+        setMaxPriceCents(currentFilters.maxPriceCents)
+        setDateFrom(currentFilters.dateFrom)
+        setDateTo(currentFilters.dateTo)
+        setFailedFilter({ key: plainFilterKey, attempted: nextFilters })
+      }
+      setPendingFilterKey(null)
+    })
+  }
+
+  function retryFailedFilter() {
+    if (!failedFilter) return
+    const attempted = failedFilter.attempted
+    if (failedFilter.key === 'minDiscount') applyFilter({ minDiscount: attempted.minDiscount })
+    else if (failedFilter.key === 'minStars') applyFilter({ minStars: attempted.minStars })
+    else applyFilter({ maxPriceCents: attempted.maxPriceCents })
+  }
+
+  function openFilterExplanation(key: FilterPillKey) {
+    setSortMenuOpen(false)
+    setPremiumExplanationOpen(false)
+    setFailedFilter(null)
+    setFilterExplanationKey(key)
+    setFilterExplanationOpen(true)
+    window.setTimeout(() => filterExplanationRef.current?.focus(), 0)
+  }
+
+  function dismissFilterExplanation() {
+    setFilterExplanationOpen(false)
+    const key = filterExplanationKey
+    window.setTimeout(() => {
+      document.querySelector<HTMLButtonElement>(`[data-filter-trigger="${key}"]`)?.focus()
+    }, 0)
   }
 
   async function applyCriteriaDraft(draft: HotelCriteriaDraft, retryVersion?: string) {
@@ -792,7 +977,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     track('feed_clear_all_clicked')
     const nextCity = defaultCity ?? ''
     applyFilter(
-      { city: nextCity, minDiscount: DEFAULT_MIN_DISCOUNT, maxPriceCents: null, minStars: 0, dateFrom: '', dateTo: '' },
+      { city: nextCity, minDiscount: 0, maxPriceCents: null, minStars: 0, dateFrom: '', dateTo: '' },
       { key: 'reset', kind: 'reset' },
     )
   }
@@ -801,7 +986,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     track('feed_filter_chip_removed', { filter: key, source })
     const next: Parameters<typeof applyFilter>[0] = {}
     if (key === 'city') next.city = defaultCity ?? ''
-    else if (key === 'minDiscount') next.minDiscount = DEFAULT_MIN_DISCOUNT
+    else if (key === 'minDiscount') next.minDiscount = 0
     else if (key === 'minStars') next.minStars = 0
     else if (key === 'maxPrice') next.maxPriceCents = null
     else if (key === 'dateFrom') next.dateFrom = ''
@@ -927,9 +1112,6 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     return () => obs.disconnect()
   }, [activeTab, confirmedCoverage, continuationError, loadingMore, zeroNewUnconfirmed])
 
-  const hasCityFilter = defaultCity ? city !== defaultCity : Boolean(city)
-  const hasActiveFilters = Boolean(hasCityFilter || minDiscount !== DEFAULT_MIN_DISCOUNT || maxPriceCents || minStars || dateFrom || dateTo)
-  const hasSecondaryFilters = Boolean(minDiscount !== DEFAULT_MIN_DISCOUNT || maxPriceCents || minStars)
   const isColdSampleFeed = deals.length > 0 && deals.every(d => d.isMock)
 
   // SearchBar can set a max price that is not one of the popover options.
@@ -939,6 +1121,36 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const activeDiscount = DISCOUNT_OPTIONS.find(o => o.value === minDiscount)
   const activeStars = STARS_OPTIONS.find(o => o.value === minStars)
   const activeFilters: HotelFilterState = { city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo }
+
+  // The single source of truth for every visible filter string: what the
+  // server is actually applying, which for a free user is not what raw
+  // component state holds (app/api/deals/route.ts clamps free users).
+  const effectiveFilters: HotelFilterState = premium
+    ? activeFilters
+    : { city, minDiscount: DEFAULT_MIN_DISCOUNT, minStars: 0, maxPriceCents: null, dateFrom, dateTo }
+  const effectiveDiscount = DISCOUNT_OPTIONS.find(o => o.value === effectiveFilters.minDiscount)
+  const effectiveStars = STARS_OPTIONS.find(o => o.value === effectiveFilters.minStars)
+  const effectiveMaxPriceLabel = effectiveFilters.maxPriceCents
+    ? (MAX_PRICE_OPTIONS.find(o => o.value === effectiveFilters.maxPriceCents)?.label ?? `Under $${Math.round(effectiveFilters.maxPriceCents / 100)}`)
+    : null
+
+  const discountState: FilterPillState = !premium ? 'locked' : effectiveFilters.minDiscount === 0 ? 'neutral' : 'set'
+  const starsState: FilterPillState = !premium ? 'locked' : effectiveFilters.minStars === 0 ? 'neutral' : 'set'
+  const priceState: FilterPillState = !premium ? 'locked' : effectiveFilters.maxPriceCents === null ? 'neutral' : 'set'
+  const discountValueLabel = discountState === 'neutral' ? null : (effectiveDiscount?.label ?? `${effectiveFilters.minDiscount}%+ off`)
+  const starsValueLabel = starsState === 'neutral' ? null : (effectiveStars?.label ?? `${effectiveFilters.minStars}★ & up`)
+  const priceValueLabel = priceState === 'neutral' ? null : (effectiveMaxPriceLabel ?? 'Any price')
+
+  const chipEligible = {
+    city: !defaultCity ? Boolean(effectiveFilters.city) : effectiveFilters.city !== defaultCity,
+    minDiscount: premium && effectiveFilters.minDiscount > 0,
+    minStars: premium && effectiveFilters.minStars > 0,
+    maxPrice: premium && effectiveFilters.maxPriceCents !== null,
+    dateFrom: Boolean(effectiveFilters.dateFrom),
+    dateTo: Boolean(effectiveFilters.dateTo),
+  }
+
+  const anyFilterRequestPending = criteriaUpdating || pendingSort !== null || pendingFilterKey !== null || pendingRecoveryKey !== null
 
   const gridClass = 'grid grid-cols-1 gap-6 min-[680px]:grid-cols-2 min-[1024px]:grid-cols-3'
   const resultsUrl = defaultCity
@@ -956,16 +1168,31 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   // These callbacks are event handlers consumed by the boundary, not render-time calls.
   // eslint-disable-next-line react-hooks/refs
   const coverageFilters: CoverageFilter[] = [
-    hasCityFilter ? { key: 'city', label: city, onRemove: () => removeRecoveryFilter('city', 'promoted') } : null,
-    minDiscount !== DEFAULT_MIN_DISCOUNT ? { key: 'minDiscount', label: activeDiscount?.label ?? `${minDiscount}%+ off`, onRemove: () => removeRecoveryFilter('minDiscount', 'promoted') } : null,
-    minStars > 0 ? { key: 'minStars', label: activeStars?.label ?? `${minStars}★ & up`, onRemove: () => removeRecoveryFilter('minStars', 'promoted') } : null,
-    maxPriceCents ? { key: 'maxPrice', label: maxPriceLabel ?? formatFilterValue('maxPrice', activeFilters), onRemove: () => removeRecoveryFilter('maxPrice', 'promoted') } : null,
-    dateFrom ? { key: 'dateFrom', label: formatFilterValue('dateFrom', activeFilters), onRemove: () => removeRecoveryFilter('dateFrom', 'promoted') } : null,
-    dateTo ? { key: 'dateTo', label: formatFilterValue('dateTo', activeFilters), onRemove: () => removeRecoveryFilter('dateTo', 'promoted') } : null,
+    chipEligible.city ? { key: 'city', label: effectiveFilters.city, onRemove: () => removeRecoveryFilter('city', 'promoted') } : null,
+    chipEligible.minDiscount ? { key: 'minDiscount', label: effectiveDiscount?.label ?? `${effectiveFilters.minDiscount}%+ off`, onRemove: () => removeRecoveryFilter('minDiscount', 'promoted') } : null,
+    chipEligible.minStars ? { key: 'minStars', label: effectiveStars?.label ?? `${effectiveFilters.minStars}★ & up`, onRemove: () => removeRecoveryFilter('minStars', 'promoted') } : null,
+    chipEligible.maxPrice ? { key: 'maxPrice', label: effectiveMaxPriceLabel ?? formatFilterValue('maxPrice', effectiveFilters), onRemove: () => removeRecoveryFilter('maxPrice', 'promoted') } : null,
+    chipEligible.dateFrom ? { key: 'dateFrom', label: formatFilterValue('dateFrom', effectiveFilters), onRemove: () => removeRecoveryFilter('dateFrom', 'promoted') } : null,
+    chipEligible.dateTo ? { key: 'dateTo', label: formatFilterValue('dateTo', effectiveFilters), onRemove: () => removeRecoveryFilter('dateTo', 'promoted') } : null,
   ].filter((filter): filter is CoverageFilter => filter !== null)
+  const hasActiveFilters = coverageFilters.length > 0
+  const fallbackRecommendationRank = (key: string): number => {
+    switch (key) {
+      case 'city': return 1
+      case 'minDiscount': return effectiveFilters.minDiscount > DEFAULT_MIN_DISCOUNT ? 2 : 7
+      case 'minStars': return 3
+      case 'maxPrice': return 4
+      case 'dateFrom': return 5
+      case 'dateTo': return 6
+      default: return 8
+    }
+  }
+  const fallbackFilterKey = coverageFilters.length > 0
+    ? [...coverageFilters].sort((a, b) => fallbackRecommendationRank(a.key) - fallbackRecommendationRank(b.key))[0].key
+    : undefined
   const recommendedFilterKey = recoveryOptions.reduce<(typeof recoveryOptions)[number] | null>((best, option) => (
     !best || option.addedCount > best.addedCount ? option : best
-  ), null)?.filterKey ?? coverageFilters[0]?.key
+  ), null)?.filterKey ?? fallbackFilterKey
   const recommendedCoverageFilter = coverageFilters.find(filter => filter.key === recommendedFilterKey) ?? coverageFilters[0]
   const boundaryState: CoverageState = continuationError
     ? 'continuation_failed'
@@ -1056,6 +1283,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         premium_eligible: false,
       })
       setSortMenuOpen(false)
+      setFilterExplanationOpen(false)
       setPremiumExplanationOpen(true)
       window.setTimeout(() => premiumExplanationRef.current?.focus(), 0)
       return
@@ -1150,6 +1378,15 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   })
 
   useEffect(() => {
+    if (!filterExplanationOpen) return
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') dismissFilterExplanation()
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  })
+
+  useEffect(() => {
     const element = sortControlRef.current
     if (!element || sortViewedRef.current || activeTab !== 'hotels' || loading || error || isMockFeed || realDealCount === 0) return
     const observer = new IntersectionObserver(entries => {
@@ -1213,65 +1450,8 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     <>
       {/* Results heading */}
       <div>
-        <div>
-          <h2 className="text-h2 text-[color:var(--ink)]">Today&rsquo;s catches</h2>
-          <p className="mt-1 text-[13px] text-[color:var(--ink-soft)]">{subtitle}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {!defaultCity && (
-            <FilterPill
-              label="Destination"
-              activeLabel={city || null}
-              disabled={!premium}
-              onClear={() => applyFilter({ city: '' })}
-              options={[
-                { label: 'All destinations', selected: !city, onSelect: () => applyFilter({ city: '' }) },
-                ...TRACKED_MARKET_NAMES.map(c => ({
-                  label: c,
-                  selected: city === c,
-                  onSelect: () => {
-                    const slug = CITY_DISPLAY_TO_SLUG[c]
-                    if (slug) router.push(`/destinations/${slug}`)
-                    else applyFilter({ city: c })
-                  },
-                })),
-              ]}
-            />
-          )}
-          <FilterPill
-            label="Min discount"
-            activeLabel={minDiscount !== DEFAULT_MIN_DISCOUNT ? (activeDiscount?.label ?? `${minDiscount}%+ off`) : null}
-            disabled={!premium}
-            onClear={() => applyFilter({ minDiscount: DEFAULT_MIN_DISCOUNT })}
-            options={DISCOUNT_OPTIONS.map(o => ({
-              label: o.label,
-              selected: minDiscount === o.value,
-              onSelect: () => applyFilter({ minDiscount: o.value }),
-            }))}
-          />
-          <FilterPill
-            label="Stars"
-            activeLabel={minStars > 0 ? (activeStars?.label ?? `${minStars}★ & up`) : null}
-            disabled={!premium}
-            onClear={() => applyFilter({ minStars: 0 })}
-            options={STARS_OPTIONS.map(o => ({
-              label: o.label,
-              selected: minStars === o.value,
-              onSelect: () => applyFilter({ minStars: o.value }),
-            }))}
-          />
-          <FilterPill
-            label="Max price"
-            activeLabel={maxPriceLabel}
-            disabled={!premium}
-            onClear={() => applyFilter({ maxPriceCents: null })}
-            options={MAX_PRICE_OPTIONS.map(o => ({
-              label: o.label,
-              selected: maxPriceCents === o.value,
-              onSelect: () => applyFilter({ maxPriceCents: o.value }),
-            }))}
-          />
-        </div>
+        <h2 className="text-h2 text-[color:var(--ink)]">Today&rsquo;s catches</h2>
+        <p className="mt-1 text-[13px] text-[color:var(--ink-soft)]">{subtitle}</p>
       </div>
 
       {activeTab === 'hotels' ? (
@@ -1343,29 +1523,95 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         </div>
       ) : (
         <>
-          <div className="mb-5 flex flex-wrap items-center gap-2" aria-label="Result filters">
-            <FilterPill
-              label="Min discount"
-              activeLabel={minDiscount !== DEFAULT_MIN_DISCOUNT ? (activeDiscount?.label ?? `${minDiscount}%+ off`) : null}
-              disabled={!premium || criteriaUpdating}
-              onClear={() => applyFilter({ minDiscount: DEFAULT_MIN_DISCOUNT })}
-              options={DISCOUNT_OPTIONS.map(o => ({ label: o.label, selected: minDiscount === o.value, onSelect: () => applyFilter({ minDiscount: o.value }) }))}
-            />
-            <FilterPill
-              label="Stars"
-              activeLabel={minStars > 0 ? (activeStars?.label ?? `${minStars}★ & up`) : null}
-              disabled={!premium || criteriaUpdating}
-              onClear={() => applyFilter({ minStars: 0 })}
-              options={STARS_OPTIONS.map(o => ({ label: o.label, selected: minStars === o.value, onSelect: () => applyFilter({ minStars: o.value }) }))}
-            />
-            <FilterPill
-              label="Max price"
-              activeLabel={maxPriceLabel}
-              disabled={!premium || criteriaUpdating}
-              onClear={() => applyFilter({ maxPriceCents: null })}
-              options={MAX_PRICE_OPTIONS.map(o => ({ label: o.label, selected: maxPriceCents === o.value, onSelect: () => applyFilter({ maxPriceCents: o.value }) }))}
-            />
-          </div>
+          <section aria-labelledby="hotel-filter-label" className="mb-5">
+            <span id="hotel-filter-label" className="mb-1.5 block text-[12px] font-bold leading-5 text-[var(--text-1)]">
+              Filter hotel deals
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterPill
+                label="Min discount"
+                filterKey="minDiscount"
+                valueLabel={discountValueLabel}
+                state={discountState}
+                busy={pendingFilterKey === 'minDiscount'}
+                inert={anyFilterRequestPending && pendingFilterKey !== 'minDiscount'}
+                align="start"
+                onClear={() => applyFilter({ minDiscount: 0 })}
+                onLockedAttempt={() => openFilterExplanation('minDiscount')}
+                options={DISCOUNT_OPTIONS.map(o => ({
+                  label: o.label,
+                  value: String(o.value),
+                  selected: o.value === effectiveFilters.minDiscount,
+                  locked: !premium && o.value !== effectiveFilters.minDiscount,
+                  onSelect: () => applyFilter({ minDiscount: o.value }),
+                }))}
+              />
+              <FilterPill
+                label="Stars"
+                filterKey="minStars"
+                valueLabel={starsValueLabel}
+                state={starsState}
+                busy={pendingFilterKey === 'minStars'}
+                inert={anyFilterRequestPending && pendingFilterKey !== 'minStars'}
+                align="start"
+                onClear={() => applyFilter({ minStars: 0 })}
+                onLockedAttempt={() => openFilterExplanation('minStars')}
+                options={STARS_OPTIONS.map(o => ({
+                  label: o.label,
+                  value: String(o.value),
+                  selected: o.value === effectiveFilters.minStars,
+                  locked: !premium && o.value !== effectiveFilters.minStars,
+                  onSelect: () => applyFilter({ minStars: o.value }),
+                }))}
+              />
+              <FilterPill
+                label="Max price"
+                filterKey="maxPrice"
+                valueLabel={priceValueLabel}
+                state={priceState}
+                busy={pendingFilterKey === 'maxPrice'}
+                inert={anyFilterRequestPending && pendingFilterKey !== 'maxPrice'}
+                align="end"
+                onClear={() => applyFilter({ maxPriceCents: null })}
+                onLockedAttempt={() => openFilterExplanation('maxPrice')}
+                options={MAX_PRICE_OPTIONS.map(o => ({
+                  label: o.label,
+                  value: String(o.value ?? 'any'),
+                  selected: o.value === effectiveFilters.maxPriceCents,
+                  locked: !premium && o.value !== effectiveFilters.maxPriceCents,
+                  onSelect: () => applyFilter({ maxPriceCents: o.value }),
+                }))}
+              />
+            </div>
+            {filterExplanationOpen ? (
+              <div
+                ref={filterExplanationRef}
+                tabIndex={-1}
+                role="region"
+                aria-label="Premium filters"
+                className="mt-3 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-muted)] p-3 text-[var(--text-1)] sm:w-[22rem]"
+              >
+                <p className="text-sm font-bold">Premium filters</p>
+                <p className="mt-1 text-[13px] leading-5">Filters are included with Premium. You&apos;re seeing every expaify deal at 20% or more off, sorted by Recently found.</p>
+                <div className="mt-3 flex flex-col items-stretch gap-2 min-[420px]:flex-row">
+                  <a href="/join" className="btn btn-primary min-h-11 px-5">See Premium</a>
+                  <button type="button" onClick={dismissFilterExplanation} className="btn btn-outline min-h-11 px-5">Not now</button>
+                </div>
+              </div>
+            ) : failedFilter ? (
+              <div role="alert" className="mt-3 rounded-[var(--radius-control)] border border-[var(--error)] bg-[var(--error-soft)] p-3 text-[var(--text-1)] sm:w-[22rem]">
+                <p className="text-sm font-bold">Couldn&apos;t apply that filter. Try again.</p>
+                <p className="mt-1 text-[13px] leading-5">
+                  {(() => {
+                    const sentence = statusSentence(effectiveFilters, premium)
+                    if (!sentence) return 'Your results still show all current expaify deals.'
+                    return `Your results still use ${sentence.replace(/^Showing /, '').replace(/\.$/, '')}.`
+                  })()}
+                </p>
+                <button type="button" onClick={retryFailedFilter} className="btn btn-outline mt-3 min-h-11 px-5">Retry</button>
+              </div>
+            ) : null}
+          </section>
 
           <section
             ref={sortControlRef}
@@ -1528,6 +1774,19 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
             <div className={gridClass} aria-busy="true" aria-label="Hotel deals">
               {Array.from({ length: Math.min(Math.max(deals.length, 1), 6) }).map((_, i) => <SkeletonCard key={`sort-${i}`} />)}
             </div>
+          ) : loading && deals.length > 0 ? (
+            <>
+              <div className={`${gridClass} mb-6`} aria-label="Loading updated hotel deals">
+                {Array.from({ length: Math.min(Math.max(deals.length, 1), 6) }).map((_, i) => <SkeletonCard key={`filter-${i}`} />)}
+              </div>
+              <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150`}>
+                {deals.map(deal => deal.locked ? (
+                  <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars ?? 4} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
+                ) : (
+                  <DealCard key={deal.id} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars ?? 3, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
+                ))}
+              </div>
+            </>
           ) : loading ? (
             <div className={gridClass} aria-busy="true" aria-label="Hotel deals">
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
@@ -1548,15 +1807,6 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
           ) : deals.length === 0 && personalization?.active && !hasActiveFilters ? (
             <PersonalizedEmpty personalization={personalization} premium={premium} />
           ) : deals.length === 0 && hasActiveFilters ? (
-            <section className="mx-auto max-w-[640px] rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-5 py-10 text-center">
-              <h3 className="text-h3 text-[color:var(--text-1)]">No hotel deals match this search</h3>
-              <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">Try another destination or check-in window. Your price and rating filters may also hide available deals.</p>
-              <div className="mt-5 flex flex-col items-stretch justify-center gap-3 min-[420px]:flex-row">
-                <button type="button" onClick={() => openCriteriaEditor('empty_state')} className="btn btn-primary min-h-11 px-6">Edit search</button>
-                {hasSecondaryFilters ? <button type="button" onClick={() => applyFilter({ minDiscount: DEFAULT_MIN_DISCOUNT, minStars: 0, maxPriceCents: null })} className="btn btn-outline min-h-11 px-6">Clear price and rating filters</button> : <Link href="/deals" className="btn btn-outline min-h-11 px-6">See all destinations</Link>}
-              </div>
-            </section>
-          ) : deals.length === 0 ? (
             <div ref={gridRef} tabIndex={-1}>
               <ResultCoverageBoundary
                 surface="deals"
@@ -1567,16 +1817,28 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 onClearAll={resetFilters}
                 statusMessageId="hotel-deals-empty"
               />
-              {defaultCity && hasActiveFilters ? (
-                <div className="mt-3 text-center">
-                  <a
-                    href="/deals"
-                    className="inline-flex min-h-[44px] items-center justify-center px-3 text-[13px] font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
-                  >
-                    See all destinations
-                  </a>
-                </div>
-              ) : null}
+              <div className="mt-3 flex flex-col items-stretch justify-center gap-3 min-[420px]:flex-row">
+                <button type="button" onClick={() => openCriteriaEditor('empty_state')} className="btn btn-outline min-h-11 px-6">
+                  Edit search
+                </button>
+                {defaultCity ? <a href="/deals" className="btn btn-outline min-h-11 px-6">See all destinations</a> : null}
+              </div>
+            </div>
+          ) : deals.length === 0 ? (
+            <div ref={gridRef} tabIndex={-1}>
+              <ResultCoverageBoundary
+                surface="deals"
+                state="confirmed_empty"
+                visibleCount={0}
+                activeFilters={[]}
+                onClearAll={resetFilters}
+                statusMessageId="hotel-deals-empty"
+              />
+              <div className="mt-3 flex flex-col items-stretch justify-center gap-3 min-[420px]:flex-row">
+                <button type="button" onClick={() => openCriteriaEditor('empty_state')} className="btn btn-outline min-h-11 px-6">
+                  Edit search
+                </button>
+              </div>
               {personalization?.active && !hasActiveFilters ? <PersonalizedEmptyActions premium={premium} alertPreference={personalization.alertPreference} /> : null}
             </div>
           ) : (
@@ -1584,7 +1846,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               {isColdSampleFeed ? (
                 <ColdSampleFeedIntro />
               ) : null}
-              {!isColdSampleFeed && hasActiveFilters && recommendedCoverageFilter ? (
+              {!isColdSampleFeed && premium && hasActiveFilters && recommendedCoverageFilter ? (
                 <div className="mb-4 flex flex-col gap-3 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-4 py-3 text-[13px] leading-5 text-[color:var(--text-2)] sm:flex-row sm:items-center sm:justify-between">
                   <p>Current filters narrow this list.</p>
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
