@@ -568,11 +568,6 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
               priceNoun="fare"
               unavailableCopy="We could not compare this fare against route history yet. The live price is still shown when available."
             />
-            {score?.confidence === 'low' ? (
-              <p className="text-xs font-medium leading-5 text-[var(--warning)]">
-                Limited route history. Treat this as a rough comparison, not a confirmed deal.
-              </p>
-            ) : null}
 
             <ItineraryTiming fare={fare} score={score} />
 

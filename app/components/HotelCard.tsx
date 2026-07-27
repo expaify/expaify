@@ -994,11 +994,6 @@ export default function HotelCard({
               legacyRatingPresent={legacyRatingPresent}
               source={hotel.source}
             />
-            {score?.confidence === 'low' ? (
-              <p className="text-xs font-medium leading-5 text-[color:var(--warning)]">
-                Limited hotel history. Treat this as a rough comparison, not a confirmed deal.
-              </p>
-            ) : null}
 
             <div className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[color:var(--text-2)]">
               <p className="font-bold text-[color:var(--text-1)]">Location</p>

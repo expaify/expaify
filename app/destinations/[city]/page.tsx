@@ -54,7 +54,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!displayName) return {}
   return {
     title: `Hotel deals in ${displayName} — expaify`,
-    description: `expaify tracks hotels in ${displayName} daily and surfaces deals 30–50% below their 60-day average price.`,
+    description: `expaify tracks hotels in ${displayName} daily and surfaces deals at least 30% below their 60-day median price.`,
     openGraph: {
       title: `Hotel deals in ${displayName}`,
       description: `Track hotel deals in ${displayName} — updated daily.`,

@@ -91,6 +91,7 @@ export interface DealScore {
   verdict: 'Great' | 'Good' | 'Typical';
   confidence: 'high' | 'low';
   explanation: string;
+  sampleSize?: number;
 }
 
 export type HotelQualityKind =

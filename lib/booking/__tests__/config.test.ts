@@ -516,6 +516,52 @@ describe('booking hotel context continuity', () => {
     expect(roundTripped).toEqual(context);
   });
 
+  it('preserves a valid deal score sampleSize through a structured round trip', () => {
+    const context = buildBookingHotelContext(hotel, {
+      dealScore: {
+        percentile: 12,
+        pctVsMedian: -18,
+        medianCents: 22000,
+        currency: 'USD',
+        verdict: 'Great',
+        confidence: 'high',
+        explanation: 'This rate is cheaper than 88% of recent prices for this hotel.',
+        sampleSize: 43,
+      },
+    });
+
+    const roundTripped = validateStructuredBookingHotelContext(JSON.parse(JSON.stringify(context)));
+    expect(roundTripped?.dealScore?.sampleSize).toBe(43);
+  });
+
+  it('drops an invalid deal score sampleSize instead of rejecting the whole score', () => {
+    const context = {
+      kind: 'hotel',
+      offerId: 'hotel_123',
+      provider: 'hotellook',
+      name: 'The Example Hotel',
+      priceCents: 18900,
+      currency: 'USD',
+      priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      dealScore: {
+        percentile: 12,
+        pctVsMedian: -18,
+        medianCents: 22000,
+        currency: 'USD',
+        verdict: 'Great',
+        confidence: 'high',
+        explanation: 'Valid explanation.',
+        sampleSize: 'not-a-number',
+      },
+    };
+
+    const result = validateBookingHotelContext(context);
+    expect(result).not.toBeNull();
+    expect(result?.dealScore).not.toBeNull();
+    expect(result?.dealScore && 'sampleSize' in result.dealScore).toBe(false);
+  });
+
   it('rejects a night count that does not match the check-in/check-out span', () => {
     const context = {
       kind: 'hotel',

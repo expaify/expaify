@@ -22,6 +22,8 @@ import type {
 type ScoreableOffer = NormalizedFare | NormalizedHotelOffer;
 type ScoreContext = 'route' | 'hotel';
 
+export const MIN_COMPARABLE_PRICES = 10;
+
 function getCurrentPrice(offer: ScoreableOffer) {
   if ('pricePerNight' in offer) {
     return {
@@ -85,12 +87,13 @@ export function scoreDeal(
         history.length === 0
           ? `No price history available for this ${label}.`
           : `No comparable ${currency} price history available for this ${label}.`,
+      sampleSize: comparableHistory.length,
     };
   }
 
   // ── Confidence ─────────────────────────────────────────────────────────────
   const confidence: 'high' | 'low' =
-    comparableHistory.length >= 10 ? 'high' : 'low';
+    comparableHistory.length >= MIN_COMPARABLE_PRICES ? 'high' : 'low';
 
   // ── Sort price points ascending ────────────────────────────────────────────
   const sorted = comparableHistory.map((h) => h.priceCents).sort((a, b) => a - b);
@@ -156,5 +159,6 @@ export function scoreDeal(
     verdict,
     confidence,
     explanation,
+    sampleSize: comparableHistory.length,
   };
 }

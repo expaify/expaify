@@ -640,7 +640,11 @@ export default function FlightResults({
   const flightProviderWarningNotices = flightProviderNotices.filter(notice =>
     notice.status === 'unavailable' || notice.status === 'malformed_response'
   )
-  const bestDealCount = displayFlights.reduce((count, fare) => count + (scores[fare.id]?.verdict === 'Great' ? 1 : 0), 0)
+  const bestDealCount = displayFlights.reduce(
+    (count, fare) =>
+      count + (scores[fare.id]?.verdict === 'Great' && scores[fare.id]?.confidence === 'high' ? 1 : 0),
+    0,
+  )
   const nonstopCount = displayFlights.filter(fare => fare.stops === 0).length
   const cheapestFare = cheapestVisibleFare(displayFlights)
   const freshnessSummary = fareFreshnessSummary(displayFlights)

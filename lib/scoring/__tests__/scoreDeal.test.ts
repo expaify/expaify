@@ -254,4 +254,21 @@ describe('scoreDeal — edge cases', () => {
     expect(result.verdict).toBe('Typical');
     expect(result.confidence).toBe('low');
   });
+
+  it('returns sampleSize equal to the comparable history count', () => {
+    const history = Array.from({ length: 43 }, (_, i) => 20000 + i * 100);
+    const result = scoreDeal(makeFare(19000), makeHistory(history));
+    expect(result.sampleSize).toBe(43);
+  });
+
+  it('returns sampleSize 0 on the no-comparable-history branch', () => {
+    const result = scoreDeal(makeFare(30000), []);
+    expect(result.sampleSize).toBe(0);
+  });
+
+  it('returns sampleSize 0 when history exists but no currency matches', () => {
+    const fare: NormalizedFare = { ...makeFare(10000), price: { priceCents: 10000, currency: 'EUR' } };
+    const result = scoreDeal(fare, makeHistory(Array(12).fill(40000)));
+    expect(result.sampleSize).toBe(0);
+  });
 });

@@ -598,7 +598,13 @@ function validateHotelDealScore(value: unknown, observedCurrency: string): DealS
     return null;
   }
 
-  return { percentile, pctVsMedian, medianCents, currency, verdict, confidence, explanation };
+  const parsedSampleSize = parseInteger(record.sampleSize);
+  const sampleSize = parsedSampleSize !== null && parsedSampleSize >= 0 ? parsedSampleSize : undefined;
+
+  return {
+    percentile, pctVsMedian, medianCents, currency, verdict, confidence, explanation,
+    ...(sampleSize !== undefined ? { sampleSize } : {}),
+  };
 }
 
 export function validateBookingHotelContext(input: HotelContextInput): BookingHotelContext | null {
