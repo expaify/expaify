@@ -65,7 +65,7 @@ export function HotelSearchCriteriaSummary({ criteria, surface, status = 'ready'
           </p>
           <span className="sr-only">{destination}. {dateDisplay}. Guests and rooms not captured.</span>
           {status === 'updating' ? (
-            <p role="status" aria-live="polite" className="mt-2 text-[12px] font-medium text-[color:var(--brand)]">Updating results…</p>
+            <p role="status" aria-live="polite" aria-atomic="true" className="mt-2 text-[12px] font-medium text-[color:var(--brand)]">Updating results…</p>
           ) : null}
         </div>
         {onEdit && !handoff ? (
