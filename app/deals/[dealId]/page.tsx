@@ -276,6 +276,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   // check-in / check-out derived
   const checkInDisplay = deal.check_in_date ? fmtShort(deal.check_in_date) : null
   const checkOutDisplay = deal.check_in_date && deal.nights != null ? addNights(deal.check_in_date, deal.nights) : null
+  const datesIncomplete = !checkInDisplay || !checkOutDisplay || deal.nights == null || deal.nights <= 0
   const continuityFixtureId = parseContinuityFixture(researchParams.continuityFixture)
   const checkInMs = deal.check_in_date ? Date.parse(deal.check_in_date) : NaN
   const checkOutIso = Number.isFinite(checkInMs)
@@ -383,7 +384,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <a href="/deals" className="btn btn-primary mt-4 inline-flex min-h-11 w-full items-center justify-center text-center">Search current deals</a>
               </div>
             ) : (
-              <HotelDealCriteriaHandoff context={criteriaContext} deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }} links={deal.ota_links ?? {}} hotelName={deal.hotel_name} />
+              <HotelDealCriteriaHandoff context={criteriaContext} deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }} links={deal.ota_links ?? {}} hotelName={deal.hotel_name} datesIncomplete={datesIncomplete} />
             )}
           </section>
 
