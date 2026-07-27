@@ -114,11 +114,12 @@ export function HotelDealCriteriaSummary({ context, deal }: {
   )
 }
 
-export function HotelDealCriteriaHandoff({ context, deal, links, hotelName }: {
+export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, datesIncomplete }: {
   context: ResolvedContext
   deal: { id: string; city: string; checkInDate?: string | null }
   links: Record<string, string>
   hotelName?: string
+  datesIncomplete?: boolean
 }) {
   const criteria = context.criteria
   const status = criteria ? hotelCriteriaContextStatus(criteria, deal) : context.status
@@ -139,7 +140,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName }: {
         <>
           <p className="text-sm leading-6 text-[color:var(--text-2)]">
             The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.
-            {criteria ? null : ' Choose or confirm your dates there before comparing room options.'}
+            {!criteria || datesIncomplete ? ' Choose or confirm your dates there before comparing room options.' : null}
           </p>
           <div className="mt-4">
           <CompareRow
