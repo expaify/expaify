@@ -29,6 +29,7 @@ import {
 } from './HotelRateRestrictions'
 import { HotelPetPolicyDetails, HotelPetPolicyScan } from './HotelPetPolicy'
 import type { HotelPetPolicyPresentation } from './HotelPetPolicy'
+import SmokingPolicyPanel, { getCollapsedSmokingPolicy, type HotelSmokingPolicyView } from './SmokingPolicyPanel'
 
 type Props = {
   hotel: HotelOffer
@@ -43,6 +44,7 @@ type Props = {
   fundsPolicy?: HotelFundsPolicyEvidence | null
   fundsPolicyLoadState?: HotelFundsPolicyLoadState
   petPolicy?: HotelPetPolicyPresentation
+  smokingPolicy?: HotelSmokingPolicyView
 }
 
 type AccessFactId =
@@ -722,6 +724,7 @@ export default function HotelCard({
   fundsPolicy,
   fundsPolicyLoadState = 'ready',
   petPolicy,
+  smokingPolicy,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [photoFailed, setPhotoFailed] = useState(false)
@@ -768,6 +771,7 @@ export default function HotelCard({
   const collapsedAccessAriaLabel = collapsedAccessFact?.id === 'elevator'
     ? `Elevator. ${collapsedAccessFact.sourceLabel.trim()} confirms this property has an elevator.`
     : undefined
+  const collapsedSmokingPolicy = getCollapsedSmokingPolicy(smokingPolicy)
   const fundsPolicyExposureRef = useHotelFundsPolicyExposure({
     evidence: resolvedFundsPolicy,
     loadState: fundsPolicyLoadState,
@@ -915,6 +919,15 @@ export default function HotelCard({
 
         {petPolicy ? <HotelPetPolicyScan policy={petPolicy} /> : null}
 
+        {collapsedSmokingPolicy ? (
+          <p
+            className="mt-1.5 line-clamp-2 text-xs font-bold leading-5 text-[color:var(--text-2)]"
+            aria-label={collapsedSmokingPolicy.ariaLabel}
+          >
+            {collapsedSmokingPolicy.label}
+          </p>
+        ) : null}
+
         <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <div className="min-w-0">
             <ScoreChip score={score} loading={loading} />
@@ -1014,6 +1027,10 @@ export default function HotelCard({
                 providerName={providerName}
                 policy={petPolicy}
               />
+            ) : null}
+
+            {smokingPolicy ? (
+              <SmokingPolicyPanel offerId={hotel.id} policy={smokingPolicy} surface="result_detail" />
             ) : null}
 
             <AccessEvidencePanel
