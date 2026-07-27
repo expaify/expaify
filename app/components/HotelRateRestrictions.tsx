@@ -1,18 +1,11 @@
 import { formatAbsoluteFreshness, validFreshnessDate } from '@/lib/providerFreshness'
+import type {
+  RateRestrictionFamily,
+  RateRestrictionCondition,
+  RateEligibilityPresentation,
+} from '@/lib/types'
 
-export type RateRestrictionFamily = 'residency' | 'age' | 'membership' | 'refundability'
-
-export type RateRestrictionCondition = {
-  family: RateRestrictionFamily
-  label: string
-}
-
-export type RateEligibilityPresentation =
-  | { state: 'restricted'; conditions: readonly RateRestrictionCondition[]; coverageIncomplete?: boolean; fetchedAt?: string }
-  | { state: 'clear'; fetchedAt?: string }
-  | { state: 'not_provided'; fetchedAt?: string }
-  | { state: 'loading' }
-  | { state: 'error' }
+export type { RateRestrictionFamily, RateRestrictionCondition, RateEligibilityPresentation }
 
 type NormalizedPresentation =
   | { state: 'restricted'; conditions: RateRestrictionCondition[]; coverageIncomplete: boolean; fetchedAt?: string }

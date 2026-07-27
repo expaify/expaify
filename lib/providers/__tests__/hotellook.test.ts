@@ -179,6 +179,7 @@ describe('HotellookProvider.searchHotels', () => {
           room: { state: 'not_provided', statements: [] },
           property: { state: 'not_provided', statements: [] },
         },
+        rateEligibilityCapability: { membership: false, residency: false, age: false, refundability: false },
       },
     ]);
   });

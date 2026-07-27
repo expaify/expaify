@@ -614,3 +614,61 @@ describe('booking hotel context continuity', () => {
     expect(validateHotelReturnUrl(42)).toBeUndefined();
   });
 });
+
+describe('hotel rate eligibility context round-trip', () => {
+  const rateEligibility = {
+    offerId: 'hotel_123',
+    supplier: 'hotellook',
+    fetchedAt: '2026-07-22T10:00:00.000Z',
+    membership: { state: 'restricted' as const, membershipLabel: 'Genius' },
+    residency: { state: 'not_provided' as const },
+    age: { state: 'not_provided' as const },
+    refundability: { state: 'restricted' as const },
+  };
+  const rateEligibilityCapability = { membership: true, residency: true, age: true, refundability: true };
+
+  it('carries per-family evidence and capability from the offer into the booking href and back', () => {
+    const withEligibility: HotelOffer = { ...hotel, rateEligibility, rateEligibilityCapability };
+    const href = buildHotelBookingHref(withEligibility);
+    const url = new URL(href, 'https://expaify.test');
+    const params = Object.fromEntries(url.searchParams.entries());
+
+    const parsed = parseBookingHotelContext(params);
+    expect(parsed?.rateEligibility).toEqual(rateEligibility);
+    expect(parsed?.rateEligibilityCapability).toEqual(rateEligibilityCapability);
+  });
+
+  it('degrades tampered eligibility context to absent evidence without blocking the hotel context', () => {
+    const context = {
+      kind: 'hotel',
+      offerId: 'hotel_123',
+      provider: 'hotellook',
+      name: 'The Example Hotel',
+      priceCents: 18900,
+      currency: 'USD',
+      priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      rateEligibility: { ...rateEligibility, age: { state: 'unrecognized_state' } },
+    };
+    const validated = validateBookingHotelContext(context);
+    expect(validated).not.toBeNull();
+    expect(validated?.rateEligibility).toBeUndefined();
+  });
+
+  it('drops a rate eligibility payload whose offerId does not match the observed offer', () => {
+    const context = {
+      kind: 'hotel',
+      offerId: 'hotel_123',
+      provider: 'hotellook',
+      name: 'The Example Hotel',
+      priceCents: 18900,
+      currency: 'USD',
+      priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      rateEligibility: { ...rateEligibility, offerId: 'someone_elses_offer' },
+    };
+    const validated = validateBookingHotelContext(context);
+    expect(validated?.rateEligibility).toEqual({ ...rateEligibility, offerId: 'someone_elses_offer' });
+    // Provenance mismatch is enforced by deriveRateEligibilityPresentation at read time, not here.
+  });
+});

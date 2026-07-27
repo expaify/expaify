@@ -35,17 +35,18 @@ describe('production analytics', () => {
     );
   });
 
-  it('does not attempt production delivery without an approved endpoint', () => {
+  it('still delivers to the internal sink without an approved external endpoint', () => {
     Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', writable: true, configurable: true });
     delete process.env.NEXT_PUBLIC_ANALYTICS_ENDPOINT;
-    const sendBeacon = jest.fn();
-    Object.defineProperty(globalThis, 'window', { value: {}, configurable: true });
+    const sendBeacon = jest.fn().mockReturnValue(true);
+    Object.defineProperty(globalThis, 'window', { value: { location: { pathname: '/deals' } }, configurable: true });
     Object.defineProperty(globalThis, 'navigator', { value: { sendBeacon }, configurable: true });
     const { track } = require('../analytics') as typeof import('../analytics');
 
     track('hotel_invoice_need_changed', { needed: true });
 
-    expect(sendBeacon).not.toHaveBeenCalled();
+    expect(sendBeacon).toHaveBeenCalledWith('/api/analytics', expect.any(Blob));
+    expect(sendBeacon).toHaveBeenCalledTimes(1);
   });
 
   it('falls back to keepalive fetch when the browser cannot queue a beacon', () => {

@@ -25,8 +25,8 @@ import { ParkingSection, ParkingSummary } from './HotelParking'
 import {
   getRateRestrictionsAccessibleSummary,
   HotelCardEligibilityLine,
-  RATE_ELIGIBILITY_NOT_PROVIDED,
 } from './HotelRateRestrictions'
+import { deriveRateEligibilityPresentation } from '@/lib/hotels/rateEligibility'
 import { HotelPetPolicyDetails, HotelPetPolicyScan } from './HotelPetPolicy'
 import type { HotelPetPolicyPresentation } from './HotelPetPolicy'
 import { getCollapsedSmokingPolicy, type HotelSmokingPolicyView } from './SmokingPolicyPanel'
@@ -752,7 +752,13 @@ export default function HotelCard({
     : { ...hotel, fundsPolicy: resolvedFundsPolicy }
   const bookingHref = canBook ? buildHotelBookingHref(selectedHotel) : ''
   const bookingHrefNeedsReference = canBook && hotelBookingHrefRequiresReference(bookingHref)
-  const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(RATE_ELIGIBILITY_NOT_PROVIDED, providerName, 'card')
+  const rateEligibility = deriveRateEligibilityPresentation({
+    offerId: hotel.id,
+    supplier: hotel.source,
+    evidence: hotel.rateEligibility,
+    capability: hotel.rateEligibilityCapability,
+  })
+  const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(rateEligibility, providerName, 'card')
   const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(resolvedFundsPolicy, fundsPolicyLoadState, providerName)
   const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy} ${policyAriaSuffix}`
   const unavailableAriaLabel = hasValidPrice
@@ -897,7 +903,7 @@ export default function HotelCard({
           )}
         </div>
 
-        <HotelCardEligibilityLine eligibility={RATE_ELIGIBILITY_NOT_PROVIDED} />
+        <HotelCardEligibilityLine eligibility={rateEligibility} />
 
         <ParkingSummary
           evidence={parkingEvidence}
