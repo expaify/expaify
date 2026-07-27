@@ -50,11 +50,11 @@ function FilterActions({
 
   return (
     <div className="mt-2 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
-      <button type="button" onClick={recommended.onRemove} className="btn btn-primary min-h-[44px] w-full whitespace-normal px-6 sm:w-auto">
+      <button type="button" onClick={recommended.onRemove} className="btn btn-primary w-full whitespace-normal sm:w-auto">
         Remove &ldquo;{recommended.label}&rdquo;
       </button>
       {(showClearAllWithSingleFilter || activeFilters.length > 1) && onClearAll ? (
-        <button type="button" onClick={onClearAll} className="btn btn-outline min-h-[44px] w-full px-6 sm:w-auto">
+        <button type="button" onClick={onClearAll} className="btn btn-outline w-full sm:w-auto">
           Clear all filters
         </button>
       ) : null}
@@ -111,7 +111,7 @@ export function ResultCoverageBoundary({
         ? `${visibleCount} ${visibleCount === 1 ? 'deal' : 'deals'} shown. More ${filtered ? 'matching ' : ''}expaify deals are available.`
         : `${visibleCount} ${visibleCount === 1 ? 'result' : 'results'} shown. More expaify hotel results are available for these dates.`
       actions = onLoadMore ? (
-        <button ref={controlRef} type="button" onClick={onLoadMore} className="btn btn-primary min-h-[44px] w-full px-6 sm:w-auto">
+        <button ref={controlRef} type="button" onClick={onLoadMore} className="btn btn-primary w-full sm:w-auto">
           {isDeals ? 'Load more deals' : 'Load more hotels'}
         </button>
       ) : null
@@ -119,7 +119,7 @@ export function ResultCoverageBoundary({
     case 'continuation_loading':
       body = isDeals ? 'Loading more deals…' : 'Loading more hotels…'
       actions = (
-        <button ref={controlRef} type="button" disabled className="btn btn-primary min-h-[44px] w-full px-6 sm:w-auto">
+        <button ref={controlRef} type="button" disabled className="btn btn-primary w-full sm:w-auto">
           {isDeals ? 'Loading more deals…' : 'Loading more hotels…'}
         </button>
       )
@@ -133,8 +133,8 @@ export function ResultCoverageBoundary({
         ? showFilterActions ? filterActions : null
         : (
           <div className="mt-2 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
-            {onChangeDates ? <button type="button" onClick={onChangeDates} className="btn btn-primary min-h-[44px] w-full px-6 sm:w-auto">Change dates</button> : null}
-            {onEditSearch ? <button type="button" onClick={onEditSearch} className="btn btn-outline min-h-[44px] w-full px-6 sm:w-auto">Edit search</button> : null}
+            {onChangeDates ? <button type="button" onClick={onChangeDates} className="btn btn-primary w-full sm:w-auto">Change dates</button> : null}
+            {onEditSearch ? <button type="button" onClick={onEditSearch} className="btn btn-outline w-full sm:w-auto">Edit search</button> : null}
           </div>
         )
       break
@@ -144,7 +144,7 @@ export function ResultCoverageBoundary({
         : 'You’ve reached the end of expaify hotel results returned for these dates.'
       actions = isDeals
         ? showFilterActions ? filterActions : null
-        : onChangeDates ? <button type="button" onClick={onChangeDates} className="btn btn-outline min-h-[44px] w-full px-6 sm:w-auto">Change dates</button> : null
+        : onChangeDates ? <button type="button" onClick={onChangeDates} className="btn btn-outline w-full sm:w-auto">Change dates</button> : null
       break
     case 'confirmed_empty':
       title = isDeals
@@ -159,8 +159,8 @@ export function ResultCoverageBoundary({
           : filterActions
         : null : (
         <div className="mt-2 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
-          {onChangeDates ? <button type="button" onClick={onChangeDates} className="btn btn-primary min-h-[44px] w-full px-6 sm:w-auto">Change dates</button> : null}
-          {onEditSearch ? <button type="button" onClick={onEditSearch} className="btn btn-outline min-h-[44px] w-full px-6 sm:w-auto">Edit search</button> : null}
+          {onChangeDates ? <button type="button" onClick={onChangeDates} className="btn btn-primary w-full sm:w-auto">Change dates</button> : null}
+          {onEditSearch ? <button type="button" onClick={onEditSearch} className="btn btn-outline w-full sm:w-auto">Edit search</button> : null}
         </div>
       )
       break
@@ -171,8 +171,8 @@ export function ResultCoverageBoundary({
         : 'Hotel results weren’t confirmed for this search. Your destination, dates, and traveler details are unchanged.'
       actions = (
         <div className="mt-2 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
-          {onRetryInitial ? <button ref={controlRef} type="button" onClick={onRetryInitial} className="btn btn-primary min-h-[44px] w-full px-6 sm:w-auto">{isDeals ? 'Retry loading deals' : 'Retry hotel search'}</button> : null}
-          {!isDeals && onEditSearch ? <button type="button" onClick={onEditSearch} className="btn btn-outline min-h-[44px] w-full px-6 sm:w-auto">Edit search</button> : null}
+          {onRetryInitial ? <button ref={controlRef} type="button" onClick={onRetryInitial} className="btn btn-primary w-full sm:w-auto">{isDeals ? 'Retry loading deals' : 'Retry hotel search'}</button> : null}
+          {!isDeals && onEditSearch ? <button type="button" onClick={onEditSearch} className="btn btn-outline w-full sm:w-auto">Edit search</button> : null}
         </div>
       )
       break
@@ -180,7 +180,7 @@ export function ResultCoverageBoundary({
       title = isDeals ? 'We couldn’t load more deals' : 'We couldn’t load more hotel results'
       body = isDeals ? 'The deals already shown are still available to compare.' : 'The results already shown are still available to compare.'
       actions = onRetryContinuation ? (
-        <button ref={controlRef} type="button" onClick={onRetryContinuation} className="btn btn-primary min-h-[44px] w-full px-6 sm:w-auto">
+        <button ref={controlRef} type="button" onClick={onRetryContinuation} className="btn btn-primary w-full sm:w-auto">
           Try loading more again
         </button>
       ) : null
@@ -190,7 +190,7 @@ export function ResultCoverageBoundary({
         ? 'No additional unique deals were returned. Coverage is still unconfirmed.'
         : 'No additional unique hotel results were returned. Coverage is still unconfirmed.'
       actions = onRetryContinuation ? (
-        <button ref={controlRef} type="button" onClick={onRetryContinuation} className="btn btn-primary min-h-[44px] w-full px-6 sm:w-auto">
+        <button ref={controlRef} type="button" onClick={onRetryContinuation} className="btn btn-primary w-full sm:w-auto">
           Try loading more again
         </button>
       ) : null
@@ -210,8 +210,8 @@ export function ResultCoverageBoundary({
       className={`${panel ? 'rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-5 py-6 sm:px-8 sm:py-8' : 'mt-8 border-t border-[color:var(--border)] pt-6'} w-full focus:outline-none`}
     >
       <div className="mx-auto flex max-w-[720px] flex-col items-stretch gap-3 text-left sm:items-center sm:text-center">
-        {title ? <h3 id={`${statusMessageId}-title`} className="font-display text-[20px] font-bold leading-[1.2] text-[color:var(--text-1)]">{title}</h3> : null}
-        <p id={statusMessageId} className="text-[14px] leading-6 text-[color:var(--text-2)]">{body}</p>
+        {title ? <h3 id={`${statusMessageId}-title`} className="text-h3 text-[color:var(--text-1)]">{title}</h3> : null}
+        <p id={statusMessageId} className="text-body leading-6 text-[color:var(--text-2)]">{body}</p>
         {actions}
       </div>
     </section>

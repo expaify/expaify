@@ -211,13 +211,24 @@ function appendUniqueDeals(current: ApiDeal[], incoming: ApiDeal[]) {
 
 function SkeletonCard() {
   return (
-    <div aria-hidden="true" className="overflow-hidden rounded-[var(--radius-card)] bg-[color:var(--surface)]">
-      <div className="skeleton aspect-[3/2]" />
-      <div className="space-y-3 p-4">
-        <div className="skeleton h-4 w-16 rounded-full" />
-        <div className="skeleton h-5 w-3/4 rounded" />
-        <div className="skeleton h-3 w-1/2 rounded" />
-        <div className="skeleton mt-2 h-8 w-24 rounded-full" />
+    // Mirrors DealCard's block order and heights so the feed does not jump when
+    // real cards replace the placeholders.
+    <div aria-hidden="true" className="overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)]">
+      <div className="space-y-3 px-4 pb-4 pt-3">
+        <div className="space-y-1.5">
+          <div className="skeleton h-5 w-3/4 rounded-[var(--radius-pill)]" />
+          <div className="skeleton h-3 w-1/2 rounded-[var(--radius-pill)]" />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="skeleton h-8 w-24 rounded-[var(--radius-pill)]" />
+            <div className="skeleton h-5 w-20 rounded-[var(--radius-pill)]" />
+          </div>
+          <div className="skeleton h-3 w-2/5 rounded-[var(--radius-pill)]" />
+        </div>
+        <div className="skeleton h-34 w-full rounded-[var(--radius-control)] sm:h-38" />
+        <div className="skeleton h-11 w-full rounded-[var(--radius-input)]" />
+        <div className="skeleton h-3 w-4/5 rounded-[var(--radius-pill)]" />
       </div>
     </div>
   )
@@ -340,7 +351,7 @@ function FilterPill({ label, filterKey, valueLabel, state, busy, inert, options,
   const accessibleName = busy ? `${baseName}, updating deals` : baseName
 
   const containerClass = state === 'set'
-    ? 'inline-flex items-stretch rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--brand)] bg-[color:var(--brand)] text-white'
+    ? 'inline-flex items-stretch rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--brand)] bg-[color:var(--brand)] text-[color:var(--text-inverse)]'
     : 'inline-flex items-stretch rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] text-[color:var(--text-1)]'
 
   return (
@@ -366,7 +377,7 @@ function FilterPill({ label, filterKey, valueLabel, state, busy, inert, options,
               openMenu(event.key === 'ArrowUp' ? 'last' : 'checked')
             }
           }}
-          className={`flex min-h-11 items-center gap-1.5 rounded-l-[var(--radius-pill)] px-4 text-[13px] font-medium ${blocked ? 'cursor-not-allowed' : ''} ${inert ? 'opacity-60' : ''} ${state === 'set' ? 'pr-1' : 'rounded-r-[var(--radius-pill)] pr-3'}`}
+          className={`flex min-h-11 items-center gap-1.5 rounded-l-[var(--radius-pill)] px-4 text-small font-medium ${blocked ? 'cursor-not-allowed' : ''} ${inert ? 'opacity-60' : ''} ${state === 'set' ? 'pr-1' : 'rounded-r-[var(--radius-pill)] pr-3'}`}
         >
           {state === 'locked' ? <LockGlyph /> : null}
           <span className="min-w-0 truncate">{state === 'neutral' ? label : valueLabel}</span>
@@ -417,11 +428,11 @@ function FilterPill({ label, filterKey, valueLabel, state, busy, inert, options,
               aria-label={opt.locked ? `${opt.label}, included with Premium` : undefined}
               onClick={() => activateOption(opt)}
               onKeyDown={event => handleOptionKeyDown(event, index)}
-              className={`flex min-h-11 w-full items-center gap-3 rounded-[calc(var(--radius-control)-0.125rem)] px-3 py-2.5 text-left text-[13px] hover:bg-[color:var(--bg-muted)] ${opt.selected ? 'bg-[color:var(--brand-soft)] font-medium text-[color:var(--primary-deep)]' : 'text-[color:var(--text-1)]'}`}
+              className={`flex min-h-11 w-full items-center gap-3 rounded-[calc(var(--radius-control)-0.125rem)] px-3 py-2.5 text-left text-small hover:bg-[color:var(--bg-muted)] ${opt.selected ? 'bg-[color:var(--brand-soft)] font-medium text-[color:var(--primary-deep)]' : 'text-[color:var(--text-1)]'}`}
             >
               <span className="min-w-0 flex-1">{opt.label}</span>
               {opt.locked ? (
-                <span aria-hidden="true" className="flex shrink-0 items-center gap-1 text-[12px] font-bold leading-5 text-[color:var(--text-1)]">
+                <span aria-hidden="true" className="flex shrink-0 items-center gap-1 text-caption font-medium leading-5 text-[color:var(--text-1)]">
                   <LockGlyph />
                   Premium
                 </span>
@@ -1451,7 +1462,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       {/* Results heading */}
       <div>
         <h2 className="text-h2 text-[color:var(--ink)]">Today&rsquo;s catches</h2>
-        <p className="mt-1 text-[13px] text-[color:var(--ink-soft)]">{subtitle}</p>
+        <p className="mt-1 text-small text-[color:var(--ink-soft)]">{subtitle}</p>
       </div>
 
       {activeTab === 'hotels' ? (
@@ -1466,11 +1477,11 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
 
           {criteriaUpdateError ? (
             <section role="alert" className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--error)] bg-[color:var(--error-soft)] p-4 text-[color:var(--text-1)]">
-              <h3 className="text-[14px] font-bold">We couldn&apos;t update these results.</h3>
-              <p className="mt-1 text-[13px] leading-5">Your previous search is still showing.</p>
+              <h3 className="font-display text-body font-bold">We couldn&apos;t update these results.</h3>
+              <p className="mt-1 text-small leading-5">Your previous search is still showing.</p>
               <div className="mt-3 flex flex-col gap-2 min-[420px]:flex-row">
-                <button ref={retryCriteriaRef} type="button" onClick={retryCriteriaUpdate} className="btn btn-primary min-h-11 px-5">Retry update</button>
-                <button type="button" onClick={() => openCriteriaEditor('summary')} className="btn btn-outline min-h-11 px-5">Edit search</button>
+                <button ref={retryCriteriaRef} type="button" onClick={retryCriteriaUpdate} className="btn btn-primary">Retry update</button>
+                <button type="button" onClick={() => openCriteriaEditor('summary')} className="btn btn-outline">Edit search</button>
               </div>
             </section>
           ) : null}
@@ -1489,8 +1500,8 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
           }}
           className={
             activeTab === 'hotels'
-              ? 'rounded-[var(--radius-pill)] bg-[color:var(--primary)] px-5 py-2 text-[13px] font-medium text-white'
-              : 'rounded-[var(--radius-pill)] px-5 py-2 text-[13px] font-medium text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]'
+              ? 'rounded-[var(--radius-pill)] bg-[color:var(--primary)] px-5 py-2 text-small font-medium text-[color:var(--text-inverse)]'
+              : 'rounded-[var(--radius-pill)] px-5 py-2 text-small font-medium text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]'
           }
         >
           Hotels
@@ -1505,8 +1516,8 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
           }}
           className={
             activeTab === 'flights'
-              ? 'rounded-[var(--radius-pill)] bg-[color:var(--primary)] px-5 py-2 text-[13px] font-medium text-white'
-              : 'rounded-[var(--radius-pill)] px-5 py-2 text-[13px] font-medium text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]'
+              ? 'rounded-[var(--radius-pill)] bg-[color:var(--primary)] px-5 py-2 text-small font-medium text-[color:var(--text-inverse)]'
+              : 'rounded-[var(--radius-pill)] px-5 py-2 text-small font-medium text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]'
           }
         >
           Flights
@@ -1519,12 +1530,12 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
             <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" />
           </svg>
           <h3 className="mt-4 text-h3 text-[color:var(--ink)]">Flight deals land soon.</h3>
-          <p className="mt-2 text-[14px] text-[color:var(--ink-soft)]">Hotels first.</p>
+          <p className="mt-2 text-body text-[color:var(--ink-soft)]">Hotels first.</p>
         </div>
       ) : (
         <>
           <section aria-labelledby="hotel-filter-label" className="mb-5">
-            <span id="hotel-filter-label" className="mb-1.5 block text-[12px] font-bold leading-5 text-[var(--text-1)]">
+            <span id="hotel-filter-label" className="mb-1.5 block font-display text-caption font-bold leading-5 text-[var(--text-1)]">
               Filter hotel deals
             </span>
             <div className="flex flex-wrap items-center gap-2">
@@ -1591,24 +1602,24 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 aria-label="Premium filters"
                 className="mt-3 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-muted)] p-3 text-[var(--text-1)] sm:w-[22rem]"
               >
-                <p className="text-sm font-bold">Premium filters</p>
-                <p className="mt-1 text-[13px] leading-5">Filters are included with Premium. You&apos;re seeing every expaify deal at 20% or more off, sorted by Recently found.</p>
+                <p className="font-display text-body font-bold">Premium filters</p>
+                <p className="mt-1 text-small leading-5">Filters are included with Premium. You&apos;re seeing every expaify deal at 20% or more off, sorted by Recently found.</p>
                 <div className="mt-3 flex flex-col items-stretch gap-2 min-[420px]:flex-row">
-                  <a href="/join" className="btn btn-primary min-h-11 px-5">See Premium</a>
-                  <button type="button" onClick={dismissFilterExplanation} className="btn btn-outline min-h-11 px-5">Not now</button>
+                  <a href="/join" className="btn btn-primary">See Premium</a>
+                  <button type="button" onClick={dismissFilterExplanation} className="btn btn-outline">Not now</button>
                 </div>
               </div>
             ) : failedFilter ? (
               <div role="alert" className="mt-3 rounded-[var(--radius-control)] border border-[var(--error)] bg-[var(--error-soft)] p-3 text-[var(--text-1)] sm:w-[22rem]">
-                <p className="text-sm font-bold">Couldn&apos;t apply that filter. Try again.</p>
-                <p className="mt-1 text-[13px] leading-5">
+                <p className="font-display text-body font-bold">Couldn&apos;t apply that filter. Try again.</p>
+                <p className="mt-1 text-small leading-5">
                   {(() => {
                     const sentence = statusSentence(effectiveFilters, premium)
                     if (!sentence) return 'Your results still show all current expaify deals.'
                     return `Your results still use ${sentence.replace(/^Showing /, '').replace(/\.$/, '')}.`
                   })()}
                 </p>
-                <button type="button" onClick={retryFailedFilter} className="btn btn-outline mt-3 min-h-11 px-5">Retry</button>
+                <button type="button" onClick={retryFailedFilter} className="btn btn-outline mt-3">Retry</button>
               </div>
             ) : null}
           </section>
@@ -1619,7 +1630,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
             className="relative mb-8 grid min-w-0 grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr] sm:items-start"
           >
             <div className="relative w-full sm:w-auto">
-              <span id="hotel-sort-label" className="mb-1.5 block text-[12px] font-bold leading-5 text-[var(--text-1)]">
+              <span id="hotel-sort-label" className="mb-1.5 block font-display text-caption font-bold leading-5 text-[var(--text-1)]">
                 Sort hotel deals
               </span>
               <button
@@ -1643,7 +1654,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                     openSortMenu(event.key === 'ArrowUp' ? 'last' : 'checked')
                   }
                 }}
-                className={`flex min-h-11 w-full min-w-0 items-center justify-between gap-3 rounded-[var(--radius-control)] border bg-[var(--bg-surface)] px-4 text-left text-sm font-bold text-[var(--text-1)] hover:border-[var(--border-hover)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-[17rem] ${sortMenuOpen ? 'border-[var(--border-focus)]' : 'border-[var(--border-strong)]'}`}
+                className={`flex min-h-11 w-full min-w-0 items-center justify-between gap-3 rounded-[var(--radius-control)] border bg-[var(--bg-surface)] px-4 text-left text-body font-medium text-[var(--text-1)] hover:border-[var(--border-hover)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-[17rem] ${sortMenuOpen ? 'border-[var(--border-focus)]' : 'border-[var(--border-strong)]'}`}
               >
                 <span className="min-w-0">Sort by: {displayedSortOption.label}</span>
                 {pendingSort ? (
@@ -1685,11 +1696,11 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                           {selected ? <span className="h-2 w-2 rounded-full bg-current" /> : null}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-bold leading-5 text-[var(--text-1)]">{option.label}</span>
-                          <span className="block text-[12px] leading-5 text-[var(--text-2)]">{option.description}</span>
+                          <span className="block text-body font-medium leading-5 text-[var(--text-1)]">{option.label}</span>
+                          <span className="block text-caption leading-5 text-[var(--text-2)]">{option.description}</span>
                         </span>
                         {locked ? (
-                          <span className="flex shrink-0 items-center gap-1 pt-0.5 text-[12px] font-bold leading-5 text-[var(--text-1)]">
+                          <span className="flex shrink-0 items-center gap-1 pt-0.5 text-caption font-medium leading-5 text-[var(--text-1)]">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                               <rect x="5" y="11" width="14" height="10" rx="2" />
                               <path d="M8 11V7a4 4 0 0 1 8 0v4" />
@@ -1704,7 +1715,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               ) : null}
             </div>
 
-            <div id="hotel-sort-status" role="status" aria-live="polite" aria-atomic="true" className="min-h-5 text-[12px] leading-5 text-[var(--text-2)] sm:pt-6 sm:text-right">
+            <div id="hotel-sort-status" role="status" aria-live="polite" aria-atomic="true" className="min-h-5 text-caption leading-5 text-[var(--text-2)] sm:pt-6 sm:text-right">
               {loading && deals.length === 0 ? (
                 <p>Loading hotel deals…</p>
               ) : pendingSort ? (
@@ -1729,18 +1740,18 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 aria-label="Premium sorting"
                 className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-muted)] p-3 text-[var(--text-1)] sm:col-start-1 sm:w-[22rem]"
               >
-                <p className="text-sm font-bold">Premium sorting</p>
-                <p className="mt-1 text-[13px] leading-5">Sorting options are included with Premium. Your results are currently sorted by Recently found.</p>
+                <p className="font-display text-body font-bold">Premium sorting</p>
+                <p className="mt-1 text-small leading-5">Sorting options are included with Premium. Your results are currently sorted by Recently found.</p>
                 <div className="mt-3 flex flex-col items-stretch gap-2 min-[420px]:flex-row">
-                  <a href="/join" className="btn btn-primary min-h-11 px-5">See Premium</a>
-                  <button type="button" onClick={dismissPremiumExplanation} className="btn btn-outline min-h-11 px-5">Not now</button>
+                  <a href="/join" className="btn btn-primary">See Premium</a>
+                  <button type="button" onClick={dismissPremiumExplanation} className="btn btn-outline">Not now</button>
                 </div>
               </div>
             ) : failedSort ? (
               <div role="alert" className="rounded-[var(--radius-control)] border border-[var(--error)] bg-[var(--error-soft)] p-3 text-[var(--text-1)] sm:col-start-1 sm:w-[22rem]">
-                <p className="text-sm font-bold">Couldn&apos;t apply that sort. Try again.</p>
-                <p className="mt-1 text-[13px] leading-5">Your results are still sorted by {appliedSortOption.label}.</p>
-                <button type="button" onClick={() => void requestSort(failedSort)} className="btn btn-outline mt-3 min-h-11 px-5">Retry</button>
+                <p className="font-display text-body font-bold">Couldn&apos;t apply that sort. Try again.</p>
+                <p className="mt-1 text-small leading-5">Your results are still sorted by {appliedSortOption.label}.</p>
+                <button type="button" onClick={() => void requestSort(failedSort)} className="btn btn-outline mt-3">Retry</button>
               </div>
             ) : null}
           </section>
@@ -1794,12 +1805,12 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
           ) : error ? (
             <section role="alert" className="mx-auto max-w-[640px] rounded-[var(--radius-card)] border border-[color:var(--error)] bg-[color:var(--error-soft)] px-5 py-8 text-left sm:px-8 sm:py-10">
               <h3 ref={gridRef} tabIndex={-1} className="text-h3 text-[color:var(--text-1)] focus:outline-none">{initialLoadError ? 'Couldn\'t load hotel deals.' : 'We couldn\'t update these deals'}</h3>
-              <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">{initialLoadError ? 'Check your connection and try again.' : 'We couldn\'t check this filter combination. Try the same filters again.'}</p>
+              <p className="mt-2 text-body leading-6 text-[color:var(--text-2)]">{initialLoadError ? 'Check your connection and try again.' : 'We couldn\'t check this filter combination. Try the same filters again.'}</p>
               <button
                 type="button"
                 disabled={pendingRecoveryKey === 'retry'}
                 onClick={retryFilters}
-                className="btn btn-primary mt-5 min-h-11 px-8"
+                className="btn btn-primary mt-5"
               >
                 {pendingRecoveryKey === 'retry' ? 'Retrying…' : 'Retry'}
               </button>
@@ -1818,10 +1829,10 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 statusMessageId="hotel-deals-empty"
               />
               <div className="mt-3 flex flex-col items-stretch justify-center gap-3 min-[420px]:flex-row">
-                <button type="button" onClick={() => openCriteriaEditor('empty_state')} className="btn btn-outline min-h-11 px-6">
+                <button type="button" onClick={() => openCriteriaEditor('empty_state')} className="btn btn-outline">
                   Edit search
                 </button>
-                {defaultCity ? <a href="/deals" className="btn btn-outline min-h-11 px-6">See all destinations</a> : null}
+                {defaultCity ? <a href="/deals" className="btn btn-outline">See all destinations</a> : null}
               </div>
             </div>
           ) : deals.length === 0 ? (
@@ -1835,7 +1846,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 statusMessageId="hotel-deals-empty"
               />
               <div className="mt-3 flex flex-col items-stretch justify-center gap-3 min-[420px]:flex-row">
-                <button type="button" onClick={() => openCriteriaEditor('empty_state')} className="btn btn-outline min-h-11 px-6">
+                <button type="button" onClick={() => openCriteriaEditor('empty_state')} className="btn btn-outline">
                   Edit search
                 </button>
               </div>
@@ -1847,10 +1858,10 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 <ColdSampleFeedIntro />
               ) : null}
               {!isColdSampleFeed && premium && hasActiveFilters && recommendedCoverageFilter ? (
-                <div className="mb-4 flex flex-col gap-3 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-4 py-3 text-[13px] leading-5 text-[color:var(--text-2)] sm:flex-row sm:items-center sm:justify-between">
+                <div className="mb-4 flex flex-col gap-3 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-4 py-3 text-small leading-5 text-[color:var(--text-2)] sm:flex-row sm:items-center sm:justify-between">
                   <p>Current filters narrow this list.</p>
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-                    <button type="button" onClick={recommendedCoverageFilter.onRemove} className="btn btn-outline min-h-11 w-full whitespace-normal px-5 sm:w-auto">
+                    <button type="button" onClick={recommendedCoverageFilter.onRemove} className="btn btn-outline w-full whitespace-normal sm:w-auto">
                       Remove &ldquo;{recommendedCoverageFilter.label}&rdquo;
                     </button>
                     {coverageFilters.length > 1 ? (
@@ -1953,8 +1964,8 @@ function PersonalizedEmpty({ personalization, premium }: { personalization: Pers
 
   return (
     <div className="py-20 text-center">
-      <p className="font-display text-[20px] font-bold text-[color:var(--ink)]">{headline}</p>
-      <p className="mt-2 text-[14px] text-[color:var(--ink-soft)]">Your bar is set at {pct}%+ off — drops that big are rare, and we check every destination daily. New deals land here the moment one clears it.</p>
+      <p className="text-h3 text-[color:var(--ink)]">{headline}</p>
+      <p className="mt-2 text-body text-[color:var(--ink-soft)]">Your bar is set at {pct}%+ off — drops that big are rare, and we check every destination daily. New deals land here the moment one clears it.</p>
       <PersonalizedEmptyActions premium={premium} alertPreference={alertPreference} />
     </div>
   )
@@ -1964,22 +1975,22 @@ function PersonalizedEmptyActions({ premium, alertPreference }: { premium: boole
   return (
     <div className="mx-auto mt-5 max-w-[640px] text-center">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:justify-center">
-        <a href="/deals?all=1" className="btn btn-primary px-8">
+        <a href="/deals?all=1" className="btn btn-primary">
           Show all deals
         </a>
-        <a href="/account" className="btn btn-outline px-8">
+        <a href="/account" className="btn btn-outline">
           Edit preferences
         </a>
       </div>
       {!premium ? (
-        <p className="mt-5 text-[13px] text-[color:var(--ink-soft)]">
+        <p className="mt-5 text-small text-[color:var(--ink-soft)]">
           Want an email the moment a match appears? Alerts are included with Premium.{' '}
-          <a href="/join" className="font-bold text-[color:var(--primary)] no-underline hover:underline">
+          <a href="/join" className="font-medium text-[color:var(--primary)] no-underline hover:underline">
             Start Premium
           </a>
         </p>
       ) : alertPreference !== 'off' ? (
-        <p className="mt-5 text-[13px] text-[color:var(--ink-soft)]">You&rsquo;ll get an email as soon as a match appears.</p>
+        <p className="mt-5 text-small text-[color:var(--ink-soft)]">You&rsquo;ll get an email as soon as a match appears.</p>
       ) : null}
     </div>
   )
