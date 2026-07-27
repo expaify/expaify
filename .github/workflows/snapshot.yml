@@ -24,4 +24,7 @@ jobs:
           print(f'Markets: {d[\"markets\"]}')
           print(f'New deals: {d[\"totalNewDeals\"]}')
           print(f'Alerts sent: {d[\"alertsSent\"]}')
+          if d.get('rateLimited'):
+              print('::error::Pipeline aborted early — RAPIDAPI_KEY quota exhausted (429). No snapshots were collected this run. Rotate/upgrade the RapidAPI key.')
+              sys.exit(1)
           "
