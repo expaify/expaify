@@ -282,6 +282,24 @@ export function createHotelCriteriaVersion(): string {
   return crypto.randomUUID()
 }
 
+/** Deterministic version for a page's default (query-string-free) criteria.
+ * Repeated visits/refreshes of the same destination URL must resolve to the
+ * same criteriaVersion so continuity (analytics dedupe, Back navigation) is
+ * not broken by every reload minting a fresh random version. */
+export function deterministicHotelCriteriaVersion(input: {
+  city: string
+  dateFrom: string
+  dateTo: string
+  source: HotelSearchCriteriaV1['source']
+}): string {
+  const raw = `${input.source}|${input.city}|${input.dateFrom}|${input.dateTo}`
+  let hash = 0
+  for (let i = 0; i < raw.length; i++) {
+    hash = (Math.imul(hash, 31) + raw.charCodeAt(i)) >>> 0
+  }
+  return `stable-${hash.toString(16).padStart(8, '0')}`
+}
+
 export function resultCountBucket(count: number): '0' | '1_5' | '6_20' | '21_plus' {
   if (count === 0) return '0'
   if (count <= 5) return '1_5'

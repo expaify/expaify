@@ -110,6 +110,12 @@ export function HotelSearchCriteriaEditor({ open, criteria, cities, surface, ent
     }
     if (!startedRef.current) {
       startedRef.current = true
+      // This component stays mounted across open/close cycles in some call
+      // sites, so the `useState(() => ...)` lazy initializer only runs once.
+      // Re-seed the draft on every open so a caller passing a fresh
+      // `initialDraft` (e.g. a failed edit to retry) is actually reflected,
+      // instead of silently reopening whatever draft was active last time.
+      setDraft(initialDraft ?? hotelCriteriaToDraft(criteria))
       returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
       track('hotel_criteria_edit_started', {
         surface,
@@ -118,7 +124,7 @@ export function HotelSearchCriteriaEditor({ open, criteria, cities, surface, ent
       })
     }
     window.requestAnimationFrame(() => destinationRef.current?.focus())
-  }, [criteria.criteriaVersion, entryPoint, open, surface])
+  }, [criteria, criteria.criteriaVersion, entryPoint, initialDraft, open, surface])
 
   const validation = useMemo(() => {
     const destinationInvalid = draft.city !== '' && !cities.includes(draft.city)

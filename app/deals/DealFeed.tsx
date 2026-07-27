@@ -19,6 +19,8 @@ import {
   formatHotelCriteriaDates,
   hotelCriteriaFromDraft,
   hotelCriteriaToDraft,
+  resolveHotelResultsView,
+  resolveHotelSearchCriteria,
   resultCountBucket,
   type HotelCriteriaDraft,
   type HotelResultsViewState,
@@ -712,6 +714,70 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     window.requestAnimationFrame(() => resultStatusRef.current?.focus())
   }
 
+  const restoreCriteriaFromLocation = useCallback(async () => {
+    if (criteriaUpdating) return
+    const params = new URLSearchParams(window.location.search)
+    const resolution = resolveHotelSearchCriteria(params)
+    const view = resolveHotelResultsView(params)
+    if (resolution.status !== 'valid' || !view) return
+    const restored = resolution.criteria
+    if (restored.criteriaVersion === criteria.criteriaVersion) return
+    setCriteriaEditorOpen(false)
+    setCriteriaUpdateError(false)
+    setFailedCriteriaDraft(null)
+    failedCriteriaVersionRef.current = null
+    setUndoSnapshot(null)
+    setUndoError(false)
+    setStatusAnnouncement('')
+    const restoredCity = restored.destination.state === 'selected' ? restored.destination.city : ''
+    const restoredDateFrom = restored.dates.semantic === 'checkin_window' ? restored.dates.dateFrom ?? '' : ''
+    const restoredDateTo = restored.dates.semantic === 'checkin_window' ? restored.dates.dateTo ?? '' : ''
+    const response = await fetchDeals({
+      city: restoredCity,
+      minDiscount: view.minDiscount,
+      maxPriceCents: view.maxPriceCents,
+      minStars: view.minStars,
+      dateFrom: restoredDateFrom,
+      dateTo: restoredDateTo,
+      sort: view.sort,
+      offset: 0,
+      append: false,
+      criteriaRequest: restored,
+    }, { preserveResultsOnFailure: true })
+    if (!response) return
+    setDeals(response.deals)
+    setResultMetadata(parseHotelResultMetadata(response.resultMetadata, {
+      city: restoredCity,
+      minDiscount: view.minDiscount,
+      maxPriceCents: view.maxPriceCents,
+      minStars: view.minStars,
+      dateFrom: restoredDateFrom,
+      dateTo: restoredDateTo,
+    }, defaultCity))
+    setConfirmedCoverage(readConfirmedCoverage(response))
+    setPremium(Boolean(response.premium))
+    setCity(restoredCity)
+    setDateFrom(restoredDateFrom)
+    setDateTo(restoredDateTo)
+    setMinDiscount(view.minDiscount)
+    setMaxPriceCents(view.maxPriceCents)
+    setMinStars(view.minStars)
+    setPreviousSort(appliedSort)
+    setAppliedSort(view.sort)
+    setCriteria(restored)
+  }, [appliedSort, criteria.criteriaVersion, criteriaUpdating, defaultCity, fetchDeals])
+
+  // Filter and criteria changes only ever push/replace history entries; the
+  // browser Back/Forward buttons fire popstate without re-mounting this
+  // component, so React state has to be resynced from the restored URL here.
+  useEffect(() => {
+    function handlePopState() {
+      void restoreCriteriaFromLocation()
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [restoreCriteriaFromLocation])
+
   function openCriteriaEditor(entryPoint: 'summary' | 'empty_state' = 'summary') {
     setCriteriaEntryPoint(entryPoint)
     setCriteriaEditorOpen(true)
@@ -874,7 +940,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const activeFilters: HotelFilterState = { city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo }
 
   const gridClass = 'grid grid-cols-1 gap-6 min-[680px]:grid-cols-2 min-[1024px]:grid-cols-3'
-  const resultsUrl = defaultCity && criteria.source === 'destination_page'
+  const resultsUrl = defaultCity
     ? buildHotelDestinationUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort })
     : buildHotelResultsUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort })
 
