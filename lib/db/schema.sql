@@ -284,3 +284,109 @@ CREATE INDEX IF NOT EXISTS idx_analytics_events_session_time
   ON analytics_events (session_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_name_time
   ON analytics_events (event_name, occurred_at DESC);
+
+-- ── Admin console foundations ────────────────────────────────────────────
+
+-- Role source: presence of a row grants admin access. Verified server-side
+-- on every /api/admin/* request — never trust the client session alone.
+CREATE TABLE IF NOT EXISTS admin_users (
+  user_id     TEXT        PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  email       TEXT        NOT NULL,
+  granted_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Entitlement fields: how a subscription's premium access is sourced.
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS entitlement_source TEXT NOT NULL DEFAULT 'none';
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS comp_reason TEXT;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS comp_granted_by TEXT REFERENCES users(id);
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS comp_granted_at TIMESTAMPTZ;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS comp_expires_at TIMESTAMPTZ;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_entitlement_source_check'
+  ) THEN
+    ALTER TABLE subscriptions
+      ADD CONSTRAINT subscriptions_entitlement_source_check
+      CHECK (entitlement_source IN ('stripe', 'comp', 'none'));
+  END IF;
+END $$;
+
+-- Append-only admin audit log. No app-level update/delete path exists, and
+-- the triggers below reject UPDATE/DELETE at the database level too.
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id                       BIGSERIAL   PRIMARY KEY,
+  action                   TEXT        NOT NULL,
+  actor_user_id            TEXT        NOT NULL REFERENCES users(id),
+  actor_email              TEXT        NOT NULL,
+  target_user_id           TEXT        REFERENCES users(id),
+  target_email             TEXT,
+  searched_identifier_type TEXT,
+  reason                   TEXT,
+  metadata                 JSONB       NOT NULL DEFAULT '{}'::jsonb,
+  before                   JSONB,
+  after                    JSONB,
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_log_target ON admin_audit_log(target_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_log_actor ON admin_audit_log(actor_user_id, created_at DESC);
+
+CREATE OR REPLACE FUNCTION admin_audit_log_immutable() RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'admin_audit_log is append-only: % is not permitted', TG_OP;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS admin_audit_log_no_update ON admin_audit_log;
+CREATE TRIGGER admin_audit_log_no_update
+  BEFORE UPDATE OR DELETE ON admin_audit_log
+  FOR EACH ROW EXECUTE FUNCTION admin_audit_log_immutable();
+
+-- Privacy request tracking. Requests are queued and reviewed, never
+-- executed immediately from the admin console.
+CREATE TABLE IF NOT EXISTS account_export_requests (
+  id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  requested_email TEXT        NOT NULL,
+  user_id         TEXT        REFERENCES users(id) ON DELETE SET NULL,
+  status          TEXT        NOT NULL DEFAULT 'requested',
+  source          TEXT,
+  actor_user_id   TEXT        NOT NULL REFERENCES users(id),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_account_export_requests_user ON account_export_requests(user_id, created_at DESC);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'account_export_requests_status_check'
+  ) THEN
+    ALTER TABLE account_export_requests
+      ADD CONSTRAINT account_export_requests_status_check
+      CHECK (status IN ('requested', 'verifying', 'in_progress', 'completed', 'rejected'));
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS account_deletion_requests (
+  id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  requested_email TEXT        NOT NULL,
+  user_id         TEXT        REFERENCES users(id) ON DELETE SET NULL,
+  status          TEXT        NOT NULL DEFAULT 'requested',
+  source          TEXT,
+  actor_user_id   TEXT        NOT NULL REFERENCES users(id),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_account_deletion_requests_user ON account_deletion_requests(user_id, created_at DESC);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'account_deletion_requests_status_check'
+  ) THEN
+    ALTER TABLE account_deletion_requests
+      ADD CONSTRAINT account_deletion_requests_status_check
+      CHECK (status IN ('requested', 'verifying', 'in_progress', 'completed', 'rejected'));
+  END IF;
+END $$;
