@@ -229,6 +229,24 @@ export function buildHotelBackUrl(
     : buildHotelResultsUrl(criteria, view)
 }
 
+/** Where a criteria edit made on a detail page reached via a destination
+ * page should land. The destination-page origin is only preserved when the
+ * edited criteria still resolves to that same destination; editing to a
+ * different (or no) destination always lands on the canonical /deals URL. */
+export function resolveHotelEditSubmitUrl(
+  backHref: string,
+  criteria: HotelSearchCriteriaV1,
+  view?: Partial<HotelResultsViewState>,
+): string {
+  const [backPath, backQuery] = backHref.split('?')
+  const backParams = new URLSearchParams(backQuery ?? '')
+  const originSlug = backPath.startsWith('/destinations/') ? backPath.split('/')[2] : undefined
+  const isDestinationOrigin = Boolean(originSlug) && backParams.get('criteriaReturn') === 'destination'
+  const nextSlug = criteria.destination.state === 'selected' ? CITY_DISPLAY_TO_SLUG[criteria.destination.city] : undefined
+  if (isDestinationOrigin && nextSlug && nextSlug === originSlug) return buildHotelDestinationUrl(criteria, view)
+  return buildHotelResultsUrl(criteria, view)
+}
+
 export function resolveHotelResultsView(source: SearchParamSource): HotelResultsViewState | null {
   const viewKeys = ['min_discount', 'max_price_cents', 'min_stars', 'sort']
   if (

@@ -11,7 +11,7 @@ import { DealFeed, type ApiDeal } from './DealFeed'
 import { buildDealPage, HOTEL_DEAL_PAGE_SIZE } from '@/lib/deals/feedContract'
 import { query } from '@/lib/db/client'
 import {
-  createHotelCriteriaVersion,
+  deterministicHotelCriteriaVersion,
   hotelCriteriaFromDraft,
   resolveHotelResultsView,
   resolveHotelSearchCriteria,
@@ -74,7 +74,11 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
 
   const criteria = criteriaResolution.status === 'valid'
     ? criteriaResolution.criteria
-    : hotelCriteriaFromDraft({ city: '', dateFrom: '', dateTo: '' }, createHotelCriteriaVersion(), 'deals_page')
+    : hotelCriteriaFromDraft(
+      { city: '', dateFrom: '', dateTo: '' },
+      deterministicHotelCriteriaVersion({ city: '', dateFrom: '', dateTo: '', source: 'deals_page' }),
+      'deals_page',
+    )
   const requestedCity = criteria.destination.state === 'selected' ? criteria.destination.city : ''
   const requestedDateFrom = criteria.dates.semantic === 'checkin_window' ? criteria.dates.dateFrom : undefined
   const requestedDateTo = criteria.dates.semantic === 'checkin_window' ? criteria.dates.dateTo : undefined
