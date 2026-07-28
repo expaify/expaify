@@ -12,6 +12,10 @@ export const metadata: Metadata = {
     'We track 20 destinations daily and alert you the moment a hotel drops 30% below its normal price.',
 }
 
+// getActiveDeals() is a cheap, indexed query (limit 3) with no upstream cache —
+// without this the page renders once at build time and never reflects new deals.
+export const revalidate = 300
+
 type DealCardDeal = {
   id: string
   hotelName: string
