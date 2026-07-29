@@ -379,7 +379,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <p className="mt-1 text-sm text-[color:var(--text-2)]">per night before taxes and fees</p>
                 <p className="mt-2 text-xs text-[color:var(--text-2)]">Rate observed from a booking partner.</p>
                 {isExpired && deal.expires_at ? (
-                  <p className="mt-3 text-sm font-medium text-[color:var(--error)]">This saved rate expired {fmtDate(deal.expires_at)}. It is shown for reference only.</p>
+                  <p className="mt-3 text-sm font-medium text-[color:var(--error-text)]">This saved rate expired {fmtDate(deal.expires_at)}. It is shown for reference only.</p>
                 ) : isStale ? (
                   <p className="mt-3 text-sm font-medium text-[color:var(--warning)]">Price may be out of date. We have not rechecked it since {fmtCheckedDate(deal.updated_at)}.</p>
                 ) : isAging && checkedAgo ? (

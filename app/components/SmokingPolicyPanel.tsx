@@ -47,7 +47,7 @@ const stateTone: Record<HotelSmokingEvidenceState, string> = {
   ambiguous: 'text-[color:var(--warning)]',
   conflicting: 'text-[color:var(--warning)]',
   not_provided: 'text-[color:var(--text-3)]',
-  unavailable: 'text-[color:var(--error)]',
+  unavailable: 'text-[color:var(--error-text)]',
 }
 
 function formatObservedDate(value: string): string | null {

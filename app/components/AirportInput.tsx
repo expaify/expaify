@@ -268,7 +268,7 @@ export default function AirportInput({
         </button>
       )}
       {error && (
-        <p id={errorId} className="text-xs font-bold leading-5 text-[var(--error)]" role="alert">
+        <p id={errorId} className="text-xs font-bold leading-5 text-[var(--error-text)]" role="alert">
           {error}
         </p>
       )}

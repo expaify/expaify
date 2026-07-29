@@ -118,7 +118,7 @@ function SourceLink({ fact, conflict = false, label }: { fact: PrototypeContinui
       target="_blank"
       rel="noopener noreferrer"
       aria-label={conflict ? `View source from ${fact.sourceName} (opens in a new tab)` : `View ${signalLabel} evidence from ${fact.sourceName} (opens in a new tab)`}
-      className="inline-flex min-h-11 items-center font-semibold text-[color:var(--brand)] underline underline-offset-4"
+      className="inline-flex min-h-11 items-center font-medium text-[color:var(--brand)] underline underline-offset-4"
       onClick={() => track('resilience_source_opened', { signalType: fact.signal, sourceClass: fact.sourceClass })}
     >
       {visibleLabel}
@@ -259,7 +259,7 @@ export function HotelContinuityPrototype({ dealId, hotelName, fixtureId, disclos
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`View disruption source from ${context.authorityName} (opens in a new tab)`}
-          className="mt-2 inline-flex min-h-11 items-center text-[13px] font-semibold text-[color:var(--brand)] underline underline-offset-4"
+          className="mt-2 inline-flex min-h-11 items-center text-[13px] font-medium text-[color:var(--brand)] underline underline-offset-4"
           onClick={() => track('resilience_source_opened', { signalType: 'destination_context', sourceClass: 'authority' })}
         >
           View disruption source<span className="sr-only"> (opens in a new tab)</span>
@@ -323,7 +323,7 @@ export function HotelContinuityPrototype({ dealId, hotelName, fixtureId, disclos
 
             {!retrying && state !== 'loading' ? (
               disclosure.hotelContactHref ? (
-                <a href={disclosure.hotelContactHref} className="mt-3 inline-flex min-h-11 items-center text-[13px] font-semibold text-[color:var(--brand)] underline underline-offset-4">
+                <a href={disclosure.hotelContactHref} className="mt-3 inline-flex min-h-11 items-center text-[13px] font-medium text-[color:var(--brand)] underline underline-offset-4">
                   {state === 'partial' ? 'Confirm missing details with the hotel' : state === 'stale' ? 'Confirm current details with the hotel' : 'Confirm with the hotel'}
                 </a>
               ) : (

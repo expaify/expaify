@@ -32,7 +32,7 @@ export default async function OgImage({ params }: { params: Promise<{ dealId: st
       >
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 32 }}>
-          <span style={{ fontSize: 22, fontWeight: 700, color: '#fff', letterSpacing: '-0.5px' }}>expaify</span>
+          <span style={{ fontSize: 22, fontWeight: 700, color: '#fff', letterSpacing: 0 }}>expaify</span>
           <div style={{ width: 7, height: 7, borderRadius: 9999, background: '#FF6B4A' }} />
         </div>
 
@@ -42,14 +42,15 @@ export default async function OgImage({ params }: { params: Promise<{ dealId: st
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              background: '#FF6B4A',
+              // Gold is the discount/savings colour; coral is reserved for join/upgrade.
+              background: '#D9A441',
               borderRadius: 9999,
               padding: '6px 18px',
               marginBottom: 20,
               alignSelf: 'flex-start',
             }}
           >
-            <span style={{ fontSize: 20, fontWeight: 700, color: '#1a0a06' }}>{discountPct}% off</span>
+            <span style={{ fontSize: 20, fontWeight: 700, color: '#412402' }}>{discountPct}% off</span>
           </div>
         )}
 

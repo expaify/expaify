@@ -35,7 +35,7 @@ function StatusLine({ status }: { status: GroupStatus }) {
       {status === 'saving' && <span className="text-[color:var(--ink-faint)]">Saving…</span>}
       {status === 'saved' && <span className="font-medium text-[color:var(--primary)]">Saved</span>}
       {status === 'error' && (
-        <span role="alert" className="font-medium text-[color:var(--error)]">
+        <span role="alert" className="font-medium text-[color:var(--error-text)]">
           Couldn&rsquo;t save. Your change was undone — try again.
         </span>
       )}
@@ -258,7 +258,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
           {checkoutLoading ? 'Opening checkout…' : 'Upgrade — 7-day free trial'}
         </button>
         {checkoutError ? (
-          <p className="text-[13px] font-medium text-[color:var(--error)]" role="alert">
+          <p className="text-[13px] font-medium text-[color:var(--error-text)]" role="alert">
             {checkoutError}
           </p>
         ) : null}

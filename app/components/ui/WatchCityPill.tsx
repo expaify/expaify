@@ -134,7 +134,7 @@ export function WatchCityPill({ city, initialWatching, initialCount }: WatchCity
       </button>
       <p aria-live="polite" className="mt-1.5 min-h-[18px] text-[12px] leading-[18px]">
         {status === 'error' && (
-          <span role="alert" className="font-medium text-[color:var(--error)]">
+          <span role="alert" className="font-medium text-[color:var(--error-text)]">
             Couldn&rsquo;t update your watchlist. Try again.
           </span>
         )}

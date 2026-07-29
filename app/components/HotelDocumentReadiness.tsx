@@ -199,7 +199,7 @@ function VerificationGuidance({
 
   return (
     <div className="mt-3 border-t border-[color:var(--border)] pt-3">
-      <p className="break-words text-sm font-semibold leading-6 text-[color:var(--text-1)]">{heading}</p>
+      <p className="break-words text-sm font-medium leading-6 text-[color:var(--text-1)]">{heading}</p>
       <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">{support}</p>
     </div>
   )
@@ -214,7 +214,7 @@ export function HotelDocumentIntentControl({
 }) {
   return (
     <div className="mt-5 min-w-0 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3">
-      <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm font-semibold leading-6 text-[color:var(--text-1)]">
+      <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm font-medium leading-6 text-[color:var(--text-1)]">
         <input
           type="checkbox"
           checked={checked}
@@ -325,7 +325,7 @@ export function HotelDocumentReadinessDisclosure({
 
       {!isLoading && !isError && effectiveStatus === 'conflicting' ? (
         <div className="mt-3">
-          <p className="text-sm font-semibold leading-6 text-[color:var(--text-1)]">Supplied statements</p>
+          <p className="text-sm font-medium leading-6 text-[color:var(--text-1)]">Supplied statements</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-[color:var(--text-2)]">
             {(readiness.conflictStatements ?? []).map((statement, index) => (
               <li key={`${statement.sourceLabel}-${index}`} className="break-words">

@@ -15,12 +15,12 @@ function html(message: string, status = 200, recovery = ''): NextResponse {
     <style>
       body{margin:0;background:#FAF7F2;color:#141210;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
       main{max-width:520px;margin:0 auto;padding:48px 20px}
-      .logo{font-family:Georgia,serif;font-weight:700;font-size:22px;color:#0E5A54;margin-bottom:28px}
+      .logo{font-family:"Space Grotesk",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-weight:700;font-size:22px;color:#0E5A54;margin-bottom:28px}
       .dot{color:#FF6B4A}
       section{background:#fff;border:1px solid #E8E2D8;border-radius:16px;padding:24px}
-      h1{font-family:Georgia,serif;font-size:24px;line-height:1.2;margin:0 0 8px}
+      h1{font-family:"Space Grotesk",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-weight:700;font-size:24px;line-height:1.2;margin:0 0 8px}
       p{font-size:14px;line-height:1.6;color:#5C5852;margin:0}
-      a{color:#0E5A54;font-weight:600}
+      a{color:#0E5A54;font-weight:500}
       .recovery{border-top:1px solid #E8E2D8;margin-top:16px;padding-top:16px}
       .recovery p{margin:0 0 8px}
       .recovery a{display:block;line-height:2}

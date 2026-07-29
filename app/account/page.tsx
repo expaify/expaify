@@ -62,7 +62,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
 
         {showCheckoutError && (
           <div className="mb-6 rounded-[var(--radius-card)] border border-[color:var(--error)] bg-white px-5 py-4">
-            <p className="text-[14px] font-medium text-[color:var(--error)]">
+            <p className="text-[14px] font-medium text-[color:var(--error-text)]">
               Checkout could not start. Try again in a moment or contact support and we will finish your upgrade.
             </p>
           </div>
@@ -102,14 +102,14 @@ export default async function AccountPage({ searchParams }: PageProps) {
 
           {/* Trial countdown — prominent */}
           {sub?.status === 'trialing' && sub.trialEndsAt && daysLeft !== null && (
-            <div className="mb-4 flex items-center gap-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="mb-4 flex items-center gap-4 rounded-[var(--radius-control)] border border-[color:var(--gold)] bg-[color:var(--warning-soft)] px-4 py-3">
               <div className="shrink-0 text-center">
-                <div className="font-display text-[28px] font-bold leading-none text-amber-700">{daysLeft}</div>
-                <div className="text-[10px] font-medium uppercase tracking-wide text-amber-600">
+                <div className="text-h2 text-[color:var(--gold-text)]">{daysLeft}</div>
+                <div className="text-caption font-medium uppercase tracking-wide text-[color:var(--gold-text)]">
                   {daysLeft === 1 ? 'day' : 'days'} left
                 </div>
               </div>
-              <p className="text-[13px] text-amber-800">
+              <p className="text-small text-[color:var(--gold-text)]">
                 Trial ends <strong>{formatDate(sub.trialEndsAt)}</strong>.
                 {' '}You&apos;ll be charged ${sub.plan === 'annual' ? '8' : '12'}/mo unless you cancel before then.
               </p>

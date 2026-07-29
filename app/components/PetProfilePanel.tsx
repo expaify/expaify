@@ -83,7 +83,7 @@ export function validatePetProfileDraft(draft: PetProfileDraft): FieldErrors {
 }
 
 function FieldError({ id, children }: { id: string; children?: string }) {
-  return children ? <p id={id} className="mt-1 text-xs font-medium leading-5 text-[color:var(--error)]">{children}</p> : null
+  return children ? <p id={id} className="mt-1 text-xs font-medium leading-5 text-[color:var(--error-text)]">{children}</p> : null
 }
 
 function RadioOption({ name, value, checked, disabled, onChange, onBlur, children, inputRef, field, describedBy }: {

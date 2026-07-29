@@ -41,7 +41,7 @@ export default function LoadingDealDetail() {
 
         <div className="mb-8 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
           <div className="skeleton mb-4 h-6 w-40 rounded-[var(--radius-input)]" />
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="space-y-2">
                 <div className="skeleton h-3 w-16 rounded-full" />

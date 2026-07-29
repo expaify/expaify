@@ -338,7 +338,7 @@ function StarRow({ stars }: { stars: number }) {
         <svg key={index} width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
           <path
             d="M6 1l1.39 2.82 3.11.45-2.25 2.19.53 3.09L6 8 3.22 9.55l.53-3.09L1.5 4.27l3.11-.45L6 1z"
-            className={index < filled ? 'fill-amber-400' : 'fill-[color:var(--border-strong)]'}
+            className={index < filled ? 'fill-[color:var(--gold-deep)]' : 'fill-[color:var(--border-strong)]'}
           />
         </svg>
       ))}
@@ -978,7 +978,7 @@ export default function HotelCard({
           {isExpanded ? 'Hide details' : 'Details'}
         </button>
         {reviewState === 'error' ? (
-          <p role="status" className="mt-2 text-xs font-medium leading-5 text-[color:var(--error)]">
+          <p role="status" className="mt-2 text-xs font-medium leading-5 text-[color:var(--error-text)]">
             Hotel review could not be prepared. Try again.
           </p>
         ) : null}

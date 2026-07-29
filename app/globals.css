@@ -18,7 +18,9 @@
   --primary-soft: #9FE1CB;
   --accent: #FF6B4A;
   --gold: #D9A441;
-  --gold-text: #412402;
+  --gold-text: #412402; /* text ON --gold fills; AA 6.3:1 */
+  --gold-deep: #96701F; /* gold as a mark/text ON light surfaces; AA 4.5:1 on --bg and --surface */
+  --accent-text: #A83019; /* coral as text ON light surfaces; AA 6.3:1 on --bg, 6.0:1 on --error-soft */
   --line-ivory: #E8E2D8;
   --line-white: #D8D2C6;
   --radius-card: 24px;
@@ -41,7 +43,8 @@
   --brand-soft: var(--primary-soft);
   --success: var(--primary);
   --warning: var(--gold-text);
-  --error: var(--accent);
+  --error: var(--accent); /* fills/borders only — 2.8:1, never use as a text colour */
+  --error-text: var(--accent-text); /* error copy; --error itself fails AA as text */
   --text-1: var(--ink);
   --text-2: var(--ink-soft);
   --text-3: var(--ink-faint);

@@ -79,7 +79,7 @@ export function WatchCityCta({ city, tier, watching = false, watchlist = [] }: W
         )}
         {error ? (
           <div role="alert" className="flex flex-col items-center">
-            <p className="text-[12px] font-medium text-[color:var(--error)]">{error}</p>
+            <p className="text-[12px] font-medium text-[color:var(--error-text)]">{error}</p>
             {showManageLink ? (
               <Link href="/account" className="inline-flex min-h-[44px] items-center justify-center text-[13px] font-medium text-[color:var(--brand)] no-underline hover:underline">
                 Manage watchlist

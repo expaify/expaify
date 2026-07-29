@@ -194,7 +194,7 @@ export function HotelPetPolicyScan({ policy }: { policy: HotelPetPolicyPresentat
     <div className={`mt-3 w-full min-w-0 rounded-[var(--radius-control)] border px-3 py-2 text-xs leading-5 sm:grid sm:grid-cols-[max-content_minmax(0,1fr)] sm:items-start sm:gap-x-3 ${classes}`}>
       {copy.outcome ? <p className="font-bold">{copy.outcome}</p> : null}
       {copy.support ? (
-        <p className={`font-medium ${copy.outcome ? 'mt-0.5 sm:mt-0' : ''} ${copy.status === 'unsuitable' ? 'text-[color:var(--error)]' : ''}`}>
+        <p className={`font-medium ${copy.outcome ? 'mt-0.5 sm:mt-0' : ''} ${copy.status === 'unsuitable' ? 'text-[color:var(--error-text)]' : ''}`}>
           {copy.support}
         </p>
       ) : null}
@@ -366,7 +366,7 @@ export function HotelPetPolicyDetails({ hotelId, hotelName, providerName, policy
       <h4 id={titleId} className="font-bold text-[color:var(--text-1)]">Pet policy for your stay</h4>
       <div aria-label={unknownOutcomeLabel} className={`mt-2 rounded-[var(--radius-control)] border px-3 py-2 ${toneClasses(outcome.status)}`}>
         <p className="font-bold">{outcome.heading}</p>
-        <p className={`mt-0.5 font-medium ${outcome.status === 'unsuitable' ? 'text-[color:var(--error)]' : ''}`}>{outcome.body}</p>
+        <p className={`mt-0.5 font-medium ${outcome.status === 'unsuitable' ? 'text-[color:var(--error-text)]' : ''}`}>{outcome.body}</p>
       </div>
 
       <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-x-6">

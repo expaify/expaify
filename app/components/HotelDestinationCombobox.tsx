@@ -394,7 +394,7 @@ export default function HotelDestinationCombobox({
       )}
 
       {fieldError ? (
-        <p id={errorId} role="alert" className="text-xs font-bold leading-5 text-[var(--error)]">
+        <p id={errorId} role="alert" className="text-xs font-bold leading-5 text-[var(--error-text)]">
           {fieldError}
         </p>
       ) : null}

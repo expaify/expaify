@@ -205,7 +205,7 @@ export function HotelRateRestrictionsSection({
                   : `${provider} did not provide complete rate restrictions. Check membership, residency, age, and refund terms before paying.`}
           </p>
 
-          <p className={`mt-2 break-words text-xs font-medium leading-5 ${normalized.state === 'error' ? 'text-[color:var(--error)]' : 'text-[color:var(--text-3)]'}`}>
+          <p className={`mt-2 break-words text-xs font-medium leading-5 ${normalized.state === 'error' ? 'text-[color:var(--error-text)]' : 'text-[color:var(--text-3)]'}`}>
             {normalized.state === 'error'
               ? `Source: ${provider}. Rate restrictions could not be checked.`
               : fetchedMetadata(provider, normalized.fetchedAt)}

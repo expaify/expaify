@@ -143,7 +143,7 @@ export function AdminMutationDialog({ config, onClose, onSuccess }: AdminMutatio
             }`}
           />
           {attempted && !valid && (
-            <p id={errorId} className="mt-1 text-xs text-[var(--error)]">
+            <p id={errorId} className="mt-1 text-xs text-[var(--error-text)]">
               Enter a reason (at least 10 characters) before {config.errorActionPhrase}.
             </p>
           )}
@@ -175,7 +175,7 @@ export function AdminMutationDialog({ config, onClose, onSuccess }: AdminMutatio
         <p className="mt-3 text-xs text-[var(--text-3)]">{config.stripeImpact}</p>
 
         {failure && (
-          <p role="alert" className="mt-3 text-sm text-[var(--error)]">
+          <p role="alert" className="mt-3 text-sm text-[var(--error-text)]">
             {failure}
           </p>
         )}

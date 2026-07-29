@@ -306,7 +306,7 @@ export function ParkingSection({
           <p className="font-bold">Parking details are unclear.</p><p className="mt-1">{confirmationCopy}</p>
         </div>
       ) : noEvidenceError ? (
-        <div className="mt-3 rounded-lg bg-[color:var(--error-soft)] px-3 py-2 text-[color:var(--error)]" role="status" aria-live="polite" aria-atomic="true">
+        <div className="mt-3 rounded-lg bg-[color:var(--error-soft)] px-3 py-2 text-[color:var(--error-text)]" role="status" aria-live="polite" aria-atomic="true">
           <p className="font-bold">Parking details could not be checked.</p><p className="mt-1">{confirmationCopy}</p>
         </div>
       ) : noEvidence ? (

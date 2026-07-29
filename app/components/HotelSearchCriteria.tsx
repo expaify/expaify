@@ -56,10 +56,10 @@ export function HotelSearchCriteriaSummary({ criteria, surface, status = 'ready'
           <h2 id={headingId} className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--text-3)]">
             {handoff ? 'Before you continue' : 'Your search'}
           </h2>
-          <p className="mt-1 text-[15px] font-semibold leading-6 text-[color:var(--text-1)] sm:text-[16px]">
+          <p className="mt-1 text-[15px] font-medium leading-6 text-[color:var(--text-1)] sm:text-[16px]">
             {destination} <span aria-hidden="true">·</span> {dateDisplay}
           </p>
-          <p className="mt-1 text-[13px] font-semibold leading-5 text-[color:var(--text-1)]">Guests &amp; rooms not captured</p>
+          <p className="mt-1 text-[13px] font-medium leading-5 text-[color:var(--text-1)]">Guests &amp; rooms not captured</p>
           <p className="mt-1 text-[12px] leading-5 text-[color:var(--text-2)]">
             Confirm the price and room fit for your party with the provider.
           </p>
@@ -208,7 +208,7 @@ export function HotelSearchCriteriaEditor({ open, criteria, cities, surface, ent
             <option value="">All destinations</option>
             {cities.map(city => <option key={city} value={city}>{city}</option>)}
           </select>
-          {attempted && validation.destinationInvalid ? <p id={destinationErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error)]">Choose a supported destination or All destinations.</p> : null}
+          {attempted && validation.destinationInvalid ? <p id={destinationErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error-text)]">Choose a supported destination or All destinations.</p> : null}
 
           <fieldset className="mt-5">
             <legend className="mb-2 text-[12px] font-bold text-[color:var(--text-1)]">Check-in window</legend>
@@ -216,12 +216,12 @@ export function HotelSearchCriteriaEditor({ open, criteria, cities, surface, ent
               <div>
                 <label htmlFor={`${titleId}-from`} className="mb-1.5 block text-[12px] font-bold text-[color:var(--text-1)]">From</label>
                 <input id={`${titleId}-from`} type="date" value={draft.dateFrom} onChange={event => setDraft(current => ({ ...current, dateFrom: event.target.value }))} aria-invalid={attempted && (validation.fromInvalid || validation.orderInvalid) ? true : undefined} aria-describedby={attempted && (validation.fromInvalid || validation.orderInvalid) ? fromErrorId : undefined} className={`field-input ${attempted && (validation.fromInvalid || validation.orderInvalid) ? 'border-[color:var(--error)]' : ''}`} />
-                {attempted && validation.fromInvalid ? <p id={fromErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error)]">Enter a valid start for the check-in window.</p> : attempted && orderMessage ? <p id={fromErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error)]">{orderMessage}</p> : null}
+                {attempted && validation.fromInvalid ? <p id={fromErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error-text)]">Enter a valid start for the check-in window.</p> : attempted && orderMessage ? <p id={fromErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error-text)]">{orderMessage}</p> : null}
               </div>
               <div>
                 <label htmlFor={`${titleId}-through`} className="mb-1.5 block text-[12px] font-bold text-[color:var(--text-1)]">Through</label>
                 <input id={`${titleId}-through`} type="date" value={draft.dateTo} onChange={event => setDraft(current => ({ ...current, dateTo: event.target.value }))} aria-invalid={attempted && (validation.throughInvalid || validation.orderInvalid) ? true : undefined} aria-describedby={attempted && (validation.throughInvalid || validation.orderInvalid) ? throughErrorId : undefined} className={`field-input ${attempted && (validation.throughInvalid || validation.orderInvalid) ? 'border-[color:var(--error)]' : ''}`} />
-                {attempted && validation.throughInvalid ? <p id={throughErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error)]">Enter a valid end for the check-in window.</p> : attempted && orderMessage ? <p id={throughErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error)]">{orderMessage}</p> : null}
+                {attempted && validation.throughInvalid ? <p id={throughErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error-text)]">Enter a valid end for the check-in window.</p> : attempted && orderMessage ? <p id={throughErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error-text)]">{orderMessage}</p> : null}
               </div>
             </div>
             <p className="mt-1 text-[12px] leading-5 text-[color:var(--text-2)]">Deals may have different check-out dates and stay lengths.</p>
@@ -229,7 +229,7 @@ export function HotelSearchCriteriaEditor({ open, criteria, cities, surface, ent
 
           <div className="mt-5 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-muted)] p-4">
             <p className="text-[12px] font-bold text-[color:var(--text-1)]">Guests &amp; rooms</p>
-            <p className="mt-1 text-[14px] font-semibold text-[color:var(--text-1)]">Not captured</p>
+            <p className="mt-1 text-[14px] font-medium text-[color:var(--text-1)]">Not captured</p>
             <p className="mt-1 text-[12px] leading-5 text-[color:var(--text-2)]">This version of expaify can&apos;t filter hotel deals by party size yet. Confirm the price and room fit with the provider.</p>
           </div>
 

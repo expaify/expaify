@@ -393,7 +393,7 @@ function StatusPanel({
 }) {
   const toneClasses = {
     amber: 'border-[color:var(--border-strong)] bg-[color:var(--warning-soft)] text-[color:var(--warning)]',
-    red: 'border-[color:var(--border-strong)] bg-[color:var(--error-soft)] text-[color:var(--error)]',
+    red: 'border-[color:var(--border-strong)] bg-[color:var(--error-soft)] text-[color:var(--error-text)]',
     green: 'border-[color:var(--border-strong)] bg-[color:var(--success-soft)] text-[color:var(--success)]',
   }
 
@@ -1181,10 +1181,10 @@ function HotelHandoffReview({
               How requests work
             </summary>
             <ul className="mt-2 space-y-2 pl-5 text-sm leading-6 text-[color:var(--text-2)]">
-              <li><span className="font-semibold text-[color:var(--text-1)]">Selected:</span> You have chosen a preference. expaify does not offer this step.</li>
-              <li><span className="font-semibold text-[color:var(--text-1)]">Sent:</span> The booking service says it submitted the request. Continuing from expaify does not send one.</li>
-              <li><span className="font-semibold text-[color:var(--text-1)]">Acknowledged:</span> The property has replied about the request.</li>
-              <li><span className="font-semibold text-[color:var(--text-1)]">Guaranteed:</span> The property explicitly confirms it for this stay. Until then, treat it as a preference.</li>
+              <li><span className="font-medium text-[color:var(--text-1)]">Selected:</span> You have chosen a preference. expaify does not offer this step.</li>
+              <li><span className="font-medium text-[color:var(--text-1)]">Sent:</span> The booking service says it submitted the request. Continuing from expaify does not send one.</li>
+              <li><span className="font-medium text-[color:var(--text-1)]">Acknowledged:</span> The property has replied about the request.</li>
+              <li><span className="font-medium text-[color:var(--text-1)]">Guaranteed:</span> The property explicitly confirms it for this stay. Until then, treat it as a preference.</li>
             </ul>
           </details>
         </section>

@@ -86,7 +86,7 @@ export function HotelResultStatus({
         ) : null}
       </div>
       {undoError ? (
-        <p role="alert" className="mt-2 text-small font-medium leading-5 text-[color:var(--error)]">
+        <p role="alert" className="mt-2 text-small font-medium leading-5 text-[color:var(--error-text)]">
           We couldn&apos;t restore your previous filters. Try again.
         </p>
       ) : null}
