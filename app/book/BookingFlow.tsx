@@ -29,6 +29,7 @@ import { getHotelFundsAnalyticsDimensions } from '@/lib/hotels/fundsPolicy'
 import type { HotelSmokingPolicyView } from '@/app/components/SmokingPolicyPanel'
 import TrackedSmokingPolicyPanel from '@/app/components/TrackedSmokingPolicyPanel'
 import { HotelBookingOwnershipDisclosure } from '@/app/components/HotelBookingOwnership'
+import { HotelLoyaltyEligibilityDisclosure } from '@/app/components/HotelLoyaltyEligibility'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -37,6 +38,7 @@ type HotelReturnReason =
   | 'price_or_fees_mismatch'
   | 'room_availability_mismatch'
   | 'other_hotel_details_mismatch'
+  | 'loyalty_or_points_uncertainty'
   | 'prefer_not_to_say'
 
 const HOTEL_RETURN_REASONS: ReadonlyArray<{ value: HotelReturnReason; label: string }> = [
@@ -44,6 +46,7 @@ const HOTEL_RETURN_REASONS: ReadonlyArray<{ value: HotelReturnReason; label: str
   { value: 'price_or_fees_mismatch', label: 'Price or fees did not match' },
   { value: 'room_availability_mismatch', label: 'Room availability did not match' },
   { value: 'other_hotel_details_mismatch', label: 'Other hotel details did not match' },
+  { value: 'loyalty_or_points_uncertainty', label: 'Not sure this stay earns points or status' },
   { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ]
 
@@ -733,6 +736,7 @@ function HotelHandoffReview({
   const guidanceViewedRef = useRef(false)
   const helpOpenRef = useRef(false)
   const helpViewedRef = useRef(false)
+  const loyaltyViewedRef = useRef(false)
   const returnArmedRef = useRef(false)
   const hiddenAfterContinueRef = useRef(false)
   const continueStartedAtRef = useRef<number | undefined>(undefined)
@@ -936,6 +940,7 @@ function HotelHandoffReview({
       invoiceNeeded,
       invoiceReadinessStatus: documentReadiness.status,
       helpViewed: helpViewedRef.current,
+      loyaltyDisclosureViewed: loyaltyViewedRef.current,
     })
     if (guidanceViewedRef.current) {
       emitAnalytics('hotel_request_handoff_continued', {
@@ -970,6 +975,16 @@ function HotelHandoffReview({
       partnerHost: analyticsProps.partnerHost,
       partnerNamed: partner.named,
       locationPrecision: analyticsProps.locationPrecision,
+    })
+  }
+
+  const handleLoyaltyDisclosureOpen = () => {
+    loyaltyViewedRef.current = true
+    emitAnalytics('hotel_loyalty_disclosure_opened', {
+      source: analyticsProps.source,
+      partnerHost: analyticsProps.partnerHost,
+      partnerNamed: partner.named,
+      ...(handoffSessionIdRef.current !== undefined ? { handoffSessionId: handoffSessionIdRef.current } : {}),
     })
   }
 
@@ -1084,6 +1099,10 @@ function HotelHandoffReview({
           expaifyIssueRoute={null}
           onOpen={handleBookingOwnershipOpen}
           onContactClick={handleBookingOwnershipContactClick}
+        />
+        <HotelLoyaltyEligibilityDisclosure
+          partner={partner}
+          onOpen={handleLoyaltyDisclosureOpen}
         />
         <div className="mt-5 flex flex-col gap-3">
           <a
