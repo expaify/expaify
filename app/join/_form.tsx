@@ -39,22 +39,22 @@ export default function JoinForm() {
       <div className="w-full max-w-[440px]">
         <a
           href="/"
-          className="mb-10 flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline"
+          className="mb-10 flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline"
         >
           expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
         </a>
 
-        <h1 className="mb-2 font-display text-[28px] font-bold text-[color:var(--ink)]">
+        <h1 className="mb-2 font-display text-2xl font-bold text-[color:var(--ink)]">
           Start your free trial
         </h1>
-        <p className="mb-6 text-[15px] text-[color:var(--ink-soft)]">
+        <p className="mb-6 text-base text-[color:var(--ink-soft)]">
           7 days free. Cancel before day 7 and you pay nothing.
         </p>
 
         {/* Feature list */}
         <ul className="mb-7 flex flex-col gap-2">
           {FEATURES.map(f => (
-            <li key={f} className="flex items-start gap-2.5 text-[13px] text-[color:var(--ink-soft)]">
+            <li key={f} className="flex items-start gap-2.5 text-sm text-[color:var(--ink-soft)]">
               <svg className="mt-px shrink-0 text-[color:var(--primary)]" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
                 <circle cx="7" cy="7" r="7" fill="currentColor" opacity=".15"/>
                 <path d="M4 7l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -66,8 +66,8 @@ export default function JoinForm() {
 
         {sent ? (
           <div className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6 text-center">
-            <p className="font-display text-[17px] font-bold text-[color:var(--ink)]">Check your inbox</p>
-            <p className="mt-2 text-[14px] text-[color:var(--ink-soft)]">
+            <p className="font-display text-base font-bold text-[color:var(--ink)]">Check your inbox</p>
+            <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
               We sent a sign-in link to <strong>{email}</strong>. After you confirm, we&apos;ll take you to checkout.
             </p>
           </div>
@@ -85,7 +85,7 @@ export default function JoinForm() {
                   {p === 'annual' ? (
                     <>
                       Annual
-                      <span className="ml-1 rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-1.5 py-0.5 font-display text-[10px] font-bold leading-none text-[color:var(--gold-text)]">
+                      <span className="ml-1 rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-1.5 py-0.5 font-display text-xs font-bold leading-none text-[color:var(--gold-text)]">
                         2 mo free
                       </span>
                     </>
@@ -98,14 +98,14 @@ export default function JoinForm() {
 
             <div className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-5">
               <div className="flex items-baseline gap-1">
-                <span className="font-display text-[32px] font-bold text-[color:var(--ink)]">
+                <span className="font-display text-2xl font-bold text-[color:var(--ink)]">
                   {plan === 'annual' ? '$8' : '$12'}
                 </span>
-                <span className="text-[14px] text-[color:var(--ink-faint)]">
+                <span className="text-sm text-[color:var(--ink-faint)]">
                   {plan === 'annual' ? '/ month, billed $96/year' : '/ month'}
                 </span>
               </div>
-              <p className="mt-1 text-[13px] text-[color:var(--ink-faint)]">
+              <p className="mt-1 text-sm text-[color:var(--ink-faint)]">
                 7-day free trial — no charge until day 8
               </p>
             </div>
@@ -152,7 +152,7 @@ export default function JoinForm() {
           </>
         )}
 
-        <p className="mt-6 text-center text-[13px] text-[color:var(--ink-faint)]">
+        <p className="mt-6 text-center text-sm text-[color:var(--ink-faint)]">
           Already have an account?{' '}
           <a href="/login" className="text-[color:var(--primary)] no-underline hover:underline">
             Sign in

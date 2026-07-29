@@ -183,7 +183,7 @@ export default function PetProfilePanel({
   if (state === 'loading') {
     return (
       <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3 sm:p-5" aria-busy="true">
-        <h2 className="text-sm font-bold text-[color:var(--text-1)]">Your pet details</h2>
+        <h2 className="text-sm font-medium text-[color:var(--text-1)]">Your pet details</h2>
         <div className="mt-3 space-y-2" aria-hidden="true">
           <div className="skeleton h-4 w-2/3 rounded-[var(--radius-control)]" />
           <div className="skeleton h-4 w-full rounded-[var(--radius-control)]" />
@@ -198,11 +198,11 @@ export default function PetProfilePanel({
     <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3 sm:p-5" aria-busy={busy}>
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-sm font-bold text-[color:var(--text-1)]">{profile ? 'Your pet details' : 'Travelling with a pet?'}</h2>
+          <h2 className="text-sm font-medium text-[color:var(--text-1)]">{profile ? 'Your pet details' : 'Travelling with a pet?'}</h2>
           {profile ? <p className="mt-1 break-words text-sm font-medium text-[color:var(--text-2)]">{profileSummary(profile)}</p> : null}
           <p className="mt-1 text-xs leading-5 text-[color:var(--text-3)]">We compare your details with policies returned by hotel providers. Always confirm final acceptance and charges before booking.</p>
         </div>
-        <button ref={triggerRef} type="button" onClick={openEditor} disabled={busy} aria-expanded={open} className="btn-outline min-h-11 shrink-0 rounded-[var(--radius-control)] px-3 text-sm font-bold">
+        <button ref={triggerRef} type="button" onClick={openEditor} disabled={busy} aria-expanded={open} className="btn-outline min-h-11 shrink-0 rounded-[var(--radius-control)] px-3 text-sm font-medium">
           {profile ? 'Edit pet details' : 'Add pet details'}
         </button>
       </div>
@@ -210,7 +210,7 @@ export default function PetProfilePanel({
       {state === 'error' ? (
         <div ref={errorRef} tabIndex={-1} role="alert" className="mt-3 rounded-[var(--radius-control)] bg-[color:var(--error-soft)] px-3 py-2 text-sm font-medium text-[color:var(--text-1)]">
           <p>We couldn&apos;t apply your pet details. Your hotel results have not changed.</p>
-          {onRetry ? <button type="button" onClick={onRetry} className="mt-2 min-h-11 font-bold underline underline-offset-4">Try again</button> : null}
+          {onRetry ? <button type="button" onClick={onRetry} className="mt-2 min-h-11 font-medium underline underline-offset-4">Try again</button> : null}
         </div>
       ) : null}
 
@@ -223,7 +223,7 @@ export default function PetProfilePanel({
           ) : null}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <fieldset aria-describedby="pet-type-error" aria-invalid={Boolean(errors.type && touched.has('type'))}>
-              <legend className="block text-sm font-bold text-[color:var(--text-1)]">Type of pet</legend>
+              <legend className="block text-sm font-medium text-[color:var(--text-1)]">Type of pet</legend>
               <div className="mt-1 grid grid-cols-1 gap-2">
                 {(['dog', 'cat', 'other'] as const).map((type, index) => (
                   <RadioOption key={type} inputRef={index === 0 ? typeRef : undefined} field={index === 0 ? 'type' : undefined} name="pet-type" value={type} checked={draft.type === type} disabled={busy} onChange={() => setDraft(current => ({ ...current, type }))} onBlur={() => markTouched('type')} describedBy="pet-type-error">
@@ -236,7 +236,7 @@ export default function PetProfilePanel({
 
             {draft.type === 'other' ? (
               <div className="sm:col-span-2">
-                <label htmlFor="pet-other-type" className="block text-sm font-bold text-[color:var(--text-1)]">Animal type</label>
+                <label htmlFor="pet-other-type" className="block text-sm font-medium text-[color:var(--text-1)]">Animal type</label>
                 <input id="pet-other-type" data-pet-field="otherAnimalType" className={`field-input mt-1 ${errors.otherAnimalType && touched.has('otherAnimalType') ? 'border-[color:var(--error)]' : ''}`} value={draft.otherAnimalType} disabled={busy} onChange={event => setDraft(current => ({ ...current, otherAnimalType: event.target.value }))} onBlur={() => markTouched('otherAnimalType')} aria-invalid={Boolean(errors.otherAnimalType && touched.has('otherAnimalType'))} aria-describedby="pet-other-helper pet-other-error" />
                 <p id="pet-other-helper" className="mt-1 text-xs leading-5 text-[color:var(--text-3)]">Enter the animal type shown in the hotel&apos;s policy, if known.</p>
                 <FieldError id="pet-other-error">{touched.has('otherAnimalType') ? errors.otherAnimalType : undefined}</FieldError>
@@ -244,14 +244,14 @@ export default function PetProfilePanel({
             ) : null}
 
             <div>
-              <label htmlFor="pet-count" className="block text-sm font-bold text-[color:var(--text-1)]">Number of pets</label>
+              <label htmlFor="pet-count" className="block text-sm font-medium text-[color:var(--text-1)]">Number of pets</label>
               <input id="pet-count" data-pet-field="count" className={`field-input mt-1 ${errors.count && touched.has('count') ? 'border-[color:var(--error)]' : ''}`} type="number" inputMode="numeric" min="1" max="9" step="1" value={draft.count} disabled={busy} onChange={event => updateCount(event.target.value)} onBlur={() => markTouched('count')} aria-invalid={Boolean(errors.count && touched.has('count'))} aria-describedby="pet-count-helper pet-count-error" />
               <p id="pet-count-helper" className="mt-1 text-xs leading-5 text-[color:var(--text-3)]">Enter the total travelling on this stay.</p>
               <FieldError id="pet-count-error">{touched.has('count') ? errors.count : undefined}</FieldError>
             </div>
 
             <fieldset className="sm:col-span-2" aria-describedby="pet-weight-known-error" aria-invalid={Boolean(errors.knowsWeights && touched.has('knowsWeights'))}>
-              <legend className="block text-sm font-bold text-[color:var(--text-1)]">Do you know each pet&apos;s weight?</legend>
+              <legend className="block text-sm font-medium text-[color:var(--text-1)]">Do you know each pet&apos;s weight?</legend>
               <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <RadioOption field="knowsWeights" name="pet-weight-known" value="yes" checked={draft.knowsWeights === 'yes'} disabled={busy} onChange={() => setDraft(current => ({ ...current, knowsWeights: 'yes' }))} onBlur={() => markTouched('knowsWeights')} describedBy="pet-weight-known-error">Yes</RadioOption>
                 <RadioOption name="pet-weight-known" value="unsure" checked={draft.knowsWeights === 'unsure'} disabled={busy} onChange={() => setDraft(current => ({ ...current, knowsWeights: 'unsure' }))} onBlur={() => markTouched('knowsWeights')} describedBy="pet-weight-known-error">Not sure</RadioOption>
@@ -263,7 +263,7 @@ export default function PetProfilePanel({
               const error = errors[`weight-${index}`]
               return (
                 <div key={index}>
-                  <label htmlFor={`pet-weight-${index}`} className="block text-sm font-bold text-[color:var(--text-1)]">Pet {index + 1} weight</label>
+                  <label htmlFor={`pet-weight-${index}`} className="block text-sm font-medium text-[color:var(--text-1)]">Pet {index + 1} weight</label>
                   <div className="mt-1 grid grid-cols-[minmax(0,1fr)_5rem] gap-2">
                     <input id={`pet-weight-${index}`} data-pet-field={`weight-${index}`} className={`field-input ${error && touched.has(`weight-${index}`) ? 'border-[color:var(--error)]' : ''}`} type="number" inputMode="decimal" min="0.1" step="0.1" value={weight.value} disabled={busy} onChange={event => setDraft(current => ({ ...current, weights: current.weights.map((item, itemIndex) => itemIndex === index ? { ...item, value: event.target.value } : item) }))} onBlur={() => markTouched(`weight-${index}`)} aria-invalid={Boolean(error && touched.has(`weight-${index}`))} aria-describedby={`pet-weight-helper-${index} pet-weight-error-${index}`} />
                     <select aria-label={`Pet ${index + 1} weight unit`} className="field-input" value={weight.unit} disabled={busy} onChange={event => setDraft(current => ({ ...current, weights: current.weights.map((item, itemIndex) => itemIndex === index ? { ...item, unit: event.target.value as PetWeightUnit } : item) }))}>
@@ -279,21 +279,21 @@ export default function PetProfilePanel({
           </div>
 
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-            {profile ? <button type="button" disabled={busy} onClick={() => { setOpen(false); triggerRef.current?.focus() }} className="min-h-11 px-3 text-sm font-bold text-[color:var(--text-1)]">Cancel changes</button> : null}
-            <button type="submit" disabled={busy} className="btn-primary min-h-11 rounded-[var(--radius-control)] px-4 text-sm font-bold">{busy ? 'Checking hotel policies…' : profile ? 'Update policy matches' : 'Check hotel policies'}</button>
+            {profile ? <button type="button" disabled={busy} onClick={() => { setOpen(false); triggerRef.current?.focus() }} className="min-h-11 px-3 text-sm font-medium text-[color:var(--text-1)]">Cancel changes</button> : null}
+            <button type="submit" disabled={busy} className="btn-primary min-h-11 rounded-[var(--radius-control)] px-4 text-sm font-medium">{busy ? 'Checking hotel policies…' : profile ? 'Update policy matches' : 'Check hotel policies'}</button>
           </div>
         </form>
       ) : null}
 
       {profile && !open && onRemove ? (
         <div className="mt-3">
-          <button type="button" disabled={busy} onClick={() => setConfirmingRemoval(true)} className="min-h-11 text-sm font-bold underline underline-offset-4">Remove pet details</button>
+          <button type="button" disabled={busy} onClick={() => setConfirmingRemoval(true)} className="min-h-11 text-sm font-medium underline underline-offset-4">Remove pet details</button>
           {confirmingRemoval ? (
             <div className="mt-2 rounded-[var(--radius-control)] bg-[color:var(--warning-soft)] px-3 py-2 text-sm font-medium text-[color:var(--warning)]">
               <p>Remove these pet details? Hotel policy matches will no longer be shown.</p>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                <button type="button" disabled={busy} className="min-h-11 px-3 font-bold" onClick={() => setConfirmingRemoval(false)}>Keep details</button>
-                <button type="button" disabled={busy} className="min-h-11 px-3 font-bold underline underline-offset-4" onClick={async () => { await onRemove(); setConfirmingRemoval(false); triggerRef.current?.focus() }}>Remove details</button>
+                <button type="button" disabled={busy} className="min-h-11 px-3 font-medium" onClick={() => setConfirmingRemoval(false)}>Keep details</button>
+                <button type="button" disabled={busy} className="min-h-11 px-3 font-medium underline underline-offset-4" onClick={async () => { await onRemove(); setConfirmingRemoval(false); triggerRef.current?.focus() }}>Remove details</button>
               </div>
             </div>
           ) : null}

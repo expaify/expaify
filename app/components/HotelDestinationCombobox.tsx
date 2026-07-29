@@ -284,7 +284,7 @@ export default function HotelDestinationCombobox({
     <div ref={rootRef} className="relative w-full min-w-0 space-y-2">
       <label
         htmlFor={id}
-        className="block text-[12px] font-bold leading-5 text-[var(--text-1)]"
+        className="block text-xs font-medium leading-5 text-[var(--text-1)]"
       >
         Hotel destination
       </label>
@@ -355,7 +355,7 @@ export default function HotelDestinationCombobox({
                       : ''
                   }`}
                 >
-                  <span className="block break-words text-sm font-bold leading-5 text-[var(--text-1)]">
+                  <span className="block break-words text-sm font-medium leading-5 text-[var(--text-1)]">
                     {destination.name}
                   </span>
                   <span className="mt-0.5 block break-words text-xs font-medium leading-5 text-[var(--text-2)]">
@@ -376,13 +376,13 @@ export default function HotelDestinationCombobox({
 
       {selectedDestination && !editing ? (
         <div id={helperId} className="flex items-start justify-between gap-3">
-          <p className="min-w-0 break-words text-xs font-bold leading-5 text-[var(--success)]">
+          <p className="min-w-0 break-words text-xs font-medium leading-5 text-[var(--success)]">
             {hotelDestinationScopeHelper(selectedDestination)}
           </p>
           <button
             type="button"
             onClick={beginEdit}
-            className="inline-flex min-h-11 shrink-0 items-center text-xs font-bold text-[var(--brand)] underline-offset-4 hover:underline"
+            className="inline-flex min-h-11 shrink-0 items-center text-xs font-medium text-[var(--brand)] underline-offset-4 hover:underline"
           >
             Edit destination
           </button>
@@ -394,7 +394,7 @@ export default function HotelDestinationCombobox({
       )}
 
       {fieldError ? (
-        <p id={errorId} role="alert" className="text-xs font-bold leading-5 text-[var(--error-text)]">
+        <p id={errorId} role="alert" className="text-xs font-medium leading-5 text-[var(--error-text)]">
           {fieldError}
         </p>
       ) : null}
@@ -447,7 +447,7 @@ function LookupMessage({
   if (state === 'empty') {
     return (
       <div className="px-4 py-3">
-        <p className="break-words text-sm font-bold text-[var(--text-1)]">
+        <p className="break-words text-sm font-medium text-[var(--text-1)]">
           No destinations found for “{query}”.
         </p>
         <p className="mt-1 text-xs font-medium leading-5 text-[var(--text-2)]">
@@ -460,7 +460,7 @@ function LookupMessage({
   if (state === 'error') {
     return (
       <div className="rounded-[var(--radius-control)] bg-[var(--error-soft)] px-4 py-3" role="alert">
-        <p className="text-sm font-bold leading-5 text-[var(--text-1)]">
+        <p className="text-sm font-medium leading-5 text-[var(--text-1)]">
           Destination search is unavailable right now. Try again.
         </p>
         <div className="mt-3 flex flex-col items-stretch gap-2 min-[480px]:flex-row">

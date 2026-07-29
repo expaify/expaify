@@ -13,8 +13,8 @@ export default function LoadingDealDetail() {
           <span className="sr-only">Restoring your search…</span>
           <div aria-hidden="true" className="space-y-3">
             <div className="skeleton h-3 w-24 rounded-full" />
-            <div className="skeleton h-5 w-3/4 rounded" />
-            <div className="skeleton h-4 w-1/2 rounded" />
+            <div className="skeleton h-5 w-3/4 rounded-[var(--radius-pill)]" />
+            <div className="skeleton h-4 w-1/2 rounded-[var(--radius-pill)]" />
           </div>
         </section>
         <div className="skeleton mb-6 h-[220px] rounded-[var(--radius-card)] min-[680px]:h-[320px]" />

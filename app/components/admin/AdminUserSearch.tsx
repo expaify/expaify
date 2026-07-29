@@ -93,7 +93,7 @@ export function AdminUserSearch() {
         <button
           type="submit"
           disabled={state.kind === 'loading'}
-          className="min-h-11 rounded-[var(--radius-control)] bg-[var(--brand)] px-4 text-sm font-bold text-[var(--text-inverse)] disabled:opacity-60 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          className="min-h-11 rounded-[var(--radius-control)] bg-[var(--brand)] px-4 text-sm font-medium text-[var(--text-inverse)] disabled:opacity-60 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         >
           {state.kind === 'loading' ? 'Searching…' : 'Search'}
         </button>
@@ -127,7 +127,7 @@ export function AdminUserSearch() {
             <button
               type="button"
               onClick={() => void runSearch(value.trim())}
-              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 text-sm font-bold text-[var(--text-1)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 text-sm font-medium text-[var(--text-1)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             >
               Try again
             </button>
@@ -218,19 +218,19 @@ function ResultArea({
       </p>
       <div className="mt-4 flex flex-col gap-3">
         <div className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
-          <p className="text-sm font-bold text-[var(--text-1)]">Registered account</p>
+          <p className="text-sm font-medium text-[var(--text-1)]">Registered account</p>
           <div className="mt-2">
             <AdminResultRow account={account!} />
           </div>
         </div>
         <div className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-bold text-[var(--text-1)]">Public price alerts ({publicAlerts.length})</p>
+            <p className="text-sm font-medium text-[var(--text-1)]">Public price alerts ({publicAlerts.length})</p>
             <button
               type="button"
               onClick={() => setShowAlertsInline(!showAlertsInline)}
               aria-expanded={showAlertsInline}
-              className="text-sm font-bold text-[var(--brand)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              className="text-sm font-medium text-[var(--brand)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             >
               {showAlertsInline ? 'Hide alerts' : 'View alerts'}
             </button>

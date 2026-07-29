@@ -18,7 +18,7 @@ export default async function AuthErrorPage({
       <div className="w-full max-w-[400px]">
         <a
           href="/"
-          className="mb-10 flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline"
+          className="mb-10 flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline"
         >
           expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
         </a>
@@ -31,10 +31,10 @@ export default async function AuthErrorPage({
             </svg>
           </div>
 
-          <h1 className="text-center font-display text-[22px] font-bold text-[color:var(--ink)]">
+          <h1 className="text-center font-display text-xl font-bold text-[color:var(--ink)]">
             Sign-in failed
           </h1>
-          <p className="mt-3 text-center text-[15px] leading-relaxed text-[color:var(--ink-soft)]">
+          <p className="mt-3 text-center text-base leading-relaxed text-[color:var(--ink-soft)]">
             {message}
           </p>
 

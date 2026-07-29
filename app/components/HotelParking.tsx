@@ -199,7 +199,7 @@ function distanceCopy(option: HotelParkingOptionEvidence): string | null {
 function ParkingFact({ label, children, muted = false }: { label: string; children: React.ReactNode; muted?: boolean }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">{label}</dt>
+      <dt className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">{label}</dt>
       <dd className={`mt-1 break-words text-small font-medium leading-5 ${muted ? 'text-[color:var(--text-3)]' : 'text-[color:var(--text-1)]'}`}>{children}</dd>
     </div>
   )
@@ -263,7 +263,7 @@ export function ParkingSummary(props: HotelParkingUiProps) {
   const isError = props.evidence?.state === 'error'
   const isWarning = props.malformed || props.evidence?.conflict || copy.includes('unclear') || copy.includes('No space') || copy.includes('failed')
   return (
-    <div className="mt-3 flex min-w-0 items-start gap-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-2 text-small leading-5 text-[color:var(--text-2)]">
+    <div className="mt-3 flex min-w-0 items-start gap-2 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-2 text-small leading-5 text-[color:var(--text-2)]">
       <span aria-hidden="true" className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${isError ? 'bg-[color:var(--error)]' : isWarning ? 'bg-[color:var(--warning)]' : 'bg-[color:var(--text-3)]'}`} />
       <p className="min-w-0 whitespace-normal break-words" role={isLoading || isError ? 'status' : undefined} aria-live={isLoading || isError ? 'polite' : undefined} aria-atomic={isLoading || isError ? 'true' : undefined}>{copy}</p>
     </div>
@@ -290,8 +290,8 @@ export function ParkingSection({
   const heading = bookingReview ? 'Parking for this stay' : 'Parking'
 
   return (
-    <section aria-labelledby={titleId} className={`${bookingReview ? 'rounded-lg px-4 py-4 sm:px-5 sm:py-5' : 'rounded-[var(--radius-card)] px-3.5 py-3 sm:px-4 sm:py-4'} border border-[color:var(--border)] bg-[color:var(--bg-raised)] text-small leading-5 text-[color:var(--text-2)]`}>
-      <h3 id={titleId} className="text-sm font-bold text-[color:var(--text-1)]">{heading}</h3>
+    <section aria-labelledby={titleId} className={`${bookingReview ? 'rounded-[var(--radius-control)] px-4 py-4 sm:px-5 sm:py-5' : 'rounded-[var(--radius-card)] px-3.5 py-3 sm:px-4 sm:py-4'} border border-[color:var(--border)] bg-[color:var(--bg-raised)] text-small leading-5 text-[color:var(--text-2)]`}>
+      <h3 id={titleId} className="text-sm font-medium text-[color:var(--text-1)]">{heading}</h3>
       {initialLoading ? (
         <div className="mt-3" role="status" aria-live="polite" aria-atomic="true">
           <p>Checking parking details…</p>
@@ -302,27 +302,27 @@ export function ParkingSection({
           </div>
         </div>
       ) : malformed || allUnknown ? (
-        <div className="mt-3 rounded-lg bg-[color:var(--warning-soft)] px-3 py-2 text-[color:var(--warning)]" role={bookingReview ? 'status' : undefined} aria-live={bookingReview ? 'polite' : undefined}>
-          <p className="font-bold">Parking details are unclear.</p><p className="mt-1">{confirmationCopy}</p>
+        <div className="mt-3 rounded-[var(--radius-control)] bg-[color:var(--warning-soft)] px-3 py-2 text-[color:var(--warning)]" role={bookingReview ? 'status' : undefined} aria-live={bookingReview ? 'polite' : undefined}>
+          <p className="font-medium">Parking details are unclear.</p><p className="mt-1">{confirmationCopy}</p>
         </div>
       ) : noEvidenceError ? (
-        <div className="mt-3 rounded-lg bg-[color:var(--error-soft)] px-3 py-2 text-[color:var(--error-text)]" role="status" aria-live="polite" aria-atomic="true">
-          <p className="font-bold">Parking details could not be checked.</p><p className="mt-1">{confirmationCopy}</p>
+        <div className="mt-3 rounded-[var(--radius-control)] bg-[color:var(--error-soft)] px-3 py-2 text-[color:var(--error-text)]" role="status" aria-live="polite" aria-atomic="true">
+          <p className="font-medium">Parking details could not be checked.</p><p className="mt-1">{confirmationCopy}</p>
         </div>
       ) : noEvidence ? (
-        <div className="mt-3 rounded-lg bg-[color:var(--bg-muted)] px-3 py-2 text-[color:var(--text-3)]">
-          <p className="font-bold text-[color:var(--text-2)]">Parking details not provided.</p><p className="mt-1">{confirmationCopy}</p>
+        <div className="mt-3 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-3 py-2 text-[color:var(--text-3)]">
+          <p className="font-medium text-[color:var(--text-2)]">Parking details not provided.</p><p className="mt-1">{confirmationCopy}</p>
         </div>
       ) : unavailable ? (
-        <div className="mt-3 rounded-lg bg-[color:var(--bg-muted)] px-3 py-2">
-          <p className="font-bold text-[color:var(--text-1)]">{source ?? 'The provider'} reports no parking option at this property.</p>
+        <div className="mt-3 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-3 py-2">
+          <p className="font-medium text-[color:var(--text-1)]">{source ?? 'The provider'} reports no parking option at this property.</p>
           <p className="mt-1 text-[color:var(--text-3)]">This is a property-level statement; street or third-party options were not assessed unless listed separately.</p>
         </div>
       ) : (
         <>
           {evidence?.conflict ? (
-            <div className="mt-3 rounded-lg bg-[color:var(--warning-soft)] px-3 py-2 text-[color:var(--warning)]">
-              <p className="font-bold">Parking details conflict.</p><p className="mt-1">{conflictCopy(conflictDimensions)}</p>
+            <div className="mt-3 rounded-[var(--radius-control)] bg-[color:var(--warning-soft)] px-3 py-2 text-[color:var(--warning)]">
+              <p className="font-medium">Parking details conflict.</p><p className="mt-1">{conflictCopy(conflictDimensions)}</p>
             </div>
           ) : null}
           <p className="mt-2 text-[color:var(--text-3)]">{options.length > 1 ? `${options.length} parking options reported. ` : ''}Property details and stay-specific space status are shown separately.</p>
@@ -330,12 +330,12 @@ export function ParkingSection({
             {options.map((option, index) => <ParkingOption key={option.id} option={option} index={index} hasSearchDates={hasSearchDates} />)}
           </ul>
           {evidence?.state === 'loading' ? <p className="mt-3 text-[color:var(--text-3)]" role="status" aria-live="polite" aria-atomic="true">Refreshing parking details…</p> : null}
-          {evidence?.state === 'error' ? <p className="mt-3 rounded-lg bg-[color:var(--warning-soft)] px-3 py-2 text-[color:var(--warning)]" role="status" aria-live="polite" aria-atomic="true">The latest parking check failed. Confirm these details with the booking partner.</p> : null}
+          {evidence?.state === 'error' ? <p className="mt-3 rounded-[var(--radius-control)] bg-[color:var(--warning-soft)] px-3 py-2 text-[color:var(--warning)]" role="status" aria-live="polite" aria-atomic="true">The latest parking check failed. Confirm these details with the booking partner.</p> : null}
         </>
       )}
       {bookingReview ? (
         <div className="mt-4 border-t border-[color:var(--border)] pt-4">
-          <p className="font-bold text-[color:var(--text-1)]">Before you pay</p>
+          <p className="font-medium text-[color:var(--text-1)]">Before you pay</p>
           <p className="mt-1 text-[color:var(--text-2)]">{getParkingBeforePay({ evidence, malformed })}</p>
         </div>
       ) : null}

@@ -29,7 +29,7 @@ describe('WatchCityPill initial states', () => {
 
     expect(html).toContain('aria-pressed="false"')
     expect(html).toContain('aria-disabled="true"')
-    expect(html).toContain('opacity-60')
+    expect(html).toContain('opacity-55')
     expect(html.match(/Watch Miami/g)).toHaveLength(1)
   })
 })

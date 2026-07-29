@@ -182,14 +182,14 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[1120px] flex-col px-5 py-6 sm:py-8">
       <header className="flex items-center justify-between gap-4">
-        <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
+        <a href="/" className="flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline">
           expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
         </a>
         <button
           type="button"
           onClick={complete}
           disabled={saving}
-          className="rounded-[var(--radius-pill)] px-4 py-2 text-[14px] font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] disabled:opacity-60"
+          className="rounded-[var(--radius-pill)] px-4 py-2 text-sm font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] disabled:opacity-60"
         >
           Skip
         </button>
@@ -217,15 +217,15 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
           <div>
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="mb-2 text-[13px] font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Step 1 of 3</p>
-                <h1 ref={headingRef} tabIndex={-1} className="font-display text-[32px] font-bold leading-tight text-[color:var(--ink)] sm:text-[44px]">
+                <p className="mb-2 text-sm font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Step 1 of 3</p>
+                <h1 ref={headingRef} tabIndex={-1} className="font-display text-2xl font-bold leading-tight text-[color:var(--ink)] sm:text-4xl">
                   Where do you dream of going?
                 </h1>
-                <p className="mt-3 max-w-[620px] text-[15px] text-[color:var(--ink-soft)]">
+                <p className="mt-3 max-w-[620px] text-base text-[color:var(--ink-soft)]">
                   Pick up to 10 destinations. Leaving this open watches every expaify market.
                 </p>
               </div>
-              <p className="hidden text-[14px] font-medium text-[color:var(--primary)] sm:block">{selectedLabel}</p>
+              <p className="hidden text-sm font-medium text-[color:var(--primary)] sm:block">{selectedLabel}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -259,11 +259,11 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
                     />
                     <span className="absolute inset-0 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--ink)_4%,transparent)_0%,color-mix(in_srgb,var(--ink)_68%,transparent)_100%)]" aria-hidden />
                     <span className="absolute inset-x-0 bottom-0 p-3 text-white">
-                      <span className="block font-display text-[17px] font-bold leading-tight">{market.city}</span>
-                      <span className="text-[12px] font-medium opacity-85">{market.iata} · {market.country}</span>
+                      <span className="block font-display text-base font-bold leading-tight">{market.city}</span>
+                      <span className="text-xs font-medium opacity-85">{market.iata} · {market.country}</span>
                     </span>
                     {selected ? (
-                      <span className="absolute right-3 top-3 rounded-[var(--radius-pill)] bg-[color:var(--surface)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--primary)]">
+                      <span className="absolute right-3 top-3 rounded-[var(--radius-pill)] bg-[color:var(--surface)] px-2.5 py-1 text-xs font-medium text-[color:var(--primary)]">
                         Selected
                       </span>
                     ) : null}
@@ -297,7 +297,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
         ) : null}
 
         {error ? (
-          <div className="mt-5 rounded-[var(--radius-input)] border border-[color:var(--error)] bg-[color:var(--error-soft)] px-4 py-3 text-[14px] font-medium text-[color:var(--ink)]" role="alert">
+          <div className="mt-5 rounded-[var(--radius-input)] border border-[color:var(--error)] bg-[color:var(--error-soft)] px-4 py-3 text-sm font-medium text-[color:var(--ink)]" role="alert">
             <p>{error}</p>
             <button type="button" onClick={retry} disabled={saving} className="btn btn-outline mt-3">
               Try again
@@ -307,7 +307,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
       </section>
 
       <div className="sticky bottom-0 z-20 -mx-5 mt-8 border-t border-[color:var(--line-ivory)] bg-[color:var(--bg)] px-5 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
-        <p className="mb-2 text-center text-[12px] text-[color:var(--ink-faint)]">
+        <p className="mb-2 text-center text-xs text-[color:var(--ink-faint)]">
           You can change any of this later in{' '}
           <a href="/account" className="font-medium text-[color:var(--primary)] no-underline hover:underline">
             Account
@@ -324,9 +324,9 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
             Back
           </button>
           <div aria-live="polite" className="text-center">
-            <p className="text-[12px] font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Step {step + 1} of 3</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Step {step + 1} of 3</p>
             {step === 0 ? (
-              <p className="text-[14px] font-medium text-[color:var(--primary)]">{selectedLabel}</p>
+              <p className="text-sm font-medium text-[color:var(--primary)]">{selectedLabel}</p>
             ) : null}
           </div>
           <button
@@ -360,8 +360,8 @@ function ChoiceStep<T extends string | number>({
 }) {
   return (
     <div className="mx-auto w-full max-w-[760px]">
-      <p className="mb-2 text-[13px] font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">{eyebrow}</p>
-      <h1 ref={headingRef} tabIndex={-1} className="font-display text-[32px] font-bold leading-tight text-[color:var(--ink)] sm:text-[44px]">
+      <p className="mb-2 text-sm font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">{eyebrow}</p>
+      <h1 ref={headingRef} tabIndex={-1} className="font-display text-2xl font-bold leading-tight text-[color:var(--ink)] sm:text-4xl">
         {title}
       </h1>
       <div className="mt-7 grid gap-3">
@@ -380,18 +380,18 @@ function ChoiceStep<T extends string | number>({
               }`}
             >
               <span className="flex flex-wrap items-center gap-2">
-                <span className="font-display text-[22px] font-bold leading-tight">{option.label}</span>
+                <span className="font-display text-xl font-bold leading-tight">{option.label}</span>
                 {option.chip ? (
-                  <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-2 py-0.5 font-display text-[12px] font-bold leading-none text-[color:var(--gold-text)]">
+                  <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-2 py-0.5 font-display text-xs font-bold leading-none text-[color:var(--gold-text)]">
                     {option.chip}
                   </span>
                 ) : null}
               </span>
-              <span className={`mt-1 block text-[14px] ${selected ? 'text-white/85' : 'text-[color:var(--ink-soft)]'}`}>
+              <span className={`mt-1 block text-sm ${selected ? 'text-white/85' : 'text-[color:var(--ink-soft)]'}`}>
                 {option.detail}
               </span>
               {option.disclosure ? (
-                <span className={`mt-2 block text-[13px] ${selected ? 'text-white/85' : 'text-[color:var(--ink-soft)]'}`}>
+                <span className={`mt-2 block text-sm ${selected ? 'text-white/85' : 'text-[color:var(--ink-soft)]'}`}>
                   {option.disclosure}
                 </span>
               ) : null}

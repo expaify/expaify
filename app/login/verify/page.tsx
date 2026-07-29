@@ -4,7 +4,7 @@ export default function VerifyPage() {
       <div className="w-full max-w-[400px] text-center">
         <a
           href="/"
-          className="mb-10 inline-flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline"
+          className="mb-10 inline-flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline"
         >
           expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
         </a>
@@ -20,8 +20,8 @@ export default function VerifyPage() {
               />
             </svg>
           </div>
-          <h1 className="font-display text-[22px] font-bold text-[color:var(--ink)]">Check your inbox</h1>
-          <p className="mt-3 text-[15px] leading-relaxed text-[color:var(--ink-soft)]">
+          <h1 className="font-display text-xl font-bold text-[color:var(--ink)]">Check your inbox</h1>
+          <p className="mt-3 text-base leading-relaxed text-[color:var(--ink-soft)]">
             A sign-in link is on its way. Click it to access your account — the link expires in 24 hours.
           </p>
 
@@ -32,7 +32,7 @@ export default function VerifyPage() {
             Open email app
           </a>
 
-          <p className="mt-5 text-[13px] text-[color:var(--ink-faint)]">
+          <p className="mt-5 text-sm text-[color:var(--ink-faint)]">
             Didn&apos;t get it? Check spam, or{' '}
             <a href="/login" className="text-[color:var(--primary)] no-underline hover:underline">
               try again

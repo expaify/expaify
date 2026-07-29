@@ -9,7 +9,7 @@ export function AdminForbidden() {
         </p>
         <a
           href="/account"
-          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] bg-[var(--brand)] px-4 text-sm font-bold text-[var(--text-inverse)] no-underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] bg-[var(--brand)] px-4 text-sm font-medium text-[var(--text-inverse)] no-underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         >
           Back to your account
         </a>
@@ -28,7 +28,7 @@ export function AdminRoleCheckError() {
         </p>
         <a
           href="."
-          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 text-sm font-bold text-[var(--text-1)] no-underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 text-sm font-medium text-[var(--text-1)] no-underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
         >
           Try again
         </a>

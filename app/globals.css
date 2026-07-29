@@ -5,6 +5,30 @@
   --font-sans: var(--font-inter);
 }
 
+/* Tailwind's default font sizes are remapped onto the expaify type scale so that
+   `text-sm`/`text-xs`/etc. cannot land off-scale. These are the same seven steps
+   declared as .text-* component classes below — 11.5 / 13 / 15 / 20 / 30 / 36.
+   `text-xl`, `text-3xl` and `text-4xl` already matched the scale and are pinned
+   here so a future Tailwind default change cannot drift them. */
+@theme {
+  --text-xs: 11.5px;
+  --text-xs--line-height: 1.6;
+  --text-sm: 13px;
+  --text-sm--line-height: 1.6;
+  --text-base: 15px;
+  --text-base--line-height: 1.6;
+  --text-lg: 20px;
+  --text-lg--line-height: 1.1;
+  --text-xl: 20px;
+  --text-xl--line-height: 1.1;
+  --text-2xl: 30px;
+  --text-2xl--line-height: 1.1;
+  --text-3xl: 30px;
+  --text-3xl--line-height: 1.1;
+  --text-4xl: 36px;
+  --text-4xl--line-height: 1.1;
+}
+
 :root {
   color-scheme: light;
   --bg: #FAF7F2;
@@ -19,7 +43,7 @@
   --accent: #FF6B4A;
   --gold: #D9A441;
   --gold-text: #412402; /* text ON --gold fills; AA 6.3:1 */
-  --gold-deep: #96701F; /* gold as a mark/text ON light surfaces; AA 4.5:1 on --bg and --surface */
+  --gold-deep: #8C6A1D; /* gold as a mark/text ON light surfaces; AA 4.69:1 on --bg, 5.01:1 on --surface */
   --accent-text: #A83019; /* coral as text ON light surfaces; AA 6.3:1 on --bg, 6.0:1 on --error-soft */
   --line-ivory: #E8E2D8;
   --line-white: #D8D2C6;

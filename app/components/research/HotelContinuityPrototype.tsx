@@ -103,7 +103,7 @@ function contextHeading(impactType: PrototypeContinuityDisclosure['context']['im
 function MetadataItem({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="font-bold text-[color:var(--text-1)]">{label}</dt>
+      <dt className="font-medium text-[color:var(--text-1)]">{label}</dt>
       <dd className="break-words text-[color:var(--text-2)]">{children}</dd>
     </div>
   )
@@ -131,8 +131,8 @@ function AtomicFact({ fact }: { fact: PrototypeContinuityFact }) {
   const titleId = `continuity-fact-${fact.id}`
   return (
     <section className="mt-3 border-t border-[color:var(--border)] pt-3" aria-labelledby={titleId}>
-      <h4 id={titleId} className="text-[13px] font-bold leading-5 text-[color:var(--text-1)]">{fact.title}</h4>
-      <p className="mt-1 text-[13px] leading-5 text-[color:var(--text-2)]">{fact.documentedClaim}</p>
+      <h4 id={titleId} className="text-sm font-medium leading-5 text-[color:var(--text-1)]">{fact.title}</h4>
+      <p className="mt-1 text-sm leading-5 text-[color:var(--text-2)]">{fact.documentedClaim}</p>
       <dl className="mt-3 grid gap-2 text-caption leading-5 min-[680px]:grid-cols-2">
         <MetadataItem label="Scope">{SCOPE_LABELS[fact.scope]}</MetadataItem>
         <MetadataItem label="Documented services">
@@ -159,9 +159,9 @@ function AtomicFact({ fact }: { fact: PrototypeContinuityFact }) {
 function LoadingLines() {
   return (
     <div aria-hidden="true" className="mt-3 space-y-2">
-      <div className="skeleton h-3 w-full rounded" />
-      <div className="skeleton h-3 w-4/5 rounded" />
-      <div className="skeleton h-3 w-2/3 rounded" />
+      <div className="skeleton h-3 w-full rounded-[var(--radius-pill)]" />
+      <div className="skeleton h-3 w-4/5 rounded-[var(--radius-pill)]" />
+      <div className="skeleton h-3 w-2/3 rounded-[var(--radius-pill)]" />
     </div>
   )
 }
@@ -210,8 +210,8 @@ export function HotelContinuityPrototype({ dealId, hotelName, fixtureId, disclos
       <section aria-labelledby={titleId} className="card mt-4 p-4 min-[680px]:p-5">
         <h3 id={titleId} className="text-h3 text-[color:var(--text-1)]">Power and connectivity continuity</h3>
         <div className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-3.5" role="status" aria-label="Checking current electricity or connectivity disruption information.">
-          <p className="text-[13px] font-bold leading-5 text-[color:var(--text-1)]">Checking current disruption information</p>
-          <p className="mt-1 text-[13px] leading-5 text-[color:var(--text-2)]">We’re checking an authority source for your area and stay dates.</p>
+          <p className="text-sm font-medium leading-5 text-[color:var(--text-1)]">Checking current disruption information</p>
+          <p className="mt-1 text-sm leading-5 text-[color:var(--text-2)]">We’re checking an authority source for your area and stay dates.</p>
           <LoadingLines />
         </div>
         <p className="mt-4 text-caption leading-5 text-[color:var(--text-3)]">{DISCLAIMER}</p>
@@ -224,10 +224,10 @@ export function HotelContinuityPrototype({ dealId, hotelName, fixtureId, disclos
       <section aria-labelledby={titleId} className="card mt-4 p-4 min-[680px]:p-5">
         <h3 id={titleId} className="text-h3 text-[color:var(--text-1)]">Power and connectivity continuity</h3>
         <div className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--error)] bg-[color:var(--error-soft)] p-3.5" role={retrying ? 'status' : retryFailed ? 'alert' : undefined}>
-          <p ref={errorHeadingRef} tabIndex={-1} className="text-[13px] font-bold leading-5 text-[color:var(--text-1)]">
+          <p ref={errorHeadingRef} tabIndex={-1} className="text-sm font-medium leading-5 text-[color:var(--text-1)]">
             {retrying ? 'Checking current disruption information' : 'Current disruption information could not be checked'}
           </p>
-          <p className="mt-1 text-[13px] leading-5 text-[color:var(--text-2)]">
+          <p className="mt-1 text-sm leading-5 text-[color:var(--text-2)]">
             {retrying ? 'We’re checking an authority source for your area and stay dates.' : 'We couldn’t verify a current authority source for this area and stay. No hotel continuity claim is shown.'}
           </p>
           {retrying ? <LoadingLines /> : (
@@ -252,14 +252,14 @@ export function HotelContinuityPrototype({ dealId, hotelName, fixtureId, disclos
     <section aria-labelledby={titleId} className="card mt-4 p-4 min-[680px]:p-5">
       <h3 id={titleId} className="text-h3 text-[color:var(--text-1)]">Power and connectivity continuity</h3>
       <div className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--bg-base)] p-3.5">
-        <p className="text-[13px] font-bold leading-5 text-[color:var(--text-1)]">{contextHeading(context.impactType, context.exactArea ?? '')}</p>
+        <p className="text-sm font-medium leading-5 text-[color:var(--text-1)]">{contextHeading(context.impactType, context.exactArea ?? '')}</p>
         <p className="mt-1 text-caption font-medium leading-5 text-[color:var(--text-2)]">Source: {context.authorityName} · Applies through {formatInstant(context.expiresAt)}</p>
         <a
           href={context.authorityUrl}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`View disruption source from ${context.authorityName} (opens in a new tab)`}
-          className="mt-2 inline-flex min-h-11 items-center text-[13px] font-medium text-[color:var(--brand)] underline underline-offset-4"
+          className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--brand)] underline underline-offset-4"
           onClick={() => track('resilience_source_opened', { signalType: 'destination_context', sourceClass: 'authority' })}
         >
           View disruption source<span className="sr-only"> (opens in a new tab)</span>
@@ -272,7 +272,7 @@ export function HotelContinuityPrototype({ dealId, hotelName, fixtureId, disclos
         role={stateRole}
         aria-label={state === 'loading' ? `Checking power and connectivity continuity details for ${hotelName}.` : undefined}
       >
-        <p ref={state === 'error' ? errorHeadingRef : undefined} tabIndex={state === 'error' ? -1 : undefined} className="text-[13px] font-bold leading-5 text-[color:var(--text-1)]">
+        <p ref={state === 'error' ? errorHeadingRef : undefined} tabIndex={state === 'error' ? -1 : undefined} className="text-sm font-medium leading-5 text-[color:var(--text-1)]">
           {retrying ? 'Checking hotel continuity details' : copy.heading}
         </p>
         <button
@@ -291,7 +291,7 @@ export function HotelContinuityPrototype({ dealId, hotelName, fixtureId, disclos
 
         {expanded ? (
           <div id={detailsId}>
-            <p className="mt-3 text-[13px] leading-5 text-[color:var(--text-2)]">{retrying ? STATE_COPY.loading.body : staleBody}</p>
+            <p className="mt-3 text-sm leading-5 text-[color:var(--text-2)]">{retrying ? STATE_COPY.loading.body : staleBody}</p>
             {state === 'loading' || retrying ? <LoadingLines /> : null}
             {state === 'missing' ? (
               <p className="mt-2 text-caption font-medium leading-5 text-[color:var(--text-2)]">Not documented does not mean the hotel lacks these capabilities.</p>
@@ -306,7 +306,7 @@ export function HotelContinuityPrototype({ dealId, hotelName, fixtureId, disclos
             ) : null}
             {state === 'conflict' ? (
               <div className="mt-3 border-t border-[color:var(--border)] pt-3">
-                <p className="text-caption font-bold leading-5 text-[color:var(--text-1)]">Sources reviewed</p>
+                <p className="text-caption font-medium leading-5 text-[color:var(--text-1)]">Sources reviewed</p>
                 <ul className="mt-2 space-y-3">
                   {facts.map((fact) => (
                     <li key={fact.id} className="text-caption leading-5 text-[color:var(--text-2)]">
@@ -323,11 +323,11 @@ export function HotelContinuityPrototype({ dealId, hotelName, fixtureId, disclos
 
             {!retrying && state !== 'loading' ? (
               disclosure.hotelContactHref ? (
-                <a href={disclosure.hotelContactHref} className="mt-3 inline-flex min-h-11 items-center text-[13px] font-medium text-[color:var(--brand)] underline underline-offset-4">
+                <a href={disclosure.hotelContactHref} className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--brand)] underline underline-offset-4">
                   {state === 'partial' ? 'Confirm missing details with the hotel' : state === 'stale' ? 'Confirm current details with the hotel' : 'Confirm with the hotel'}
                 </a>
               ) : (
-                <p className="mt-3 text-[13px] font-medium leading-5 text-[color:var(--text-2)]">Contact the hotel through the booking provider to confirm current details.</p>
+                <p className="mt-3 text-sm font-medium leading-5 text-[color:var(--text-2)]">Contact the hotel through the booking provider to confirm current details.</p>
               )
             ) : null}
 

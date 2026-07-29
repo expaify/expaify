@@ -59,7 +59,7 @@ export function HotelBookingOwnershipDisclosure({
         aria-expanded={open}
         aria-controls="hotel-booking-ownership-panel"
         onClick={handleToggle}
-        className="inline-flex min-h-11 w-full items-center justify-between gap-2 rounded-lg py-2 text-left text-sm font-medium leading-6 text-[color:var(--brand)] hover:text-[color:var(--brand-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        className="inline-flex min-h-11 w-full items-center justify-between gap-2 rounded-[var(--radius-control)] py-2 text-left text-sm font-medium leading-6 text-[color:var(--brand)] hover:text-[color:var(--brand-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       >
         <span>Who handles my booking?</span>
         <svg
@@ -76,8 +76,8 @@ export function HotelBookingOwnershipDisclosure({
         <section id="hotel-booking-ownership-panel" aria-labelledby="hotel-booking-ownership-heading" className="mt-2 grid gap-3 sm:grid-cols-2">
           <h3 id="hotel-booking-ownership-heading" className="sr-only">Who handles my booking</h3>
 
-          <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 sm:px-4 sm:py-4">
-            <h4 className={`text-sm font-bold leading-5 text-[color:var(--text-1)] ${partnerLabelWrapCls}`}>
+          <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 sm:px-4 sm:py-4">
+            <h4 className={`text-sm font-medium leading-5 text-[color:var(--text-1)] ${partnerLabelWrapCls}`}>
               {named ? `${partnerLabel} manages your reservation` : 'Your booking partner manages your reservation'}
             </h4>
             <p className={`mt-2 text-sm leading-6 text-[color:var(--text-2)] ${partnerLabelWrapCls}`}>
@@ -90,8 +90,8 @@ export function HotelBookingOwnershipDisclosure({
             ) : null}
           </div>
 
-          <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 sm:px-4 sm:py-4">
-            <h4 className="text-sm font-bold leading-5 text-[color:var(--text-1)]">expaify helps with the deal and handoff</h4>
+          <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 sm:px-4 sm:py-4">
+            <h4 className="text-sm font-medium leading-5 text-[color:var(--text-1)]">expaify helps with the deal and handoff</h4>
             {expaifyIssueRoute === null ? (
               <>
                 <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
@@ -111,7 +111,7 @@ export function HotelBookingOwnershipDisclosure({
                   rel={expaifyIssueRoute.destinationType === 'help_center' ? 'noopener' : undefined}
                   aria-label="Report an expaify issue with this deal or link"
                   onClick={() => onContactClick?.('expaify', expaifyIssueRoute.destinationType)}
-                  className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-[color:var(--border)] px-4 text-sm font-medium text-[color:var(--text-1)] hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  className="mt-3 inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-[color:var(--border)] px-4 text-sm font-medium text-[color:var(--text-1)] hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                 >
                   Report an expaify issue
                 </a>

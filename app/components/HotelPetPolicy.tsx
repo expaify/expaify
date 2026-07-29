@@ -192,7 +192,7 @@ export function HotelPetPolicyScan({ policy }: { policy: HotelPetPolicyPresentat
 
   return (
     <div className={`mt-3 w-full min-w-0 rounded-[var(--radius-control)] border px-3 py-2 text-xs leading-5 sm:grid sm:grid-cols-[max-content_minmax(0,1fr)] sm:items-start sm:gap-x-3 ${classes}`}>
-      {copy.outcome ? <p className="font-bold">{copy.outcome}</p> : null}
+      {copy.outcome ? <p className="font-medium">{copy.outcome}</p> : null}
       {copy.support ? (
         <p className={`font-medium ${copy.outcome ? 'mt-0.5 sm:mt-0' : ''} ${copy.status === 'unsuitable' ? 'text-[color:var(--error-text)]' : ''}`}>
           {copy.support}
@@ -326,7 +326,7 @@ function detailedOutcome(policy: ReadyPolicy): { heading: string; body: string; 
 function Fact({ label, children, wide = false }: { label: string; children: ReactNode; wide?: boolean }) {
   return (
     <div className={wide ? 'sm:col-span-2' : undefined}>
-      <dt className="font-bold text-[color:var(--text-1)]">{label}</dt>
+      <dt className="font-medium text-[color:var(--text-1)]">{label}</dt>
       <dd className="mt-0.5 break-words font-medium text-[color:var(--text-2)]">{children}</dd>
     </div>
   )
@@ -343,7 +343,7 @@ export function HotelPetPolicyDetails({ hotelId, hotelName, providerName, policy
   if (policy.state === 'loading') {
     return (
       <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs leading-5 text-[color:var(--text-2)]" aria-labelledby={titleId}>
-        <h4 id={titleId} className="font-bold text-[color:var(--text-1)]">Pet policy for your stay</h4>
+        <h4 id={titleId} className="font-medium text-[color:var(--text-1)]">Pet policy for your stay</h4>
         <p className="mt-2 font-medium text-[color:var(--text-3)]">Checking pet policy…</p>
       </section>
     )
@@ -363,9 +363,9 @@ export function HotelPetPolicyDetails({ hotelId, hotelName, providerName, policy
 
   return (
     <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs leading-5 text-[color:var(--text-2)]" aria-labelledby={titleId}>
-      <h4 id={titleId} className="font-bold text-[color:var(--text-1)]">Pet policy for your stay</h4>
+      <h4 id={titleId} className="font-medium text-[color:var(--text-1)]">Pet policy for your stay</h4>
       <div aria-label={unknownOutcomeLabel} className={`mt-2 rounded-[var(--radius-control)] border px-3 py-2 ${toneClasses(outcome.status)}`}>
-        <p className="font-bold">{outcome.heading}</p>
+        <p className="font-medium">{outcome.heading}</p>
         <p className={`mt-0.5 font-medium ${outcome.status === 'unsuitable' ? 'text-[color:var(--error-text)]' : ''}`}>{outcome.body}</p>
       </div>
 
@@ -398,7 +398,7 @@ export function HotelPetPolicyDetails({ hotelId, hotelName, providerName, policy
 
       {unresolved.length ? (
         <div className="mt-3 rounded-[var(--radius-control)] bg-[color:var(--warning-soft)] px-3 py-2 font-medium text-[color:var(--warning)]">
-          <p className="font-bold">Confirm before booking</p>
+          <p className="font-medium">Confirm before booking</p>
           <p>Confirm {unresolved.join(', ')} with the provider or property.</p>
         </div>
       ) : null}
@@ -412,11 +412,11 @@ export function HotelPetPolicyDetails({ hotelId, hotelName, providerName, policy
       </p>
 
       {confirmationNeeded && evidence.availability === 'error' && policy.canRetry && policy.onRetry ? (
-        <button type="button" onClick={policy.onRetry} aria-label={`Try pet policy again for ${hotelName}`} className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-3 text-sm font-bold text-[color:var(--text-1)] sm:w-auto">
+        <button type="button" onClick={policy.onRetry} aria-label={`Try pet policy again for ${hotelName}`} className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-3 text-sm font-medium text-[color:var(--text-1)] sm:w-auto">
           {actionLabel}
         </button>
       ) : confirmationNeeded && policy.confirmationHref ? (
-        <a href={policy.confirmationHref} aria-label={`Confirm pet policy for ${hotelName} with ${providerName}`} className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-3 text-sm font-bold text-[color:var(--text-1)] sm:w-auto">
+        <a href={policy.confirmationHref} aria-label={`Confirm pet policy for ${hotelName} with ${providerName}`} className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-3 text-sm font-medium text-[color:var(--text-1)] sm:w-auto">
           {actionLabel}
         </a>
       ) : null}

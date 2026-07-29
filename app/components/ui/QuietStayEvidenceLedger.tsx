@@ -200,7 +200,7 @@ function ClassMessage({ children }: { children: string }) {
 function EvidenceGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="py-4 first:pt-0 last:pb-0">
-      <h4 className="text-sm font-bold leading-5 text-[color:var(--text-1)]">{title}</h4>
+      <h4 className="text-sm font-medium leading-5 text-[color:var(--text-1)]">{title}</h4>
       {children}
     </section>
   )

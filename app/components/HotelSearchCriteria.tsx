@@ -53,19 +53,19 @@ export function HotelSearchCriteriaSummary({ criteria, surface, status = 'ready'
     >
       <div className="flex flex-col items-start gap-3 min-[420px]:flex-row min-[420px]:justify-between">
         <div className="min-w-0 flex-1">
-          <h2 id={headingId} className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--text-3)]">
+          <h2 id={headingId} className="text-xs font-medium uppercase tracking-[0.12em] text-[color:var(--text-3)]">
             {handoff ? 'Before you continue' : 'Your search'}
           </h2>
-          <p className="mt-1 text-[15px] font-medium leading-6 text-[color:var(--text-1)] sm:text-[16px]">
+          <p className="mt-1 text-base font-medium leading-6 text-[color:var(--text-1)] sm:text-base">
             {destination} <span aria-hidden="true">·</span> {dateDisplay}
           </p>
-          <p className="mt-1 text-[13px] font-medium leading-5 text-[color:var(--text-1)]">Guests &amp; rooms not captured</p>
-          <p className="mt-1 text-[12px] leading-5 text-[color:var(--text-2)]">
+          <p className="mt-1 text-sm font-medium leading-5 text-[color:var(--text-1)]">Guests &amp; rooms not captured</p>
+          <p className="mt-1 text-xs leading-5 text-[color:var(--text-2)]">
             Confirm the price and room fit for your party with the provider.
           </p>
           <span className="sr-only">{destination}. {dateDisplay}. Guests and rooms not captured.</span>
           {status === 'updating' ? (
-            <p role="status" aria-live="polite" aria-atomic="true" className="mt-2 text-[12px] font-medium text-[color:var(--brand)]">Updating results…</p>
+            <p role="status" aria-live="polite" aria-atomic="true" className="mt-2 text-xs font-medium text-[color:var(--brand)]">Updating results…</p>
           ) : null}
         </div>
         {onEdit && !handoff ? (
@@ -192,10 +192,10 @@ export function HotelSearchCriteriaEditor({ open, criteria, cities, surface, ent
     >
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} className="max-h-[calc(100dvh-1rem)] w-full overflow-y-auto rounded-t-[var(--radius-card)] bg-[color:var(--bg-surface)] p-5 shadow-[var(--shadow-lift)] sm:max-h-[min(720px,calc(100dvh-3rem))] sm:max-w-[560px] sm:rounded-[var(--radius-card)] sm:p-6">
         <h2 id={titleId} className="text-h3 text-[color:var(--text-1)]">Edit hotel search</h2>
-        <p id={descriptionId} className="mt-1 text-[13px] leading-5 text-[color:var(--text-2)]">Update the destination and check-in window used to find deals.</p>
+        <p id={descriptionId} className="mt-1 text-sm leading-5 text-[color:var(--text-2)]">Update the destination and check-in window used to find deals.</p>
 
         <form className="mt-5" onSubmit={submit} noValidate>
-          <label htmlFor={`${titleId}-destination`} className="mb-1.5 block text-[12px] font-bold text-[color:var(--text-1)]">Destination</label>
+          <label htmlFor={`${titleId}-destination`} className="mb-1.5 block text-xs font-medium text-[color:var(--text-1)]">Destination</label>
           <select
             ref={destinationRef}
             id={`${titleId}-destination`}
@@ -208,29 +208,29 @@ export function HotelSearchCriteriaEditor({ open, criteria, cities, surface, ent
             <option value="">All destinations</option>
             {cities.map(city => <option key={city} value={city}>{city}</option>)}
           </select>
-          {attempted && validation.destinationInvalid ? <p id={destinationErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error-text)]">Choose a supported destination or All destinations.</p> : null}
+          {attempted && validation.destinationInvalid ? <p id={destinationErrorId} role="alert" className="mt-1 text-xs font-medium text-[color:var(--error-text)]">Choose a supported destination or All destinations.</p> : null}
 
           <fieldset className="mt-5">
-            <legend className="mb-2 text-[12px] font-bold text-[color:var(--text-1)]">Check-in window</legend>
+            <legend className="mb-2 text-xs font-medium text-[color:var(--text-1)]">Check-in window</legend>
             <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
               <div>
-                <label htmlFor={`${titleId}-from`} className="mb-1.5 block text-[12px] font-bold text-[color:var(--text-1)]">From</label>
+                <label htmlFor={`${titleId}-from`} className="mb-1.5 block text-xs font-medium text-[color:var(--text-1)]">From</label>
                 <input id={`${titleId}-from`} type="date" value={draft.dateFrom} onChange={event => setDraft(current => ({ ...current, dateFrom: event.target.value }))} aria-invalid={attempted && (validation.fromInvalid || validation.orderInvalid) ? true : undefined} aria-describedby={attempted && (validation.fromInvalid || validation.orderInvalid) ? fromErrorId : undefined} className={`field-input ${attempted && (validation.fromInvalid || validation.orderInvalid) ? 'border-[color:var(--error)]' : ''}`} />
-                {attempted && validation.fromInvalid ? <p id={fromErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error-text)]">Enter a valid start for the check-in window.</p> : attempted && orderMessage ? <p id={fromErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error-text)]">{orderMessage}</p> : null}
+                {attempted && validation.fromInvalid ? <p id={fromErrorId} role="alert" className="mt-1 text-xs font-medium text-[color:var(--error-text)]">Enter a valid start for the check-in window.</p> : attempted && orderMessage ? <p id={fromErrorId} role="alert" className="mt-1 text-xs font-medium text-[color:var(--error-text)]">{orderMessage}</p> : null}
               </div>
               <div>
-                <label htmlFor={`${titleId}-through`} className="mb-1.5 block text-[12px] font-bold text-[color:var(--text-1)]">Through</label>
+                <label htmlFor={`${titleId}-through`} className="mb-1.5 block text-xs font-medium text-[color:var(--text-1)]">Through</label>
                 <input id={`${titleId}-through`} type="date" value={draft.dateTo} onChange={event => setDraft(current => ({ ...current, dateTo: event.target.value }))} aria-invalid={attempted && (validation.throughInvalid || validation.orderInvalid) ? true : undefined} aria-describedby={attempted && (validation.throughInvalid || validation.orderInvalid) ? throughErrorId : undefined} className={`field-input ${attempted && (validation.throughInvalid || validation.orderInvalid) ? 'border-[color:var(--error)]' : ''}`} />
-                {attempted && validation.throughInvalid ? <p id={throughErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error-text)]">Enter a valid end for the check-in window.</p> : attempted && orderMessage ? <p id={throughErrorId} role="alert" className="mt-1 text-[12px] font-medium text-[color:var(--error-text)]">{orderMessage}</p> : null}
+                {attempted && validation.throughInvalid ? <p id={throughErrorId} role="alert" className="mt-1 text-xs font-medium text-[color:var(--error-text)]">Enter a valid end for the check-in window.</p> : attempted && orderMessage ? <p id={throughErrorId} role="alert" className="mt-1 text-xs font-medium text-[color:var(--error-text)]">{orderMessage}</p> : null}
               </div>
             </div>
-            <p className="mt-1 text-[12px] leading-5 text-[color:var(--text-2)]">Deals may have different check-out dates and stay lengths.</p>
+            <p className="mt-1 text-xs leading-5 text-[color:var(--text-2)]">Deals may have different check-out dates and stay lengths.</p>
           </fieldset>
 
           <div className="mt-5 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-muted)] p-4">
-            <p className="text-[12px] font-bold text-[color:var(--text-1)]">Guests &amp; rooms</p>
-            <p className="mt-1 text-[14px] font-medium text-[color:var(--text-1)]">Not captured</p>
-            <p className="mt-1 text-[12px] leading-5 text-[color:var(--text-2)]">This version of expaify can&apos;t filter hotel deals by party size yet. Confirm the price and room fit with the provider.</p>
+            <p className="text-xs font-medium text-[color:var(--text-1)]">Guests &amp; rooms</p>
+            <p className="mt-1 text-sm font-medium text-[color:var(--text-1)]">Not captured</p>
+            <p className="mt-1 text-xs leading-5 text-[color:var(--text-2)]">This version of expaify can&apos;t filter hotel deals by party size yet. Confirm the price and room fit with the provider.</p>
           </div>
 
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -247,8 +247,8 @@ export function HotelCriteriaContextCard({ status, handoff = false }: { status: 
   const invalid = status === 'invalid'
   return (
     <section className={`${handoff ? 'rounded-[var(--radius-control)] border border-[color:var(--gold)] bg-[color:var(--warning-soft)] p-4' : 'rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-5'}`}>
-      <h2 className="text-[13px] font-bold text-[color:var(--text-1)]">{invalid ? 'Search criteria couldn\'t be restored' : 'Search criteria unavailable'}</h2>
-      <p className="mt-1 text-[12px] leading-5 text-[color:var(--text-2)]">
+      <h2 className="text-sm font-medium text-[color:var(--text-1)]">{invalid ? 'Search criteria couldn\'t be restored' : 'Search criteria unavailable'}</h2>
+      <p className="mt-1 text-xs leading-5 text-[color:var(--text-2)]">
         {invalid ? 'This search link is incomplete or no longer valid. Review this deal\'s dates before continuing.' : 'We can\'t verify which search opened this deal. Review the deal dates and confirm the price and room fit with the provider.'}
       </p>
       {!handoff ? <Link href="/deals" className="btn btn-outline mt-3 min-h-11 px-4">{invalid ? 'Start a new search' : 'Search hotel deals'}</Link> : null}
@@ -259,13 +259,13 @@ export function HotelCriteriaContextCard({ status, handoff = false }: { status: 
 export function HotelCriteriaMismatchAlert({ onEdit, backHref }: { onEdit: () => void; backHref: string }) {
   return (
     <section role="alert" className="rounded-[var(--radius-control)] border border-[color:var(--error)] bg-[color:var(--error-soft)] p-4 text-[color:var(--text-1)]">
-      <h2 className="text-[14px] font-bold">This deal doesn&apos;t match your search.</h2>
-      <p className="mt-1 text-[13px] leading-5">Its destination or check-in date falls outside the criteria shown above.</p>
+      <h2 className="text-sm font-medium">This deal doesn&apos;t match your search.</h2>
+      <p className="mt-1 text-sm leading-5">Its destination or check-in date falls outside the criteria shown above.</p>
       <div className="mt-3 flex flex-col gap-2 min-[420px]:flex-row">
         <button type="button" onClick={onEdit} className="btn btn-primary min-h-11 px-5">Edit search</button>
         <Link href={backHref} className="btn btn-outline min-h-11 px-5">Back to matching results</Link>
       </div>
-      <p className="mt-3 text-[12px] font-medium leading-5">Provider options are unavailable until you review the mismatch.</p>
+      <p className="mt-3 text-xs font-medium leading-5">Provider options are unavailable until you review the mismatch.</p>
     </section>
   )
 }
@@ -276,8 +276,8 @@ export function HotelCriteriaSummarySkeleton() {
       <span className="sr-only">Restoring your search…</span>
       <div aria-hidden="true" className="space-y-3">
         <div className="skeleton h-3 w-24 rounded-full" />
-        <div className="skeleton h-5 w-3/4 rounded" />
-        <div className="skeleton h-4 w-1/2 rounded" />
+        <div className="skeleton h-5 w-3/4 rounded-[var(--radius-pill)]" />
+        <div className="skeleton h-4 w-1/2 rounded-[var(--radius-pill)]" />
       </div>
     </section>
   )

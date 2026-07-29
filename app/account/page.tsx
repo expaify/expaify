@@ -38,10 +38,10 @@ export default async function AccountPage({ searchParams }: PageProps) {
     <div className="min-h-screen bg-[color:var(--bg)]">
       <nav className="border-b border-[color:var(--line-ivory)] bg-[color:var(--bg)]">
         <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">
-          <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
+          <a href="/" className="flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline">
             expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
           </a>
-          <a href="/deals" className="text-[14px] font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
+          <a href="/deals" className="text-sm font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
             Browse deals →
           </a>
         </div>
@@ -52,23 +52,23 @@ export default async function AccountPage({ searchParams }: PageProps) {
         {/* Welcome banner */}
         {showWelcome && (
           <div className="mb-6 flex items-start justify-between gap-4 rounded-[var(--radius-card)] bg-[color:var(--primary)] px-5 py-4 text-white">
-            <p className="text-[14px] leading-relaxed">
+            <p className="text-sm leading-relaxed">
               <span className="font-display font-bold">You&apos;re in.</span>
               {' '}Your first deal alert arrives by email — usually within 24 hours.
             </p>
-            <a href="/account" className="shrink-0 text-[18px] leading-none text-white opacity-70 hover:opacity-100 no-underline" aria-label="Dismiss">×</a>
+            <a href="/account" className="shrink-0 text-lg leading-none text-white opacity-70 hover:opacity-100 no-underline" aria-label="Dismiss">×</a>
           </div>
         )}
 
         {showCheckoutError && (
           <div className="mb-6 rounded-[var(--radius-card)] border border-[color:var(--error)] bg-white px-5 py-4">
-            <p className="text-[14px] font-medium text-[color:var(--error-text)]">
+            <p className="text-sm font-medium text-[color:var(--error-text)]">
               Checkout could not start. Try again in a moment or contact support and we will finish your upgrade.
             </p>
           </div>
         )}
 
-        <h1 className="mb-6 font-display text-[28px] font-bold text-[color:var(--ink)]">Account</h1>
+        <h1 className="mb-6 font-display text-2xl font-bold text-[color:var(--ink)]">Account</h1>
 
         {/* Plan status */}
         <section className={`mb-5 rounded-[var(--radius-card)] p-6 ${
@@ -79,22 +79,22 @@ export default async function AccountPage({ searchParams }: PageProps) {
           <div className="mb-3 flex items-center gap-2">
             {premium ? (
               <>
-                <span className="rounded-[var(--radius-pill)] bg-[color:var(--primary-soft)] px-3 py-1 font-display text-[12px] font-bold text-[color:var(--primary)]">
+                <span className="rounded-[var(--radius-pill)] bg-[color:var(--primary-soft)] px-3 py-1 font-display text-xs font-bold text-[color:var(--primary)]">
                   {sub?.status === 'trialing' ? 'Premium trial' : 'Premium'}
                 </span>
                 {sub?.status === 'active' && (
                   <span className="h-2 w-2 rounded-full bg-[color:var(--primary)]" aria-hidden />
                 )}
                 {sub?.plan && (
-                  <span className="text-[12px] capitalize text-[color:var(--ink-faint)]">{sub.plan}</span>
+                  <span className="text-xs capitalize text-[color:var(--ink-faint)]">{sub.plan}</span>
                 )}
               </>
             ) : sub?.status === 'canceled' ? (
-              <span className="rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)] px-3 py-1 font-display text-[12px] font-bold text-[color:var(--ink-soft)]">
+              <span className="rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)] px-3 py-1 font-display text-xs font-bold text-[color:var(--ink-soft)]">
                 Canceled
               </span>
             ) : (
-              <span className="rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)] px-3 py-1 font-display text-[12px] font-bold text-[color:var(--ink-faint)]">
+              <span className="rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)] px-3 py-1 font-display text-xs font-bold text-[color:var(--ink-faint)]">
                 Free plan
               </span>
             )}
@@ -117,12 +117,12 @@ export default async function AccountPage({ searchParams }: PageProps) {
           )}
 
           {sub?.status === 'active' && sub.currentPeriodEnd && (
-            <p className="mb-3 text-[14px] text-[color:var(--ink-soft)]">
+            <p className="mb-3 text-sm text-[color:var(--ink-soft)]">
               Next billing: <strong>{formatDate(sub.currentPeriodEnd)}</strong>
             </p>
           )}
           {sub?.status === 'canceled' && sub.currentPeriodEnd && (
-            <p className="mb-3 text-[14px] text-[color:var(--ink-soft)]">
+            <p className="mb-3 text-sm text-[color:var(--ink-soft)]">
               Premium access ends <strong>{formatDate(sub.currentPeriodEnd)}</strong>. Renew to keep getting alerts.
             </p>
           )}
@@ -131,14 +131,14 @@ export default async function AccountPage({ searchParams }: PageProps) {
           {(!sub || sub.status === 'free') && (
             <div className="mb-4">
               {activeDealCount > 3 && (
-                <div className="mb-3 rounded-lg border border-[color:var(--primary-soft)] bg-[color:var(--primary-soft)] px-4 py-3">
-                  <p className="text-[13px] text-[color:var(--primary)]">
+                <div className="mb-3 rounded-[var(--radius-control)] border border-[color:var(--primary-soft)] bg-[color:var(--primary-soft)] px-4 py-3">
+                  <p className="text-sm text-[color:var(--primary)]">
                     <strong>{activeDealCount} hotel deals</strong> live right now — you can see 3.
                     Upgrade to unlock all of them.
                   </p>
                 </div>
               )}
-              <p className="text-[14px] text-[color:var(--ink-soft)]">
+              <p className="text-sm text-[color:var(--ink-soft)]">
                 Free plan gives you 3 unlocked deals. Upgrade for unlimited deals + email alerts.
               </p>
             </div>
@@ -160,8 +160,8 @@ export default async function AccountPage({ searchParams }: PageProps) {
 
         {/* Profile */}
         <section className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
-          <h2 className="mb-3 font-display text-[15px] font-bold text-[color:var(--ink)]">Profile</h2>
-          <p className="text-[14px] text-[color:var(--ink-soft)] [overflow-wrap:anywhere]">{session.user.email}</p>
+          <h2 className="mb-3 font-display text-base font-bold text-[color:var(--ink)]">Profile</h2>
+          <p className="text-sm text-[color:var(--ink-soft)] [overflow-wrap:anywhere]">{session.user.email}</p>
           {!premium && (
             <div className="mt-3 border-t border-[color:var(--line-ivory)] pt-3">
               <AccountClient userId={session.user.id} signOutOnly />
@@ -172,8 +172,8 @@ export default async function AccountPage({ searchParams }: PageProps) {
         {/* Alerts + Watchlist (premium only) */}
         {premium && (
           <section id="alerts" className="scroll-mt-20 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
-            <h2 className="mb-1 font-display text-[15px] font-bold text-[color:var(--ink)]">Email alerts</h2>
-            <p className="mb-5 text-[13px] text-[color:var(--ink-faint)]">
+            <h2 className="mb-1 font-display text-base font-bold text-[color:var(--ink)]">Email alerts</h2>
+            <p className="mb-5 text-sm text-[color:var(--ink-faint)]">
               Choose how often we email you when a deal appears. Changes save instantly.
             </p>
             <AccountClient

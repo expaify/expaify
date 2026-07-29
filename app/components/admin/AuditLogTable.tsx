@@ -28,7 +28,7 @@ function Row({ row }: { row: AdminAuditLogRow }) {
             type="button"
             onClick={() => setOpen(!open)}
             aria-expanded={open}
-            className="mt-1 w-fit text-xs font-bold text-[var(--brand)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            className="mt-1 w-fit text-xs font-medium text-[var(--brand)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
             {open ? 'Hide details' : 'View details'}
           </button>
@@ -49,7 +49,7 @@ function Row({ row }: { row: AdminAuditLogRow }) {
               type="button"
               onClick={() => setOpen(!open)}
               aria-expanded={open}
-              className="text-xs font-bold text-[var(--brand)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              className="text-xs font-medium text-[var(--brand)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             >
               {open ? 'Hide details' : 'View details'}
             </button>
@@ -72,7 +72,7 @@ function Row({ row }: { row: AdminAuditLogRow }) {
 function DiffBlock({ before, after, changed }: { before: unknown; after: unknown; changed: string[] }) {
   return (
     <div className="rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-muted)] p-3 font-mono text-xs text-[var(--text-1)]">
-      <p className="mb-1 font-sans text-xs font-bold text-[var(--text-2)]">Changed: {changed.length ? changed.join(', ') : 'none'}</p>
+      <p className="mb-1 font-sans text-xs font-medium text-[var(--text-2)]">Changed: {changed.length ? changed.join(', ') : 'none'}</p>
       <pre className="whitespace-pre-wrap break-all">Before: {JSON.stringify(before ?? {}, null, 2)}</pre>
       <pre className="whitespace-pre-wrap break-all">After: {JSON.stringify(after ?? {}, null, 2)}</pre>
     </div>

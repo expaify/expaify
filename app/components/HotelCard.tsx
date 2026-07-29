@@ -223,7 +223,7 @@ function AccessEvidenceRow({ item }: { item: NormalizedAccessEvidence }) {
     const metadata = getEvidenceMetadata(item)
     return (
       <div aria-label={`${item.label}. Information unclear. Confirm directly with the provider before booking.`}>
-        <dt className="font-bold text-[color:var(--text-1)]">{item.label}</dt>
+        <dt className="font-medium text-[color:var(--text-1)]">{item.label}</dt>
         <dd className="mt-0.5 font-medium text-[color:var(--text-2)]">{copy}</dd>
         {metadata.length ? <dd className="mt-1 break-words text-[color:var(--text-3)]">{metadata.join(' ')}</dd> : null}
       </div>
@@ -238,7 +238,7 @@ function AccessEvidenceRow({ item }: { item: NormalizedAccessEvidence }) {
         className="rounded-[var(--radius-control)] bg-[color:var(--warning-soft)] px-3 py-2"
         aria-label={`${item.label}. Unavailable. ${copy} Source: ${item.sourceLabel.trim()}.`}
       >
-        <dt className="font-bold text-[color:var(--text-1)]">{item.label}</dt>
+        <dt className="font-medium text-[color:var(--text-1)]">{item.label}</dt>
         <dd className="mt-0.5 font-medium text-[color:var(--warning)]">{copy}</dd>
         <dd className="mt-1 break-words text-[color:var(--text-3)]">{metadata.join(' ')}</dd>
       </div>
@@ -249,7 +249,7 @@ function AccessEvidenceRow({ item }: { item: NormalizedAccessEvidence }) {
   const metadata = getEvidenceMetadata(item)
   return (
     <div aria-label={copy.aria}>
-      <dt className="font-bold text-[color:var(--text-1)]">{item.label}</dt>
+      <dt className="font-medium text-[color:var(--text-1)]">{item.label}</dt>
       <dd className="mt-0.5 font-medium text-[color:var(--text-2)]">{copy.visible}</dd>
       <dd className="mt-1 break-words text-[color:var(--text-3)]">{metadata.join(' ')}</dd>
     </div>
@@ -283,7 +283,7 @@ function AccessEvidencePanel({
       aria-labelledby={titleId}
       aria-label={sectionLabel}
     >
-      <h4 id={titleId} className="font-bold text-[color:var(--text-1)]">Access &amp; room requests</h4>
+      <h4 id={titleId} className="font-medium text-[color:var(--text-1)]">Access &amp; room requests</h4>
       {state === 'loading' && allNotReturned ? (
         <p className="mt-2 font-medium text-[color:var(--text-3)]" role="status" aria-live="polite">
           Checking access details…
@@ -349,13 +349,13 @@ function StarRow({ stars }: { stars: number }) {
 function Price({ price, providerName, className = '' }: { price: HotelOffer['pricePerNight']; providerName: string; className?: string }) {
   return (
     <div className={`min-w-[6.75rem] max-w-[9.5rem] text-right ${className}`}>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
+      <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">
         Nightly rate
       </p>
       <p className="mt-1 font-display text-xl font-bold leading-none text-[color:var(--text-1)] tabular-nums sm:text-4xl">
         {formatMoney(price)}
       </p>
-      <div className="mt-1 space-y-0.5 text-[11px] font-medium leading-4">
+      <div className="mt-1 space-y-0.5 text-xs font-medium leading-4">
         <p className="text-[color:var(--text-3)]">per night before taxes and fees</p>
         <p className="text-[color:var(--text-2)]">Rate from {providerName}</p>
         <p className="text-[color:var(--warning)]">Last-checked time unavailable</p>
@@ -367,13 +367,13 @@ function Price({ price, providerName, className = '' }: { price: HotelOffer['pri
 function PriceUnavailable({ reason, providerName, showProvider, className = '' }: { reason: string; providerName: string; showProvider: boolean; className?: string }) {
   return (
     <div className={`min-w-[6.75rem] max-w-[9.5rem] text-right ${className}`} role="status" aria-label={`Hotel price unavailable. ${reason}${showProvider ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`}>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
+      <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">
         Nightly rate
       </p>
       <p className="mt-1 font-display text-lg font-bold leading-none text-[color:var(--text-1)]">
         Price unavailable
       </p>
-      <div className="mt-1 space-y-0.5 text-[11px] font-medium leading-4">
+      <div className="mt-1 space-y-0.5 text-xs font-medium leading-4">
         <p className="text-[color:var(--text-3)]">{reason}</p>
         {showProvider ? <p className="text-[color:var(--text-2)]">Rate from {providerName}</p> : null}
         <p className="text-[color:var(--warning)]">Last-checked time unavailable</p>
@@ -638,34 +638,34 @@ function QualityEvidencePanel({ hotelClass, guestRating, legacyRatingPresent, so
       className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs leading-5 text-[color:var(--text-2)]"
       aria-label="Quality evidence"
     >
-      <p className="font-bold text-[color:var(--text-1)]">Quality evidence</p>
+      <p className="font-medium text-[color:var(--text-1)]">Quality evidence</p>
       <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-x-6">
         <div>
-          <dt className="font-bold text-[color:var(--text-1)]">Hotel class</dt>
+          <dt className="font-medium text-[color:var(--text-1)]">Hotel class</dt>
           <dd className="mt-0.5 font-medium text-[color:var(--text-2)]">
             {getHotelClassDetailText(hotelClass, source)}
           </dd>
         </div>
         <div>
-          <dt className="font-bold text-[color:var(--text-1)]">Guest rating</dt>
+          <dt className="font-medium text-[color:var(--text-1)]">Guest rating</dt>
           <dd className="mt-0.5 font-medium text-[color:var(--text-2)]">
             {getGuestRatingDetailText(guestRating, legacyRatingPresent, source)}
           </dd>
         </div>
         <div>
-          <dt className="font-bold text-[color:var(--text-1)]">Review count</dt>
+          <dt className="font-medium text-[color:var(--text-1)]">Review count</dt>
           <dd className="mt-0.5 font-medium text-[color:var(--text-2)]">
             {getReviewCountText(guestRating)}
           </dd>
         </div>
         <div>
-          <dt className="font-bold text-[color:var(--text-1)]">Confidence</dt>
+          <dt className="font-medium text-[color:var(--text-1)]">Confidence</dt>
           <dd className="mt-0.5 font-medium text-[color:var(--text-2)]">
             {getConfidenceText(guestRating, legacyRatingPresent)}
           </dd>
         </div>
         <div>
-          <dt className="font-bold text-[color:var(--text-1)]">Updated</dt>
+          <dt className="font-medium text-[color:var(--text-1)]">Updated</dt>
           <dd className="mt-0.5 font-medium text-[color:var(--text-2)]">
             {updatedDate ? `Updated ${updatedDate}` : 'Freshness not provided'}
           </dd>
@@ -825,7 +825,7 @@ export default function HotelCard({
     }
   }
 
-  const reviewActionClass = 'btn-primary inline-flex min-h-11 max-w-[8.5rem] items-center justify-center gap-2 rounded-[var(--radius-control)] px-3 text-xs font-bold sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm'
+  const reviewActionClass = 'btn-primary inline-flex min-h-11 max-w-[8.5rem] items-center justify-center gap-2 rounded-[var(--radius-control)] px-3 text-xs font-medium sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm'
   const reviewActionContent = (
     <>
       <span className="truncate">{reviewState === 'loading' ? 'Preparing review…' : 'Review hotel'}</span>
@@ -846,7 +846,7 @@ export default function HotelCard({
           />
 
           <div className="min-w-0">
-            <h3 className="line-clamp-2 text-sm font-bold leading-5 text-[color:var(--text-1)] sm:text-base">
+            <h3 className="line-clamp-2 text-sm font-medium leading-5 text-[color:var(--text-1)] sm:text-base">
               {hotel.name}
             </h3>
             {hotelClass || collapsedGuestRating ? (
@@ -863,7 +863,7 @@ export default function HotelCard({
                 {collapsedGuestRating ? (
                   <span className={`inline-flex max-w-full items-center gap-1 rounded-[var(--radius-control)] border px-2 py-1 text-xs leading-4 ${
                     isVerifiedGuestRating(hotel.guestRating)
-                      ? 'border-[color:var(--border-strong)] bg-[color:var(--success-soft)] font-bold text-[color:var(--success)]'
+                      ? 'border-[color:var(--border-strong)] bg-[color:var(--success-soft)] font-medium text-[color:var(--success)]'
                       : 'border-[color:var(--border)] bg-[color:var(--bg-muted)] font-medium text-[color:var(--text-2)]'
                   }`}>
                     <span className="truncate">{collapsedGuestRating}</span>
@@ -880,7 +880,7 @@ export default function HotelCard({
               </span>
             ) : null}
             <div className="mt-2 min-w-0 text-xs leading-5">
-              <p className={`font-bold ${location.isWarning ? 'text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
+              <p className={`font-medium ${location.isWarning ? 'text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
                 {location.label}
               </p>
               <p className="break-words font-medium text-[color:var(--text-2)]">{location.value}</p>
@@ -929,7 +929,7 @@ export default function HotelCard({
 
         {collapsedSmokingPolicy ? (
           <p
-            className="mt-1.5 line-clamp-2 text-xs font-bold leading-5 text-[color:var(--text-2)]"
+            className="mt-1.5 line-clamp-2 text-xs font-medium leading-5 text-[color:var(--text-2)]"
             aria-label={collapsedSmokingPolicy.ariaLabel}
           >
             {collapsedSmokingPolicy.label}
@@ -959,7 +959,7 @@ export default function HotelCard({
             )
           ) : (
             <span
-              className="inline-flex min-h-10 max-w-[8.5rem] cursor-not-allowed items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-muted)] px-3 text-xs font-bold text-[color:var(--text-3)] sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm"
+              className="inline-flex min-h-10 max-w-[8.5rem] cursor-not-allowed items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-muted)] px-3 text-xs font-medium text-[color:var(--text-3)] sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm"
               role="status"
               aria-label={unavailableWithEligibilityAriaLabel}
             >
@@ -973,7 +973,7 @@ export default function HotelCard({
           aria-expanded={isExpanded}
           aria-controls={detailsId}
           onClick={handleDetailsToggle}
-          className="mt-3 flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] text-sm font-bold text-[color:var(--text-1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
+          className="mt-3 flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] text-sm font-medium text-[color:var(--text-1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
         >
           {isExpanded ? 'Hide details' : 'Details'}
         </button>
@@ -1002,7 +1002,7 @@ export default function HotelCard({
             />
 
             <div className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[color:var(--text-2)]">
-              <p className="font-bold text-[color:var(--text-1)]">Location</p>
+              <p className="font-medium text-[color:var(--text-1)]">Location</p>
               <p className="mt-1 break-words">
                 <span className="font-medium text-[color:var(--text-2)]">{location.label}: </span>
                 {location.value}
@@ -1043,9 +1043,9 @@ export default function HotelCard({
             />
 
             <div className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[color:var(--text-2)]">
-              <p className="font-bold text-[color:var(--text-1)]">Price scope</p>
+              <p className="font-medium text-[color:var(--text-1)]">Price scope</p>
               <p>per night before taxes and fees</p>
-              <p className="mt-2 font-bold text-[color:var(--text-1)]">Rate check</p>
+              <p className="mt-2 font-medium text-[color:var(--text-1)]">Rate check</p>
               <p>{rateCheckCopy}</p>
               {!hasValidPrice || !hasBookingUrl ? <p className="mt-2">{unavailableReason}</p> : null}
             </div>
@@ -1064,7 +1064,7 @@ export default function HotelCard({
             ) : null}
 
             <div className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[color:var(--text-2)]">
-              <p className="font-bold text-[color:var(--text-1)]">Provider handoff</p>
+              <p className="font-medium text-[color:var(--text-1)]">Provider handoff</p>
               <p className="mt-1">{canBook ? reviewDisclosure : unavailableReason}</p>
             </div>
 
