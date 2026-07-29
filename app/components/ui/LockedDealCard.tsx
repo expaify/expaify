@@ -50,7 +50,7 @@ export function LockedDealCard({
           </div>
         </div>
         <div className="pointer-events-none select-none blur-[5px]" aria-hidden>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
             {['Expedia', 'Booking', 'Kiwi', 'Trip.com'].map(name => (
               <div key={name} className="rounded-[var(--radius-input)] border-[0.5px] border-[color:var(--line-white)] py-2 text-center text-caption font-medium text-[color:var(--ink)]">
                 {name}

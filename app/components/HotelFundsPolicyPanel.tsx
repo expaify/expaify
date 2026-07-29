@@ -210,7 +210,7 @@ function timingCaveat(record: HotelFundsEvidenceRecord): string | null {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">{label}</dt>
+      <dt className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">{label}</dt>
       <dd className="mt-1 break-words text-sm font-medium leading-5 text-[color:var(--text-1)] [overflow-wrap:anywhere]">{value}</dd>
     </div>
   )
@@ -221,8 +221,8 @@ function ObligationCard({ record, heading }: { record: HotelFundsEvidenceRecord;
   const caveat = timingCaveat(record)
   return (
     <article className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
-      {heading ? <p className="text-xs font-bold uppercase tracking-wide text-[color:var(--text-3)]">{heading}</p> : null}
-      <h4 className={`${heading ? 'mt-1' : ''} text-sm font-bold leading-5 text-[color:var(--text-1)]`}>
+      {heading ? <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">{heading}</p> : null}
+      <h4 className={`${heading ? 'mt-1' : ''} text-sm font-medium leading-5 text-[color:var(--text-1)]`}>
         {record.type ? mechanismLabels[record.type] : 'Deposit or hold mechanism not provided'}
       </h4>
       <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">{impactCopy(record.type)}</p>
@@ -324,7 +324,7 @@ export default function HotelFundsPolicyPanel({
       aria-busy={loadState === 'loading' ? 'true' : undefined}
       className={`rounded-[var(--radius-card)] border p-3.5 sm:p-5 ${panelTone}`}
     >
-      <h3 id={headingId} className="text-base font-bold leading-6 text-[color:var(--text-1)] sm:text-lg">
+      <h3 id={headingId} className="text-base font-medium leading-6 text-[color:var(--text-1)] sm:text-lg">
         Additional funds at the property
       </h3>
 
@@ -359,7 +359,7 @@ export default function HotelFundsPolicyPanel({
           <p className="mt-2 text-sm font-medium leading-6 text-[color:var(--text-1)]">Policy details conflict</p>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">The provider information contains different deposit or hold details. expaify cannot determine which applies.</p>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">Confirm the amount, timing, and policy for your selected room and rate before booking.</p>
-          <h4 className="mt-4 text-sm font-bold leading-5 text-[color:var(--text-1)]">Conflicting provider details</h4>
+          <h4 className="mt-4 text-sm font-medium leading-5 text-[color:var(--text-1)]">Conflicting provider details</h4>
           <div className="mt-3 space-y-3">
             {resolved.conflictingRecords?.map((record, index) => (
               <ObligationCard key={`${record.sourceLabel}-${index}`} record={record} heading={`Provider detail ${index + 1}`} />

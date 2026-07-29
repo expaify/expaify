@@ -84,13 +84,13 @@ function LockedDealDetail({ city, checkInDate, checkInWindow, criteriaContext }:
     <div className="min-h-screen bg-[color:var(--bg)]">
       <nav className="border-b border-[color:var(--line-ivory)] bg-[color:var(--bg)]">
         <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">
-          <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
+          <a href="/" className="flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline">
             expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
           </a>
           <a
             href={criteriaContext.backHref}
             aria-label={criteriaContext.criteria ? 'Back to hotel results for this search' : 'Back to saved deals'}
-            className="text-[14px] font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]"
+            className="text-sm font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]"
           >
             ← {criteriaContext.criteria ? 'Back to results' : 'Back to saved deals'}
           </a>
@@ -106,17 +106,17 @@ function LockedDealDetail({ city, checkInDate, checkInWindow, criteriaContext }:
         </div>
         <section className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-8 text-center">
           <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
-            <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-3 py-1 font-display text-[12px] font-bold leading-none text-[color:var(--gold-text)]">
+            <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-3 py-1 font-display text-xs font-bold leading-none text-[color:var(--gold-text)]">
               Members
             </span>
-            <span className="inline-flex items-center rounded-full border border-[color:var(--primary)] bg-[color:var(--primary-soft)] px-3 py-1 text-[11px] font-medium text-[color:var(--primary)]">
+            <span className="inline-flex items-center rounded-full border border-[color:var(--primary)] bg-[color:var(--primary-soft)] px-3 py-1 text-xs font-medium text-[color:var(--primary)]">
               {city}
             </span>
           </div>
 
           {/* Blurred stand-in for the hotel name and price — no real data behind it */}
           <div className="pointer-events-none mx-auto mt-4 max-w-[320px] select-none space-y-3 blur-[5px]" aria-hidden>
-            <div className="mx-auto h-6 w-3/4 rounded bg-[color:var(--line-ivory)]" />
+            <div className="mx-auto h-6 w-3/4 rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)]" />
             <div className="mx-auto flex items-baseline justify-center gap-2">
               <div className="h-9 w-24 rounded-full bg-[color:var(--primary)]" />
               <div className="h-4 w-16 rounded-full bg-[color:var(--line-ivory)]" />
@@ -128,16 +128,16 @@ function LockedDealDetail({ city, checkInDate, checkInWindow, criteriaContext }:
               <rect x="5" y="11" width="14" height="10" rx="2" />
               <path d="M8 11V7a4 4 0 0 1 8 0v4" />
             </svg>
-            <h1 className="font-display text-[22px] font-bold leading-snug text-[color:var(--ink)]">
+            <h1 className="font-display text-xl font-bold leading-snug text-[color:var(--ink)]">
               Members-only deal
             </h1>
-            <p className="text-[14px] leading-6 text-[color:var(--ink-soft)]">
+            <p className="text-sm leading-6 text-[color:var(--ink-soft)]">
               This {city} deal ({checkInWindow}) is locked on the free plan. Premium unlocks the full feed, filters, watchlists, and email alerts — free for 7 days.
             </p>
             <a href="/join" className="btn btn-conversion min-h-[44px] px-6">
               Unlock with Premium
             </a>
-            <a href="/deals" className="text-[13px] font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]">
+            <a href="/deals" className="text-sm font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]">
               See this week&apos;s free deals
             </a>
           </div>
@@ -312,7 +312,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
     <div className="min-h-screen bg-[color:var(--bg)]">
       <nav className="border-b border-[color:var(--line-ivory)] bg-[color:var(--bg)]">
         <div className="mx-auto flex h-16 max-w-[1140px] items-center px-5">
-          <a href="/" className="flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline">
+          <a href="/" className="flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline">
             expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
           </a>
           <div className="flex items-center gap-4">
@@ -345,21 +345,21 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
 
         <div className="mt-4 space-y-4">
           <section aria-labelledby="saved-hotel-title" data-hotel-decision-section="property_stay" data-hotel-decision-position="1" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
-            <p className="text-caption font-bold uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
+            <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
             <h1 id="saved-hotel-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name}</h1>
             <p className="mt-2 text-sm font-medium leading-6 text-[color:var(--text-2)]">Area: {deal.city}</p>
             <p className="mt-1 text-xs leading-5 text-[color:var(--text-3)]">Provider supplied an area, not a street address.</p>
             <dl className="mt-5 grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
               <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
-                <dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Check-in</dt>
+                <dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Check-in</dt>
                 <dd className="mt-1 text-sm font-medium text-[color:var(--text-1)]">{checkInDisplay ?? 'Check-in not provided'}</dd>
               </div>
               <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
-                <dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Check-out</dt>
+                <dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Check-out</dt>
                 <dd className="mt-1 text-sm font-medium text-[color:var(--text-1)]">{checkOutDisplay ?? 'Check-out not provided'}</dd>
               </div>
               <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
-                <dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Nights</dt>
+                <dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Nights</dt>
                 <dd className="mt-1 text-sm font-medium text-[color:var(--text-1)]">{deal.nights != null ? `${deal.nights} ${deal.nights === 1 ? 'night' : 'nights'}` : 'Night count not provided'}</dd>
               </div>
             </dl>
@@ -371,15 +371,15 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           </section>
 
           <section aria-labelledby="saved-price-score-title" data-hotel-decision-section="price_deal_score" data-hotel-decision-position="2" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
-            <h2 id="saved-price-score-title" className="text-xl font-bold text-[color:var(--text-1)] sm:text-2xl">Price and Deal Score</h2>
+            <h2 id="saved-price-score-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Price and Deal Score</h2>
             <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
               <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">
-                <p className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Observed nightly rate</p>
+                <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Observed nightly rate</p>
                 <p className="mt-2 break-words font-display text-3xl font-bold tabular-nums text-[color:var(--text-1)] sm:text-4xl">{formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}</p>
                 <p className="mt-1 text-sm text-[color:var(--text-2)]">per night before taxes and fees</p>
                 <p className="mt-2 text-xs text-[color:var(--text-2)]">Rate observed from a booking partner.</p>
                 {isExpired && deal.expires_at ? (
-                  <p className="mt-3 text-sm font-medium text-[color:var(--error)]">This saved rate expired {fmtDate(deal.expires_at)}. It is shown for reference only.</p>
+                  <p className="mt-3 text-sm font-medium text-[color:var(--error-text)]">This saved rate expired {fmtDate(deal.expires_at)}. It is shown for reference only.</p>
                 ) : isStale ? (
                   <p className="mt-3 text-sm font-medium text-[color:var(--warning)]">Price may be out of date. We have not rechecked it since {fmtCheckedDate(deal.updated_at)}.</p>
                 ) : isAging && checkedAgo ? (
@@ -397,14 +397,14 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           </section>
 
           <section aria-labelledby="saved-hotel-fit-title" data-hotel-decision-section="hotel_fit" data-hotel-decision-position="3" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
-            <h2 id="saved-hotel-fit-title" className="text-xl font-bold text-[color:var(--text-1)] sm:text-2xl">Hotel fit</h2>
+            <h2 id="saved-hotel-fit-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Hotel fit</h2>
             <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
-                <dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Hotel class</dt>
+                <dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Hotel class</dt>
                 <dd className="mt-1 text-sm font-medium text-[color:var(--text-1)]">{deal.stars != null ? `${deal.stars}-star hotel class from a booking partner` : 'Hotel class not provided'}</dd>
               </div>
               <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
-                <dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Guest rating</dt>
+                <dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Guest rating</dt>
                 <dd className="mt-1 text-sm font-medium text-[color:var(--text-1)]">Guest rating not provided</dd>
                 <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
               </div>
@@ -412,10 +412,10 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           </section>
 
           <section aria-labelledby="saved-provider-title" data-hotel-decision-section="provider_handoff" data-hotel-decision-position="4" className="rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
-            <h2 id="saved-provider-title" className="text-xl font-bold text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
+            <h2 id="saved-provider-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
             {isExpired ? (
               <div className="mt-4" role="status">
-                <p className="text-sm font-bold text-[color:var(--text-1)]">Saved rate expired</p>
+                <p className="text-sm font-medium text-[color:var(--text-1)]">Saved rate expired</p>
                 <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">This observed nightly rate is no longer current. Search again before inspecting room options.</p>
                 <a href="/deals" className="btn btn-primary mt-4 inline-flex min-h-11 w-full items-center justify-center text-center">Search current deals</a>
               </div>
@@ -425,7 +425,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           </section>
 
           <section aria-labelledby="saved-supporting-title" data-hotel-decision-section="supporting_evidence" data-hotel-decision-position="5" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
-            <h2 id="saved-supporting-title" className="text-xl font-bold text-[color:var(--text-1)] sm:text-2xl">Supporting evidence</h2>
+            <h2 id="saved-supporting-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Supporting evidence</h2>
             <div className="mt-5 space-y-6">
               {deal.photo_url ? <PropertyPhoto src={deal.photo_url} size="detail" loading="lazy" /> : null}
               <HotelDealCriteriaSummary context={criteriaContext} deal={{ city: deal.city, checkInDate: deal.check_in_date }} />
@@ -437,7 +437,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
               <details className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
                 <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[color:var(--brand)]">Show offer details</summary>
                 <dl className="border-t border-[color:var(--border)] py-3">
-                  <dt className="text-caption font-bold uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</dt>
+                  <dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</dt>
                   <dd className="mt-2 break-all font-mono text-xs text-[color:var(--text-2)]">{deal.id}</dd>
                 </dl>
                 <p className="pb-3 text-xs text-[color:var(--text-3)]">Use this reference if you contact expaify support.</p>

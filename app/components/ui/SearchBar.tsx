@@ -93,7 +93,7 @@ export function SearchBar({ premium, onResult, onClear }: Props) {
           onKeyDown={e => { if (e.key === 'Enter') handleSearch(query) }}
           placeholder={premium ? "Search e.g. '4 star hotels in Miami under $150'" : 'Upgrade to search deals in plain English'}
           disabled={loading || !premium}
-          className="w-full rounded-[var(--radius-input)] border border-[color:var(--line-ivory)] bg-white px-4 py-3 text-[14px] text-[color:var(--ink)] outline-none transition-colors focus:border-[color:var(--primary)] placeholder:text-[color:var(--ink-faint)] disabled:bg-[color:var(--surface)] disabled:opacity-75"
+          className="w-full rounded-[var(--radius-input)] border border-[color:var(--line-ivory)] bg-white px-4 py-3 text-sm text-[color:var(--ink)] outline-none transition-colors focus:border-[color:var(--primary)] placeholder:text-[color:var(--ink-faint)] disabled:bg-[color:var(--surface)] disabled:opacity-75"
         />
         <button
           type="button"
@@ -118,7 +118,7 @@ export function SearchBar({ premium, onResult, onClear }: Props) {
             type="button"
             onClick={clear}
             aria-label="Clear search"
-            className="shrink-0 text-[13px] text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]"
+            className="shrink-0 text-sm text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]"
           >
             Clear
           </button>
@@ -126,7 +126,7 @@ export function SearchBar({ premium, onResult, onClear }: Props) {
       </div>
 
       {message && (
-        <p className="mt-2 text-[12px] font-medium text-[color:var(--ink-soft)]">
+        <p className="mt-2 text-xs font-medium text-[color:var(--ink-soft)]">
           {message}
         </p>
       )}
@@ -136,7 +136,7 @@ export function SearchBar({ premium, onResult, onClear }: Props) {
           {chips.map(chip => (
             <span
               key={chip!}
-              className="inline-flex items-center rounded-[var(--radius-pill)] bg-[color:var(--primary-soft)] px-3 py-1 text-[12px] font-medium text-[color:var(--primary)]"
+              className="inline-flex items-center rounded-[var(--radius-pill)] bg-[color:var(--primary-soft)] px-3 py-1 text-xs font-medium text-[color:var(--primary)]"
             >
               {chip}
             </span>

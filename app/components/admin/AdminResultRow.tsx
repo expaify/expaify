@@ -36,7 +36,7 @@ export function AdminResultRow({ account, headingRef }: AdminResultRowProps) {
       className="flex flex-col items-start justify-between gap-3 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 cursor-pointer sm:flex-row sm:items-center focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
     >
       <div className="min-w-0">
-        <span ref={headingRef} tabIndex={-1} className="block text-sm font-bold text-[var(--text-1)] focus-visible:outline-none">
+        <span ref={headingRef} tabIndex={-1} className="block text-sm font-medium text-[var(--text-1)] focus-visible:outline-none">
           {name}
         </span>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--text-2)]">
@@ -53,7 +53,7 @@ export function AdminResultRow({ account, headingRef }: AdminResultRowProps) {
         <span className="rounded-[var(--radius-pill)] border border-[var(--border-strong)] bg-[var(--bg-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-1)]">
           {badge}
         </span>
-        <span className="text-sm font-bold text-[var(--brand)]">View account</span>
+        <span className="text-sm font-medium text-[var(--brand)]">View account</span>
       </div>
     </div>
   )

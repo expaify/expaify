@@ -64,16 +64,16 @@ export function managePage(title: string, body: string, actions = '', status = 2
       *{box-sizing:border-box}
       body{margin:0;background:#FAF7F2;color:#141210;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
       main{max-width:520px;margin:0 auto;padding:48px 20px}
-      .logo{font-family:Georgia,serif;font-weight:700;font-size:22px;color:#0E5A54;margin-bottom:28px}
+      .logo{font-family:"Space Grotesk",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-weight:700;font-size:22px;color:#0E5A54;margin-bottom:28px}
       .dot{color:#FF6B4A}
       section{background:#fff;border:1px solid #E8E2D8;border-radius:16px;padding:24px}
-      h1{font-family:Georgia,serif;font-size:24px;line-height:1.2;margin:0 0 8px}
+      h1{font-family:"Space Grotesk",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-weight:700;font-size:24px;line-height:1.2;margin:0 0 8px}
       p{font-size:14px;line-height:1.6;color:#5C5852;margin:0}
-      a{color:#0E5A54;font-size:14px;font-weight:600}
+      a{color:#0E5A54;font-size:14px;font-weight:500}
       .actions{margin-top:20px}
-      .actions button{display:inline-block;min-height:44px;background:#0E5A54;color:#fff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:999px;border:none;cursor:pointer;outline-offset:2px}
+      .actions button{display:inline-block;min-height:44px;background:#0E5A54;color:#fff;font-weight:500;font-size:14px;padding:12px 24px;border-radius:999px;border:none;cursor:pointer;outline-offset:2px}
       .links{line-height:2}
-      .links span{color:#8A857D;padding:0 4px}
+      .links span{color:#767168;padding:0 4px}
       .secondary{display:block;margin-top:12px}
     </style>
   </head>

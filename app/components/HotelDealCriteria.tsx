@@ -95,8 +95,8 @@ export function HotelDealCriteriaSummary({ context, deal }: {
       ) : null}
       {updateFailed ? (
         <div role="alert" className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--error)] bg-[color:var(--error-soft)] p-4">
-          <p className="text-sm font-bold">We couldn&apos;t update these results.</p>
-          <p className="mt-1 text-[13px]">This deal and your previous search are still showing.</p>
+          <p className="text-sm font-medium">We couldn&apos;t update these results.</p>
+          <p className="mt-1 text-sm">This deal and your previous search are still showing.</p>
           <div className="mt-3 flex flex-col gap-2 min-[420px]:flex-row">
             <button ref={retryRef} type="button" onClick={() => failedDraft && void apply(failedDraft, failedVersionRef.current ?? undefined)} className="btn btn-primary min-h-11 px-4">Retry update</button>
             <button type="button" onClick={() => setEditorOpen(true)} className="btn btn-outline min-h-11 px-4">Edit search</button>
@@ -130,7 +130,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
   if (status === 'mismatch' && criteria) {
     return (
       <div className="mt-4" role="status">
-        <p className="text-sm font-bold text-[color:var(--text-1)]">Provider link unavailable</p>
+        <p className="text-sm font-medium text-[color:var(--text-1)]">Provider link unavailable</p>
         <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Review the search mismatch below before inspecting room options.</p>
       </div>
     )
@@ -163,7 +163,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
         </>
       ) : (
         <div role="status">
-          <p className="text-sm font-bold text-[color:var(--text-1)]">Provider link unavailable</p>
+          <p className="text-sm font-medium text-[color:var(--text-1)]">Provider link unavailable</p>
           <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">You can review this hotel here, but expaify does not have a valid provider link for room inspection.</p>
           <a href="/deals" className="btn btn-outline mt-4 inline-flex min-h-11 w-full items-center justify-center text-center">Search current deals</a>
         </div>

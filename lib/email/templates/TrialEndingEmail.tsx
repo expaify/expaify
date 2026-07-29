@@ -17,7 +17,7 @@ export function TrialEndingEmail({ email, daysLeft, manageUrl, unsubscribeUrl }:
       <Preview>{`Your expaify trial ends in ${daysLeft} days`}</Preview>
       <Body style={{ backgroundColor: '#FAF7F2', fontFamily: 'Inter, -apple-system, sans-serif', margin: 0, padding: 0 }}>
         <Container style={{ maxWidth: '540px', margin: '0 auto', padding: '40px 20px' }}>
-          <Text style={{ fontFamily: 'Georgia, serif', fontWeight: 700, fontSize: '20px', color: '#0E5A54', margin: '0 0 32px' }}>
+          <Text style={{ fontFamily: '"Space Grotesk", Inter, -apple-system, "Segoe UI", sans-serif', fontWeight: 700, fontSize: '20px', color: '#0E5A54', margin: '0 0 32px' }}>
             expaify<span style={{ color: '#FF6B4A' }}>.</span>
           </Text>
 
@@ -35,10 +35,10 @@ export function TrialEndingEmail({ email, daysLeft, manageUrl, unsubscribeUrl }:
             style={{
               display: 'block',
               backgroundColor: '#FF6B4A',
-              color: '#FFFFFF',
+              color: '#141210', /* ink on coral is 6.6:1 (AA); white was 2.8:1 */
               textDecoration: 'none',
               textAlign: 'center',
-              fontWeight: 600,
+              fontWeight: 500,
               fontSize: '15px',
               padding: '13px 24px',
               borderRadius: '999px',
@@ -51,13 +51,13 @@ export function TrialEndingEmail({ email, daysLeft, manageUrl, unsubscribeUrl }:
 
           <Hr style={{ border: 'none', borderTop: '1px solid #E8E2D8', margin: '28px 0 16px' }} />
 
-          <Text style={{ fontSize: '11px', color: '#8A857D', margin: 0 }}>
+          <Text style={{ fontSize: '11px', color: '#767168', margin: 0 }}>
             Sent to {email} ·{' '}
-            <a href={manageUrl} style={{ color: '#8A857D' }}>Manage plan</a>
+            <a href={manageUrl} style={{ color: '#767168' }}>Manage plan</a>
             {' · '}
-            <a href={unsubscribeUrl} style={{ color: '#8A857D' }}>Unsubscribe from deal alerts</a>
+            <a href={unsubscribeUrl} style={{ color: '#767168' }}>Unsubscribe from deal alerts</a>
             {' · '}
-            <a href="https://expaify.com" style={{ color: '#8A857D' }}>expaify.com</a>
+            <a href="https://expaify.com" style={{ color: '#767168' }}>expaify.com</a>
           </Text>
         </Container>
       </Body>

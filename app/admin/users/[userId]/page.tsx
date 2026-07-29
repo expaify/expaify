@@ -27,7 +27,7 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
   if (!dossierResult.ok) {
     return (
       <div className="mx-auto max-w-[860px] px-5 py-10">
-        <a href="/admin/users" className="text-sm font-bold text-[var(--brand)] no-underline">
+        <a href="/admin/users" className="text-sm font-medium text-[var(--brand)] no-underline">
           ← Back to user lookup
         </a>
         <div className="mt-6 rounded-[var(--radius-card)] border border-dashed border-[var(--border-strong)] bg-[var(--bg-muted)] px-5 py-6 text-center">

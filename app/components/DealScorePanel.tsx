@@ -46,7 +46,7 @@ function formatPctVsMedian(value: number) {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
+      <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">
         {label}
       </p>
       <p className="mt-0.5 [overflow-wrap:anywhere] font-medium leading-5 text-[color:var(--text-1)]">
@@ -117,7 +117,7 @@ export default function DealScorePanel({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
+            <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">
               Deal Score
             </p>
             <p className="mt-0.5 text-xs font-medium leading-5 text-[color:var(--text-2)]">
@@ -143,7 +143,7 @@ export default function DealScorePanel({
         role="status"
         aria-label={unavailableAriaLabel(scope)}
       >
-        <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
+        <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">
           Deal Score
         </p>
         <p className="mt-0.5 text-sm font-medium leading-5 text-[color:var(--text-1)]">
@@ -173,7 +173,7 @@ export default function DealScorePanel({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--text-3)]">
+          <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">
             Deal Score
           </p>
         </div>

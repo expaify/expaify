@@ -125,7 +125,7 @@ export function AdminMutationDialog({ config, onClose, onSuccess }: AdminMutatio
         )}
 
         <div className="mt-4">
-          <label htmlFor={`${titleId}-field`} className="mb-1.5 block text-xs font-bold text-[var(--text-1)]">
+          <label htmlFor={`${titleId}-field`} className="mb-1.5 block text-xs font-medium text-[var(--text-1)]">
             {config.fieldLabel}
           </label>
           <textarea
@@ -143,7 +143,7 @@ export function AdminMutationDialog({ config, onClose, onSuccess }: AdminMutatio
             }`}
           />
           {attempted && !valid && (
-            <p id={errorId} className="mt-1 text-xs text-[var(--error)]">
+            <p id={errorId} className="mt-1 text-xs text-[var(--error-text)]">
               Enter a reason (at least 10 characters) before {config.errorActionPhrase}.
             </p>
           )}
@@ -151,7 +151,7 @@ export function AdminMutationDialog({ config, onClose, onSuccess }: AdminMutatio
 
         {config.includeExpiry && (
           <div className="mt-4">
-            <label htmlFor={`${titleId}-expiry`} className="mb-1.5 block text-xs font-bold text-[var(--text-1)]">
+            <label htmlFor={`${titleId}-expiry`} className="mb-1.5 block text-xs font-medium text-[var(--text-1)]">
               Access ends (optional)
             </label>
             <input
@@ -175,7 +175,7 @@ export function AdminMutationDialog({ config, onClose, onSuccess }: AdminMutatio
         <p className="mt-3 text-xs text-[var(--text-3)]">{config.stripeImpact}</p>
 
         {failure && (
-          <p role="alert" className="mt-3 text-sm text-[var(--error)]">
+          <p role="alert" className="mt-3 text-sm text-[var(--error-text)]">
             {failure}
           </p>
         )}
@@ -185,7 +185,7 @@ export function AdminMutationDialog({ config, onClose, onSuccess }: AdminMutatio
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 text-sm font-bold text-[var(--text-1)] disabled:opacity-60 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 text-sm font-medium text-[var(--text-1)] disabled:opacity-60 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
             Cancel
           </button>
@@ -194,7 +194,7 @@ export function AdminMutationDialog({ config, onClose, onSuccess }: AdminMutatio
             onClick={() => void handleConfirm()}
             disabled={confirmDisabled}
             aria-disabled={confirmDisabled}
-            className="min-h-11 rounded-[var(--radius-control)] bg-[var(--brand)] px-4 text-sm font-bold text-[var(--text-inverse)] disabled:opacity-60 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            className="min-h-11 rounded-[var(--radius-control)] bg-[var(--brand)] px-4 text-sm font-medium text-[var(--text-inverse)] disabled:opacity-60 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
             {submitting ? config.confirmingLabel : config.confirmLabel}
           </button>
@@ -272,7 +272,7 @@ export function StripeHandoffDialog({ email, stripeCustomerId, onClose }: Stripe
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 text-sm font-bold text-[var(--text-1)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 text-sm font-medium text-[var(--text-1)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
             Cancel
           </button>
@@ -282,7 +282,7 @@ export function StripeHandoffDialog({ email, stripeCustomerId, onClose }: Stripe
             target="_blank"
             rel="noopener noreferrer"
             onClick={onClose}
-            className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] bg-[var(--brand)] px-4 text-sm font-bold text-[var(--text-inverse)] no-underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] bg-[var(--brand)] px-4 text-sm font-medium text-[var(--text-inverse)] no-underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
             Open in Stripe Dashboard ↗
           </a>

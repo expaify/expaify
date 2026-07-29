@@ -41,11 +41,11 @@ export function DailyDigest({ deals, date, manageUrl, unsubscribeUrl }: DailyDig
         <Container style={{ maxWidth: '540px', margin: '0 auto', padding: '32px 20px' }}>
 
           {/* Logo */}
-          <Text style={{ fontFamily: 'Georgia, serif', fontWeight: 700, fontSize: '20px', color: '#0E5A54', margin: '0 0 28px' }}>
+          <Text style={{ fontFamily: '"Space Grotesk", Inter, -apple-system, "Segoe UI", sans-serif', fontWeight: 700, fontSize: '20px', color: '#0E5A54', margin: '0 0 28px' }}>
             expaify<span style={{ color: '#FF6B4A' }}>.</span>
           </Text>
 
-          <Heading as="h1" style={{ fontFamily: 'Georgia, serif', fontSize: '22px', fontWeight: 700, color: '#141210', margin: '0 0 4px' }}>
+          <Heading as="h1" style={{ fontFamily: '"Space Grotesk", Inter, -apple-system, "Segoe UI", sans-serif', fontSize: '22px', fontWeight: 700, color: '#141210', margin: '0 0 4px' }}>
             Your deals for {date}
           </Heading>
           <Text style={{ fontSize: '14px', color: '#5C5852', margin: '0 0 24px' }}>
@@ -70,7 +70,7 @@ export function DailyDigest({ deals, date, manageUrl, unsubscribeUrl }: DailyDig
                   <Text style={{ fontWeight: 700, fontSize: '15px', color: '#141210', margin: '0 0 2px' }}>
                     {deal.hotelName}
                   </Text>
-                  <Text style={{ fontSize: '12px', color: '#8A857D', margin: '0 0 8px' }}>
+                  <Text style={{ fontSize: '12px', color: '#767168', margin: '0 0 8px' }}>
                     {stars(deal.stars)} · {deal.city} · {deal.checkInWindow}
                   </Text>
                 </Column>
@@ -82,17 +82,17 @@ export function DailyDigest({ deals, date, manageUrl, unsubscribeUrl }: DailyDig
               </Row>
               <Text style={{ fontSize: '13px', color: '#5C5852', lineHeight: '20px', margin: '0 0 12px' }}>
                 <span style={{ fontSize: '22px', fontWeight: 700, color: '#0E5A54' }}>{fmt(deal.dealPriceCents)}</span>
-                <span style={{ color: '#8A857D' }}> / night vs median {fmt(deal.medianPriceCents)}</span>
+                <span style={{ color: '#767168' }}> / night vs median {fmt(deal.medianPriceCents)}</span>
               </Text>
               <Button
                 href={deal.dealUrl}
                 style={{
                   display: 'block',
                   backgroundColor: '#FF6B4A',
-                  color: '#FFFFFF',
+                  color: '#141210', /* ink on coral is 6.6:1 (AA); white was 2.8:1 */
                   textDecoration: 'none',
                   textAlign: 'center',
-                  fontWeight: 600,
+                  fontWeight: 500,
                   fontSize: '14px',
                   padding: '11px 20px',
                   borderRadius: '999px',
@@ -102,7 +102,7 @@ export function DailyDigest({ deals, date, manageUrl, unsubscribeUrl }: DailyDig
               >
                 See the deal
               </Button>
-              <Text style={{ fontSize: '11px', color: '#8A857D', lineHeight: '16px', margin: '10px 0 0' }}>
+              <Text style={{ fontSize: '11px', color: '#767168', lineHeight: '16px', margin: '10px 0 0' }}>
                 Based on {deal.snapshotCount} price checks.
               </Text>
               </Section>
@@ -114,10 +114,10 @@ export function DailyDigest({ deals, date, manageUrl, unsubscribeUrl }: DailyDig
             style={{
               display: 'block',
               backgroundColor: '#FF6B4A',
-              color: '#FFFFFF',
+              color: '#141210', /* ink on coral is 6.6:1 (AA); white was 2.8:1 */
               textDecoration: 'none',
               textAlign: 'center',
-              fontWeight: 600,
+              fontWeight: 500,
               fontSize: '14px',
               padding: '12px 24px',
               borderRadius: '999px',
@@ -131,12 +131,12 @@ export function DailyDigest({ deals, date, manageUrl, unsubscribeUrl }: DailyDig
 
           <Hr style={{ border: 'none', borderTop: '1px solid #E8E2D8', margin: '0 0 16px' }} />
 
-          <Text style={{ fontSize: '11px', color: '#8A857D', margin: 0 }}>
-            <a href={manageUrl} style={{ color: '#8A857D' }}>Manage prefs</a>
+          <Text style={{ fontSize: '11px', color: '#767168', margin: 0 }}>
+            <a href={manageUrl} style={{ color: '#767168' }}>Manage prefs</a>
             {' · '}
-            <a href={unsubscribeUrl} style={{ color: '#8A857D' }}>Unsubscribe</a>
+            <a href={unsubscribeUrl} style={{ color: '#767168' }}>Unsubscribe</a>
             {' · '}
-            <a href="https://expaify.com" style={{ color: '#8A857D' }}>expaify.com</a>
+            <a href="https://expaify.com" style={{ color: '#767168' }}>expaify.com</a>
             {' · © 2026 expaify'}
           </Text>
         </Container>

@@ -194,7 +194,7 @@ export default function AirportInput({
         aria-activedescendant={activeOptionId}
         aria-describedby={describedBy}
         aria-invalid={error ? 'true' : 'false'}
-        className={`min-h-[3.25rem] w-full rounded-[var(--radius-control)] border bg-[var(--bg-raised)] px-4 py-3.5 pl-11 text-[0.9375rem] font-medium text-[var(--text-1)] transition-[border-color,background] placeholder:text-[var(--text-3)] focus:outline-none focus:ring-0 ${
+        className={`min-h-[3.25rem] w-full rounded-[var(--radius-control)] border bg-[var(--bg-raised)] px-4 py-3.5 pl-11 text-base font-medium text-[var(--text-1)] transition-[border-color,background] placeholder:text-[var(--text-3)] focus:outline-none focus:ring-0 ${
           error
             ? 'border-[var(--error)] bg-[var(--error-soft)] focus:border-[var(--error)]'
             : 'border-[var(--border)] focus:border-[var(--border-focus)]'
@@ -211,7 +211,7 @@ export default function AirportInput({
             groupedResults(results).map(group => (
               <div key={group.key}>
                 {group.grouped && (
-                  <div className="px-3 pb-1 pt-3 text-[11px] font-medium uppercase tracking-wide text-[var(--text-3)]">
+                  <div className="px-3 pb-1 pt-3 text-xs font-medium uppercase tracking-wide text-[var(--text-3)]">
                     {group.city} airports
                   </div>
                 )}
@@ -231,7 +231,7 @@ export default function AirportInput({
                     >
                       <span className="inline-flex h-8 min-w-12 items-center justify-center rounded-[var(--radius-control)] bg-[var(--bg-muted)] px-2 text-xs font-medium text-[var(--brand)]">{airport.iata}</span>
                       <span className="min-w-0">
-                        <span className="block min-w-0 break-words text-sm font-bold leading-5 text-[var(--text-1)]">{airport.name}</span>
+                        <span className="block min-w-0 break-words text-sm font-medium leading-5 text-[var(--text-1)]">{airport.name}</span>
                         <span className="mt-0.5 block min-w-0 break-words text-xs font-medium leading-5 text-[var(--text-2)]">{airport.city}, {airport.country}</span>
                       </span>
                     </div>
@@ -251,7 +251,7 @@ export default function AirportInput({
         </div>
       )}
       {hasSelectedScope && (
-        <div id={helperId} className={`flex min-h-5 items-start gap-1.5 text-xs font-bold leading-5 ${selectionKind === 'resolved' ? 'text-[var(--warning)]' : 'text-[var(--success)]'}`}>
+        <div id={helperId} className={`flex min-h-5 items-start gap-1.5 text-xs font-medium leading-5 ${selectionKind === 'resolved' ? 'text-[var(--warning)]' : 'text-[var(--success)]'}`}>
           {selectionKind === 'resolved'
             ? `Resolved to ${selectedIata}. Review before searching.`
             : `Searching ${selectedIata} only.`}
@@ -268,7 +268,7 @@ export default function AirportInput({
         </button>
       )}
       {error && (
-        <p id={errorId} className="text-xs font-bold leading-5 text-[var(--error)]" role="alert">
+        <p id={errorId} className="text-xs font-medium leading-5 text-[var(--error-text)]" role="alert">
           {error}
         </p>
       )}

@@ -81,7 +81,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
       <main className="mx-auto max-w-[760px] px-5 py-16">
         <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-6 text-center">
           <h1 className="text-h2 text-[color:var(--text-1)]">We couldn&apos;t restore this search.</h1>
-          <p className="mt-2 text-[14px] leading-6 text-[color:var(--text-2)]">The search link is incomplete or no longer valid.</p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">The search link is incomplete or no longer valid.</p>
           <Link href={`/destinations/${city}`} className="btn btn-primary mt-5 min-h-11 px-6">Start a new search</Link>
         </section>
       </main>
@@ -145,12 +145,12 @@ export default async function CityPage({ params, searchParams }: PageProps) {
       <nav aria-label="breadcrumb" className="hidden md:flex items-center mb-6">
         <Link
           href="/deals"
-          className="text-[13px] text-[color:var(--text-2)] hover:text-[color:var(--text-1)] transition-colors"
+          className="text-sm text-[color:var(--text-2)] hover:text-[color:var(--text-1)] transition-colors"
         >
           All destinations
         </Link>
         <span className="mx-2 text-[color:var(--text-3)]" aria-hidden="true">›</span>
-        <span className="text-[13px] text-[color:var(--text-1)] font-medium" aria-current="page">
+        <span className="text-sm text-[color:var(--text-1)] font-medium" aria-current="page">
           {displayName}
         </span>
       </nav>
@@ -167,7 +167,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
           />
         </div>
       )}
-      <p className="text-[13px] text-[color:var(--text-2)] mb-8">
+      <p className="text-sm text-[color:var(--text-2)] mb-8">
         {initialDeals.length === 0
           ? 'Checked daily — no active deals right now'
           : `Updated daily · ${initialDeals.length} deal${initialDeals.length !== 1 ? 's' : ''} found`}
@@ -176,7 +176,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
       <DealFeed key={criteria.criteriaVersion} initialDeals={initialDeals} defaultCity={displayName} premium={pwCtx.premium} initialCriteria={criteria} initialView={effectiveView} initialError={initialError} />
       {initialDeals.length === 0 && !initialError ? (
         <div className="mt-6 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] px-6 py-8 text-center">
-          <p className="mb-4 text-[13px] text-[color:var(--text-2)]">Get notified when a current {displayName} deal appears.</p>
+          <p className="mb-4 text-sm text-[color:var(--text-2)]">Get notified when a current {displayName} deal appears.</p>
           <WatchCityCta city={displayName} tier={watchTier} watching={isWatching} watchlist={watchlist} />
         </div>
       ) : null}

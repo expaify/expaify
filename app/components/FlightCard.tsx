@@ -144,7 +144,7 @@ function ItineraryTiming({ fare, score }: { fare: NormalizedFare; score: DealSco
 
   return (
     <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[var(--text-2)]">
-      <p className="font-bold text-[var(--text-1)]">Itinerary timing</p>
+      <p className="font-medium text-[var(--text-1)]">Itinerary timing</p>
       <p className="mt-1 text-[var(--text-2)]">{timingCopy}</p>
       {layoverCopy ? (
         <p className="mt-1 text-[var(--text-2)]">{layoverCopy}</p>
@@ -172,14 +172,14 @@ function ScheduleItem({ label, value }: { label: 'Depart' | 'Return'; value: str
       role="group"
       aria-label={schedule.ariaLabel}
     >
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-2)]">
+      <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-2)]">
         {label}
       </p>
-      <p className="mt-0.5 text-sm font-bold leading-5 text-[var(--text-1)] tabular-nums">
+      <p className="mt-0.5 text-sm font-medium leading-5 text-[var(--text-1)] tabular-nums">
         {schedule.primary}
       </p>
       {schedule.secondary ? (
-        <p className="text-[11px] font-medium leading-4 text-[var(--text-3)]">
+        <p className="text-xs font-medium leading-4 text-[var(--text-3)]">
           {schedule.secondary}
         </p>
       ) : null}
@@ -190,7 +190,7 @@ function ScheduleItem({ label, value }: { label: 'Depart' | 'Return'; value: str
 function StopsChip({ stops }: { stops: number }) {
   if (stops === 0) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--success)]/25 bg-[var(--success-soft)] px-2 py-1 text-[11px] font-medium text-[var(--success)]">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--success)]/25 bg-[var(--success-soft)] px-2 py-1 text-xs font-medium text-[var(--success)]">
         <span className="h-1.5 w-1.5 rounded-full bg-[var(--success)]" />
         Nonstop
       </span>
@@ -199,7 +199,7 @@ function StopsChip({ stops }: { stops: number }) {
 
   if (stops === 1) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-2 py-1 text-[11px] font-medium text-[var(--warning)]">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-2 py-1 text-xs font-medium text-[var(--warning)]">
         <span className="h-1.5 w-1.5 rounded-full bg-[var(--warning)]" />
         1 stop
       </span>
@@ -207,7 +207,7 @@ function StopsChip({ stops }: { stops: number }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-2 py-1 text-[11px] font-medium text-[var(--warning)]">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-2 py-1 text-xs font-medium text-[var(--warning)]">
       <span className="h-1.5 w-1.5 rounded-full bg-[var(--warning)]" />
       {stops} stops
     </span>
@@ -230,7 +230,7 @@ function CabinBadge({ cabin }: { cabin?: NormalizedFare['cabin'] }) {
   const normalizedCabin = cabin ?? 'economy'
 
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] font-medium ${colors[normalizedCabin]}`}>
+    <span className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-medium ${colors[normalizedCabin]}`}>
       {labels[normalizedCabin]}
     </span>
   )
@@ -267,13 +267,13 @@ function AirlineLogo({ carrier }: { carrier: string }) {
 function Price({ price, heading, label, freshnessLabel }: { price: NormalizedFare['price']; heading: string; label: string; freshnessLabel: string }) {
   return (
     <div className="min-w-[6.75rem] max-w-[9.5rem] text-right sm:min-w-[7.5rem] sm:shrink-0">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-2)]">
+      <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-2)]">
         {heading}
       </p>
       <p className="mt-1 font-display text-xl font-bold leading-none text-[var(--text-1)] tabular-nums sm:text-4xl">
         {formatMoney(price)}
       </p>
-      <div className="mt-1 space-y-0.5 text-[11px] font-medium leading-4 text-[var(--text-3)]">
+      <div className="mt-1 space-y-0.5 text-xs font-medium leading-4 text-[var(--text-3)]">
         <p>{label}</p>
         <p className="text-[var(--text-2)]">{freshnessLabel}</p>
       </div>
@@ -284,13 +284,13 @@ function Price({ price, heading, label, freshnessLabel }: { price: NormalizedFar
 function PriceUnavailable({ reason, freshnessLabel }: { reason: string; freshnessLabel?: string }) {
   return (
     <div className="min-w-[6.75rem] max-w-[9.5rem] text-right sm:min-w-[7.5rem] sm:shrink-0" role="status" aria-label={`Flight price unavailable. ${reason}${freshnessLabel ? ` ${freshnessLabel}.` : ''}`}>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-2)]">
+      <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-2)]">
         Current fare
       </p>
       <p className="mt-1 font-display text-lg font-bold leading-tight text-[var(--text-1)]">
         Price unavailable
       </p>
-      <div className="mt-1 space-y-0.5 text-[11px] font-medium leading-4 text-[var(--text-3)]">
+      <div className="mt-1 space-y-0.5 text-xs font-medium leading-4 text-[var(--text-3)]">
         <p>{reason}</p>
         {freshnessLabel ? <p className="text-[var(--text-2)]">{freshnessLabel}</p> : null}
       </div>
@@ -329,7 +329,7 @@ function BaggageEstimateRow({
 
   return (
     <div className={`mt-3 min-h-[3.75rem] rounded-[var(--radius-control)] border px-3 py-2 text-xs leading-5 sm:col-span-2 ${rowTone}`}>
-      <p className={`font-bold ${labelTone}`}>{label}</p>
+      <p className={`font-medium ${labelTone}`}>{label}</p>
       {detail ? (
         <p className="text-[var(--text-2)]">{detail}</p>
       ) : null}
@@ -480,7 +480,7 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
               <AirlineLogo carrier={carrierLabel} />
             </div>
             <div className="min-w-0">
-              <h3 className="truncate text-sm font-bold leading-5 text-[var(--text-1)] sm:text-base">
+              <h3 className="truncate text-sm font-medium leading-5 text-[var(--text-1)] sm:text-base">
                 {fare.origin} to {fare.destination}
               </h3>
               <p className="truncate text-xs font-medium leading-5 text-[var(--text-2)]">
@@ -490,7 +490,7 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
                 {showCollapsedDuration ? (
                   <span className={`text-xs leading-5 tabular-nums ${
                     itineraryCertainty === 'confirmed'
-                      ? 'font-bold text-[var(--text-1)]'
+                      ? 'font-medium text-[var(--text-1)]'
                       : 'font-medium text-[var(--text-2)]'
                   }`}>
                     Total {durationLabel}
@@ -524,7 +524,7 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
               target={isInternalBooking ? undefined : '_blank'}
               rel={isInternalBooking ? undefined : 'noopener noreferrer sponsored'}
               aria-label={ctaAriaLabel}
-              className={`inline-flex min-h-10 max-w-[8.5rem] items-center justify-center gap-2 rounded-[var(--radius-control)] px-3 text-center text-xs font-bold transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm ${
+              className={`inline-flex min-h-10 max-w-[8.5rem] items-center justify-center gap-2 rounded-[var(--radius-control)] px-3 text-center text-xs font-medium transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm ${
                 isInternalBooking
                   ? 'border border-[var(--border-strong)] bg-[var(--bg-raised)] text-[var(--text-1)]'
                   : 'border border-[var(--brand)] bg-[var(--brand)] text-[var(--text-inverse)] shadow-[var(--shadow-btn)]'
@@ -540,7 +540,7 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
               type="button"
               disabled
               aria-label={ctaAriaLabel}
-              className="inline-flex min-h-10 max-w-[8.5rem] cursor-not-allowed items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-muted)] px-3 text-xs font-bold text-[var(--text-3)] sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm"
+              className="inline-flex min-h-10 max-w-[8.5rem] cursor-not-allowed items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-muted)] px-3 text-xs font-medium text-[var(--text-3)] sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm"
             >
               <span className="truncate">{ctaLabel}</span>
             </button>
@@ -552,7 +552,7 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
           aria-expanded={isExpanded}
           aria-controls={detailsId}
           onClick={() => setIsExpanded(value => !value)}
-          className="mt-3 flex min-h-10 w-full items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-surface)] text-sm font-bold text-[var(--text-1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
+          className="mt-3 flex min-h-10 w-full items-center justify-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-surface)] text-sm font-medium text-[var(--text-1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
         >
           {isExpanded ? 'Hide details' : 'Details'}
         </button>
@@ -572,17 +572,17 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
             <ItineraryTiming fare={fare} score={score} />
 
             <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[var(--text-2)]">
-              <p className="font-bold text-[var(--text-1)]">Price scope</p>
+              <p className="font-medium text-[var(--text-1)]">Price scope</p>
               <p>{priceLabel}</p>
-              <p className="mt-2 font-bold text-[var(--text-1)]">Baggage estimate</p>
+              <p className="mt-2 font-medium text-[var(--text-1)]">Baggage estimate</p>
               <p>
                 {baggageEstimate?.available
                   ? 'Estimated bag totals are added to the confirmed fare only for comparison. Provider baggage rules and final checkout totals can change.'
                   : 'No bag estimate is available for this fare. Review provider baggage terms before booking.'}
               </p>
-              <p className="mt-2 font-bold text-[var(--text-1)]">Price check</p>
+              <p className="mt-2 font-medium text-[var(--text-1)]">Price check</p>
               <p>{priceCheckCopy}</p>
-              <p className="mt-2 font-bold text-[var(--text-1)]">Provider handoff</p>
+              <p className="mt-2 font-medium text-[var(--text-1)]">Provider handoff</p>
               <p>{ctaNote}</p>
               {!hasValidPrice ? <p className="mt-2">No confirmed fare price was returned for this result.</p> : null}
               {hasValidPrice && !hasDeeplink ? <p className="mt-2">Availability cannot be verified from this result.</p> : null}

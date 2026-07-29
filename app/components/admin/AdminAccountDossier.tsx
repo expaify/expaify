@@ -176,7 +176,7 @@ export function AdminAccountDossier({ initialDossier, userId, adminEmail }: Admi
 
   return (
     <div className="mx-auto max-w-full px-4 py-6 sm:max-w-[960px] sm:px-5 sm:py-10">
-      <a href="/admin/users" className="text-sm font-bold text-[var(--brand)] no-underline">
+      <a href="/admin/users" className="text-sm font-medium text-[var(--brand)] no-underline">
         ← Back to user lookup
       </a>
 
@@ -197,7 +197,7 @@ export function AdminAccountDossier({ initialDossier, userId, adminEmail }: Admi
       {refetchError && (
         <div className="mt-4 rounded-[var(--radius-control)] border border-[var(--error)] bg-[var(--error-soft)] px-4 py-3 text-sm text-[var(--text-1)]">
           Couldn&apos;t refresh account data.{' '}
-          <button type="button" onClick={() => void refetch()} className="font-bold underline">
+          <button type="button" onClick={() => void refetch()} className="font-medium underline">
             Retry
           </button>
         </div>
@@ -275,7 +275,7 @@ export function AdminAccountDossier({ initialDossier, userId, adminEmail }: Admi
               ref={grantTriggerRef}
               type="button"
               onClick={() => setDialog('grant-comp')}
-              className="min-h-11 rounded-[var(--radius-control)] bg-[var(--brand)] px-4 text-sm font-bold text-[var(--text-inverse)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              className="min-h-11 rounded-[var(--radius-control)] bg-[var(--brand)] px-4 text-sm font-medium text-[var(--text-inverse)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             >
               Grant comp access
             </button>
@@ -285,7 +285,7 @@ export function AdminAccountDossier({ initialDossier, userId, adminEmail }: Admi
               ref={removeTriggerRef}
               type="button"
               onClick={() => setDialog('remove-access')}
-              className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 text-sm font-bold text-[var(--text-1)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 text-sm font-medium text-[var(--text-1)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             >
               Remove local access
             </button>
@@ -297,7 +297,7 @@ export function AdminAccountDossier({ initialDossier, userId, adminEmail }: Admi
                 type="button"
                 disabled={!subscription.stripeCustomerId}
                 onClick={() => setDialog('stripe-handoff')}
-                className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 text-sm font-bold text-[var(--text-1)] disabled:opacity-60 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 text-sm font-medium text-[var(--text-1)] disabled:opacity-60 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
                 Cancel in Stripe
               </button>
@@ -334,7 +334,7 @@ export function AdminAccountDossier({ initialDossier, userId, adminEmail }: Admi
               <Field label="Last alerted" value={alerts.lastAlertedAt ? formatAdminDate(alerts.lastAlertedAt) : 'Never'} />
             </dl>
 
-            <h3 className="mt-5 text-sm font-bold text-[var(--text-1)]">Recent deliveries</h3>
+            <h3 className="mt-5 text-sm font-medium text-[var(--text-1)]">Recent deliveries</h3>
             {alerts.recentDeliveries.length === 0 ? (
               <p className="mt-2 text-sm text-[var(--text-2)]">No deal alerts delivered yet.</p>
             ) : (
@@ -404,12 +404,12 @@ export function AdminAccountDossier({ initialDossier, userId, adminEmail }: Admi
 
         <div className="mt-4">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-bold text-[var(--text-1)]">Export requests</h3>
+            <h3 className="text-sm font-medium text-[var(--text-1)]">Export requests</h3>
             <button
               ref={exportTriggerRef}
               type="button"
               onClick={() => setDialog('export-request')}
-              className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm font-bold text-[var(--text-1)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm font-medium text-[var(--text-1)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             >
               Create export request
             </button>
@@ -423,12 +423,12 @@ export function AdminAccountDossier({ initialDossier, userId, adminEmail }: Admi
 
         <div className="mt-6">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-bold text-[var(--text-1)]">Deletion requests</h3>
+            <h3 className="text-sm font-medium text-[var(--text-1)]">Deletion requests</h3>
             <button
               ref={deletionTriggerRef}
               type="button"
               onClick={() => setDialog('deletion-request')}
-              className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm font-bold text-[var(--text-1)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm font-medium text-[var(--text-1)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             >
               Create deletion request
             </button>

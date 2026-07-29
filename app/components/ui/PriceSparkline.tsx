@@ -11,7 +11,7 @@ type Props = {
 export function PriceSparkline({ history, dealPriceCents, medianPriceCents }: Props) {
   if (history.length < 2) {
     return (
-      <div className="flex h-[80px] items-center justify-center rounded-[var(--radius-input)] bg-[color:var(--surface)] text-[12px] text-[color:var(--ink-faint)]">
+      <div className="flex h-[80px] items-center justify-center rounded-[var(--radius-input)] bg-[color:var(--surface)] text-small text-[color:var(--ink-faint)]">
         Not enough history to show chart
       </div>
     )
@@ -71,23 +71,23 @@ export function PriceSparkline({ history, dealPriceCents, medianPriceCents }: Pr
         <line
           x1={PAD.left} y1={medianY}
           x2={W - PAD.right} y2={medianY}
-          stroke="var(--gold)" strokeWidth="1" strokeDasharray="4 3" opacity="0.7"
+          stroke="var(--gold-deep)" strokeWidth="1" strokeDasharray="4 3"
         />
 
         {/* Price line */}
         <path d={linePath} fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
 
         {/* Deal price dot */}
-        <circle cx={dotX} cy={dotY} r="5" fill="var(--gold)" stroke="var(--surface)" strokeWidth="2" />
+        <circle cx={dotX} cy={dotY} r="5" fill="var(--gold-deep)" stroke="var(--surface)" strokeWidth="2" />
       </svg>
 
-      <div className="mt-1 flex flex-wrap justify-between gap-x-3 text-[11px] text-[color:var(--ink-faint)]">
+      <div className="mt-1 flex flex-wrap justify-between gap-x-3 text-caption text-[color:var(--ink-faint)]">
         <span>{startDate}</span>
         <span className="font-medium text-[color:var(--ink-soft)]">
-          <span aria-hidden className="text-[color:var(--gold)]">●</span> deal price
+          <span aria-hidden className="text-[color:var(--gold-deep)]">●</span> deal price
         </span>
         <span className="text-[color:var(--ink-soft)]">
-          <span aria-hidden className="text-[color:var(--gold)]">– –</span> usual price
+          <span aria-hidden className="text-[color:var(--gold-deep)]">– –</span> usual price
         </span>
         <span>{endDate}</span>
       </div>

@@ -52,7 +52,7 @@ export function DealAlert({
         <Container style={{ maxWidth: '540px', margin: '0 auto', padding: '32px 20px' }}>
 
           {/* Logo */}
-          <Text style={{ fontFamily: 'Georgia, serif', fontWeight: 700, fontSize: '20px', color: '#0E5A54', margin: '0 0 28px' }}>
+          <Text style={{ fontFamily: '"Space Grotesk", Inter, -apple-system, "Segoe UI", sans-serif', fontWeight: 700, fontSize: '20px', color: '#0E5A54', margin: '0 0 28px' }}>
             expaify<span style={{ color: '#FF6B4A' }}>.</span>
           </Text>
 
@@ -74,10 +74,10 @@ export function DealAlert({
             <Section style={{ padding: '20px' }}>
             <Row>
               <Column>
-                <Heading as="h2" style={{ fontFamily: 'Georgia, serif', fontSize: '18px', fontWeight: 700, color: '#141210', margin: '0 0 4px' }}>
+                <Heading as="h2" style={{ fontFamily: '"Space Grotesk", Inter, -apple-system, "Segoe UI", sans-serif', fontSize: '18px', fontWeight: 700, color: '#141210', margin: '0 0 4px' }}>
                   {hotelName}
                 </Heading>
-                <Text style={{ fontSize: '13px', color: '#8A857D', margin: '0 0 12px' }}>
+                <Text style={{ fontSize: '13px', color: '#767168', margin: '0 0 12px' }}>
                   {stars(starCount)} · {city} · {checkInWindow}
                 </Text>
               </Column>
@@ -92,9 +92,9 @@ export function DealAlert({
               <Column>
                 <Text style={{ margin: 0 }}>
                   <span style={{ fontSize: '26px', fontWeight: 700, color: '#0E5A54' }}>{fmt(dealPriceCents)}</span>
-                  <span style={{ fontSize: '11px', color: '#8A857D' }}> / night</span>
+                  <span style={{ fontSize: '11px', color: '#767168' }}> / night</span>
                   {'  '}
-                  <span style={{ fontSize: '14px', color: '#8A857D', textDecoration: 'line-through' }}>
+                  <span style={{ fontSize: '14px', color: '#767168', textDecoration: 'line-through' }}>
                     usually {fmt(medianPriceCents)}
                   </span>
                 </Text>
@@ -110,10 +110,10 @@ export function DealAlert({
               style={{
                 display: 'block',
                 backgroundColor: '#FF6B4A',
-                color: '#FFFFFF',
+                color: '#141210', /* ink on coral is 6.6:1 (AA); white was 2.8:1 */
                 textDecoration: 'none',
                 textAlign: 'center',
-                fontWeight: 600,
+                fontWeight: 500,
                 fontSize: '14px',
                 padding: '12px 24px',
                 borderRadius: '999px',
@@ -126,29 +126,29 @@ export function DealAlert({
             </Section>
           </Section>
 
-          <Text style={{ fontSize: '11px', color: '#8A857D', margin: '0 0 20px' }}>
+          <Text style={{ fontSize: '11px', color: '#767168', margin: '0 0 20px' }}>
             Based on {snapshotCount} price checks over 60 days · expaify never adds fees
           </Text>
 
           <Hr style={{ border: 'none', borderTop: '1px solid #E8E2D8', margin: '0 0 16px' }} />
 
-          <Text style={{ fontSize: '11px', color: '#8A857D', margin: '0 0 8px' }}>
+          <Text style={{ fontSize: '11px', color: '#767168', margin: '0 0 8px' }}>
             Getting too many emails?{' '}
             {stopCityUrl ? (
               <>
-                <a href={stopCityUrl} style={{ color: '#8A857D' }}>Stop alerts for {city}</a>
+                <a href={stopCityUrl} style={{ color: '#767168' }}>Stop alerts for {city}</a>
                 {' · '}
               </>
             ) : null}
-            <a href={switchDailyUrl} style={{ color: '#8A857D' }}>Switch to daily digest</a>
+            <a href={switchDailyUrl} style={{ color: '#767168' }}>Switch to daily digest</a>
           </Text>
 
-          <Text style={{ fontSize: '11px', color: '#8A857D', margin: 0 }}>
-            <a href={manageUrl} style={{ color: '#8A857D' }}>Manage prefs</a>
+          <Text style={{ fontSize: '11px', color: '#767168', margin: 0 }}>
+            <a href={manageUrl} style={{ color: '#767168' }}>Manage prefs</a>
             {' · '}
-            <a href={unsubscribeUrl} style={{ color: '#8A857D' }}>Unsubscribe</a>
+            <a href={unsubscribeUrl} style={{ color: '#767168' }}>Unsubscribe</a>
             {' · '}
-            <a href="https://expaify.com" style={{ color: '#8A857D' }}>expaify.com</a>
+            <a href="https://expaify.com" style={{ color: '#767168' }}>expaify.com</a>
             {' · © 2026 expaify'}
           </Text>
         </Container>

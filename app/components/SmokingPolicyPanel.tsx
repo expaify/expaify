@@ -47,7 +47,7 @@ const stateTone: Record<HotelSmokingEvidenceState, string> = {
   ambiguous: 'text-[color:var(--warning)]',
   conflicting: 'text-[color:var(--warning)]',
   not_provided: 'text-[color:var(--text-3)]',
-  unavailable: 'text-[color:var(--error)]',
+  unavailable: 'text-[color:var(--error-text)]',
 }
 
 function formatObservedDate(value: string): string | null {
@@ -93,7 +93,7 @@ function statementMetadata(statement: SupplierSmokingStatement) {
 function SupplierWording({ statement }: { statement: SupplierSmokingStatement }) {
   return (
     <div className="mt-2 min-w-0">
-      <p className="font-bold text-[color:var(--text-1)]">Supplier wording</p>
+      <p className="font-medium text-[color:var(--text-1)]">Supplier wording</p>
       <blockquote className="mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere] border-l-2 border-[color:var(--border-strong)] pl-3 text-[color:var(--text-2)]">
         {statement.sourceText}
       </blockquote>
@@ -228,8 +228,8 @@ function SmokingPolicyDimension({
       aria-labelledby={headingId}
       className="min-w-0 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-3 py-3"
     >
-      <h5 id={headingId} className="text-sm font-bold leading-5 text-[color:var(--text-1)]">{heading}</h5>
-      <p className={`mt-1 text-xs font-bold leading-5 ${stale ? 'text-[color:var(--warning)]' : stateTone[state]}`}>
+      <h5 id={headingId} className="text-sm font-medium leading-5 text-[color:var(--text-1)]">{heading}</h5>
+      <p className={`mt-1 text-xs font-medium leading-5 ${stale ? 'text-[color:var(--warning)]' : stateTone[state]}`}>
         {stale ? 'Previous supplier policy — refresh required' : stateLabels[state]}
       </p>
 
@@ -241,7 +241,7 @@ function SmokingPolicyDimension({
 
       {state === 'confirmed' && confirmedCopy ? (
         <>
-          <p className="mt-1 font-bold text-[color:var(--text-1)]">{confirmedCopy.claim}</p>
+          <p className="mt-1 font-medium text-[color:var(--text-1)]">{confirmedCopy.claim}</p>
           <p className="mt-1 font-medium text-[color:var(--text-2)]">{confirmedCopy.support}</p>
           {dimension.statements[0] ? <SupplierWording statement={dimension.statements[0]} /> : null}
         </>
@@ -259,14 +259,14 @@ function SmokingPolicyDimension({
           <p className="mt-1 rounded-[var(--radius-control)] bg-[color:var(--warning-soft)] px-2.5 py-2 font-medium text-[color:var(--warning)]">
             Supplier policy details conflict. Confirm before booking.
           </p>
-          <p className="mt-2 font-bold text-[color:var(--text-1)]">
+          <p className="mt-2 font-medium text-[color:var(--text-1)]">
             Supplier statements ({dimension.statements.length})
           </p>
           <p className="sr-only">{dimension.statements.length} current supplier statements conflict. Confirm before booking.</p>
           <ol className="mt-2 space-y-2" aria-label="Conflicting supplier statements">
             {dimension.statements.map(statement => (
               <li key={statement.id} className="min-w-0 rounded-[var(--radius-control)] border border-[color:var(--border)] px-2.5 py-2">
-                <p className="font-bold text-[color:var(--text-1)]">Scope: {scopeLabels[statement.scope]}</p>
+                <p className="font-medium text-[color:var(--text-1)]">Scope: {scopeLabels[statement.scope]}</p>
                 <blockquote className="mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere] border-l-2 border-[color:var(--border-strong)] pl-3 text-[color:var(--text-2)]">
                   {statement.sourceText}
                 </blockquote>
@@ -365,7 +365,7 @@ export default function SmokingPolicyPanel({
       aria-busy={initialLoading || refreshing}
       className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs leading-5 text-[color:var(--text-2)] sm:px-4 sm:py-4"
     >
-      <h4 id={titleId} className="font-bold text-[color:var(--text-1)]">Smoking policy</h4>
+      <h4 id={titleId} className="font-medium text-[color:var(--text-1)]">Smoking policy</h4>
       {failed ? (
         <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
           Smoking policy could not be checked.

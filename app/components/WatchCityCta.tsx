@@ -55,10 +55,10 @@ export function WatchCityCta({ city, tier, watching = false, watchlist = [] }: W
       <div className="mt-6 flex flex-col items-center gap-3">
         {saved ? (
           <div role="status" className="flex flex-col items-center gap-1">
-            <p className="text-[13px] font-medium text-[color:var(--text-1)]">
+            <p className="text-sm font-medium text-[color:var(--text-1)]">
               {watching ? `You're watching ${city} — you'll get an email when a deal appears.` : `Watching ${city} — new deals will be in your daily digest.`}
             </p>
-            <Link href="/account" className="inline-flex min-h-[44px] items-center justify-center text-[13px] font-medium text-[color:var(--brand)] no-underline hover:underline">
+            <Link href="/account" className="inline-flex min-h-[44px] items-center justify-center text-sm font-medium text-[color:var(--brand)] no-underline hover:underline">
               Manage watchlist
             </Link>
           </div>
@@ -67,7 +67,7 @@ export function WatchCityCta({ city, tier, watching = false, watchlist = [] }: W
             type="button"
             disabled={saving}
             onClick={saveWatch}
-            className="inline-flex min-h-[44px] items-center justify-center rounded-[var(--radius-pill)] bg-[color:var(--brand)] px-5 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-[var(--radius-pill)] bg-[color:var(--brand)] px-5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? (
               <>
@@ -79,9 +79,9 @@ export function WatchCityCta({ city, tier, watching = false, watchlist = [] }: W
         )}
         {error ? (
           <div role="alert" className="flex flex-col items-center">
-            <p className="text-[12px] font-medium text-[color:var(--error)]">{error}</p>
+            <p className="text-xs font-medium text-[color:var(--error-text)]">{error}</p>
             {showManageLink ? (
-              <Link href="/account" className="inline-flex min-h-[44px] items-center justify-center text-[13px] font-medium text-[color:var(--brand)] no-underline hover:underline">
+              <Link href="/account" className="inline-flex min-h-[44px] items-center justify-center text-sm font-medium text-[color:var(--brand)] no-underline hover:underline">
                 Manage watchlist
               </Link>
             ) : null}
@@ -94,13 +94,13 @@ export function WatchCityCta({ city, tier, watching = false, watchlist = [] }: W
   if (tier === 'free') {
     return (
       <div className="mt-6 flex flex-col items-center gap-3">
-        <p className="text-[13px] font-medium text-[color:var(--text-1)]">
+        <p className="text-sm font-medium text-[color:var(--text-1)]">
           Premium members get an email the moment a {city} deal appears.
         </p>
         <Link
           href="/join"
           onClick={() => track('city_join_cta_clicked', { city, tier })}
-          className="inline-flex min-h-[44px] items-center justify-center rounded-[var(--radius-pill)] bg-[color:var(--brand)] px-5 text-[13px] font-medium text-white no-underline transition-opacity hover:opacity-90"
+          className="inline-flex min-h-[44px] items-center justify-center rounded-[var(--radius-pill)] bg-[color:var(--brand)] px-5 text-sm font-medium text-white no-underline transition-opacity hover:opacity-90"
         >
           Get {city} alerts with Premium
         </Link>
@@ -110,13 +110,13 @@ export function WatchCityCta({ city, tier, watching = false, watchlist = [] }: W
 
   return (
     <div className="mt-6 flex flex-col items-center gap-3">
-      <p className="text-[13px] font-medium text-[color:var(--text-1)]">
+      <p className="text-sm font-medium text-[color:var(--text-1)]">
         Want an email when a {city} deal appears?
       </p>
       <Link
         href="/join"
         onClick={() => track('city_join_cta_clicked', { city, tier })}
-        className="inline-flex min-h-[44px] items-center justify-center rounded-[var(--radius-pill)] bg-[color:var(--brand)] px-5 text-[13px] font-medium text-white no-underline transition-opacity hover:opacity-90"
+        className="inline-flex min-h-[44px] items-center justify-center rounded-[var(--radius-pill)] bg-[color:var(--brand)] px-5 text-sm font-medium text-white no-underline transition-opacity hover:opacity-90"
       >
         Get {city} deal alerts
       </Link>

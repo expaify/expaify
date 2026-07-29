@@ -31,10 +31,10 @@ export default async function BookPage({ searchParams }: BookPageProps) {
             role="status"
             aria-live="polite"
             aria-busy="true"
-            className="w-full max-w-lg rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-5 shadow-[var(--shadow-card)] sm:p-6"
+            className="w-full max-w-lg rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-5 shadow-[var(--shadow-card)] sm:p-6"
           >
-            <p className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand)]">Checkout review</p>
-            <h1 className="mt-2 text-2xl font-bold leading-tight text-[color:var(--text-1)]">Loading booking review</h1>
+            <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--brand)]">Checkout review</p>
+            <h1 className="mt-2 text-2xl font-medium leading-tight text-[color:var(--text-1)]">Loading booking review</h1>
             <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">Preparing the selected fare and recovery options.</p>
             <div className="mt-6 space-y-3" aria-hidden="true">
               <div className="h-3 w-2/3 rounded-full bg-[color:var(--bg-muted)]" />

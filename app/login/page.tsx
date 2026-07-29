@@ -32,20 +32,20 @@ export default function LoginPage() {
       <div className="w-full max-w-[400px]">
         <a
           href="/"
-          className="mb-10 flex items-center gap-0.5 font-display text-[20px] font-bold text-[color:var(--ink)] no-underline"
+          className="mb-10 flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline"
         >
           expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
         </a>
 
-        <h1 className="mb-2 font-display text-[28px] font-bold text-[color:var(--ink)]">Sign in</h1>
-        <p className="mb-8 text-[15px] text-[color:var(--ink-soft)]">
+        <h1 className="mb-2 font-display text-2xl font-bold text-[color:var(--ink)]">Sign in</h1>
+        <p className="mb-8 text-base text-[color:var(--ink-soft)]">
           We&apos;ll email you a magic link — no password needed.
         </p>
 
         {sent ? (
           <div className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6 text-center">
-            <p className="font-display text-[17px] font-bold text-[color:var(--ink)]">Check your inbox</p>
-            <p className="mt-2 text-[14px] text-[color:var(--ink-soft)]">
+            <p className="font-display text-base font-bold text-[color:var(--ink)]">Check your inbox</p>
+            <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
               We sent a sign-in link to <strong>{email}</strong>
             </p>
           </div>
@@ -79,7 +79,7 @@ export default function LoginPage() {
           <>
             <div className="my-6 flex items-center gap-3">
               <div className="h-px flex-1 bg-[color:var(--line-ivory)]" />
-              <span className="text-[13px] text-[color:var(--ink-faint)]">or</span>
+              <span className="text-sm text-[color:var(--ink-faint)]">or</span>
               <div className="h-px flex-1 bg-[color:var(--line-ivory)]" />
             </div>
             <button
@@ -93,7 +93,7 @@ export default function LoginPage() {
           </>
         )}
 
-        <p className="mt-8 text-center text-[13px] text-[color:var(--ink-faint)]">
+        <p className="mt-8 text-center text-sm text-[color:var(--ink-faint)]">
           No account?{' '}
           <a href="/join" className="text-[color:var(--primary)] no-underline hover:underline">
             Join free

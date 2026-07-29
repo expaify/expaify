@@ -116,7 +116,7 @@ export function WatchCityPill({ city, initialWatching, initialCount }: WatchCity
   const pillClass = [
     'btn-pill min-h-[36px] gap-1.5 px-4 transition-colors duration-100',
     watching ? 'active' : 'hover:border-[color:var(--primary-soft)]',
-    atCap ? 'opacity-60' : '',
+    atCap ? 'opacity-55' : '',
   ].filter(Boolean).join(' ')
 
   return (
@@ -132,9 +132,9 @@ export function WatchCityPill({ city, initialWatching, initialCount }: WatchCity
         {pending ? <span className="spinner" aria-hidden /> : watching ? <CheckIcon /> : <PlusIcon />}
         {watching ? `Watching ${city}` : `Watch ${city}`}
       </button>
-      <p aria-live="polite" className="mt-1.5 min-h-[18px] text-[12px] leading-[18px]">
+      <p aria-live="polite" className="mt-1.5 min-h-[18px] text-xs leading-[18px]">
         {status === 'error' && (
-          <span role="alert" className="font-medium text-[color:var(--error)]">
+          <span role="alert" className="font-medium text-[color:var(--error-text)]">
             Couldn&rsquo;t update your watchlist. Try again.
           </span>
         )}

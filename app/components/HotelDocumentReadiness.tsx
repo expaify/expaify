@@ -39,7 +39,7 @@ export function getNotProvidedHotelDocumentReadiness(sourceLabel: string): Hotel
   return notProvidedHotelDocumentReadiness(sourceLabel)
 }
 
-const factRowClassName = 'rounded-lg bg-[color:var(--bg-muted)] px-3 py-2.5'
+const factRowClassName = 'rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-3 py-2.5'
 const factValueClassName = 'mt-0.5 break-words text-sm leading-5 text-[color:var(--text-1)]'
 
 function cleanLabel(value: string | undefined, fallback: string) {
@@ -174,7 +174,7 @@ function VerificationGuidance({
           rel={isAffiliateUrl(verificationUrl) ? 'noopener noreferrer sponsored' : 'noopener noreferrer'}
           aria-label={`Check invoice details with ${destination}. Opens ${destination} in a new tab.`}
           onClick={onVerificationClick}
-          className="btn-secondary inline-flex min-h-11 w-full items-center justify-center rounded-lg px-4 text-center text-sm font-medium"
+          className="btn btn-outline w-full text-center"
         >
           Check invoice details with {destination}
         </a>
@@ -199,7 +199,7 @@ function VerificationGuidance({
 
   return (
     <div className="mt-3 border-t border-[color:var(--border)] pt-3">
-      <p className="break-words text-sm font-semibold leading-6 text-[color:var(--text-1)]">{heading}</p>
+      <p className="break-words text-sm font-medium leading-6 text-[color:var(--text-1)]">{heading}</p>
       <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">{support}</p>
     </div>
   )
@@ -213,13 +213,13 @@ export function HotelDocumentIntentControl({
   onChange: (checked: boolean) => void
 }) {
   return (
-    <div className="mt-5 min-w-0 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3">
-      <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm font-semibold leading-6 text-[color:var(--text-1)]">
+    <div className="mt-5 min-w-0 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3">
+      <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm font-medium leading-6 text-[color:var(--text-1)]">
         <input
           type="checkbox"
           checked={checked}
           onChange={event => onChange(event.currentTarget.checked)}
-          className="mt-1 h-5 w-5 shrink-0 rounded border-[color:var(--border-strong)] text-[color:var(--brand)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[color:var(--brand-soft)]"
+          className="mt-1 h-5 w-5 shrink-0 rounded-[calc(var(--radius-control)-0.5rem)] border-[color:var(--border-strong)] text-[color:var(--brand)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[color:var(--brand-soft)]"
         />
         <span className="min-w-0 break-words">I need an invoice or receipt for this stay</span>
       </label>
@@ -297,27 +297,27 @@ export function HotelDocumentReadinessDisclosure({
       aria-live={isLoading || isError ? 'polite' : undefined}
       role={isLoading ? 'status' : undefined}
       tabIndex={statusRegionFocusable ? -1 : undefined}
-      className="mt-3 min-w-0 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-3.5 py-4 sm:px-4"
+      className="mt-3 min-w-0 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-3.5 py-4 sm:px-4"
     >
-      <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand)]">Before you book</p>
-      <h3 id="hotel-document-readiness-title" className="mt-1 text-base font-bold leading-6 text-[color:var(--text-1)]">
+      <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--brand)]">Before you book</p>
+      <h3 id="hotel-document-readiness-title" className="mt-1 text-base font-medium leading-6 text-[color:var(--text-1)]">
         Invoice &amp; receipt
       </h3>
-      <p className="mt-3 break-words text-sm font-bold leading-6 text-[color:var(--text-1)]">{lead}</p>
+      <p className="mt-3 break-words text-sm font-medium leading-6 text-[color:var(--text-1)]">{lead}</p>
       {support ? <p className="mt-2 break-words text-sm leading-6 text-[color:var(--text-2)]">{support}</p> : null}
 
       {showFacts ? (
         <dl className="mt-3 grid grid-cols-1 gap-2">
           <div className={factRowClassName}>
-            <dt className="text-xs font-bold leading-5 text-[color:var(--text-2)]">Invoice</dt>
+            <dt className="text-xs font-medium leading-5 text-[color:var(--text-2)]">Invoice</dt>
             <dd className={factValueClassName}>{documentFact('invoice', readinessForDisplay, partner, source)}</dd>
           </div>
           <div className={factRowClassName}>
-            <dt className="text-xs font-bold leading-5 text-[color:var(--text-2)]">Receipt</dt>
+            <dt className="text-xs font-medium leading-5 text-[color:var(--text-2)]">Receipt</dt>
             <dd className={factValueClassName}>{documentFact('receipt', readinessForDisplay, partner, source)}</dd>
           </div>
           <div className={factRowClassName}>
-            <dt className="text-xs font-bold leading-5 text-[color:var(--text-2)]">Billing details</dt>
+            <dt className="text-xs font-medium leading-5 text-[color:var(--text-2)]">Billing details</dt>
             <dd className={factValueClassName}>{billingDetailsCopy(readinessForDisplay, partner)}</dd>
           </div>
         </dl>
@@ -325,7 +325,7 @@ export function HotelDocumentReadinessDisclosure({
 
       {!isLoading && !isError && effectiveStatus === 'conflicting' ? (
         <div className="mt-3">
-          <p className="text-sm font-semibold leading-6 text-[color:var(--text-1)]">Supplied statements</p>
+          <p className="text-sm font-medium leading-6 text-[color:var(--text-1)]">Supplied statements</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-[color:var(--text-2)]">
             {(readiness.conflictStatements ?? []).map((statement, index) => (
               <li key={`${statement.sourceLabel}-${index}`} className="break-words">
@@ -341,7 +341,7 @@ export function HotelDocumentReadinessDisclosure({
           type="button"
           disabled={retryPending}
           onClick={onRetry}
-          className="btn-secondary mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg px-4 text-sm font-medium disabled:cursor-wait disabled:opacity-60"
+          className="btn btn-outline mt-3 w-full disabled:cursor-wait"
         >
           Try again
         </button>

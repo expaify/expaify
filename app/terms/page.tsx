@@ -10,8 +10,8 @@ export default function TermsPage() {
     <div className="min-h-screen bg-[color:var(--bg)]">
       <LandingNav />
       <main className="mx-auto max-w-[760px] px-5 py-12">
-        <h1 className="font-display text-[36px] font-bold text-[color:var(--ink)]">Terms of Service</h1>
-        <p className="mt-1 mb-10 text-[13px] text-[color:var(--ink-faint)]">Last updated July 2, 2026</p>
+        <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">Terms of Service</h1>
+        <p className="mt-1 mb-10 text-sm text-[color:var(--ink-faint)]">Last updated July 2, 2026</p>
 
         <Section title="What expaify is">
           <p>We track hotel prices across 20 destinations and alert members when a price drops significantly below its historical average. expaify is a deal discovery service. We do not sell hotel rooms, process bookings, or hold any payment for travel. All bookings happen directly on third-party provider sites.</p>
@@ -53,8 +53,8 @@ export default function TermsPage() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mt-10">
-      <h2 className="mb-3 font-display text-[20px] font-bold text-[color:var(--ink)]">{title}</h2>
-      <div className="text-[15px] leading-relaxed text-[color:var(--ink-soft)]">{children}</div>
+      <h2 className="mb-3 font-display text-xl font-bold text-[color:var(--ink)]">{title}</h2>
+      <div className="text-base leading-relaxed text-[color:var(--ink-soft)]">{children}</div>
     </section>
   )
 }

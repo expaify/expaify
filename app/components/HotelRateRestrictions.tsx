@@ -141,7 +141,7 @@ export function HotelCardEligibilityLine({
 
   return (
     <div
-      className={`mt-3 min-w-0 rounded-[var(--radius-control)] border px-3 py-2 text-xs font-bold leading-5 ${tone}`}
+      className={`mt-3 min-w-0 rounded-[var(--radius-control)] border px-3 py-2 text-xs font-medium leading-5 ${tone}`}
       role={isLive ? 'status' : undefined}
       aria-live={isLive ? 'polite' : undefined}
       aria-atomic={isLive ? 'true' : undefined}
@@ -166,23 +166,23 @@ export function HotelRateRestrictionsSection({
   return (
     <section
       aria-labelledby="hotel-rate-restrictions-title"
-      className={`mt-5 rounded-lg border bg-[color:var(--bg-raised)] px-4 py-3 sm:px-5 sm:py-4 ${
+      className={`mt-5 rounded-[var(--radius-control)] border bg-[color:var(--bg-raised)] px-4 py-3 sm:px-5 sm:py-4 ${
         restricted ? 'border-[color:var(--border-strong)]' : 'border-[color:var(--border)]'
       }`}
       role={isLive ? 'status' : undefined}
       aria-live={isLive ? 'polite' : undefined}
       aria-atomic={isLive ? 'true' : undefined}
     >
-      <h3 id="hotel-rate-restrictions-title" className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-3)]">
+      <h3 id="hotel-rate-restrictions-title" className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">
         Rate restrictions
       </h3>
 
       {restricted ? (
-        <div className="mt-2 space-y-2 text-sm font-bold leading-6 text-[color:var(--text-1)]">
+        <div className="mt-2 space-y-2 text-sm font-medium leading-6 text-[color:var(--text-1)]">
           {normalized.conditions.map(condition => <p key={condition.family}>{condition.label}</p>)}
         </div>
       ) : (
-        <p className="mt-2 text-sm font-bold leading-6 text-[color:var(--text-1)]">
+        <p className="mt-2 text-sm font-medium leading-6 text-[color:var(--text-1)]">
           {normalized.state === 'loading' ? 'Checking rate restrictions…' : normalized.state === 'clear' ? 'No reported rate restrictions' : 'Restrictions not provided'}
         </p>
       )}
@@ -205,7 +205,7 @@ export function HotelRateRestrictionsSection({
                   : `${provider} did not provide complete rate restrictions. Check membership, residency, age, and refund terms before paying.`}
           </p>
 
-          <p className={`mt-2 break-words text-xs font-medium leading-5 ${normalized.state === 'error' ? 'text-[color:var(--error)]' : 'text-[color:var(--text-3)]'}`}>
+          <p className={`mt-2 break-words text-xs font-medium leading-5 ${normalized.state === 'error' ? 'text-[color:var(--error-text)]' : 'text-[color:var(--text-3)]'}`}>
             {normalized.state === 'error'
               ? `Source: ${provider}. Rate restrictions could not be checked.`
               : fetchedMetadata(provider, normalized.fetchedAt)}

@@ -20,7 +20,7 @@ export function StarRow({ stars, ariaLabel }: StarRowProps) {
           height="11"
           aria-hidden="true"
           focusable="false"
-          className={index < filledStars ? "fill-[color:var(--gold)]" : "fill-[color:var(--line-ivory)]"}
+          className={index < filledStars ? "fill-[color:var(--gold-deep)]" : "fill-[color:var(--line-ivory)]"}
         >
           <path d="M6 1l1.39 2.82 3.11.45-2.25 2.19.53 3.09L6 8 3.22 9.55l.53-3.09L1.5 4.27l3.11-.45L6 1z" />
         </svg>

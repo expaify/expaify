@@ -25,7 +25,7 @@ export function HotelDestinationScopeSummary({
     <section className="flex min-w-0 flex-col gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-surface)] p-4 min-[640px]:flex-row min-[640px]:items-start min-[640px]:justify-between">
       <div className="min-w-0">
         <h2 className="text-h3 break-words text-[var(--text-1)]">Hotels in {destination.name}</h2>
-        <p className="mt-1 break-words text-[13px] font-medium leading-5 text-[var(--text-2)]">
+        <p className="mt-1 break-words text-sm font-medium leading-5 text-[var(--text-2)]">
           {hotelDestinationScopeHelper(destination)}
         </p>
       </div>
@@ -58,7 +58,7 @@ export default function HotelDestinationSearchState({
 
       {state.kind === 'loading' ? (
         <section aria-busy="true" aria-live="polite" className="space-y-3">
-          <p className="text-sm font-bold text-[var(--text-1)]">Searching hotels in {destination.name}…</p>
+          <p className="text-sm font-medium text-[var(--text-1)]">Searching hotels in {destination.name}…</p>
           <div aria-hidden="true" className="grid gap-3 min-[640px]:grid-cols-2">
             <div className="skeleton h-36 rounded-[var(--radius-card)]" />
             <div className="skeleton hidden h-36 rounded-[var(--radius-card)] min-[640px]:block" />
@@ -68,7 +68,7 @@ export default function HotelDestinationSearchState({
 
       {state.kind === 'results' ? (
         <section aria-live="polite">
-          <p className="mb-3 text-sm font-bold text-[var(--text-1)]">
+          <p className="mb-3 text-sm font-medium text-[var(--text-1)]">
             {state.count} hotels in {destination.name}.
           </p>
           {state.children}

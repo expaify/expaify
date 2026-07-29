@@ -31,11 +31,11 @@ type PersistResult = {
 
 function StatusLine({ status }: { status: GroupStatus }) {
   return (
-    <p aria-live="polite" className="mt-1.5 min-h-[18px] text-[12px] leading-[18px]">
+    <p aria-live="polite" className="mt-1.5 min-h-[18px] text-xs leading-[18px]">
       {status === 'saving' && <span className="text-[color:var(--ink-faint)]">Saving…</span>}
       {status === 'saved' && <span className="font-medium text-[color:var(--primary)]">Saved</span>}
       {status === 'error' && (
-        <span role="alert" className="font-medium text-[color:var(--error)]">
+        <span role="alert" className="font-medium text-[color:var(--error-text)]">
           Couldn&rsquo;t save. Your change was undone — try again.
         </span>
       )}
@@ -80,7 +80,7 @@ function PillRadioGroup<T extends string | number>({ label, options, value, onCh
             tabIndex={checked ? 0 : -1}
             onClick={() => onChange(opt.value)}
             onKeyDown={e => onKeyDown(e, i)}
-            className={`rounded-[var(--radius-pill)] px-4 py-2 text-[13px] font-medium transition-colors duration-100 ${
+            className={`rounded-[var(--radius-pill)] px-4 py-2 text-sm font-medium transition-colors duration-100 ${
               checked
                 ? 'bg-[color:var(--primary)] text-white'
                 : 'border border-[color:var(--line-ivory)] bg-white text-[color:var(--ink)] hover:border-[color:var(--primary-soft)]'
@@ -239,7 +239,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
       <button
         type="button"
         onClick={() => signOut({ callbackUrl: '/' })}
-        className="text-[13px] text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]"
+        className="text-sm text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]"
       >
         Sign out
       </button>
@@ -258,7 +258,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
           {checkoutLoading ? 'Opening checkout…' : 'Upgrade — 7-day free trial'}
         </button>
         {checkoutError ? (
-          <p className="text-[13px] font-medium text-[color:var(--error)]" role="alert">
+          <p className="text-sm font-medium text-[color:var(--error-text)]" role="alert">
             {checkoutError}
           </p>
         ) : null}
@@ -272,7 +272,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
       <div className="flex flex-col gap-5">
         {/* Alert frequency */}
         <div>
-          <p className="mb-2 text-[12px] font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Frequency</p>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Frequency</p>
           <PillRadioGroup<AlertPreference>
             label="Alert frequency"
             options={[
@@ -288,7 +288,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
 
         {/* Deal threshold */}
         <div>
-          <p className="mb-2 text-[12px] font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Minimum deal size</p>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Minimum deal size</p>
           <PillRadioGroup<MinDiscountPct>
             label="Minimum deal size"
             options={[
@@ -304,7 +304,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
 
         {/* Watchlist */}
         <div>
-          <p className="mb-2 text-[12px] font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">
             Cities I&apos;m watching ({cities.length}/10)
           </p>
           <div className="flex flex-wrap gap-2">
@@ -318,8 +318,8 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
                   onClick={() => toggleCity(city)}
                   aria-pressed={selected}
                   aria-disabled={capped || undefined}
-                  className={`rounded-[var(--radius-pill)] px-3 py-1.5 text-[12px] font-medium transition-colors duration-100 ${
-                    capped ? 'opacity-40' : ''
+                  className={`rounded-[var(--radius-pill)] px-3 py-1.5 text-xs font-medium transition-colors duration-100 ${
+                    capped ? 'opacity-55' : ''
                   } ${
                     selected
                       ? 'bg-[color:var(--primary)] text-white'
@@ -332,7 +332,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
             })}
           </div>
           <StatusLine status={groupStatus.city} />
-          <p className="mt-1 text-[12px] text-[color:var(--ink-faint)]">
+          <p className="mt-1 text-xs text-[color:var(--ink-faint)]">
             Select none to watch every destination.
           </p>
         </div>
@@ -355,7 +355,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
       <button
         type="button"
         onClick={() => signOut({ callbackUrl: '/' })}
-        className="text-[14px] text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]"
+        className="text-sm text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]"
       >
         Sign out
       </button>

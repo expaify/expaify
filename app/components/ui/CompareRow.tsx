@@ -91,9 +91,16 @@ export function eligibleHotelProviderLinks(links: CompareLinks): CompareLinks {
 export function CompareRow({ links, size = "compact", handoffContext, hotelName }: CompareRowProps) {
   const primary = size === "primary";
 
-  const base = primary
-    ? "flex min-h-13 items-center justify-center rounded-[var(--radius-input)] border-[1.5px] border-[color:var(--line-white)] bg-[color:var(--surface)] px-3 text-center text-small font-medium leading-none text-[color:var(--ink)] no-underline transition-colors duration-100"
-    : "block rounded-[var(--radius-input)] border-[0.5px] border-[color:var(--line-white)] py-2 text-center text-caption font-medium leading-none text-[color:var(--ink)] no-underline transition-colors duration-100";
+  // Layout only — colour is applied per-state so the unavailable variant can opt
+  // out of the link tone without relying on Tailwind class-order to win.
+  const layout = primary
+    ? "flex min-h-13 items-center justify-center rounded-[var(--radius-input)] border-[1.5px] bg-[color:var(--surface)] px-3 text-center text-small font-medium leading-none no-underline transition-colors duration-100"
+    : "block rounded-[var(--radius-input)] border-[0.5px] py-2 text-center text-caption font-medium leading-none no-underline transition-colors duration-100";
+
+  const base = `${layout} border-[color:var(--line-white)] text-[color:var(--ink)]`;
+  // --ink-faint is the lightest tone that still clears AA (4.85:1 on --surface);
+  // the previous opacity-40 rendered this label at ~2.9:1.
+  const unavailable = `${layout} border-dashed border-[color:var(--line-white)] bg-[color:var(--surface)] text-[color:var(--ink-faint)]`;
 
   return (
     <div className={primary ? "w-full space-y-2" : "space-y-2"}>
@@ -137,7 +144,8 @@ export function CompareRow({ links, size = "compact", handoffContext, hotelName 
           return (
             <span
               key={key}
-              className={`${base} cursor-default opacity-40`}
+              className={`${unavailable} cursor-default`}
+              title={`${label} has no attributed link for this stay`}
             >
               {label}
             </span>

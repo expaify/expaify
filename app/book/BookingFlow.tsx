@@ -69,11 +69,11 @@ export function focusHotelDocumentRetryStatus(
 
 const labelCls = 'mb-1.5 block text-xs font-medium uppercase tracking-wide text-[color:var(--text-2)]'
 const inputCls = 'field-input !px-4'
-const factLabelCls = 'text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-3)]'
+const factLabelCls = 'text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]'
 const factValueCls = 'mt-1 text-sm font-medium leading-5 text-[color:var(--text-1)]'
-const panelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] shadow-[var(--shadow-card)]'
-const insetPanelCls = 'rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)]'
-const secondaryButtonCls = 'inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-medium text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:border-[color:var(--border-focus)] focus-visible:shadow-[var(--focus-ring)]'
+const panelCls = 'rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] shadow-[var(--shadow-card)]'
+const insetPanelCls = 'rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)]'
+const secondaryButtonCls = 'inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-medium text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:border-[color:var(--border-focus)] focus-visible:shadow-[var(--focus-ring)]'
 const actionStackCls = 'mt-5 flex flex-col gap-3'
 const partnerLabelWrapCls = 'min-w-0 [overflow-wrap:anywhere]'
 const trustClaims = [
@@ -279,17 +279,17 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
     <section aria-labelledby="fare-review-title" className={`${panelCls} p-4 sm:p-6`}>
       <div className="flex flex-col gap-4 border-b border-[color:var(--border)] pb-5 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand)]">Fare review</p>
-          <h2 id="fare-review-title" className="mt-2 text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">
+          <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--brand)]">Fare review</p>
+          <h2 id="fare-review-title" className="mt-2 text-2xl font-medium leading-tight text-[color:var(--text-1)] sm:text-3xl">
             {fareContext.origin} to {fareContext.destination}
           </h2>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
             {fareContext.carrier} flight, {getStopsLabel(fareContext.stops).toLowerCase()}, departing {formatDateTime(fareContext.depart)}
           </p>
         </div>
-        <div className="min-w-0 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--bg-raised)] px-4 py-3 md:shrink-0 md:text-right">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-3)]">Selected fare</p>
-          <p className="mt-1 text-2xl font-bold leading-none text-[color:var(--text-1)]">{formatMoney(fareContext.priceCents, fareContext.currency)}</p>
+        <div className="min-w-0 rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--bg-raised)] px-4 py-3 md:shrink-0 md:text-right">
+          <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">Selected fare</p>
+          <p className="mt-1 text-2xl font-medium leading-none text-[color:var(--text-1)]">{formatMoney(fareContext.priceCents, fareContext.currency)}</p>
           <p className="mt-1 text-xs font-medium text-[color:var(--text-2)]">{getPriceBasisLabel(fareContext)}</p>
         </div>
       </div>
@@ -305,8 +305,8 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
         <FareFact label="Price basis" value={getPriceBasisLabel(fareContext)} />
         <FareFact label="Provider" value={getProviderLabel(fareContext.provider, duffelSandbox)} />
       </div>
-      <div className="mt-4 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 text-xs">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p>
+      <div className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3 text-xs">
+        <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p>
         <p className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{fareContext.offerId}</p>
       </div>
     </section>
@@ -321,7 +321,7 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
     <>
       <section aria-labelledby="hotel-property-title" className={`${panelCls} p-4 sm:p-6`}>
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand)]">Hotel review</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--brand)]">Hotel review</p>
           <h1 id="hotel-property-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">
             {hotelContext.name}
           </h1>
@@ -332,7 +332,7 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
             {location.note}
           </p>
         </div>
-        <div className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3">
+        <div className="mt-5 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-3">
           <p className={factLabelCls}>Stay dates not provided</p>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
             Stay dates are incomplete. Choose or confirm dates with the provider before comparing room options.
@@ -341,9 +341,9 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
       </section>
 
       <section aria-labelledby="hotel-price-score-title" className={`${panelCls} p-4 sm:p-6`}>
-        <h2 id="hotel-price-score-title" className="text-xl font-bold leading-tight text-[color:var(--text-1)] sm:text-2xl">Price and Deal Score</h2>
+        <h2 id="hotel-price-score-title" className="text-xl font-medium leading-tight text-[color:var(--text-1)] sm:text-2xl">Price and Deal Score</h2>
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-          <div className="min-w-0 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-4">
+          <div className="min-w-0 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-4">
             <p className={factLabelCls}>Observed nightly rate</p>
             <p className="mt-2 break-words font-display text-3xl font-bold leading-none tabular-nums text-[color:var(--text-1)] sm:text-4xl">
               {formatMoney(hotelContext.priceCents, hotelContext.currency)}
@@ -363,7 +363,7 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
       </section>
 
       <section aria-labelledby="hotel-fit-title" className={`${panelCls} p-4 sm:p-6`}>
-        <h2 id="hotel-fit-title" className="text-xl font-bold leading-tight text-[color:var(--text-1)] sm:text-2xl">Hotel fit</h2>
+        <h2 id="hotel-fit-title" className="text-xl font-medium leading-tight text-[color:var(--text-1)] sm:text-2xl">Hotel fit</h2>
         <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className={`p-3.5 ${insetPanelCls}`}>
             <dt className={factLabelCls}>Hotel class</dt>
@@ -393,16 +393,16 @@ function StatusPanel({
 }) {
   const toneClasses = {
     amber: 'border-[color:var(--border-strong)] bg-[color:var(--warning-soft)] text-[color:var(--warning)]',
-    red: 'border-[color:var(--border-strong)] bg-[color:var(--error-soft)] text-[color:var(--error)]',
+    red: 'border-[color:var(--border-strong)] bg-[color:var(--error-soft)] text-[color:var(--error-text)]',
     green: 'border-[color:var(--border-strong)] bg-[color:var(--success-soft)] text-[color:var(--success)]',
   }
 
   return (
-    <div role={live === 'assertive' ? 'alert' : 'status'} aria-live={live} aria-atomic="true" className={`rounded-lg border p-4 sm:p-5 ${toneClasses[tone]}`}>
+    <div role={live === 'assertive' ? 'alert' : 'status'} aria-live={live} aria-atomic="true" className={`rounded-[var(--radius-control)] border p-4 sm:p-5 ${toneClasses[tone]}`}>
       <div className="flex gap-3">
         <span aria-hidden="true" className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-current" />
         <div className="min-w-0">
-          <h2 className="text-base font-bold text-[color:var(--text-1)]">{title}</h2>
+          <h2 className="text-base font-medium text-[color:var(--text-1)]">{title}</h2>
           <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">{message}</p>
         </div>
       </div>
@@ -413,7 +413,7 @@ function StatusPanel({
 function TrustSummary() {
   return (
     <section aria-labelledby="traveler-trust-title" className={`p-4 ${insetPanelCls}`}>
-      <h3 id="traveler-trust-title" className="text-sm font-bold text-[color:var(--text-1)]">
+      <h3 id="traveler-trust-title" className="text-sm font-medium text-[color:var(--text-1)]">
         Before you enter details
       </h3>
       <ul className="mt-3 space-y-2">
@@ -473,7 +473,7 @@ function FieldGroup({
 }) {
   return (
     <fieldset className={`space-y-4 p-4 ${insetPanelCls}`}>
-      <legend className="text-sm font-bold text-[color:var(--text-1)]">{title}</legend>
+      <legend className="text-sm font-medium text-[color:var(--text-1)]">{title}</legend>
       <p className="text-sm leading-6 text-[color:var(--text-2)]">{description}</p>
       {children}
     </fieldset>
@@ -508,7 +508,7 @@ function ReviewShell({
   if (hotelContext) {
     return (
       <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
-        <a href="/" onClick={onBackClick} className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
+        <a href="/" onClick={onBackClick} className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
           ← Back to results
         </a>
         <div className="mt-4 space-y-4 sm:mt-6">
@@ -522,14 +522,14 @@ function ReviewShell({
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-10 lg:px-8">
-      <a href="/" onClick={onBackClick} className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
+      <a href="/" onClick={onBackClick} className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
         ← Back to search
       </a>
       <div className="mt-4 grid gap-5 lg:mt-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
         <div className="min-w-0 space-y-5">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand)]">{eyebrow}</p>
-            <h1 className="mt-2 text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-4xl">{title}</h1>
+            <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--brand)]">{eyebrow}</p>
+            <h1 className="mt-2 text-2xl font-medium leading-tight text-[color:var(--text-1)] sm:text-4xl">{title}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--text-2)]">{message}</p>
           </div>
           {status}
@@ -1026,18 +1026,18 @@ function HotelHandoffReview({
         <div className="space-y-3">
           <TrackedSmokingPolicyPanel offerId={hotelContext.offerId} provider={hotelContext.provider} policy={policy} surface="review" />
           {showReturnPrompt ? (
-            <section className="rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4" aria-labelledby="hotel-return-feedback-title">
-              <h3 id="hotel-return-feedback-title" className="text-sm font-bold text-[color:var(--text-1)]">Did the partner details match?</h3>
+            <section className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4" aria-labelledby="hotel-return-feedback-title">
+              <h3 id="hotel-return-feedback-title" className="text-sm font-medium text-[color:var(--text-1)]">Did the partner details match?</h3>
               <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Optional: tell us what changed so we can improve hotel evidence.</p>
               {feedbackSent ? (
                 <p className="mt-3 text-sm font-medium text-[color:var(--brand)]" role="status">Thanks. Your feedback was recorded.</p>
               ) : feedbackOpen ? (
                 <form className="mt-3" onSubmit={handleReturnFeedback}>
                   <fieldset>
-                    <legend className="text-sm font-bold text-[color:var(--text-1)]">What did not match?</legend>
+                    <legend className="text-sm font-medium text-[color:var(--text-1)]">What did not match?</legend>
                     <div className="mt-2 space-y-1">
                       {HOTEL_RETURN_REASONS.map(reason => (
-                        <label key={reason.value} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm text-[color:var(--text-2)] focus-within:shadow-[var(--focus-ring)]">
+                        <label key={reason.value} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-[var(--radius-control)] px-2 text-sm text-[color:var(--text-2)] focus-within:shadow-[var(--focus-ring)]">
                           <input
                             type="radio"
                             name="hotel-return-reason"
@@ -1051,7 +1051,7 @@ function HotelHandoffReview({
                     </div>
                   </fieldset>
                   <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                    <button type="submit" disabled={!selectedReturnReason} className="btn-primary min-h-11 rounded-lg px-4 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">Send feedback</button>
+                    <button type="submit" disabled={!selectedReturnReason} className="btn-primary min-h-11 rounded-[var(--radius-control)] px-4 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">Send feedback</button>
                     <button
                       type="button"
                       className={secondaryButtonCls}
@@ -1064,7 +1064,7 @@ function HotelHandoffReview({
                   </div>
                 </form>
               ) : (
-                <button ref={feedbackTriggerRef} type="button" onClick={() => setFeedbackOpen(true)} className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-[color:var(--border)] px-4 text-sm font-medium text-[color:var(--text-1)] focus-visible:shadow-[var(--focus-ring)]">
+                <button ref={feedbackTriggerRef} type="button" onClick={() => setFeedbackOpen(true)} className="mt-3 inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-[color:var(--border)] px-4 text-sm font-medium text-[color:var(--text-1)] focus-visible:shadow-[var(--focus-ring)]">
                   Report a mismatch
                 </button>
               )}
@@ -1074,7 +1074,7 @@ function HotelHandoffReview({
       ) : undefined}
     >
       <section aria-labelledby="hotel-provider-title" className={`${panelCls} border-[color:var(--border-strong)] p-4 sm:p-6`}>
-        <h2 id="hotel-provider-title" className="text-xl font-bold leading-tight text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
+        <h2 id="hotel-provider-title" className="text-xl font-medium leading-tight text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
         <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
           The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.
           {' '}Choose or confirm your dates there before comparing room options.
@@ -1092,7 +1092,7 @@ function HotelHandoffReview({
             rel="noopener noreferrer sponsored"
             aria-label={accessibleName}
             onClick={handleContinue}
-            className="btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-center text-sm font-medium"
+            className="btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] px-4 text-center text-sm font-medium"
           >
             <span className={partnerLabelWrapCls}>{continueLabel}</span>
             <svg aria-hidden="true" focusable="false" className="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="none">
@@ -1104,7 +1104,7 @@ function HotelHandoffReview({
       </section>
 
       <section aria-labelledby="hotel-supporting-title" className={`${panelCls} p-4 sm:p-6`}>
-        <h2 id="hotel-supporting-title" className="text-xl font-bold leading-tight text-[color:var(--text-1)] sm:text-2xl">Supporting evidence</h2>
+        <h2 id="hotel-supporting-title" className="text-xl font-medium leading-tight text-[color:var(--text-1)] sm:text-2xl">Supporting evidence</h2>
         <div className="mt-5 space-y-5">
           <HotelRateRestrictionsSection
             eligibility={deriveRateEligibilityPresentation({
@@ -1125,11 +1125,11 @@ function HotelHandoffReview({
           />
         <section
           aria-labelledby="hotel-traveler-readiness-title"
-          className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 sm:px-4 sm:py-4"
+          className="mt-5 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 sm:px-4 sm:py-4"
         >
           <h3
             id="hotel-traveler-readiness-title"
-            className="text-sm font-bold leading-5 text-[color:var(--text-1)]"
+            className="text-sm font-medium leading-5 text-[color:var(--text-1)]"
           >
             What you may need
           </h3>
@@ -1160,9 +1160,9 @@ function HotelHandoffReview({
         <section
           ref={guidanceBlockRef}
           aria-labelledby="hotel-special-requests-title"
-          className="mt-5 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3"
+          className="mt-5 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3"
         >
-          <h3 id="hotel-special-requests-title" className="text-sm font-bold leading-5 text-[color:var(--text-1)]">
+          <h3 id="hotel-special-requests-title" className="text-sm font-medium leading-5 text-[color:var(--text-1)]">
             Special requests
           </h3>
           <p className="mt-2 text-sm font-medium leading-5 text-[color:var(--text-1)]">
@@ -1181,10 +1181,10 @@ function HotelHandoffReview({
               How requests work
             </summary>
             <ul className="mt-2 space-y-2 pl-5 text-sm leading-6 text-[color:var(--text-2)]">
-              <li><span className="font-semibold text-[color:var(--text-1)]">Selected:</span> You have chosen a preference. expaify does not offer this step.</li>
-              <li><span className="font-semibold text-[color:var(--text-1)]">Sent:</span> The booking service says it submitted the request. Continuing from expaify does not send one.</li>
-              <li><span className="font-semibold text-[color:var(--text-1)]">Acknowledged:</span> The property has replied about the request.</li>
-              <li><span className="font-semibold text-[color:var(--text-1)]">Guaranteed:</span> The property explicitly confirms it for this stay. Until then, treat it as a preference.</li>
+              <li><span className="font-medium text-[color:var(--text-1)]">Selected:</span> You have chosen a preference. expaify does not offer this step.</li>
+              <li><span className="font-medium text-[color:var(--text-1)]">Sent:</span> The booking service says it submitted the request. Continuing from expaify does not send one.</li>
+              <li><span className="font-medium text-[color:var(--text-1)]">Acknowledged:</span> The property has replied about the request.</li>
+              <li><span className="font-medium text-[color:var(--text-1)]">Guaranteed:</span> The property explicitly confirms it for this stay. Until then, treat it as a preference.</li>
             </ul>
           </details>
         </section>
@@ -1203,7 +1203,7 @@ function HotelHandoffReview({
             rootRef={fundsPolicyExposureRef}
           />
         </div>
-          <details className="rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
+          <details className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
             <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[color:var(--brand)]">Show offer details</summary>
             <dl className="border-t border-[color:var(--border)] py-3 text-xs">
               <dt className={factLabelCls}>Offer reference</dt>
@@ -1314,7 +1314,7 @@ export default function BookingFlow({
         <div className={`${panelCls} p-4 sm:p-6`}>
           <div className={`mt-5 p-4 ${insetPanelCls}`}>
             <p className={factLabelCls}>Booking reference</p>
-            <p className="mt-2 break-all font-mono text-xl font-bold text-[color:var(--brand)] sm:text-2xl">{bookingRef}</p>
+            <p className="mt-2 break-all font-mono text-xl font-medium text-[color:var(--brand)] sm:text-2xl">{bookingRef}</p>
           </div>
           <a href="/" className={`mt-5 ${secondaryButtonCls}`}>
             Search more flights
@@ -1402,8 +1402,8 @@ export default function BookingFlow({
     >
       <form onSubmit={handleSubmit} aria-busy={state === 'loading'} className={`${panelCls} p-4 sm:p-6`}>
         <div className="mb-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-[color:var(--brand)]">Traveler details</p>
-          <h2 className="mt-2 text-xl font-bold leading-tight text-[color:var(--text-1)]">Verify this fare for 1 adult traveler</h2>
+          <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--brand)]">Traveler details</p>
+          <h2 className="mt-2 text-xl font-medium leading-tight text-[color:var(--text-1)]">Verify this fare for 1 adult traveler</h2>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
             These details are required by Duffel for this booking request. They are not used to create an expaify profile.
           </p>
