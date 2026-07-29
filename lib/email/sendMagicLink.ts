@@ -54,7 +54,7 @@ function magicLinkHtml(url: string, host: string, to: string): string {
               Click the button below to sign in to <strong>${host}</strong>. This link expires in 24 hours.
             </p>
             <a href="${url}"
-               style="display:inline-block;background:#0E5A54;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:999px;letter-spacing:-0.1px;">
+               style="display:inline-block;background:#0E5A54;color:#fff;font-size:15px;font-weight:500;text-decoration:none;padding:14px 28px;border-radius:999px;letter-spacing:0;">
               Sign in to expaify
             </a>
             <p style="margin:28px 0 0;font-size:13px;color:#767168;line-height:1.5;">

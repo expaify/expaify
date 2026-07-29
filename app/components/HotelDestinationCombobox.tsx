@@ -310,7 +310,7 @@ export default function HotelDestinationCombobox({
           onFocus={() => {
             if (editing && visibleQuery.trim()) setOpen(true)
           }}
-          className={`min-h-[3.25rem] w-full rounded-[var(--radius-control)] border bg-[var(--bg-raised)] px-4 py-3 pr-12 text-[0.9375rem] font-medium text-[var(--text-1)] transition-[border-color,background] placeholder:text-[var(--text-3)] focus:outline-none focus:ring-0 ${
+          className={`min-h-[3.25rem] w-full rounded-[var(--radius-control)] border bg-[var(--bg-raised)] px-4 py-3 pr-12 text-base font-medium text-[var(--text-1)] transition-[border-color,background] placeholder:text-[var(--text-3)] focus:outline-none focus:ring-0 ${
             fieldError
               ? 'border-[var(--error)] bg-[var(--error-soft)] focus:border-[var(--error)]'
               : 'border-[var(--border-strong)] focus:border-[var(--border-focus)]'

@@ -194,7 +194,7 @@ export default function AirportInput({
         aria-activedescendant={activeOptionId}
         aria-describedby={describedBy}
         aria-invalid={error ? 'true' : 'false'}
-        className={`min-h-[3.25rem] w-full rounded-[var(--radius-control)] border bg-[var(--bg-raised)] px-4 py-3.5 pl-11 text-[0.9375rem] font-medium text-[var(--text-1)] transition-[border-color,background] placeholder:text-[var(--text-3)] focus:outline-none focus:ring-0 ${
+        className={`min-h-[3.25rem] w-full rounded-[var(--radius-control)] border bg-[var(--bg-raised)] px-4 py-3.5 pl-11 text-base font-medium text-[var(--text-1)] transition-[border-color,background] placeholder:text-[var(--text-3)] focus:outline-none focus:ring-0 ${
           error
             ? 'border-[var(--error)] bg-[var(--error-soft)] focus:border-[var(--error)]'
             : 'border-[var(--border)] focus:border-[var(--border-focus)]'

@@ -35,10 +35,10 @@ export function TrialEndingEmail({ email, daysLeft, manageUrl, unsubscribeUrl }:
             style={{
               display: 'block',
               backgroundColor: '#FF6B4A',
-              color: '#FFFFFF',
+              color: '#141210', /* ink on coral is 6.6:1 (AA); white was 2.8:1 */
               textDecoration: 'none',
               textAlign: 'center',
-              fontWeight: 600,
+              fontWeight: 500,
               fontSize: '15px',
               padding: '13px 24px',
               borderRadius: '999px',

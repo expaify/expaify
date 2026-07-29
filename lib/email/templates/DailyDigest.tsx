@@ -89,10 +89,10 @@ export function DailyDigest({ deals, date, manageUrl, unsubscribeUrl }: DailyDig
                 style={{
                   display: 'block',
                   backgroundColor: '#FF6B4A',
-                  color: '#FFFFFF',
+                  color: '#141210', /* ink on coral is 6.6:1 (AA); white was 2.8:1 */
                   textDecoration: 'none',
                   textAlign: 'center',
-                  fontWeight: 600,
+                  fontWeight: 500,
                   fontSize: '14px',
                   padding: '11px 20px',
                   borderRadius: '999px',
@@ -114,10 +114,10 @@ export function DailyDigest({ deals, date, manageUrl, unsubscribeUrl }: DailyDig
             style={{
               display: 'block',
               backgroundColor: '#FF6B4A',
-              color: '#FFFFFF',
+              color: '#141210', /* ink on coral is 6.6:1 (AA); white was 2.8:1 */
               textDecoration: 'none',
               textAlign: 'center',
-              fontWeight: 600,
+              fontWeight: 500,
               fontSize: '14px',
               padding: '12px 24px',
               borderRadius: '999px',
