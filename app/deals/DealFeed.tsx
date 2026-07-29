@@ -993,6 +993,22 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     )
   }
 
+  function handleAiSearchResult(filters: DealSearchFilters, rawQuery: string) {
+    track('ai_search_parsed', { query: rawQuery })
+    applyFilter({
+      city: filters.city ?? (defaultCity ?? ''),
+      minDiscount: filters.min_discount ?? 0,
+      maxPriceCents: filters.max_price !== undefined ? filters.max_price * 100 : null,
+      minStars: filters.min_stars ?? 0,
+      dateFrom: filters.date_from ?? '',
+      dateTo: filters.date_to ?? '',
+    })
+  }
+
+  function handleAiSearchClear() {
+    resetFilters()
+  }
+
   function removeRecoveryFilter(key: HotelFilterKey, source: 'promoted' | 'review_filters') {
     track('feed_filter_chip_removed', { filter: key, source })
     const next: Parameters<typeof applyFilter>[0] = {}
@@ -1534,6 +1550,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         </div>
       ) : (
         <>
+          <SearchBar premium={premium} onResult={handleAiSearchResult} onClear={handleAiSearchClear} />
           <section aria-labelledby="hotel-filter-label" className="mb-5">
             <span id="hotel-filter-label" className="mb-1.5 block font-display text-caption font-bold leading-5 text-[var(--text-1)]">
               Filter hotel deals
