@@ -5,7 +5,7 @@ import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext, type BookingHote
 import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { track } from '@/lib/analytics'
-import { providerDisplayName } from '@/lib/providerFreshness'
+import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import type {
   HotelDocumentCheckState,
   HotelDocumentReadiness,
@@ -16,6 +16,12 @@ import { normalizeHotelDocumentReadiness } from '@/lib/providers/hotelDocumentRe
 import { ParkingSection } from '@/app/components/HotelParking'
 import { HotelRateRestrictionsSection } from '@/app/components/HotelRateRestrictions'
 import { deriveRateEligibilityPresentation } from '@/lib/hotels/rateEligibility'
+import { HotelAdmissionPolicySection } from '@/app/components/HotelAdmissionPolicy'
+import { deriveAdmissionPolicyPresentation } from '@/lib/hotels/admissionPolicy'
+import {
+  trackHotelHandoffWithAdmissionRestriction,
+  useHotelAdmissionPolicyViewed,
+} from '@/app/components/hotelAdmissionPolicyAnalytics'
 import {
   HotelDocumentIntentControl,
   HotelDocumentReadinessDisclosure,
@@ -319,6 +325,19 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
 function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelContext }) {
   const location = getHotelLocationDisplay(hotelContext)
   const rateSource = providerDisplayName(hotelContext.provider)
+  const admissionPolicy = deriveAdmissionPolicyPresentation({
+    propertyId: hotelContext.offerId,
+    supplier: hotelContext.provider,
+    providerName: hasProviderName(hotelContext.provider) ? rateSource : '',
+    evidence: hotelContext.admissionPolicy,
+    capability: hotelContext.admissionPolicyCapability,
+  })
+  useHotelAdmissionPolicyViewed({
+    presentation: admissionPolicy,
+    hotelId: hotelContext.offerId,
+    source: hotelContext.provider,
+    surface: 'handoff',
+  })
 
   return (
     <>
@@ -378,6 +397,7 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
             <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
           </div>
         </dl>
+        <HotelAdmissionPolicySection presentation={admissionPolicy} providerName={hasProviderName(hotelContext.provider) ? rateSource : ''} />
       </section>
     </>
   )
@@ -707,6 +727,13 @@ function HotelHandoffReview({
 }) {
   const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
   const location = getHotelLocationDisplay(hotelContext)
+  const admissionPolicy = deriveAdmissionPolicyPresentation({
+    propertyId: hotelContext.offerId,
+    supplier: hotelContext.provider,
+    providerName: hasProviderName(hotelContext.provider) ? providerDisplayName(hotelContext.provider) : '',
+    evidence: hotelContext.admissionPolicy,
+    capability: hotelContext.admissionPolicyCapability,
+  })
   const resolvedFundsPolicy = fundsPolicy ?? hotelContext.fundsPolicy
   const policyDimensions = getHotelFundsAnalyticsDimensions({
     evidence: resolvedFundsPolicy,
@@ -941,6 +968,11 @@ function HotelHandoffReview({
       invoiceReadinessStatus: documentReadiness.status,
       helpViewed: helpViewedRef.current,
       loyaltyDisclosureViewed: loyaltyViewedRef.current,
+    })
+    trackHotelHandoffWithAdmissionRestriction({
+      presentation: admissionPolicy,
+      hotelId: hotelContext.offerId,
+      source: hotelContext.provider,
     })
     if (guidanceViewedRef.current) {
       emitAnalytics('hotel_request_handoff_continued', {

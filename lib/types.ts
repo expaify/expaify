@@ -471,6 +471,88 @@ export interface HotelRateEligibilityCapability {
   refundability: boolean;
 }
 
+/** Property admission: may you OCCUPY. Distinct from rate eligibility: may you BOOK this rate. */
+export type HotelAdmissionFamily =
+  | 'checkin_age'
+  | 'checkin_identity'
+  | 'local_guest_restriction'
+  | 'occupancy_admission';
+
+export type HotelAdmissionLoadState = 'loading' | 'ready' | 'error';
+
+/** Verbatim supplier prose. Never parsed into flags, numbers, or headcounts. */
+export interface SupplierAdmissionStatement {
+  id: string;
+  sourceLabel: string;
+  /** Supplier text, reproduced exactly. Bounded 1–300 chars after trim. */
+  sourceText: string;
+  observedAt?: string;
+}
+
+export interface HotelAdmissionStatementEvidence {
+  state: HotelDocumentStatus;
+  statements: SupplierAdmissionStatement[];
+}
+
+export interface HotelAdmissionAgeEvidence extends HotelAdmissionStatementEvidence {
+  /** The only typed value in the taxonomy. Non-negative integer. No maximum. No range. */
+  minimumAge?: number;
+}
+
+export interface HotelAdmissionPolicyEvidence {
+  /** Literal. There is no rate-scoped variant of this type. */
+  scope: 'property';
+  /** Must match the rendered offer's id; mismatch degrades every family to not_provided. */
+  propertyId: string;
+  /** Must match HotelOffer.source; mismatch degrades every family to not_provided. */
+  supplier: string;
+  loadState: HotelAdmissionLoadState;
+  fetchedAt?: string;
+  families: {
+    checkin_age: HotelAdmissionAgeEvidence;
+    checkin_identity: HotelAdmissionStatementEvidence;
+    local_guest_restriction: HotelAdmissionStatementEvidence;
+    occupancy_admission: HotelAdmissionStatementEvidence;
+  };
+}
+
+/** Declares whether an adapter's contract can return an explicit negative for a family. */
+export interface HotelAdmissionPolicyCapability {
+  checkin_age: boolean;
+  checkin_identity: boolean;
+  local_guest_restriction: boolean;
+  occupancy_admission: boolean;
+}
+
+export type HotelAdmissionRowState = 'restricted' | 'no_rule_reported' | 'unavailable' | 'conflicting';
+
+export interface HotelAdmissionRow {
+  family: HotelAdmissionFamily;
+  rowState: HotelAdmissionRowState;
+  /** Row label, e.g. 'Minimum check-in age'. */
+  label: string;
+  /** One finished sentence. Never ends in the rate word 'only'. */
+  sentence: string;
+  /** Verbatim supplier prose, already bounded and capped. */
+  statements: readonly SupplierAdmissionStatement[];
+  /** Count of statements dropped by the render cap; 0 when none. */
+  omittedStatementCount: number;
+}
+
+export type HotelAdmissionPresentation =
+  | { state: 'loading' }
+  | { state: 'error' }
+  | { state: 'not_provided' }
+  | {
+      state: 'reported';
+      rows: readonly HotelAdmissionRow[];
+      /** True when at least one family is not_provided while others reported. */
+      coverageIncomplete: boolean;
+      /** True when at least one row is rowState 'restricted'. Drives the chip only. */
+      hasRestriction: boolean;
+      fetchedAt?: string;
+    };
+
 export interface HotelOffer {
   id: string;
   name: string;
@@ -492,6 +574,8 @@ export interface HotelOffer {
   smokingPolicy?: HotelSmokingPolicy;
   rateEligibility?: HotelRateEligibilityEvidence;
   rateEligibilityCapability?: HotelRateEligibilityCapability;
+  admissionPolicy?: HotelAdmissionPolicyEvidence;
+  admissionPolicyCapability?: HotelAdmissionPolicyCapability;
 }
 
 export type NormalizedHotelOffer = HotelOffer;
