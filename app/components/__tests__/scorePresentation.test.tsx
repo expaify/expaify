@@ -17,6 +17,11 @@ jest.mock('../hotelFundsPolicyAnalytics', () => ({
   useHotelFundsPolicyExposure: jest.fn(() => ({ current: null })),
 }))
 
+jest.mock('../hotelAdmissionPolicyAnalytics', () => ({
+  useHotelAdmissionPolicyViewed: jest.fn(),
+  trackHotelHandoffWithAdmissionRestriction: jest.fn(),
+}))
+
 const { default: DealBadge } = jest.requireActual('../DealBadge') as typeof import('../DealBadge')
 const { default: DealScorePanel } = jest.requireActual('../DealScorePanel') as typeof import('../DealScorePanel')
 const { default: FlightCard } = jest.requireActual('../FlightCard') as typeof import('../FlightCard')

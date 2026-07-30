@@ -19,6 +19,11 @@ jest.mock('../hotelFundsPolicyAnalytics', () => ({
   useHotelFundsPolicyExposure: jest.fn(() => ({ current: null })),
 }))
 
+jest.mock('../hotelAdmissionPolicyAnalytics', () => ({
+  useHotelAdmissionPolicyViewed: jest.fn(),
+  trackHotelHandoffWithAdmissionRestriction: jest.fn(),
+}))
+
 const { default: HotelCard } = jest.requireActual('../HotelCard') as typeof import('../HotelCard')
 
 const hotel: HotelOffer = {

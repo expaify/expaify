@@ -27,6 +27,12 @@ import {
   HotelCardEligibilityLine,
 } from './HotelRateRestrictions'
 import { deriveRateEligibilityPresentation } from '@/lib/hotels/rateEligibility'
+import {
+  HotelAdmissionCardChip,
+  HotelAdmissionPolicyCardBlock,
+} from './HotelAdmissionPolicy'
+import { deriveAdmissionPolicyPresentation } from '@/lib/hotels/admissionPolicy'
+import { useHotelAdmissionPolicyViewed } from './hotelAdmissionPolicyAnalytics'
 import { HotelPetPolicyDetails, HotelPetPolicyScan } from './HotelPetPolicy'
 import type { HotelPetPolicyPresentation } from './HotelPetPolicy'
 import { getCollapsedSmokingPolicy, type HotelSmokingPolicyView } from './SmokingPolicyPanel'
@@ -759,6 +765,19 @@ export default function HotelCard({
     capability: hotel.rateEligibilityCapability,
   })
   const eligibilityAriaSummary = getRateRestrictionsAccessibleSummary(rateEligibility, providerName, 'card')
+  const admissionPolicy = deriveAdmissionPolicyPresentation({
+    propertyId: hotel.id,
+    supplier: hotel.source,
+    providerName: hasHotelProviderName ? providerName : '',
+    evidence: hotel.admissionPolicy,
+    capability: hotel.admissionPolicyCapability,
+  })
+  useHotelAdmissionPolicyViewed({
+    presentation: admissionPolicy,
+    hotelId: hotel.id,
+    source: hotel.source,
+    surface: 'results',
+  })
   const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(resolvedFundsPolicy, fundsPolicyLoadState, providerName)
   const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy} ${policyAriaSuffix}`
   const unavailableAriaLabel = hasValidPrice
@@ -904,6 +923,7 @@ export default function HotelCard({
         </div>
 
         <HotelCardEligibilityLine eligibility={rateEligibility} />
+        <HotelAdmissionCardChip presentation={admissionPolicy} />
 
         <ParkingSummary
           evidence={parkingEvidence}
@@ -1014,6 +1034,8 @@ export default function HotelCard({
                 <p className="mt-2 break-words text-[color:var(--text-2)]">{location.distanceText}</p>
               ) : null}
             </div>
+
+            <HotelAdmissionPolicyCardBlock presentation={admissionPolicy} providerName={hasHotelProviderName ? providerName : ''} />
 
             <ParkingSection
               hotelId={hotel.id}

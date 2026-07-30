@@ -45,6 +45,8 @@ const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries
     resilience_summary_impression: ['dealId', 'evidenceState', 'signalTypes', 'scope'],
     resilience_source_opened: ['signalType', 'sourceClass'],
     resilience_disclosure_opened: ['dealId', 'evidenceState', 'entrySurface'],
+    hotel_admission_policy_viewed: ['hotel_id', 'surface', 'source', 'evidence_state', 'families_reported', 'viewport_group'],
+    hotel_handoff_with_admission_restriction: ['hotel_id', 'surface', 'source', 'restricted_families'],
   }).map(([event, keys]) => [event, new Set(keys)]),
 )
 
@@ -84,6 +86,8 @@ const REQUIRED_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntr
     resilience_summary_impression: ['dealId', 'evidenceState', 'signalTypes', 'scope'],
     resilience_source_opened: ['signalType', 'sourceClass'],
     resilience_disclosure_opened: ['dealId', 'evidenceState', 'entrySurface'],
+    hotel_admission_policy_viewed: ['hotel_id', 'surface', 'source', 'evidence_state', 'families_reported', 'viewport_group'],
+    hotel_handoff_with_admission_restriction: ['hotel_id', 'surface', 'source', 'restricted_families'],
   }).map(([event, keys]) => [event, new Set(keys)]),
 )
 
@@ -204,6 +208,17 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
     return value === 'none' || value.split(',').every(item => oneOf(item, ['property', 'room', 'rate', 'selected_stay']))
   }
   if (key === 'entrySurface') return value === 'hotel_detail'
+  if (key === 'evidence_state') return oneOf(value, ['loading', 'error', 'not_provided', 'reported'])
+  if (key === 'families_reported' || key === 'restricted_families') {
+    if (typeof value !== 'string') return false
+    if (key === 'families_reported' && value === 'none') return true
+    const families = value.split(',')
+    const order = ['checkin_age', 'checkin_identity', 'local_guest_restriction', 'occupancy_admission']
+    return families.length > 0 && families.length <= 4 &&
+      new Set(families).size === families.length &&
+      families.every(family => order.includes(family)) &&
+      families.every((family, index) => index === 0 || order.indexOf(family) > order.indexOf(families[index - 1]))
+  }
   return false
 }
 

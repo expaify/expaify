@@ -180,6 +180,7 @@ describe('HotellookProvider.searchHotels', () => {
           property: { state: 'not_provided', statements: [] },
         },
         rateEligibilityCapability: { membership: false, residency: false, age: false, refundability: false },
+        admissionPolicyCapability: { checkin_age: false, checkin_identity: false, local_guest_restriction: false, occupancy_admission: false },
       },
     ]);
   });
