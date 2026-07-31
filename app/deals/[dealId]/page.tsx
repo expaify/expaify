@@ -36,6 +36,11 @@ import {
   type HotelCriteriaContextStatus,
   type HotelSearchCriteriaV1,
 } from '@/lib/hotels/searchCriteria'
+import {
+  AccessibilityFitLedger,
+  AccessibilityHandoffBoundary,
+  createAccessibilityPresentation,
+} from '@/app/components/ui/HotelAccessibilityFit'
 
 type PageProps = {
   params: Promise<{ dealId: string }>
@@ -307,6 +312,10 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
     : deal.snapshot_count < 10
       ? 'low_confidence'
       : 'confident'
+  // Accessibility criteria continuity and provider-backed room/rate evidence are
+  // not in the saved-deal contract yet. Production therefore renders the honest
+  // no-selection fallback and cannot emit positive or mismatch claims.
+  const accessibility = createAccessibilityPresentation()
 
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
@@ -365,8 +374,8 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             </dl>
             <p className="mt-4 text-sm leading-6 text-[color:var(--text-2)]">
               {checkInDisplay && checkOutDisplay && deal.nights != null
-                ? 'Rate shown for this stay context; the provider confirms room-level details.'
-                : 'Stay dates are incomplete. Choose or confirm dates with the provider before comparing room options.'}
+                ? 'Rate shown for these dates. No room is selected, and room-level accessibility fit is not confirmed.'
+                : 'Stay dates are incomplete. Choose or confirm dates with the provider before comparing room options. No room is selected, and room-level accessibility fit is not confirmed.'}
             </p>
           </section>
 
@@ -409,11 +418,13 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
               </div>
             </dl>
+            <AccessibilityFitLedger presentation={accessibility} hotelName={deal.hotel_name} criteriaValid={criteriaResolution.status !== 'invalid'} />
             <QuietStayEvidenceLedger evidence={NO_QUIET_STAY_EVIDENCE} />
           </section>
 
           <section aria-labelledby="saved-provider-title" data-hotel-decision-section="provider_handoff" data-hotel-decision-position="4" className="rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="saved-provider-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
+            {!isExpired ? <AccessibilityHandoffBoundary presentation={accessibility} /> : null}
             {isExpired ? (
               <div className="mt-4" role="status">
                 <p className="text-sm font-medium text-[color:var(--text-1)]">Saved rate expired</p>
@@ -421,7 +432,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <a href="/deals" className="btn btn-primary mt-4 inline-flex min-h-11 w-full items-center justify-center text-center">Search current deals</a>
               </div>
             ) : (
-              <HotelDealCriteriaHandoff context={criteriaContext} deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }} links={deal.ota_links ?? {}} hotelName={deal.hotel_name} datesIncomplete={datesIncomplete} />
+              <HotelDealCriteriaHandoff context={criteriaContext} deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }} links={deal.ota_links ?? {}} hotelName={deal.hotel_name} datesIncomplete={datesIncomplete} accessibility={accessibility} />
             )}
           </section>
 

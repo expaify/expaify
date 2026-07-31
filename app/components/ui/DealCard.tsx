@@ -10,6 +10,11 @@ import {
   getQuietEvidenceResultCue,
   type QuietStayEvidence,
 } from './QuietStayEvidenceLedger'
+import {
+  AccessibilityCardCue,
+  accessibilityCardAccessibleText,
+  type AccessibilityPresentation,
+} from './HotelAccessibilityFit'
 
 type DealLinks = {
   expedia?: string
@@ -42,6 +47,7 @@ type DealCardProps = {
   href?: string
   onOpen?: () => void
   quietStayEvidence?: QuietStayEvidence
+  accessibility?: AccessibilityPresentation
 }
 
 function starChars(stars: number): string {
@@ -62,11 +68,12 @@ function absoluteCheckedAt(iso: string | null | undefined): string | undefined {
   })
 }
 
-export function DealCard({ deal, href, onOpen, quietStayEvidence }: DealCardProps) {
+export function DealCard({ deal, href, onOpen, quietStayEvidence, accessibility }: DealCardProps) {
   const savings = deal.medianPrice.priceCents - deal.dealPrice.priceCents
   const showSavings = savings >= 2000
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
   const quietEvidenceCue = getQuietEvidenceResultCue(quietStayEvidence)
+  const accessibilityAccessibleText = accessibilityCardAccessibleText(accessibility, deal.expired)
 
   const content = (
     <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
@@ -90,6 +97,8 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence }: DealCardProp
             </p>
           ) : null}
         </div>
+
+        <AccessibilityCardCue presentation={accessibility} expired={deal.expired} />
 
         <div className="space-y-2">
           <div className="flex min-w-0 flex-wrap items-baseline gap-2">
@@ -154,7 +163,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence }: DealCardProp
         if ((event.target as Element).closest('a') === event.currentTarget) onOpen?.()
       }}
       className="block text-inherit no-underline"
-      aria-label={`View deal: ${deal.hotelName}${quietEvidenceCue ? `; ${quietEvidenceCue.replace(' · ', ': ')}` : ''}`}
+      aria-label={`View deal: ${deal.hotelName}${accessibilityAccessibleText ? `; ${accessibilityAccessibleText}` : ''}${quietEvidenceCue ? `; ${quietEvidenceCue.replace(' · ', ': ')}` : ''}`}
     >
       {content}
     </a>
