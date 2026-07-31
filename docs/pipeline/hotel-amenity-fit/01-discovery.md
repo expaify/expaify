@@ -1,59 +1,77 @@
 # UXD-HOTEL-AMENITY-FIT-01: Hotel Amenity Fit Discovery
 
-Date: 2026-07-21
+Date: 2026-07-31
 Stage: UX Discovery
 Persona: Senior UX Strategist
+Supersedes: the 2026-07-21 revision of this file (its central finding — "zero amenity fields exist anywhere in the stack" — is now factually wrong; see *What Changed Since The Previous Revision*)
 
-## User Pain Point
+## Problem Statement
 
-Travelers cannot tell whether a hotel fits their practical stay needs — breakfast, parking, Wi-Fi, pool, gym, pet policy, or airport shuttle — from the results scan or filters, so they open detail pages one by one just to rule hotels in or out before they ever compare rates.
+On the live hotel path (`/deals` → `/deals/[dealId]`), a traveler cannot rule a property out on practical stay requirements — breakfast, parking, Wi-Fi, pet policy, air conditioning, shuttle — because not one amenity fact is rendered on either surface, so every fit decision is deferred to the OTA handoff and made off-platform.
 
 ## Who Is Affected And Where
 
-First-time and returning hotel search users are affected across the entire hotel comparison path, not a single screen: the results scan (list of `HotelCard` components in `app/page.tsx`), any filter controls above the results, the collapsed hotel card, and the expanded card detail opened via the "Details" toggle in `app/components/HotelCard.tsx:512`-`520`.
+Every hotel searcher, at three points in the flow:
 
-Today none of these surfaces carry amenity information:
+1. **Results scanning — `app/deals/DealFeed.tsx`.** The feed renders name, stars, price, discount, and Deal Score. Its three filter pills are `minDiscount`, `minStars`, `maxPrice` (`app/deals/hotelFilterRecovery.ts`, `FilterPillKey` at `DealFeed.tsx:237`). There is no amenity filter and no amenity fact on any feed row. A user who needs free parking cannot narrow, cannot sort, and cannot see.
+2. **Property evaluation — `app/deals/[dealId]/page.tsx`.** The page has a section literally titled **"Hotel fit"** (`page.tsx:399-412`). It contains exactly two rows: hotel class and guest rating. Both are quality signals, not fit signals. A section named for the user's question answers a different one, which is worse than omission — it reads as "we checked, there's nothing else."
+3. **Room selection.** There is no room-selection step in this product; the user leaves via `HotelDealCriteriaHandoff` (`page.tsx:423`) to the provider. So every amenity question the user still holds becomes an unassisted task on someone else's site, after we have already claimed to have shown them the fit.
 
-- `HotelOffer` in `lib/types.ts:137`-`150` defines identity, area/location, stars, `pricePerNight`, `rating`, `photoUrl`, `deeplink`, `source`, `hotelClass`, and `guestRating`. There is no amenity field of any kind — no list, no flags, no per-amenity status.
-- `app/components/HotelCard.tsx` has dedicated collapsed summary chips for hotel class and guest rating (`getHotelClassEvidence`, `collapsedGuestRating`, lines 449-470) and dedicated expanded panels for Deal Score, quality evidence, location, and price scope (lines 538-579). There is no amenity chip in the collapsed card and no "Amenities" panel in the expanded detail.
-- `HotellookProvider` (`lib/providers/hotellook.ts`) normalizes location, hotel class, and guest-rating evidence for both live and cached responses, but maps no facilities/amenity fields at any point in its normalization path.
-- The only amenity-adjacent copy in the codebase today is marketing copy on the pricing/upsell section of `app/page.tsx:345` — `'Filter by discount, stars, price'` — which is a Premium plan bullet, not a real, implemented filter. There is no amenity filter control anywhere in the app.
-- A user who cares about a specific amenity (e.g., "must have free parking") has no way to express that need before opening a hotel's provider page, and no way to confirm a hotel's fit even after opening it — the information does not exist on the surface at all today.
+**The stranded contract.** An amenity evidence model already exists and is well-built: `HotelAmenityEvidence` (`lib/types.ts:138-148`) with `id`, `label`, `status` (`confirmed` / `unavailable` / `not_returned` / `unknown`), `scope`, `sourceLabel`, `fee`, `fetchedAt`, `confidence`, `certainty`; a provider normalizer at `lib/providers/hotelAmenityEvidence.ts`, wired into both the live and cached paths of `lib/providers/hotellook.ts` (lines 381, 404, 502, 532); and a rendering surface, `AccessEvidencePanel` in `app/components/HotelCard.tsx:259-330`, with correct unknown/loading/error states.
+
+Two things break it:
+
+- **`HotelCard.tsx` is not rendered by any page.** It is imported only by `HotelRateRestrictions.tsx` and by tests (verified: no non-test page or component in `app/` imports it). All the amenity UI that exists is unreachable by a user.
+- **The consumed amenity vocabulary is six access facts, not amenities.** `ACCESS_FACTS` (`HotelCard.tsx:63-74`) is `elevator`, `step_free_route`, and four room-preference requests. `getAccessEvidence` drops every other id via `isAccessFactId`. So even if the card were mounted, a provider returning `breakfast` or `parking` would have that evidence silently discarded.
+
+**The data layer is the hard floor.** The `deals` table (`lib/db/schema.sql:125-148`) stores `hotel_id`, `hotel_name`, `stars`, `photo_url`, price/median/discount, dates, `ota_links`, `headline`, `description`. There is no amenity column and no amenity join table. The live feed reads from `deals`, so no amenity fact can reach `/deals` today regardless of what the provider adapter normalizes. Any solution must either persist amenity evidence or fetch it per-property at detail time — and that choice determines whether amenity filtering at scan time is even possible.
 
 ## Measurable Signal
 
-- Result-refinement signal: users re-open multiple hotel detail views per session and/or re-run searches with adjusted filters after already viewing results — a proxy for "the result list didn't tell me enough to decide." This should drop once amenity fit is visible before opening detail.
-- Conversion signal: save-rate or "Review hotel" CTA click-through rate should rise specifically for hotels whose confirmed amenities match a user's stated or inferred needs, versus hotels with no amenity signal shown.
-- Structural signal (code-level, verifiable today): zero amenity fields exist in `HotelOffer`, zero amenity mapping exists in any hotel provider adapter, and zero amenity UI exists in `HotelCard` — so today the signal is not "amenities are wrong," it is "amenities are entirely absent," which forces 100% of amenity-driven fit decisions off-platform.
+Structural signals, verifiable in the repo right now:
+
+- Amenity facts rendered on the live hotel path: **0**. Amenity filters on the live results feed: **0** of 3 filter pills.
+- Canonical amenity ids that survive `HotelCard`'s filter: **6**, all access/room-request facts; every other id is dropped.
+- Amenity columns in the `deals` table: **0**.
+- A section named "Hotel fit" that contains no fit attribute: **1** (`app/deals/[dealId]/page.tsx:400`).
+
+Behavioural signals to instrument (the ticket's measurement ask). Note we cannot baseline amenity-filter use or amenity-detail engagement today because neither control exists — these are the post-ship measures, and the pre-ship baseline is the structural zero above:
+
+- **Amenity-filter use:** share of hotel search sessions applying ≥1 amenity filter; per-amenity application rate. This ranks demand empirically and lets a later stage cut the tail.
+- **Amenity-detail engagement:** expand rate on the amenity block on `/deals/[dealId]`, and dwell before the provider handoff click.
+- **Abandonment after property review:** sessions that open a deal detail and exit without clicking the provider handoff. Amenity fit should reduce this by eliminating unsuitable properties *earlier* — which may legitimately mean fewer detail opens and a higher handoff rate per open, so read the pair, not either alone.
+- **Unknown exposure rate:** share of displayed amenity slots resolving to `not_returned`/`unknown`. If this is high, the honest design problem is unknown-state presentation, not amenity coverage.
 
 ## Constraints
 
-1. **Scope discipline (MVP amenity set):** Solve for a fixed set of 6-8 high-intent amenities only (e.g., breakfast, parking, Wi-Fi, pool, gym, pet policy, airport shuttle, air conditioning). Do not attempt to model the long tail of hotel facilities; downstream stages must rank and lock this list rather than expand it ad hoc.
-2. **Data integrity for unknown amenities:** A missing or unreturned amenity must never be displayed or implied as "not available." Every amenity state must explicitly distinguish provider-confirmed, provider-says-unavailable, and not-returned-by-provider/unknown. This mirrors the data-integrity bar already set for hotel class and guest rating in `HotelCard.tsx` (see `getConfidenceText`, `getQualityHelperText`) and must not regress it.
-3. **No overlap with quality scoring:** Amenity fit is a distinct concern from `DealScore` (price-history percentile) and from hotel-class/guest-rating quality evidence already on the card. Amenity fit must not feed, adjust, or be visually conflated with the Deal Score badge or the Quality Evidence panel — it needs its own clearly labeled space.
-4. (Accessibility/layout, carried from the general contract) Amenity fit information must be scannable and non-overlapping at 375px mobile and 1280px desktop, and must not crowd the existing price, Deal Score, location, or booking-CTA hierarchy on the collapsed card.
+1. **Provider-supported, small, fixed set.** Ship only amenities the hotel provider actually returns and the adapter can normalize to a canonical id. The set is small and locked by the design stage — no ad-hoc growth, no taxonomy cleanup, no long-tail facility list. If the provider cannot support an amenity, it does not ship; we do not infer it from `description` or `headline` text.
+2. **Unknown is a first-class, explicitly rendered state.** `not_returned` and `unknown` must never render as, collapse into, or be filterable as "not available." This bar is already met by `AccessEvidencePanel` and by the `deals`-page quality copy ("This provider did not return guest-rating evidence") and must not regress. Amenity filtering must state how it treats unknowns rather than silently excluding those properties.
+3. **Do not conflate fit with price or quality.** Amenity fit must not feed, weight, or visually sit inside `DealScore`, the discount figure, hotel class, or guest rating. The Deal Score is the product's differentiator; diluting it with fit signals damages it. Amenity fit needs its own labelled space in the decision order already established by `data-hotel-decision-position` on `/deals/[dealId]`.
+4. **Reuse `HotelAmenityEvidence`; do not invent a parallel model.** The type, the normalizer, and the status vocabulary are settled. Extend the canonical id set and the consuming surface — do not add a second amenity shape. Money in any amenity fee stays `{ priceCents, currency }` (`HotelEvidenceFee`).
+5. **Usable at 375px and 1280px.** Amenity content on a feed row must not crowd price, Deal Score, or the CTA, and must not overlap or clutter at 375px.
 
 ## Success Statement
 
-This is solved when a first-time user, scanning hotel results or a single detail page, can quickly tell which of their practical needs (breakfast, parking, Wi-Fi, pool, gym, pet policy, airport shuttle) a hotel confirms, does not offer, or simply didn't report — without opening every hotel's detail page one at a time to find out, and without that information being confused with the hotel's price or quality score.
+This is solved when a first-time user can eliminate hotels that fail a hard requirement — parking, breakfast, Wi-Fi, pets, A/C — from the results feed and confirm the survivors on the detail page, without opening the provider's site to find out, and without ever mistaking "the provider didn't tell us" for "the hotel doesn't have it."
 
-## Note For Downstream Stages: Related Prior Work
+## What Changed Since The Previous Revision
 
-A separate, already-completed discovery/research pair exists at `docs/pipeline/hotel-amenity-provenance/01-discovery.md` and `02-research.md` (ticket `UXR-HOTEL-AMENITY-PROVENANCE-01`). That work independently arrived at the same structural finding — zero amenity fields exist anywhere in the stack — and already defines a provider-neutral amenity evidence contract (canonical id, label, `status` of `confirmed`/`unavailable`/`not_returned`/`unknown`, source label, confidence, optional `scope`/`fee`) plus UI-state rules (max 3 confirmed amenities collapsed, no `No amenities` copy, no implying selected-stay availability without provider support).
+The 2026-07-21 revision correctly identified the absence of amenity data but has been overtaken by shipped work, and its framing would now mislead UXR:
 
-This ticket is not a duplicate: that prior work is about **provenance and trust** (can the user believe what's shown is real). This ticket is about **fit** (which specific amenities matter enough to prioritize, and how a user quickly self-assesses match against their own needs across the scan → filter → card → detail path, including filtering). UXR should treat the provenance contract as a settled foundation to build on, not re-derive it, and should focus new research on: which 6-8 amenities are genuinely high-intent for this product's users, how amenity fit should surface in filters (not just cards), and comprehension — can a user correctly interpret an amenity state at a glance.
+- `HotelOffer.amenityEvidence`, `HotelAmenityEvidence`, and `lib/providers/hotelAmenityEvidence.ts` **now exist**. The contract UXR was asked to help define is already built.
+- Several amenity-adjacent verticals shipped as **independent, single-purpose panels**: `HotelParking.tsx`, `HotelPetPolicy.tsx`, `SmokingPolicyPanel.tsx`, `HotelFundsPolicyPanel.tsx`, plus the access panel. Each has its own type, its own evidence shape, and its own placement. This is the current fit story, and it is fragmented — there is no single place a user reads "does this property fit me."
+- Its stated target surface, `HotelCard.tsx`, is **not mounted on any live page**. Designing for that card again would produce another unreachable panel. The live surfaces are `DealFeed.tsx` and `/deals/[dealId]/page.tsx`.
 
 ## Downstream Focus (for UXR)
 
-The research stage should:
-
-1. Read this discovery report and the existing amenity-provenance discovery/research docs referenced above (do not re-audit what they already established).
-2. Audit the current filter surface (or lack thereof) in `app/page.tsx` and the results-scan layout to determine where amenity fit signals could live during scanning, not only inside the expanded card.
-3. Compare against one or two reference patterns (e.g., Booking.com facility filters, Google Hotels amenity filters) at the interaction-pattern level: how amenities are surfaced as filters versus as card-level facts.
-4. Produce an **amenity priority ranking**: which 6-8 amenities are highest-intent for this product's likely user base (budget/value travelers comparing deals), with a one-line justification each.
-5. Produce **comprehension tasks**: specific scenarios to validate that a user can correctly read an amenity's state (confirmed vs. unavailable vs. unknown) from the card/filter UI without misreading absence as unavailability or vice versa.
-6. Produce **unknown-data handling questions**: open questions for the design stage about how to treat hotels where most or all of the 6-8 priority amenities are unreturned by the provider (e.g., does the card show anything at all, does it affect filter matching, how is this different from a hotel that explicitly lacks the amenity).
+1. Read this report and `docs/pipeline/hotel-amenity-provenance/01-discovery.md` + `02-research.md`. Treat the provenance/evidence contract as **settled** — do not re-derive it.
+2. Audit the live surfaces (`app/deals/DealFeed.tsx`, `app/deals/[dealId]/page.tsx`, `app/deals/hotelFilterRecovery.ts`) and the existing per-vertical panels (parking, pet, smoking, access). Determine whether amenity fit should be a **new consolidated block** or an **umbrella that absorbs the existing panels** — and say which, with a reason. Do not assume `HotelCard.tsx`.
+3. Establish **provider support ground truth**: for each candidate amenity, what does the Hotellook/affiliate response actually return, and can `hotelAmenityEvidence.ts` normalize it? An amenity with no provider support cannot be ranked in. This is the gating input to the ranking and must come before it.
+4. Deliver a **ranked amenity set** (recommend 5–7, provider-supported only), each with: canonical id, one-line intent justification for a value/deal-seeking traveler, and the provider field it maps to.
+5. Deliver a **placement recommendation** across scan → detail: which amenities (if any) earn a slot on a feed row, which are detail-only, and whether an amenity **filter** is viable given that `deals` carries no amenity column — including the honest answer if the data layer blocks scan-time filtering in phase one.
+6. Compare against one or two reference patterns (Booking.com facility filters, Google Hotels amenity chips) at the **interaction-pattern** level: how they show amenity presence during scanning, and how they handle properties with missing amenity data in a filtered result set.
+7. Deliver **comprehension checks**: scenarios proving a user reads `confirmed` vs `unavailable` vs `not_returned` correctly, and open questions for design on properties where most priority amenities are unknown.
 
 ## Handoff
 
-Create `UXR-HOTEL-AMENITY-FIT-01` with the discovery report path and problem statement embedded, plus the amenity priority ranking, comprehension tasks, and unknown-data handling questions listed above as required research deliverables.
+Create `UXR-HOTEL-AMENITY-FIT-01` with this report's path and problem statement embedded, and items 3–7 above as required research deliverables.
