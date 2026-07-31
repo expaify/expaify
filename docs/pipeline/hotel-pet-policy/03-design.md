@@ -1,434 +1,486 @@
-# UX Design: Stated-Pet Hotel Policy Fit
+# UXDES-HOTEL-PET-POLICY-01: Hotel Pet-Policy Fit Design
 
-Ticket: `UXDES-HOTEL-PET-POLICY-01`  
+Date: 2026-07-31  
 Stage: UX Design  
 Priority: P0  
-Date: 2026-07-22
+Feature slug: `hotel-pet-policy`
 
-## Source And Decision Boundary
+## 1. Decision, Scope, And Release Boundary
 
-This specification implements the directives in `docs/pipeline/hotel-pet-policy/02-research.md` for the hotel-results card surface represented by `app/components/HotelCard.tsx`.
+This specification refreshes `docs/pipeline/hotel-pet-policy/02-research.md` against the current mounted path:
 
-The active Hotellook path has **0% normalized pet-policy coverage**. It cannot establish permission, animal type, fee, limits, restrictions, selected-stay scope, or provenance. Therefore:
+`/deals` → `DealFeed` → `DealCard` → `/deals/[dealId]` saved detail → affiliate provider.
 
-- No hotel may currently render `Fits your pet` or `Does not fit your pet` from live supply.
-- The pet profile and policy components are implementation-ready here, but must remain unmounted in production until a normalized provider contract can distinguish `returned`, `not_returned`, `error`, and `conflict` and a production hotel-results owner is identified.
-- The current product must not show an enabled or disabled pet filter. Withholding the control is clearer than presenting a control that cannot affect results.
-- A future filter is specified only in §12 and remains behind every research coverage gate.
-- `HotelCard` is not mounted by a production page in this branch. UI work may implement its component states and tests, but end-to-end completion, analytics, and exposure claims are blocked until a separately authorized integration identifies the owning results page.
+The earlier `HotelCard` policy presentation is reference code only. It is not mounted by a production page and is not the implementation target for this ticket.
 
-This ticket does not authorize provider integration, a property-contact workflow, booking-flow redesign, total-price changes, ranking changes, service-animal advice, or production analytics work.
+The traveler-facing decision has exactly three semantic outcomes:
 
-## 1. Experience Model And Hierarchy
+- **Eligible for your pet** — supplier evidence resolves the stated animal, limits, material restrictions, selected stay, charge state, deposit state, provenance, and freshness.
+- **Ineligible for your pet** — applicable supplier evidence explicitly establishes a mismatch.
+- **Needs confirmation** — any material fact is absent, conditional, stale, malformed, conflicting, broader than the selected stay, or unavailable.
 
-The experience answers one narrow question: **Does this hotel's documented policy fit the animal and stay the traveller stated?** It does not relabel a generic supplier amenity as proof.
+An unknown is a safe result, not an error and not an ineligible result. Neither a generic `pets` amenity nor property-level `Pets Allowed` is enough to show eligible.
 
-### Information hierarchy
+### Current release decision
 
-1. **Primary:** hotel identity, nightly price, and existing `Review hotel` action.
-2. **Secondary:** one pet-fit scan status for the stated profile, placed where it can affect the handoff decision.
-3. **Tertiary:** complete policy facts, unresolved dimensions, scope, freshness, and supplier provenance in Details.
+The active provider path has 0% normalized pet-policy coverage. The production deal and saved-detail models carry no pet evidence. Therefore UI may implement fixture-backed presentational states and tests, but must not mount populated eligibility claims or a pet-fit filter in production yet.
 
-The pet status does not replace or modify Deal Score. Pet charges stay separate from the nightly rate and Deal Score.
+Production release requires both gates:
 
-### Component and DOM order
+1. **Supplier-coverage gate:** verified production-like payloads enter through `lib/providers`, survive live and cache normalization, and meet the thresholds in §14.
+2. **Reachability gate:** the same evidence and profile-derived outcome survive the mounted `DealCard` → saved detail → affiliate-provider path without falling back to generic or contradictory copy.
 
-Collapsed `HotelCard`:
+This design does not authorize a new supplier, property messaging, service-animal/legal advice, ranking changes, a pet-services feature, or blending pet costs into the nightly price or Deal Score.
 
-1. Existing image / name and quality / location / price grid.
-2. **New full-width pet-fit scan line.**
-3. Existing Deal Score and `Review hotel` row.
-4. Existing `Details` toggle.
+## 2. Experience Architecture And Hierarchy
 
-Expanded `HotelCard`:
+### Results page
 
-1. Existing photo, Deal Score, quality evidence, and warning.
-2. Existing Location section.
-3. **New `Pet policy for your stay` section.**
-4. Existing access/room-request evidence.
-5. Existing price scope, rate check, and provider handoff.
+Order on `/deals`:
 
-The policy section follows Location in DOM order and always appears before the provider handoff. It is not nested inside price or amenity content.
+1. Existing destination/search context and filters.
+2. New pet-profile panel, immediately before the result status/sort controls.
+3. Existing result status and result grid.
+4. Each `DealCard` gains one read-only pet-fit scan block.
 
-## 2. Stated-Pet Profile
+The pet profile evaluates and annotates results. It does not remove or reorder inventory. No `Pet-friendly` filter is shown while release gates are unmet.
 
-### Entry point
+`DealCard` hierarchy:
 
-On an eligible mounted hotel-results page, place a section immediately above the result count and cards:
+1. Hotel name, class, city, and stay window.
+2. **Pet-fit outcome and first decision-changing fact.**
+3. Existing nightly deal price, usual price, discount, Deal Score headline, and freshness.
+4. Existing image and `View deal` affordance.
+5. Existing price-check trust line.
 
-- No saved profile: heading `Travelling with a pet?` and button `Add pet details`.
-- Saved profile: heading `Your pet details`, one-line summary such as `1 dog · 20 lb`, and button `Edit pet details`.
-- Supporting copy: `We compare your details with policies returned by hotel providers. Always confirm final acceptance and charges before booking.`
+The card remains one outer link. The pet block contains no button, link, disclosure, tooltip, or other nested interactive element. Its full evidence is reached with the existing card link.
 
-This is a stay-fit input, not a filter. It evaluates and annotates every result without removing any result. Do not label it `Pet-friendly`.
+### Saved detail
 
-### Fields and final labels
+Keep the current decision-section order. Within `Hotel fit`, use this order:
 
-Use an inline disclosure panel below the entry point; do not open a modal. Inline placement preserves search context and avoids focus restoration ambiguity.
+1. Pet-profile summary and `Edit pet details` control.
+2. `Pet policy for your stay` outcome and evidence.
+3. Existing hotel class and guest rating.
+4. Existing quiet-stay evidence.
 
-| Order | Control | Visible label | Options / helper | Required |
+The complete pet policy appears before `Check rooms with provider`. The provider section repeats the outcome and unresolved cost/acceptance boundary immediately before affiliate options. Supporting evidence remains after the handoff section.
+
+### Provider handoff
+
+The provider section does not introduce a fourth outcome:
+
+- eligible: continue to check live rooms, while confirming the policy is still current;
+- needs confirmation: use the provider to confirm acceptance, charge, deposit, and restrictions;
+- ineligible: return to results is primary; provider options remain available only as explicit policy-verification actions because policies can change.
+
+Every outbound destination remains an existing validated affiliate URL. Never fabricate a property-contact link or remove affiliate markers.
+
+## 3. Minimum Pet Profile
+
+Use one reusable inline panel on results and saved detail. Do not use a modal.
+
+### Closed states and final copy
+
+No profile:
+
+- Heading: `Travelling with a pet?`
+- Body: `Add the minimum details needed to compare your pet with hotel policies.`
+- Button: `Add pet details`
+- Disclosure: `We only show an eligibility result when a provider returns enough policy evidence for your selected stay.`
+
+Saved profile:
+
+- Heading: `Your pet details`
+- Summary examples: `1 dog · 20 lb` or `2 cats · weights not provided`
+- Button: `Edit pet details`
+- Disclosure: `Hotel policy results use these details. Final acceptance and costs are confirmed by the provider or property.`
+
+### Fields
+
+| Order | Control | Label | Options / helper | Requirement |
 |---|---|---|---|---|
-| 1 | Radio group | `Type of pet` | `Dog`, `Cat`, `Other animal` | Yes |
-| 2 | Text input, conditional on Other | `Animal type` | Helper: `Enter the animal type shown in the hotel's policy, if known.` | Yes when Other |
-| 3 | Number input | `Number of pets` | Helper: `Enter the total travelling on this stay.` | Yes; integer 1–9 |
-| 4 | Radio group | `Do you know each pet's weight?` | `Yes`, `Not sure` | Yes |
-| 5 | Repeated decimal input when Yes | `Pet 1 weight`, `Pet 2 weight`, etc. | Unit selector `lb` / `kg`; helper: `Use the current weight for each pet.` | Yes for each pet when Yes |
+| 1 | Radio group | `Type of pet` | `Dog`, `Cat`, `Other animal` | Required |
+| 2 | Text input when Other | `Animal type` | `Enter the animal type, such as rabbit.` | Required when Other; 2–40 trimmed characters |
+| 3 | Number input | `Number of pets` | `Enter the total travelling on this stay.` | Required integer 1–9 |
+| 4 | Radio group | `Do you know each pet's weight?` | `Yes`, `Not sure` | Required |
+| 5 | Repeated decimal input when Yes | `Pet {n} weight` | Unit select: `lb`, `kg`; `Use each pet's current weight.` | Required for every pet when Yes |
 
-Do not request pet name, breed, or service-animal status. A supplier breed restriction remains unresolved unless a later, separately approved flow collects the needed information.
+Do not ask for a name, breed, or service-animal status. An uncollected breed against a returned breed restriction produces needs confirmation.
 
 ### Actions
 
-- Primary button: `Check hotel policies` on first save; `Update policy matches` when editing.
-- Secondary button while editing an existing profile: `Cancel changes`.
-- Tertiary text button after save: `Remove pet details`.
+- New profile primary: `Check hotel policies`
+- Existing profile primary: `Update policy results`
+- Existing profile secondary: `Cancel changes`
+- Saved profile tertiary: `Remove pet details`
 
-`Remove pet details` opens an inline confirmation directly below the button:
+Removal confirmation is inline:
 
-- Text: `Remove these pet details? Hotel policy matches will no longer be shown.`
-- Actions: `Keep details` and `Remove details`.
+- `Remove these pet details? Eligibility results will no longer be shown.`
+- Actions: `Keep details` and `Remove details`
 
-On removal, return focus to `Add pet details`, remove fit evaluations, and do not change result inventory or order.
+Removing a profile does not change hotel inventory, order, search criteria, or saved deal state.
 
-### Validation and final error copy
+### Validation copy and behavior
 
-Validate on submit and on blur after a field has been touched. Keep entered values.
+Validate on submit and on blur after touch. Preserve entered values.
 
-| Condition | Error text |
+| Condition | Error copy |
 |---|---|
-| No type | `Choose a pet type.` |
-| Other selected, blank after trim | `Enter the type of animal travelling.` |
-| Count blank / non-integer | `Enter a whole number of pets.` |
+| Type missing | `Choose a pet type.` |
+| Other animal blank | `Enter the type of animal travelling.` |
+| Other animal outside 2–40 characters | `Enter an animal type between 2 and 40 characters.` |
+| Count blank/non-integer | `Enter a whole number of pets.` |
 | Count outside 1–9 | `Enter between 1 and 9 pets.` |
-| Weight required but blank | `Enter this pet's weight, or choose Not sure.` |
-| Weight zero / negative | `Enter a weight greater than 0.` |
-| Weight above 300 lb / 136 kg | `Check this weight and enter 300 lb / 136 kg or less.` |
+| Weight choice missing | `Choose Yes or Not sure.` |
+| Required weight blank | `Enter this pet's weight, or choose Not sure.` |
+| Weight zero/negative | `Enter a weight greater than 0.` |
+| Weight over 300 lb/136 kg | `Check this weight and enter 300 lb / 136 kg or less.` |
 
-Each error is a visible `<p id>` associated through `aria-describedby`; invalid fields use `aria-invalid="true"`. On failed submit, focus the first invalid control and announce once: `Pet details need attention. Review the highlighted fields.`
+On failed submit, show `Pet details need attention. Review the highlighted fields.` and focus the first invalid field. Each error is visible text connected with `aria-describedby`; invalid controls use `aria-invalid="true"`.
 
-### Profile states
+### Profile persistence
 
-| State | UI and copy | Interaction |
-|---|---|---|
-| Default, closed | `Travelling with a pet?` / `Add pet details` | Button expands form and focuses first radio |
-| Open, untouched | All fields above; no errors | Tab follows DOM order |
-| Saving / evaluating | Button text `Checking hotel policies…`; controls remain visible but disabled | `aria-busy="true"`; one polite status announcement |
-| Saved | Summary and `Edit pet details` | Updated card statuses render atomically |
-| Save error | `We couldn't apply your pet details. Your hotel results have not changed.` / `Try again` | Keep values; focus error summary |
-| Existing profile loading | Heading plus three non-interactive skeleton lines; visually hidden `Loading your pet details…` | Do not render default form briefly |
-| No profile | No fit claims on cards; see §6 | Cards may disclose policy availability only in Details |
+Within a results session, the saved profile applies atomically to every loaded and subsequently loaded card. Opening a real unlocked card carries an opaque, bounded profile reference and evaluation version into saved detail; do not place free-form animal type, weights, supplier prose, or policy statements in the URL.
 
-Profile data is session search context. Do not write free-form animal type or exact weights to analytics.
+Direct entry to a saved detail without a valid profile reference shows the no-profile state. An expired/malformed reference degrades to no profile and announces `Your pet details could not be restored. Add them again to check this hotel.` It never reuses a stale eligibility outcome.
 
-## 3. Deterministic Fit Presentation Contract
+## 4. Normalized Presentation Contract
 
-React receives a derived evaluation; it never parses supplier prose or computes fit. The minimum UI contract is:
+UI consumes normalized evidence and a pure derived evaluation. React does not parse supplier prose or calculate eligibility.
 
 ```ts
-type PetFitStatus = 'suitable' | 'unsuitable' | 'unknown'
+type PetEligibilityStatus = 'eligible' | 'ineligible' | 'needs_confirmation'
 
-interface PetFitEvaluation {
-  status: PetFitStatus
+type PolicyFactState = 'returned' | 'not_returned' | 'unknown' | 'malformed' | 'conflict'
+
+interface PetCostFact {
+  state: 'free' | 'required' | 'may_apply' | 'not_returned' | 'unknown' | 'malformed' | 'conflict'
+  amount?: { priceCents: number; currency: string }
+  basis?: 'per_pet_per_night' | 'per_pet_per_stay' | 'per_night' | 'per_stay' | 'other' | 'unknown'
+}
+
+interface PetDepositFact {
+  state: 'not_required' | 'required' | 'may_apply' | 'not_returned' | 'unknown' | 'malformed' | 'conflict'
+  amount?: { priceCents: number; currency: string }
+  basis?: 'per_pet' | 'per_stay' | 'other' | 'unknown'
+  refundability?: 'refundable' | 'partially_refundable' | 'nonrefundable' | 'unknown'
+  returnCondition?: string
+}
+
+interface PetEligibilityEvaluation {
+  status: PetEligibilityStatus
   reasonCodes: string[]
-  explanation: string
+  firstDecisionReason: string
   unresolvedDimensions: string[]
-  costStatus: 'free' | 'mandatory_known' | 'mandatory_unknown' | 'may_apply' | 'unknown'
-  policyEvidenceRef: string
+  evidenceRef: string
+  evaluationVersion: string
 }
 ```
 
-The normalized evidence referenced by `policyEvidenceRef` must preserve, independently:
+The referenced evidence independently preserves permission, included/excluded animal types, count, weight/size, restrictions, charge, deposit, room/rate/stay scope, source label, provider record ID when available, fetched/effective time, schema version, and all conflicting statements.
 
-- availability: `returned | not_returned | error | conflict`;
-- permission: `allowed | prohibited | by_arrangement | unknown`;
-- explicitly included and excluded animal types;
-- fee status, optional `{ priceCents, currency }`, and basis;
-- maximum count and weight/size only when explicitly returned;
-- normalized restrictions plus attributed supplier text;
-- scope: `property | room | rate | selected_stay | unknown`;
-- `sourceLabel`, provider record identifier when available, `fetchedAt`, optional effective date, and schema version;
-- every conflicting statement rather than only the last parsed value.
+Absent arrays mean unknown; they are not normalized to explicit empty lists. Any amount is integer minor-unit money. Charge and deposit are different families and never share a label or status.
 
-Absent arrays are unknown; they must not be normalized to explicit empty lists. UI copy is assembled from normalized facts. Supplier prose is displayed only as attributed restriction text and never used for component-side derivation.
+### Outcome precedence
 
-## 4. Collapsed Scan Status
+1. Applicable explicit prohibition or profile mismatch → ineligible.
+2. Conflict where every credible interpretation is ineligible → ineligible.
+3. Any credible interpretation might permit the pet, or any material acceptance/cost/scope fact is unresolved → needs confirmation.
+4. Eligible only when all material dimensions, including charge and deposit state, selected-stay scope, provenance, and freshness resolve.
 
-### Placement and anatomy
+A required known charge or deposit does not make the pet physically ineligible. It prevents an eligible claim only when its required amount/basis or material condition remains unresolved.
 
-Insert a full-width block after the existing image/name/location/price grid and before the Deal Score/action row. It contains:
+## 5. DealCard Scan Specification
 
-1. outcome label;
-2. at most one supporting line with the most decision-critical fact;
-3. no independent CTA—the existing `Details` control reveals evidence.
+### Anatomy
 
-Outcome labels are exact:
+Place the pet block after the hotel metadata and before the price block. Pattern:
 
-- `Fits your pet`
-- `Does not fit your pet`
-- `Pet policy needs confirmation`
+`rounded-[var(--radius-control)] border border-[color:var(--border)] px-3 py-2 text-caption leading-5`
 
-Never rely on a paw, check, cross, or color. If an icon is later used, it is `aria-hidden="true"`.
+First line is `font-display font-bold`; support is `mt-0.5 font-medium`. Allow natural height and wrapping. Do not line-clamp negation, money, basis, or `may apply`.
 
-### Status copy matrix
+### Exact result copy
 
-| Evidence/evaluation | Outcome | Supporting scan line |
+| State | Outcome | Supporting line |
 |---|---|---|
-| Fully resolved suitable | `Fits your pet` | Most critical known limit and cost, e.g. `Dogs up to 25 lb · $30 per pet, per stay` |
-| Explicit prohibition | `Does not fit your pet` | `This provider says pets are not allowed.` |
-| Type excluded | `Does not fit your pet` | `Cats are not allowed.` |
-| Count exceeded | `Does not fit your pet` | `This policy allows up to 1 pet.` |
-| Weight exceeded | `Does not fit your pet` | `This policy allows pets up to 25 lb each.` |
-| By arrangement | `Pet policy needs confirmation` | `Property approval is required before booking.` |
-| Not returned | `Pet policy needs confirmation` | `This provider did not return a pet policy.` |
-| Provider error | `Pet policy needs confirmation` | `Pet policy could not be loaded.` |
-| Conflict | `Pet policy needs confirmation` | `Provider policy statements conflict.` |
-| Partial / material dimension unknown | `Pet policy needs confirmation` | `Type, limits, or stay eligibility still needs confirmation.` |
-| Traveller omitted weight and a limit exists | `Pet policy needs confirmation` | `Add each pet's weight to check the limit.` |
-| Malformed fee only, physical fit otherwise passes | `Pet policy needs confirmation` | `A pet charge is listed, but its amount or basis is unclear.` |
-| Policy loading | transient; no outcome claim | `Checking this hotel's pet policy…` |
-| No stated profile, policy returned | no fit outcome | `Pet policy available in Details.` |
-| No profile, policy absent | no collapsed pet line | Disclosure remains in Details if that surface is policy-enabled |
+| Eligible, no required cost | `Eligible for your pet` | `Policy fits {profile summary} for this stay.` |
+| Eligible, known charge | `Eligible for your pet` | `{charge} · {basis}. Deposit: {deposit summary}.` |
+| Eligible, known deposit only | `Eligible for your pet` | `Deposit: {amount} {refundability}; {basis}.` |
+| Explicit prohibition | `Ineligible for your pet` | `This provider says pets are not allowed.` |
+| Type mismatch | `Ineligible for your pet` | `{stated type plural} are not allowed.` |
+| Count mismatch | `Ineligible for your pet` | `This policy allows up to {count} {pet/pets}.` |
+| Weight mismatch | `Ineligible for your pet` | `This policy allows pets up to {weight} {unit} each.` |
+| By arrangement | `Needs confirmation` | `Property approval is required before booking.` |
+| Policy not returned | `Needs confirmation` | `This provider did not return a pet policy.` |
+| Policy lookup error | `Needs confirmation` | `Pet policy could not be checked.` |
+| Conflict | `Needs confirmation` | `Available policy statements conflict.` |
+| Partial acceptance/limits | `Needs confirmation` | `Acceptance or pet limits are not fully documented.` |
+| Required charge unresolved | `Needs confirmation` | `A pet charge applies, but its amount or basis is unclear.` |
+| Deposit unresolved | `Needs confirmation` | `A pet deposit may apply; terms are unclear.` |
+| Stale | `Needs confirmation` | `This policy may have changed since it was checked.` |
+| Profile weight missing against limit | `Needs confirmation` | `Add each pet's weight to check this limit.` |
+| Card policy loading | No outcome | `Checking pet policy…` |
+| No profile | No outcome | `Add pet details to check this policy.` only when usable policy evidence exists; otherwise omit the block |
 
-Supporting text may wrap to two lines. Never line-clamp or truncate a negation, `may apply`, currency, fee basis, or blocking limit. If available width cannot preserve the fact, show only the outcome in scan view and retain the fact in Details.
+If both a charge and deposit are known but cannot fit in two natural lines at 375px, show the first decision-changing cost and `More policy costs in deal details.` Never combine them as `Pet fees`.
 
-### Tone classes
+### Tone
 
-- Suitable: `border-[color:var(--border-strong)] bg-[color:var(--success-soft)] text-[color:var(--success)]`.
-- Unsuitable: `border-[color:var(--border-strong)] bg-[color:var(--error-soft)] text-[color:var(--text-1)]`; supporting reason uses `text-[color:var(--error)]`.
-- Unknown/conditional/conflict: `border-[color:var(--border-strong)] bg-[color:var(--warning-soft)] text-[color:var(--warning)]`.
-- Loading/no-profile availability: `border-[color:var(--border)] bg-[color:var(--bg-muted)] text-[color:var(--text-2)]`.
+- Eligible: `bg-[color:var(--success-soft)] text-[color:var(--success)]`
+- Ineligible: `bg-[color:var(--error-soft)] text-[color:var(--text-1)]`; reason `text-[color:var(--error-text)]`
+- Needs confirmation: `bg-[color:var(--warning-soft)] text-[color:var(--warning)]`
+- Loading/neutral: `bg-[color:var(--bg-muted)] text-[color:var(--text-2)]`
 
-Container pattern:
+Outcome text is always present; icons, if later added, are decorative and `aria-hidden="true"`.
 
-`mt-3 rounded-[var(--radius-control)] border px-3 py-2 text-xs leading-5`
+## 6. Saved-Detail Policy Specification
 
-Outcome: `font-bold`; support: `mt-0.5 font-medium`. Do not use green wording such as `Approved` and do not label unknown as a match.
+### Container and order
 
-## 5. Expanded `Pet policy for your stay` Section
-
-### Container and semantic structure
+Within the existing `Hotel fit` section, insert:
 
 ```text
-section[aria-labelledby="hotel-pet-policy-title-{hotelId}"]
-  h4 "Pet policy for your stay"
-  outcome summary
-  dl policy facts
-  unresolved-items advisory, when needed
-  provenance and freshness
-  confirmation instruction/action
+profile summary/edit
+section[aria-labelledby="saved-pet-policy-title"]
+  h3 "Pet policy for your stay"
+  outcome advisory
+  dl evidence facts
+  unresolved/conflict list
+  source and freshness
+  confirmation boundary
+existing hotel-class / rating / quiet-stay evidence
 ```
 
 Container:
 
-`rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs leading-5 text-[color:var(--text-2)]`
+`mt-4 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4`
 
-Title: `font-bold text-[color:var(--text-1)]`. Outcome advisory: `mt-2 rounded-[var(--radius-control)] px-3 py-2`; use the tone mappings in §4.
+Facts:
 
-Facts use a semantic `<dl>`:
+`mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2`
 
-`mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-x-6`
+Each fact card uses `min-w-0`; `dt` uses `text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]`; `dd` uses `mt-1 break-words text-sm font-medium leading-6 text-[color:var(--text-1)]`. `Policy outcome`, `Other restrictions`, `Unresolved details`, and `Evidence` span both desktop columns.
 
-Each `dt`: `font-bold text-[color:var(--text-1)]`; each `dd`: `mt-0.5 break-words font-medium text-[color:var(--text-2)]`.
-
-### Fact order and exact labels
+### Fact order, labels, and value rules
 
 1. `Policy outcome`
 2. `Animal types`
 3. `Pet charge`
-4. `Number of pets`
-5. `Weight or size limit`
-6. `Other restrictions`
-7. `Applies to`
-8. `Policy source`
-9. `Policy checked`
+4. `Pet deposit`
+5. `Number of pets`
+6. `Weight or size limit`
+7. `Other restrictions`
+8. `Applies to`
+9. `Policy source`
+10. `Policy checked`
 
-Visible value rules:
+Final values:
 
-- Explicit types: `Dogs and cats allowed.` / `Dogs allowed; cats not allowed.`
-- Missing type evidence: `Allowed animal types were not specified.`
-- Free: `No pet charge stated by {sourceLabel}.`
-- Known mandatory fee: `{formatted money} per pet, per stay.` Use integer-minor-unit formatter.
-- Fee may apply: `A pet charge may apply; amount and basis were not provided.`
-- Mandatory fee with missing amount: `A mandatory pet charge applies; amount was not provided.`
-- Unknown fee: `Pet charge was not specified.`
-- Explicit max count: `Up to {count} pet(s).`
-- Missing count: `Pet count limit was not specified.`
-- Explicit weight: `Up to {weight} {unit} per pet.`
-- Missing limit: `Weight or size limit was not specified.`
-- No returned restrictions: `No additional restrictions were returned.` only when the supplier explicitly returned a complete empty restriction set. Otherwise: `Additional restrictions were not specified.`
+- Types explicit: `Dogs and cats allowed.` / `Dogs allowed; cats not allowed.`
+- Types absent: `Allowed animal types were not specified.`
+- Charge free: `No pet charge stated by {source}.`
+- Charge known: `{money} {basis}.`
+- Charge may apply: `A pet charge may apply; amount and basis were not provided.`
+- Charge required/amount absent: `A mandatory pet charge applies; amount was not provided.`
+- Charge absent: `Pet charge was not specified.`
+- Deposit not required only when explicit: `No pet deposit stated by {source}.`
+- Deposit known/refundable: `{money} refundable deposit {basis}. Return condition: {condition}.`
+- Deposit known/refundability unknown: `{money} deposit {basis}. Refundability was not specified.`
+- Deposit may apply: `A pet deposit may apply; amount and terms were not provided.`
+- Deposit absent: `Pet deposit was not specified.`
+- Count explicit: `Up to {count} {pet/pets}.`
+- Count absent: `Pet count limit was not specified.`
+- Weight explicit: `Up to {weight} {unit} per pet.`
+- Weight absent: `Weight or size limit was not specified.`
+- Explicit complete empty restriction set: `No additional restrictions were returned.`
+- Restrictions absent/incomplete: `Additional restrictions were not specified.`
 - Property scope: `Property-level policy; selected room and rate still need confirmation.`
-- Selected-stay scope: `This selected stay.`
-- Unknown scope: `Policy scope was not specified.`
-- Source: `{sourceLabel}`. Never replace with `Hotel provider` when a confirmed claim is shown; missing provenance forces unknown.
-- Checked date: `Checked {localized date}.` If missing: `Policy freshness was not provided.`
+- Room scope: `Room-level policy; selected rate still needs confirmation.`
+- Rate scope: `Rate-level policy; selected room still needs confirmation.`
+- Selected stay: `This selected stay.`
+- Scope absent: `Policy scope was not specified.`
+- Source: `{sourceLabel}`; absent provenance forces needs confirmation and `Policy source could not be confirmed.`
+- Freshness: `Checked {localized date}.`; absent date: `Policy freshness was not provided.`
 
-Do not calculate a stay-total pet fee unless amount, currency, basis, count application, and selected-stay applicability are all explicit and a separately approved total-price change exists. For this ticket, even fully known pet charges remain a policy fact separate from price.
+Never calculate or display a stay-total charge/deposit unless amount, basis, pet multiplier, night multiplier, currency, and selected-stay applicability are explicit and separately approved total-price work exists. Neither cost is added to displayed nightly price, savings, or Deal Score.
 
-### Restrictions
+### Restriction and conflict display
 
-Show up to two normalized restrictions as separate list items. If more exist, show all in the expanded section; do not collapse material restrictions behind a second control. Preserve supplier wording when a restriction cannot be safely normalized:
+Show all material restrictions; do not hide them behind another disclosure. Use normalized text first. Unstructured supplier wording uses `Provider statement: “{minimal relevant text}”` with adjacent source attribution.
 
-`Provider statement: “{supplier text}”`
+For conflict, list each credible statement under `Conflicting policy details` with source, scope, and date. Do not select the most permissive statement or merge fragments.
 
-The source and scope displayed below attribute the statement. Do not visually quote more supplier text than needed to explain the restriction.
+## 7. Detailed Outcome And Unknown Copy
 
-## 6. Detailed State Copy
+### Eligible
 
-### Confirmed fit
+- Outcome: `Eligible for your pet`
+- Body: `The policy returned by {source} fits your stated {profile summary} for this stay.`
+- Boundary: `The provider or property confirms the current policy, room availability, pet charge, and deposit before booking.`
 
-- Heading/outcome: `Fits your pet`
-- Explanation: `The policy returned by {sourceLabel} fits your stated {pet summary} for this stay.`
-- Confirmation footer: `Final pet acceptance and charges are confirmed by the provider or property before booking.`
+Use only when the high threshold in §4 passes.
 
-Use only when every material dimension passes, selected-stay scope and provenance exist, and no conflict remains.
+### Ineligible
 
-### Confirmed non-fit
+- Outcome: `Ineligible for your pet`
+- Prohibited: `The provider says this property does not allow pets.`
+- Type: `The policy allows {allowed types}, not your stated {type}.`
+- Count: `The policy allows up to {count}; your profile includes {profile count}.`
+- Weight: `The policy limit is {weight} {unit} per pet; at least one stated pet exceeds it.`
+- Boundary: `Choose another hotel, or verify with the provider if you believe the policy has changed.`
 
-- Heading/outcome: `Does not fit your pet`
-- Explanation by first blocking fact:
-  - `The provider says this property does not allow pets.`
-  - `The policy allows dogs, not your stated cat.`
-  - `The policy allows up to 1 pet; your profile includes 2.`
-  - `The policy limit is 25 lb per pet; one or more stated pets exceed it.`
-- Footer: `Choose another hotel or confirm directly if the provider's policy has changed.`
+Show the decisive reason first and every additional mismatch in the fact list.
 
-If multiple blocking facts exist, show the most decisive reason in the outcome and all known facts in the list.
+### Needs confirmation
 
-### Partial or unresolved policy
-
-- Outcome: `Pet policy needs confirmation`
-- Explanation: `The provider returned a pet policy, but it does not resolve every detail for your pet and stay.`
+- Outcome: `Needs confirmation`
+- General body: `The available policy does not resolve every detail for your pet and selected stay.`
 - Advisory heading: `Confirm before booking`
-- Advisory body: `Confirm {comma-separated unresolved dimensions} with the provider or property.`
+- Advisory body: `Confirm {human-readable unresolved list} with the provider or property.`
 
-Use human labels: `allowed animal type`, `pet count limit`, `weight or size limit`, `additional restrictions`, `pet charge`, `selected room and rate`.
+Use only these human labels: `pet acceptance`, `allowed animal type`, `pet count limit`, `weight or size limit`, `additional restrictions`, `pet charge`, `pet deposit and refund terms`, `selected room and rate`, `policy source`, `policy freshness`.
 
-### Four named unknown states
+### Named unknown/error headings
 
-| Evidence state | Required heading | Final body | Action label |
+| Data state | Heading | Body | Recovery |
 |---|---|---|---|
-| `not_returned` | `Pet policy not returned` | `This provider did not return a pet policy for this hotel. Pet acceptance, charges, and restrictions are unknown.` | `Confirm pet policy with provider` |
-| `by_arrangement` | `Property approval required` | `This property accepts pets only by arrangement. Ask the provider or property to approve your pet and confirm charges before booking.` | `Confirm pet policy with provider` |
-| `error` | `Pet policy could not be loaded` | `We couldn't check this hotel's pet policy. Hotel availability is unchanged, but pet acceptance, charges, and restrictions need confirmation.` | `Try policy again` when a safe retry exists; otherwise `Confirm pet policy with provider` |
-| `conflict` | `Pet policy information conflicts` | `The available policy statements disagree. We can't confirm that this hotel fits your pet until the provider or property resolves them.` | `Confirm pet policy with provider` |
+| `not_returned` | `Pet policy not returned` | `This provider did not return pet acceptance, charge, deposit, or restriction details for this hotel.` | `Confirm with provider` |
+| `by_arrangement` | `Property approval required` | `This property accepts pets only by arrangement. Confirm approval, charges, deposits, and restrictions before booking.` | `Confirm with provider` |
+| `error` | `Pet policy could not be checked` | `Hotel availability is unchanged, but pet acceptance and costs need confirmation.` | `Try pet policy again` when retry exists; otherwise `Confirm with provider` |
+| `conflict` | `Pet policy information conflicts` | `The available statements disagree. We cannot confirm that this hotel supports your pet until the provider or property resolves them.` | `Confirm with provider` |
+| stale | `Pet policy may have changed` | `This policy was checked {date}. Confirm the current acceptance, charge, deposit, and restrictions.` | `Check current policy with provider` |
+| malformed | `Some pet policy details are unclear` | `The provider returned a pet policy, but one or more values could not be confirmed.` | `Confirm with provider` |
 
-Assistive labels append hotel context, for example: `Pet policy not returned for Hotel Luna. Confirm acceptance, charges, and restrictions with the provider before booking.`
+Malformed charge: `A pet charge is listed, but its amount or basis could not be confirmed.`  
+Malformed deposit: `A pet deposit is listed, but its amount, refundability, or return condition could not be confirmed.`  
+Malformed limit: `A pet limit is listed, but its value could not be confirmed.`
 
-### Malformed evidence
+Never expose parser, schema, cache, API, or payload language to travelers.
 
-Do not expose parsing language. Quarantine the malformed dimension as unresolved:
+## 8. Provider-Handoff Boundary
 
-- Malformed fee: `A pet charge is listed, but its amount or basis could not be confirmed.`
-- Malformed limit: `A pet limit is listed, but the value could not be confirmed.`
-- Missing/invalid provenance: render the overall result as unknown and use `Policy source could not be confirmed.`
+Immediately under `Check rooms with provider` and before provider options, show a compact recap.
 
-### Policy loading
+### Eligible handoff
 
-The card remains usable. In the scan position show a static-height skeleton and visually hidden polite status `Checking this hotel's pet policy…`. In expanded Details show the titled section immediately with `Checking pet policy…`; do not skeleton the whole card or disable `Review hotel`. On completion, replace the section in place without moving focus.
+- `Eligible based on the policy checked {date}.`
+- `Confirm the current pet charge, deposit, and room-level terms on the provider site.`
+- Provider option label remains `Check rooms on {provider}`.
 
-### Stale and cache states
+### Needs-confirmation handoff
 
-- A valid cache hit displays exactly the same semantic state as a fresh response and retains original `fetchedAt` plus schema version.
-- Do not label a cache hit as fresh merely because it was replayed now.
-- If evidence exceeds its policy freshness threshold, evaluation becomes unknown. Show heading `Pet policy needs confirmation` and body `This pet policy was checked {date} and may have changed. Confirm the current policy before booking.`
-- A schema-version mismatch or cache object that loses required provenance normalizes to `not_returned` or `error`, never suitable.
-- While stale evidence is revalidating, retain the unknown disclosure; do not momentarily show a prior positive fit.
+- `Pet policy needs confirmation before booking.`
+- `Confirm: {up to three unresolved items}.` If more: `Confirm all unresolved details listed in Hotel fit.`
+- Provider option label: `Confirm on {provider}`.
+- Accessible name: `Confirm pet policy and check rooms for {hotel} on {provider}; opens in a new tab`.
 
-### Empty hotel results and hotel-provider error
+### Ineligible handoff
 
-Pet policy is subordinate to inventory:
+- Alert title: `This hotel does not support your stated pet.`
+- Body: `{first mismatch reason} Return to results to choose another hotel.`
+- Primary action: existing `Back to results` destination, labelled `Choose another hotel`.
+- Existing affiliate options remain visually secondary and are relabelled `Verify current policy on {provider}`.
+- Accessible name: `Verify whether the pet policy changed for {hotel} on {provider}; opens in a new tab`.
 
-- Zero hotels: preserve the owning results surface's normal empty state; do not say no hotels fit the pet.
-- Hotel provider unavailable: preserve its provider error; do not replace it with policy copy.
-- Hotels available but every policy unknown: results remain visible. Above results show `Pet policy details are unavailable for these hotels. Review each hotel and confirm directly before booking.` No zero-result illustration.
+Do not disable a link with CSS, remove keyboard access, or send a traveler to a generic provider homepage. If no valid affiliate option exists, show `No provider link is available to confirm this policy. Return to results and choose another hotel.`
 
-## 7. Confirmation And Provider Handoff
+The saved-detail outcome and handoff recap must derive from the same evidence reference and evaluation version. A mismatch between them fails closed to needs confirmation.
 
-The existing `Review hotel` action remains primary. Expanded policy adds a text link only when a policy requires confirmation and a safe, affiliate-marked provider destination exists:
+## 9. Loading, Empty, Error, And Freshness States
 
-- Visible label: `Confirm pet policy with provider`
-- Accessible name: `Confirm pet policy for {hotel name} with {provider name}`
-- Supporting text: `The provider or property confirms final pet acceptance and charges.`
+### Results/profile loading
 
-If no dedicated policy destination exists, do not fabricate one or link to a generic support page. Keep the instruction as text and use the existing `Review hotel` handoff. All outbound links retain affiliate markers.
+- Profile restore: stable three-line skeleton; screen-reader status `Loading your pet details…`.
+- Profile submitted: controls disabled, primary label `Checking hotel policies…`, results region `aria-busy="true"`.
+- Existing cards may remain visible but must not retain positive/negative outcomes from the prior profile; replace pet blocks with `Checking pet policy…`.
+- Newly paginated cards receive loading then the current evaluation; do not announce each card separately.
 
-The review/handoff context must eventually preserve the stated profile summary, fit status, unresolved dimensions, source, scope, and freshness without placing raw supplier prose or sensitive free text in URL query parameters. This continuity is DEV/integration scope and is required before claiming end-to-end completion.
+### Policy error and retry
 
-## 8. Responsive Composition
+A policy-only error leaves hotel inventory, price, card link, and provider options usable. On card/detail use needs-confirmation copy from §7. A safe policy retry updates only the policy region; label `Checking policy…`; retain focus on the retry button and replace content in place.
+
+### Inventory empty/error
+
+- Zero hotels: keep the owning result empty state. Do not say `No pet-friendly hotels` or `No hotels allow your pet`.
+- Hotel feed error: keep the owning feed error and retry. Pet UI does not replace or duplicate it.
+- Hotels exist but every policy is unknown: show above the grid `Pet policy details are unavailable for these hotels. Open a deal and confirm with the provider before booking.` Results stay visible.
+- Saved detail missing/not found: keep the current route not-found state; do not render policy claims from cached client state.
+
+### Cache and stale evidence
+
+A valid cache replay has the same semantics and original `fetchedAt` as the fresh object. Cache replay time is not policy freshness. Schema mismatch, missing provenance, or lost cost family degrades to needs confirmation. During revalidation, never retain an earlier eligible outcome.
+
+### Detail route loading/error
+
+Add a policy-shaped skeleton inside the existing saved-detail loading composition without changing the route-level status copy `Restoring your search…`. The route error keeps `Hotel details could not be loaded`; no standalone policy retry is offered when the entire detail failed.
+
+## 10. Responsive Composition
 
 ### 375px mobile
 
-- Keep the current `grid-cols-[4.5rem_minmax(0,1fr)_minmax(6.75rem,auto)]` image/name/price row unchanged.
-- Pet scan block is a separate full-width sibling below that grid: `mt-3 w-full min-w-0`.
-- Outcome and support stack vertically. Allow at least two support lines and natural expansion; no `truncate`, `line-clamp`, fixed height, or horizontal scroll.
-- Keep a negation, fee amount + currency, `may apply`, and fee basis as intact phrases. If necessary, omit the supporting fact from scan view rather than clip it.
-- Profile fields are one column. Weight value and unit may use `grid-cols-[minmax(0,1fr)_5rem] gap-2`; repeated pet weights stack.
-- Expanded policy `<dl>` is one column. Confirmation action is `w-full min-h-11` and cannot sit beside long copy.
-- Card padding remains `p-3`; expanded padding remains `px-3 pb-3 pt-3`.
+- Profile and policy fields are one column.
+- Weight input/unit use `grid-cols-[minmax(0,1fr)_5rem] gap-2`; pet weights stack.
+- `DealCard` remains a single-column card in the existing result grid. Pet block is full width with natural height.
+- No `truncate`, `line-clamp`, fixed height, or horizontal scroll on policy copy.
+- Saved-detail policy facts are one column. Charge and deposit are separate stacked facts.
+- All new actions are full width and at least 44px high; secondary affiliate verification links stack with `gap-3`.
+- Long currency, basis, negation, and `may apply` phrases wrap as units where possible; omit a secondary scan fact rather than clip it.
 
 ### 1280px desktop
 
-- Preserve the same information and DOM order as mobile.
-- Pet scan may use `grid grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-3`, but the outcome never becomes an icon-only badge.
-- Profile panel may use `sm:grid-cols-2` for type/count and weight controls while labels remain above controls. Actions align at the end but retain 44px targets.
-- Expanded facts use two equal columns; `Policy outcome`, `Other restrictions`, unresolved advisory, provenance, and confirmation span both columns.
-- Do not create a decorative pet card beside price or Deal Score.
+- Keep the results grid at the existing three-column breakpoint. Pet status remains inside each card, not a separate grid column.
+- Profile panel may use two columns; every label stays above its control.
+- Saved-detail facts use two equal columns. Outcome, restrictions, unresolved details, conflicts, and evidence span both.
+- Provider recap sits above, not beside, affiliate options so reading order matches mobile.
 
-### Stress conditions
+### Stress checks
 
-Verify at 320px, 375px, and 1280px; at 200% zoom; with browser text enlargement; with a 40-character hotel name; two pets and two restrictions; `A pet charge may apply`; `CAD 125 per pet, per stay`; the four long unknown headings; and 30% translated-text expansion. No overlap, clipped action, or horizontal page scroll is permitted.
+Verify 320px, 375px, 1280px, 200% zoom, browser text enlargement, 30% translated-text expansion, a 40-character hotel name, nine pets, two different weight units, three restrictions, `CAD 125 per pet, per stay`, a refundable `CAD 300 per stay` deposit with a long return condition, and every named unknown heading. No overlap, clipped text/action, or page-level horizontal scroll is allowed.
 
-## 9. Accessibility And Interaction Rules
+## 11. Keyboard, Focus, And Assistive Technology
 
-### Keyboard and focus order
+### Results order
 
-Eligible results-page order:
+1. Existing search/filter controls.
+2. `Add/Edit pet details`.
+3. Profile controls in field order.
+4. Save/cancel/remove actions.
+5. Existing sort controls.
+6. Whole-card links in result order.
 
-1. `Add/Edit pet details`
-2. type radios
-3. conditional other-animal input
-4. count
-5. weight-known radios
-6. repeated weight inputs and unit selectors
-7. primary save action
-8. cancel/remove actions
-9. result-card links and controls in DOM order
-10. each card's `Review hotel`
-11. each card's `Details`
-12. expanded confirmation link, when present
+Opening the profile focuses the first type radio. Cancel, successful save, and completed removal return focus to the profile trigger. Removal confirmation keeps focus within normal DOM order; `Keep details` returns focus to `Remove pet details`.
 
-Opening profile details moves focus to the `Type of pet` group. `Cancel changes` and successful save return focus to `Add/Edit pet details`; the result summary is then announced. The existing Details button retains `aria-expanded` and `aria-controls`. Expanding Details leaves focus on the toggle. Do not autofocus the new panel.
+The card’s accessible name appends only the outcome and first reason, for example: `View deal: Hotel Luna; Needs confirmation: a pet deposit may apply.` Do not include the entire policy or duplicate price content.
 
-### Live announcements
+### Saved detail order
 
-Use one results-level `role="status" aria-live="polite" aria-atomic="true"` for profile/evaluation changes. Do not add a live region to every card.
+Back link → profile edit → policy retry if present → existing provider/back actions → supporting disclosures. Evidence is semantic text, not focusable cards. Use native headings, `<dl>`, lists, buttons, and links.
 
-- After save: `Pet details updated. {fit count} hotels fit, {unknown count} need confirmation, and {non-fit count} do not fit.`
-- While evaluating: `Checking pet policies for {result count} hotels.`
-- On retry completion: `Pet policy updated for {hotel name}: {outcome}.`
-- On removal: `Pet details removed. Hotel policy matches are no longer shown.`
+### Announcements
 
-Do not announce the initial card status on page load. Batch async card updates into one summary to avoid repeated speech. Never announce stale counts after a newer profile submission; evaluation requests require a request identifier or cancellation.
+Use one results-level `role="status" aria-live="polite" aria-atomic="true"`:
 
-### Names, targets, and semantics
+- `Checking pet policies for {count} hotels.`
+- `Pet details updated. {eligible} eligible, {confirmation} need confirmation, and {ineligible} ineligible.`
+- `Pet details removed. Eligibility results are no longer shown.`
+- `Pet policy updated for {hotel}: {outcome}.` only for a traveler-initiated single retry.
 
-- All interactive controls have a minimum 44px target where new; preserve the existing Details control's minimum 40px until a broader card-target repair is authorized.
-- Use native radio, input, select, button, link, heading, list, and definition-list elements.
-- All controls use persistent visible labels. Pet type cannot be conveyed by an icon.
-- Global `:focus-visible` provides a 3px `--primary` outline and `--focus-ring`; do not suppress it.
-- Status text is understandable without color. Suitable/unsuitable are not exposed through `aria-label` alone.
-- The policy region is named by its visible heading. Source and updated date remain real text, not tooltip-only content.
+Do not announce every card on initial load. Batch async changes and ignore completions from an older profile/evaluation version.
 
-## 10. Tailwind Patterns
+All new controls have at least 44px targets. Existing global `:focus-visible` styling remains. Outcome is never conveyed by color or icon alone. Do not move focus when policy content loads or changes unless validation failed.
 
-Use existing tokens only; add no colors, font sizes, shadows, or radii.
+## 12. Tailwind Patterns Using Existing Tokens
 
 Profile container:
 
-`rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3 sm:p-5`
+`rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4 sm:p-6`
 
-Profile field label:
+Field label:
 
-`block text-sm font-bold text-[color:var(--text-1)]`
+`block text-sm font-medium text-[color:var(--text-1)]`
 
 Input/select:
 
@@ -441,131 +493,128 @@ Radio option:
 Helper/error:
 
 - helper: `mt-1 text-xs leading-5 text-[color:var(--text-3)]`
-- error: `mt-1 text-xs font-medium leading-5 text-[color:var(--error)]`
+- error: `mt-1 text-xs font-medium leading-5 text-[color:var(--error-text)]`
 
-Unknown advisory:
+Outcome/advisory:
 
-`mt-3 rounded-[var(--radius-control)] bg-[color:var(--warning-soft)] px-3 py-2 font-medium text-[color:var(--warning)]`
+- eligible: `rounded-[var(--radius-control)] bg-[color:var(--success-soft)] px-3 py-2 text-sm font-medium text-[color:var(--success)]`
+- ineligible: `rounded-[var(--radius-control)] bg-[color:var(--error-soft)] px-3 py-2 text-sm font-medium text-[color:var(--text-1)]`
+- needs confirmation: `rounded-[var(--radius-control)] bg-[color:var(--warning-soft)] px-3 py-2 text-sm font-medium text-[color:var(--warning)]`
 
-Non-fit advisory:
+Secondary confirmation/provider link:
 
-`mt-3 rounded-[var(--radius-control)] bg-[color:var(--error-soft)] px-3 py-2 font-medium text-[color:var(--text-1)]`
+`inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-4 text-center text-sm font-medium text-[color:var(--text-1)] sm:w-auto`
 
-Confirmation link:
+Use existing `.skeleton`, `.btn`, `.btn-primary`, `.btn-outline`, and reduced-motion treatment. Add no colors, font sizes, radii, shadows, or animation tokens.
 
-`mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] px-3 text-sm font-bold text-[color:var(--text-1)] sm:w-auto`
+## 13. Copy And Logic Guardrails
 
-Loading skeletons use existing `.skeleton`; honor `prefers-reduced-motion` through the app's established motion treatment. Text status remains present for assistive technology.
-
-## 11. Copy Guardrails
-
-Never display any of the following unless explicitly proven at the stated scope:
+Never show these unless the exact fact and scope are supplier-proven:
 
 - `Pet-friendly`
 - `All pets allowed`
-- `No pets allowed` from a missing token or absent list
+- `No pets allowed` from missing data or a missing amenity token
+- `No pet charge`
+- `No pet deposit`
+- `Refundable deposit`
 - `No restrictions`
-- `Free`
 - `No weight limit`
 - `No pet limit`
-- `Fits your pet` from generic `pets`, `Pets Allowed`, property-only evidence, by-arrangement wording, missing types/limits, absent provenance, stale evidence, or a conflict
+- `Eligible for your pet` from property-only, stale, generic, by-arrangement, conflicting, malformed, or incomplete evidence
 
-Use `provider` for the booking/data partner and `property` for the hotel. Do not imply expaify or the provider has approved an animal. General pet policy does not establish service-animal eligibility or legal obligations.
+Use `provider` for the affiliate/data partner and `property` for the hotel. Do not say expaify or a provider has approved the animal. General pet policy does not establish service-animal eligibility.
 
-## 12. Future Coverage-Gated Filter
+## 14. Release Gates And Future Filter
 
-### Launch gate
+### Supplier-coverage gate
 
-The filter remains absent until production-like samples across at least 10 destinations and representative stays meet all research gates:
+Validate production-like payload samples across at least 10 destinations, representative providers, stay lengths, cache hits, and refreshes. Required:
 
-- permission coverage at least 80%;
-- at least 90% of `Fits your pet` offers resolve type, count, weight/size, material restrictions, scope, and provenance;
-- every unknown/conflict remains accessible;
-- zero prohibited offers in `Fits your pet` contract tests;
-- unresolved cross-source conflicts below 1%, with all remaining conflicts unknown.
+- explicit permission coverage ≥80%;
+- ≥90% of eligible outcomes resolve type, count, weight/size, material restrictions, charge, deposit, selected-stay scope, provenance, and freshness;
+- 100% charge/deposit amounts use integer minor-unit money and preserve currency/basis;
+- 0 explicitly prohibited or materially mismatched fixtures evaluate eligible;
+- unresolved cross-source conflicts <1%, with every remaining conflict needs confirmation;
+- live and cache replay yield the same outcome and original freshness.
 
-If any gate fails, do not expose the filter. A confidence-based grouping may be separately approved, but it must not exclude inventory.
+### Production-reachability gate
 
-### Eligible future control
+Required end-to-end checks:
 
-Only after all gates pass, add a results control labelled `Show hotels by pet-policy fit`. Options:
+- the profile is usable on mounted `/deals` at 375px and 1280px;
+- every real unlocked `DealCard` renders the correct outcome and opens its saved-detail URL;
+- saved detail restores the same profile/evidence/evaluation version or fails closed;
+- saved-detail facts include separate charge and deposit rows;
+- handoff recap matches saved-detail outcome and unresolved list;
+- every outbound option preserves its affiliate marker;
+- direct, stale, missing, locked, mock, and expired deals never inherit a prior eligible claim;
+- analytics transport is production-capable before outcome metrics are reported.
 
-- `All hotels` (default)
-- `Fits your pet`
-- `Needs confirmation`
-- `Does not fit your pet`
+### Future filter
 
-Applying `Fits your pet` creates result groups rather than a destructive boolean filter:
+No filter is implemented or displayed until both gates pass. If separately approved later, label it `Show hotels by pet-policy result` with `All hotels`, `Eligible`, `Needs confirmation`, and `Ineligible`. Unknown/conflicting hotels remain visible; `Eligible` may group eligible first but cannot silently discard needs-confirmation inventory. Empty copy: `No confirmed eligible hotels yet. {count} hotels still need confirmation.`
 
-1. `Fits your pet ({count})`
-2. `Needs confirmation ({count})`
+## 15. Acceptance Matrix
 
-The second group remains rendered and reachable. Confirmed non-fits may be collapsed under `Does not fit ({count})` only after an explicit traveller choice; they never silently disappear due to unknown evidence. When no confirmed fits exist, show:
-
-`No confirmed matches yet. {unknown count} hotels still need pet-policy confirmation.`
-
-Actions: `Show hotels needing confirmation` and `Clear pet-policy view`. Never say `No pet-friendly hotels`.
-
-Changing or removing the profile clears the applied policy view and announces the change. Filter controls have persistent labels, native radio semantics, a count summary, and the live-region behavior in §9.
-
-## 13. State And Edge-Case Acceptance Matrix
-
-| Case | Expected result |
+| Case | Required behavior |
 |---|---|
-| Default profile | Closed entry point with no fit claims |
-| No profile + returned policy | `Pet policy available in Details`; no suitability claim |
-| Existing profile loading | Stable skeleton; no default-profile flash |
-| Profile validation errors | Inline associated copy; focus first invalid field |
-| Profile save error | Values retained; results unchanged |
-| Policy loading | Card and Review action usable; no premature outcome |
-| Explicit selected-stay fit | `Fits your pet`; fee remains separate |
-| Explicit prohibition/type/count/weight failure | `Does not fit your pet` with blocking reason |
-| By arrangement | `Property approval required`; unknown |
-| Not returned | `Pet policy not returned`; unknown |
-| Partial policy | Known facts plus named unresolved dimensions; unknown |
-| Provider error | `Pet policy could not be loaded`; inventory unchanged |
-| Malformed fee/limit | Dimension unresolved; never zero/unlimited |
-| Conflict | Both statements preserved in data; conflict heading; unknown unless every interpretation is non-fit |
-| Valid cache replay | Same semantics and original freshness as fresh result |
-| Stale policy | Unknown with checked date and confirmation instruction |
-| Zero current coverage | No production profile or filter; no fit/non-fit claims |
-| No hotel inventory | Existing inventory empty state; never pet-specific zero result |
-| 375px / 200% zoom | Natural height, one-column details, no clipping/scroll |
-| 1280px | Same order; two-column facts only |
-| Keyboard / screen reader | Profile, summary, Details, evidence, confirmation, and Review reachable with one batched announcement |
+| No profile | Entry point shown; no eligibility claim |
+| Profile loading | Stable skeleton; no default-state flash |
+| Validation error | Values retained; first invalid field focused |
+| Profile save error | `We couldn't apply your pet details. Hotel results have not changed.` plus `Try again` |
+| Profile save/update | All result statuses replace atomically; one batched announcement |
+| Policy loading | Card remains openable; no prior outcome retained |
+| Eligible | High-threshold evidence only; charge and deposit stay separate |
+| Explicit mismatch | Ineligible plus first decisive reason |
+| By arrangement | Needs confirmation; never eligible |
+| Policy not returned | Needs confirmation; inventory remains visible |
+| Policy error | Needs confirmation; policy-only retry when available |
+| Partial evidence | Known facts plus named unresolved dimensions |
+| Malformed charge/deposit/limit | Affected family unclear; no zero/free/refundable inference |
+| Conflict | Credible statements retained; no permissive merge |
+| Stale/cache | Original freshness retained; stale becomes needs confirmation |
+| Every policy unknown | Honest banner; no pet-specific empty result |
+| No inventory/feed error | Existing owning state wins |
+| Locked/mock/expired card | No eligibility inherited; no unsupported handoff |
+| Card → detail | Same profile/evidence/evaluation version or needs confirmation |
+| Detail → provider | Repeated boundary; valid affiliate-marked URL only |
+| 375px/200% zoom | One column, natural height, no clipping/scroll |
+| 1280px | Existing three-card grid; two-column detail facts only |
+| Keyboard/screen reader | Logical order, visible focus, one batched announcement, text outcome |
 
-## 14. UI, DEV, TEST, And Integration Handoff
+## 16. UI, DEV, And TEST Handoff
 
 ### UI scope
 
-- Add presentational profile, scan, and policy-detail components and every state above without changing provider/business logic.
-- Preserve `HotelCard` props/exports and existing card contracts; optional props may be additive.
-- Add component tests for visible copy, semantic status, Details order, accessible labels, and prohibited/unknown never rendering positive.
-- Do not mount the profile or filter on a production page until an owner and release gate are approved.
+- Adapt the existing `PetProfilePanel` and `HotelPetPolicy` presentation into the mounted `DealFeed`/`DealCard` and saved-detail component hierarchy.
+- Add a read-only scan prop to `DealCard` without breaking its outer-link contract.
+- Add separate charge and deposit presentation states, every copy/state above, and fixture-driven component tests.
+- Do not change provider, cache, API, evaluation, booking, or affiliate business logic.
+- Keep production rendering gated off while the normalized contract and reachability are unavailable.
 
-### DEV required before live policy evaluation
+### DEV required before production release
 
-- Add provider-neutral policy evidence and derived evaluation types in `lib/types.ts`.
-- Map verified supplier payloads through `lib/providers`; never call vendors from React.
-- Preserve policy and provenance through six-hour cache serialization, normalization, schema versioning, replay, and stale handling.
-- Implement a pure deterministic evaluator outside React with `Result<T>` boundaries and integer-minor-unit fee money.
-- Keep hotel inventory status separate from pet-policy status in search responses.
-- Preserve safe policy/profile context through review/handoff without raw supplier prose in query strings.
-- Add contract tests for fresh/cache parity, absence versus explicit empty, malformed money, every evaluation example, conflict precedence, and affiliate-marked confirmation links.
-- Add analytics only after a mounted surface and production transport exist; never send names, free-form animal type/restriction text, breed, or exact weight.
+- Replace the UI-local policy contract with provider-neutral types and a pure evaluator outside React.
+- Map only verified supplier evidence through `lib/providers`; every adapter returns `Result<T>` and never throws to callers.
+- Preserve evidence through cache schema/versioning and live/cache parity.
+- Add profile/evidence continuity through deal feed, saved detail, and handoff using an opaque bounded reference.
+- Add separate charge and deposit fields with integer money and no total-price inference.
+- Fail closed on malformed, stale, conflicting, missing, or mismatched evidence versions.
+- Preserve affiliate markers on all outbound links.
+- Add privacy-safe analytics only after a production transport exists; never send free-form animal type, exact weights, supplier prose, or hotel/pet names.
 
-### Blocking integration dependency
+### TEST requirements
 
-`HotelCard` has no production page consumer in this branch. Before end-to-end TEST can pass, the product owner must identify the mounted hotel-results surface and authorize integration. UI component tests alone are not evidence that travellers can use the flow.
+Verify every acceptance-matrix row at 375px and 1280px, plus TypeScript/tests, keyboard, focus, screen-reader names, live/cache parity, outcome continuity, no nested interactivity in `DealCard`, and affiliate markers. End-to-end PASS is impossible until both §14 release gates are evidenced.
 
-## 15. Definition Of Done For This Design
+## 17. Definition Of Done For This Design
 
-The design is ready for UI implementation when:
+This spec is implementation-ready because it:
 
-- every default, loading, empty, error, mobile, desktop, focus/keyboard, cache/stale, malformed, and conflict state has final copy and behavior;
-- the three semantic outcomes and four named unknown headings are preserved exactly;
-- supplier provenance, scope, freshness, fees, limits, restrictions, and unresolved items appear before handoff;
-- current 0% coverage cannot expose a profile, enabled/disabled pet filter, suitable claim, or unsuitable claim in production;
-- the future filter preserves every unknown/conflicting hotel behind the measured gates;
-- accessibility behavior is testable without relying on icon or color;
-- UI/DEV scope and the unmounted-surface blocker are explicit.
+- targets the mounted `DealCard` → saved detail → affiliate-provider path;
+- defines default, loading, empty, error, stale, malformed, conflict, mobile, desktop, focus, keyboard, and edge states;
+- preserves eligible/ineligible/needs-confirmation semantics and explicit unknowns;
+- defines the minimum pet profile and its continuity boundary;
+- separates mandatory pet charges from deposits, refundability, and return conditions;
+- supplies final visible and assistive copy with existing token-based Tailwind patterns; and
+- makes supplier coverage and production reachability hard release gates rather than inferred readiness.
