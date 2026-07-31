@@ -23,6 +23,7 @@ type CompareRowProps = {
   size?: "compact" | "primary";
   handoffContext?: HotelHandoffAnalyticsContext
   hotelName?: string
+  onProviderOpen?: (provider: keyof CompareLinks) => void
 };
 
 const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
@@ -88,7 +89,7 @@ export function eligibleHotelProviderLinks(links: CompareLinks): CompareLinks {
   ) as CompareLinks
 }
 
-export function CompareRow({ links, size = "compact", handoffContext, hotelName }: CompareRowProps) {
+export function CompareRow({ links, size = "compact", handoffContext, hotelName, onProviderOpen }: CompareRowProps) {
   const primary = size === "primary";
 
   // Layout only — colour is applied per-state so the unavailable variant can opt
@@ -120,6 +121,7 @@ export function CompareRow({ links, size = "compact", handoffContext, hotelName 
                     ? `Check rooms at ${label} for ${hotelName}. Opens in a new tab. The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.`
                     : `Check this deal on ${label}`}
                   onClick={() => {
+                    onProviderOpen?.(key)
                     if (!handoffContext) return
                     track('hotel_provider_handoff_clicked', {
                       provider: key,

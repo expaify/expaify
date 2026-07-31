@@ -2,6 +2,7 @@
 
 import { formatMoney } from '@/lib/money'
 import type { Money } from '@/lib/types'
+import type { HotelDisruptionEvidence } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
 import { CompareRow } from './CompareRow'
 import { DealChip } from './DealChip'
@@ -10,6 +11,10 @@ import {
   getQuietEvidenceResultCue,
   type QuietStayEvidence,
 } from './QuietStayEvidenceLedger'
+import {
+  getHotelDisruptionResultCue,
+  HotelDisruptionResultCue,
+} from './HotelDisruptionNotice'
 
 type DealLinks = {
   expedia?: string
@@ -42,6 +47,7 @@ type DealCardProps = {
   href?: string
   onOpen?: () => void
   quietStayEvidence?: QuietStayEvidence
+  disruptionEvidence?: HotelDisruptionEvidence
 }
 
 function starChars(stars: number): string {
@@ -62,11 +68,12 @@ function absoluteCheckedAt(iso: string | null | undefined): string | undefined {
   })
 }
 
-export function DealCard({ deal, href, onOpen, quietStayEvidence }: DealCardProps) {
+export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvidence }: DealCardProps) {
   const savings = deal.medianPrice.priceCents - deal.dealPrice.priceCents
   const showSavings = savings >= 2000
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
   const quietEvidenceCue = getQuietEvidenceResultCue(quietStayEvidence)
+  const disruptionCue = getHotelDisruptionResultCue(disruptionEvidence)
 
   const content = (
     <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
@@ -84,6 +91,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence }: DealCardProp
             <span aria-label={`${Math.round(deal.stars)} stars`} aria-hidden>{starChars(deal.stars)}</span>
             {' · '}{deal.city}{' · '}{deal.checkInWindow}
           </p>
+          <HotelDisruptionResultCue evidence={disruptionEvidence} analyticsKey={deal.id} />
           {quietEvidenceCue ? (
             <p className="mt-2 break-words text-caption font-medium leading-5 text-[color:var(--text-2)]">
               {quietEvidenceCue}
@@ -154,7 +162,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence }: DealCardProp
         if ((event.target as Element).closest('a') === event.currentTarget) onOpen?.()
       }}
       className="block text-inherit no-underline"
-      aria-label={`View deal: ${deal.hotelName}${quietEvidenceCue ? `; ${quietEvidenceCue.replace(' · ', ': ')}` : ''}`}
+      aria-label={`View deal: ${deal.hotelName}.${disruptionCue ? ` Supplier notice: ${disruptionCue}.` : ''}${quietEvidenceCue ? ` ${quietEvidenceCue.replace(' · ', ': ')}.` : ''}`}
     >
       {content}
     </a>

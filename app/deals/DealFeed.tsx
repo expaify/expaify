@@ -219,6 +219,7 @@ function SkeletonCard() {
           <div className="skeleton h-5 w-3/4 rounded-[var(--radius-pill)]" />
           <div className="skeleton h-3 w-1/2 rounded-[var(--radius-pill)]" />
         </div>
+        <div className="skeleton h-10 w-full rounded-[var(--radius-control)]" />
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <div className="skeleton h-8 w-24 rounded-[var(--radius-pill)]" />

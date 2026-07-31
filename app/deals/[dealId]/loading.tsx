@@ -8,7 +8,7 @@ export default function LoadingDealDetail() {
         </div>
       </nav>
 
-      <main className="mx-auto max-w-[760px] px-5 py-8">
+      <main aria-busy="true" className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
         <section className="mb-6 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-5" role="status">
           <span className="sr-only">Restoring your search…</span>
           <div aria-hidden="true" className="space-y-3">
@@ -50,6 +50,22 @@ export default function LoadingDealDetail() {
             ))}
           </div>
         </div>
+
+        <section aria-hidden="true" className="mb-8 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+          <div className="skeleton h-7 w-32 rounded-[var(--radius-input)]" />
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="skeleton h-20 w-full rounded-[var(--radius-control)]" />
+            <div className="skeleton h-20 w-full rounded-[var(--radius-control)]" />
+          </div>
+          <div className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--border)] p-4 sm:p-5">
+            <div className="skeleton h-5 w-48 rounded-[var(--radius-input)]" />
+            <div className="skeleton mt-3 h-5 w-full rounded-[var(--radius-input)]" />
+            <div className="skeleton mt-2 h-5 w-4/5 rounded-[var(--radius-input)]" />
+            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton h-16 w-full rounded-[var(--radius-control)]" />)}
+            </div>
+          </div>
+        </section>
 
         <div className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
           <div className="skeleton mb-4 h-6 w-44 rounded-[var(--radius-input)]" />

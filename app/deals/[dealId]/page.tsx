@@ -23,6 +23,10 @@ import {
   NO_QUIET_STAY_EVIDENCE,
   QuietStayEvidenceLedger,
 } from '@/app/components/ui/QuietStayEvidenceLedger'
+import {
+  HotelDisruptionEvidenceLedger,
+  NO_HOTEL_DISRUPTION_EVIDENCE,
+} from '@/app/components/ui/HotelDisruptionNotice'
 import { scoreDeal } from '@/lib/scoring/scoreDeal'
 import type { DealScore, HotelOffer } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
@@ -37,6 +41,10 @@ import {
   type HotelCriteriaContextStatus,
   type HotelSearchCriteriaV1,
 } from '@/lib/hotels/searchCriteria'
+import {
+  createHotelDisruptionFixture,
+  parseHotelDisruptionFixture,
+} from '@/app/components/research/hotelDisruptionFixtures'
 
 type PageProps = {
   params: Promise<{ dealId: string }>
@@ -293,6 +301,12 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const disclosureParam = Array.isArray(researchParams.continuityDisclosure)
     ? researchParams.continuityDisclosure[0]
     : researchParams.continuityDisclosure
+  const disruptionFixtureId = process.env.NODE_ENV === 'production'
+    ? null
+    : parseHotelDisruptionFixture(researchParams.disruptionFixture)
+  const disruptionEvidence = disruptionFixtureId
+    ? createHotelDisruptionFixture(disruptionFixtureId)
+    : NO_HOTEL_DISRUPTION_EVIDENCE
 
   const priceFreshnessState: HotelDecisionPriceFreshnessState = isExpired
     ? 'expired'
@@ -412,6 +426,11 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
               </div>
             </dl>
+            <HotelDisruptionEvidenceLedger
+              evidence={disruptionEvidence}
+              analyticsKey={deal.id}
+              fixture={disruptionFixtureId !== null}
+            />
             <QuietStayEvidenceLedger evidence={NO_QUIET_STAY_EVIDENCE} />
           </section>
 
@@ -424,7 +443,15 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <a href="/deals" className="btn btn-primary mt-4 inline-flex min-h-11 w-full items-center justify-center text-center">Search current deals</a>
               </div>
             ) : (
-              <HotelDealCriteriaHandoff context={criteriaContext} deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }} links={deal.ota_links ?? {}} hotelName={deal.hotel_name} datesIncomplete={datesIncomplete} />
+              <HotelDealCriteriaHandoff
+                context={criteriaContext}
+                deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }}
+                links={deal.ota_links ?? {}}
+                hotelName={deal.hotel_name}
+                datesIncomplete={datesIncomplete}
+                disruptionEvidence={disruptionEvidence}
+                disruptionFixture={disruptionFixtureId !== null}
+              />
             )}
           </section>
 
