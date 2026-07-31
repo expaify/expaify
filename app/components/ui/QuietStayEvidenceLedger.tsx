@@ -217,22 +217,47 @@ function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
 }
 
 function validItems(evidence: QuietStayEvidence) {
+  const validatedSelectedStayFacts = uniqueBy(
+    evidence.selectedStayFacts.filter(validSelectedStayFact),
+    fact => `${fact.normalizedId}:${fact.sourceLabel}:${fact.scope}`,
+  ).sort((a, b) => (a.scope === b.scope ? 0 : a.scope === 'selected_stay' ? -1 : 1))
+  const validatedPropertyFacts = uniqueBy(
+    evidence.propertyFacts.filter(validPropertyFact),
+    fact => `${fact.normalizedId}:${fact.sourceLabel}`,
+  )
+  const validatedGuestPatterns = uniqueBy(
+    evidence.guestPatterns.filter(validGuestPattern),
+    item => `${item.pattern}:${item.sourceLabel}`,
+  )
+  const validatedNearbyContext = uniqueBy(
+    evidence.nearbyContext.filter(validNearbyContext),
+    item => `${item.category}:${item.referencePoint}:${item.sourceLabel}`,
+  )
   const selectedStayFacts = evidence.selectedStayState && !['ready', 'conflicting'].includes(evidence.selectedStayState)
     ? []
-    : uniqueBy(evidence.selectedStayFacts.filter(validSelectedStayFact), fact => `${fact.normalizedId}:${fact.sourceLabel}:${fact.scope}`)
-        .sort((a, b) => (a.scope === b.scope ? 0 : a.scope === 'selected_stay' ? -1 : 1))
+    : validatedSelectedStayFacts
   const propertyFacts = evidence.propertyFactState && !['ready', 'conflicting'].includes(evidence.propertyFactState)
     ? []
-    : uniqueBy(evidence.propertyFacts.filter(validPropertyFact), fact => `${fact.normalizedId}:${fact.sourceLabel}`)
+    : validatedPropertyFacts
   const guestPatterns = evidence.guestPatternState && !['ready', 'conflicting'].includes(evidence.guestPatternState)
     ? []
-    : uniqueBy(evidence.guestPatterns.filter(validGuestPattern), item => `${item.pattern}:${item.sourceLabel}`)
+    : validatedGuestPatterns
   const contextEligible = evidence.locationPrecision === 'exact' || evidence.locationPrecision === 'coordinates'
   const nearbyContext = contextEligible && (!evidence.contextState || ['ready', 'conflicting'].includes(evidence.contextState))
-    ? uniqueBy(evidence.nearbyContext.filter(validNearbyContext), item => `${item.category}:${item.referencePoint}:${item.sourceLabel}`)
+    ? validatedNearbyContext
     : []
 
-  return { selectedStayFacts, propertyFacts, guestPatterns, nearbyContext, contextEligible }
+  return {
+    selectedStayFacts,
+    propertyFacts,
+    guestPatterns,
+    nearbyContext,
+    contextEligible,
+    hasMalformedSelectedStayFact: evidence.selectedStayFacts.some(fact => !validSelectedStayFact(fact)),
+    hasMalformedPropertyFact: evidence.propertyFacts.some(fact => !validPropertyFact(fact)),
+    hasMalformedGuestPattern: evidence.guestPatterns.some(item => !validGuestPattern(item)),
+    hasMalformedNearbyContext: evidence.nearbyContext.some(item => !validNearbyContext(item)),
+  }
 }
 
 export function getStrongestQuietEvidenceClass(evidence?: QuietStayEvidence): QuietEvidenceScope | 'none' {
@@ -356,6 +381,15 @@ function classMessage(
   return null
 }
 
+function resolvedClassState(
+  state: EvidenceClassState | undefined,
+  hasMalformedItem: boolean,
+): EvidenceClassState | undefined {
+  if (state === 'error') return 'error'
+  if (state === 'malformed' || hasMalformedItem) return 'malformed'
+  return state
+}
+
 function ledgerStatus(evidence: QuietStayEvidence, statusClass: string) {
   if (evidence.overallState === 'evidence_available') return null
   const status = {
@@ -393,21 +427,12 @@ export function QuietStayEvidenceLedger({ evidence }: { evidence: QuietStayEvide
     )
   }
 
-  const selectedState = evidence.selectedStayState ?? (
-    evidence.selectedStayFacts.length > 0 && items.selectedStayFacts.length === 0 ? 'malformed' : undefined
-  )
-  const propertyState = evidence.propertyFactState ?? (
-    evidence.propertyFacts.length > 0 && items.propertyFacts.length === 0 ? 'malformed' : undefined
-  )
-  const guestState = evidence.guestPatternState ?? (
-    evidence.guestPatterns.length > 0 && items.guestPatterns.length === 0 ? 'malformed' : undefined
-  )
-  const contextState = evidence.contextState ?? (
-    !items.contextEligible
-      ? 'insufficient_location'
-      : evidence.nearbyContext.length > 0 && items.nearbyContext.length === 0
-        ? 'malformed'
-        : undefined
+  const selectedState = resolvedClassState(evidence.selectedStayState, items.hasMalformedSelectedStayFact)
+  const propertyState = resolvedClassState(evidence.propertyFactState, items.hasMalformedPropertyFact)
+  const guestState = resolvedClassState(evidence.guestPatternState, items.hasMalformedGuestPattern)
+  const contextState = resolvedClassState(
+    evidence.contextState ?? (!items.contextEligible ? 'insufficient_location' : undefined),
+    items.hasMalformedNearbyContext,
   )
   const selectedMessage = classMessage(selectedState, {
     notReturned: 'No selected-room or selected-stay quiet-stay detail was provided.',
@@ -434,7 +459,12 @@ export function QuietStayEvidenceLedger({ evidence }: { evidence: QuietStayEvide
     malformed: 'Some nearby details could not be verified and are not shown.',
     error: 'Nearby context could not be checked.',
   })
-  const hasConflict = [selectedState, propertyState, guestState, contextState].includes('conflicting')
+  const hasConflict = (
+    (evidence.selectedStayState === 'conflicting' && items.selectedStayFacts.length > 0) ||
+    (evidence.propertyFactState === 'conflicting' && items.propertyFacts.length > 0) ||
+    (evidence.guestPatternState === 'conflicting' && items.guestPatterns.length > 0) ||
+    (evidence.contextState === 'conflicting' && items.nearbyContext.length > 0)
+  )
 
   return (
     <section aria-labelledby="quiet-stay-title" className="mt-5 min-w-0 border-t border-[color:var(--border)] pt-5">
@@ -444,27 +474,37 @@ export function QuietStayEvidenceLedger({ evidence }: { evidence: QuietStayEvide
 
       <div className="mt-5 divide-y divide-[color:var(--border)]">
         <EvidenceGroup title="Selected room or stay">
-          {selectedMessage ? <ClassMessage>{selectedMessage}</ClassMessage> : items.selectedStayFacts.length ? (
+          {items.selectedStayFacts.length ? (
             <ul className="mt-3 space-y-3">{items.selectedStayFacts.map(fact => <SelectedStayItem key={`${fact.normalizedId}:${fact.sourceLabel}`} fact={fact} />)}</ul>
-          ) : <ClassMessage>No selected-room or selected-stay quiet-stay detail was provided.</ClassMessage>}
+          ) : null}
+          {selectedMessage ? <ClassMessage>{selectedMessage}</ClassMessage> : items.selectedStayFacts.length ? null : (
+            <ClassMessage>No selected-room or selected-stay quiet-stay detail was provided.</ClassMessage>
+          )}
         </EvidenceGroup>
         <EvidenceGroup title="Property facts">
-          {propertyMessage ? <ClassMessage>{propertyMessage}</ClassMessage> : items.propertyFacts.length ? (
+          {items.propertyFacts.length ? (
             <ul className="mt-3 space-y-3">{items.propertyFacts.map(fact => <PropertyFactItem key={`${fact.normalizedId}:${fact.sourceLabel}`} fact={fact} />)}</ul>
-          ) : <ClassMessage>No property-level quiet-stay fact was provided.</ClassMessage>}
+          ) : null}
+          {propertyMessage ? <ClassMessage>{propertyMessage}</ClassMessage> : items.propertyFacts.length ? null : (
+            <ClassMessage>No property-level quiet-stay fact was provided.</ClassMessage>
+          )}
         </EvidenceGroup>
         <EvidenceGroup title="Guest-reported patterns">
-          {guestMessage ? <ClassMessage>{guestMessage}</ClassMessage> : items.guestPatterns.length ? (
+          {items.guestPatterns.length ? (
             <ul className="mt-3 space-y-3">{items.guestPatterns.map(item => <GuestPatternItem key={`${item.pattern}:${item.sourceLabel}`} item={item} />)}</ul>
-          ) : <ClassMessage>No licensed guest noise pattern was provided.</ClassMessage>}
+          ) : null}
+          {guestMessage ? <ClassMessage>{guestMessage}</ClassMessage> : items.guestPatterns.length ? null : (
+            <ClassMessage>No licensed guest noise pattern was provided.</ClassMessage>
+          )}
         </EvidenceGroup>
         <EvidenceGroup title="Nearby context">
+          {items.nearbyContext.length ? (
+            <ul className="mt-3 space-y-3">{items.nearbyContext.map(item => <NearbyContextEntry key={`${item.category}:${item.referencePoint}:${item.sourceLabel}`} item={item} />)}</ul>
+          ) : null}
           {contextMessage || !items.contextEligible ? (
             <ClassMessage>{contextMessage ?? 'Property-level proximity cannot be calculated from the area information provided.'}</ClassMessage>
-          ) : items.nearbyContext.length ? (
-            <ul className="mt-3 space-y-3">{items.nearbyContext.map(item => <NearbyContextEntry key={`${item.category}:${item.referencePoint}:${item.sourceLabel}`} item={item} />)}</ul>
-          ) : <ClassMessage>No usable nearby context was provided.</ClassMessage>}
-          {evidence.contextState === 'stale' && evidence.staleContext && validSourceLabel(evidence.staleContext.sourceLabel) && validDate(evidence.staleContext.sourceUpdatedAt) ? (
+          ) : items.nearbyContext.length ? null : <ClassMessage>No usable nearby context was provided.</ClassMessage>}
+          {contextState === 'stale' && evidence.staleContext && validSourceLabel(evidence.staleContext.sourceLabel) && validDate(evidence.staleContext.sourceUpdatedAt) ? (
             <p className="mt-2 break-words text-caption leading-5 text-[color:var(--text-3)]">
               Last source update: {formatDate(evidence.staleContext.sourceUpdatedAt)} · {evidence.staleContext.sourceLabel.trim()}
             </p>

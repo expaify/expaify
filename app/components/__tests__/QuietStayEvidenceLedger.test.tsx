@@ -212,6 +212,18 @@ describe('QuietStayEvidenceLedger', () => {
     expect(html).not.toContain('No licensed guest noise pattern was provided.')
   })
 
+  it('keeps valid siblings visible while disclosing malformed items in the same class', () => {
+    const html = renderLedger(available({
+      propertyFacts: [propertyFact],
+      guestPatterns: [guestPattern('corridors'), { ...guestPattern('aircraft'), sourceLabel: ' ' }],
+      guestPatternState: 'ready',
+    }))
+
+    expect(html).toContain('Guests mention corridors.')
+    expect(html).toContain('Some guest-pattern details could not be verified and are not shown.')
+    expect(html).not.toContain('Guests mention aircraft.')
+  })
+
   it('creates a result cue only from current valid evidence using strongest-class precedence', () => {
     expect(getQuietEvidenceResultCue()).toBeNull()
     expect(getQuietEvidenceResultCue(NO_QUIET_STAY_EVIDENCE)).toBeNull()
