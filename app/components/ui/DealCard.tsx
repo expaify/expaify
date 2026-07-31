@@ -6,6 +6,10 @@ import { timeAgo } from '@/lib/timeAgo'
 import { CompareRow } from './CompareRow'
 import { DealChip } from './DealChip'
 import { PropertyPhoto } from './PropertyPhoto'
+import {
+  getQuietEvidenceResultCue,
+  type QuietStayEvidence,
+} from './QuietStayEvidenceLedger'
 
 type DealLinks = {
   expedia?: string
@@ -37,6 +41,7 @@ type DealCardProps = {
   deal: DealCardDeal
   href?: string
   onOpen?: () => void
+  quietStayEvidence?: QuietStayEvidence
 }
 
 function starChars(stars: number): string {
@@ -57,10 +62,11 @@ function absoluteCheckedAt(iso: string | null | undefined): string | undefined {
   })
 }
 
-export function DealCard({ deal, href, onOpen }: DealCardProps) {
+export function DealCard({ deal, href, onOpen, quietStayEvidence }: DealCardProps) {
   const savings = deal.medianPrice.priceCents - deal.dealPrice.priceCents
   const showSavings = savings >= 2000
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
+  const quietEvidenceCue = getQuietEvidenceResultCue(quietStayEvidence)
 
   const content = (
     <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
@@ -78,6 +84,11 @@ export function DealCard({ deal, href, onOpen }: DealCardProps) {
             <span aria-label={`${Math.round(deal.stars)} stars`} aria-hidden>{starChars(deal.stars)}</span>
             {' · '}{deal.city}{' · '}{deal.checkInWindow}
           </p>
+          {quietEvidenceCue ? (
+            <p className="mt-2 break-words text-caption font-medium leading-5 text-[color:var(--text-2)]">
+              {quietEvidenceCue}
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-2">
@@ -143,7 +154,7 @@ export function DealCard({ deal, href, onOpen }: DealCardProps) {
         if ((event.target as Element).closest('a') === event.currentTarget) onOpen?.()
       }}
       className="block text-inherit no-underline"
-      aria-label={`View deal: ${deal.hotelName}`}
+      aria-label={`View deal: ${deal.hotelName}${quietEvidenceCue ? `; ${quietEvidenceCue.replace(' · ', ': ')}` : ''}`}
     >
       {content}
     </a>

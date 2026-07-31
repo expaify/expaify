@@ -409,6 +409,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
               </div>
             </dl>
+            <QuietStayEvidenceLedger evidence={NO_QUIET_STAY_EVIDENCE} />
           </section>
 
           <section aria-labelledby="saved-provider-title" data-hotel-decision-section="provider_handoff" data-hotel-decision-position="4" className="rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
@@ -429,7 +430,6 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             <div className="mt-5 space-y-6">
               {deal.photo_url ? <PropertyPhoto src={deal.photo_url} size="detail" loading="lazy" /> : null}
               <HotelDealCriteriaSummary context={criteriaContext} deal={{ city: deal.city, checkInDate: deal.check_in_date }} />
-              <QuietStayEvidenceLedger evidence={NO_QUIET_STAY_EVIDENCE} />
               <HotelContinuityPrototype dealId={deal.id} hotelName={deal.hotel_name} fixtureId={continuityFixtureId} disclosure={continuityDisclosure} initiallyExpanded={disclosureParam === 'expanded'} />
               <Suspense fallback={<PriceHistorySkeleton />}>
                 <PriceHistorySection deal={deal} />
