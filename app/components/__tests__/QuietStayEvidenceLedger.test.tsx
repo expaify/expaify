@@ -225,6 +225,20 @@ describe('QuietStayEvidenceLedger', () => {
     }))).toBe('Quiet-stay evidence available · Room type')
   })
 
+  it('rejects requestable selected-stay evidence without a selected product identity', () => {
+    const untiedRequest = {
+      ...selectedStayFact,
+      certainty: 'requestable' as const,
+      selectedProductId: undefined,
+    }
+
+    expect(getQuietEvidenceResultCue(available({ selectedStayFacts: [untiedRequest] }))).toBeNull()
+    expect(renderLedger(available({
+      selectedStayFacts: [untiedRequest],
+      propertyFacts: [propertyFact],
+    }))).toContain('Some selected-room or selected-stay details could not be verified and are not shown.')
+  })
+
   it('adds the bounded cue inside the existing result link without a new control', () => {
     const deal = {
       id: 'hotel-1',
@@ -265,6 +279,21 @@ describe('QuietStayEvidenceLedger', () => {
     expect(changed).not.toContain('Courtyard King')
     expect(changed).toContain('Provider lists soundproofing for this property.')
     expect(`${matching}${changed}`).not.toMatch(/<button|<input|<select|<textarea/)
+  })
+
+  it('removes selected-stay evidence at handoff when the selection is missing or changed', () => {
+    const evidence = available({ selectedStayFacts: [selectedStayFact] })
+    const matching = renderToStaticMarkup(
+      <QuietStayEvidenceHandoff evidence={evidence} selectedProductId="product-42" />,
+    )
+    const missing = renderToStaticMarkup(<QuietStayEvidenceHandoff evidence={evidence} />)
+    const changed = renderToStaticMarkup(
+      <QuietStayEvidenceHandoff evidence={evidence} selectedProductId="product-99" />,
+    )
+
+    expect(matching).toContain('The provider confirms a room away from the lifts for this selected stay.')
+    expect(missing).toBe('')
+    expect(changed).toBe('')
   })
 
   it('mounts the one production ledger inside Hotel fit before provider handoff', () => {

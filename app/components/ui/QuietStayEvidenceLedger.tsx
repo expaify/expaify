@@ -162,6 +162,10 @@ function validSelectedStayFact(fact: SelectedStayQuietFact): boolean {
     return fact.certainty === 'supported' || fact.certainty === 'requestable'
   }
 
+  if (fact.certainty === 'requestable' && !validBoundedText(fact.selectedProductId)) {
+    return false
+  }
+
   if (fact.certainty === 'transmitted') {
     return validBoundedText(fact.requestReference, 60)
   }
@@ -485,8 +489,7 @@ export function QuietStayEvidenceHandoff({
   if (!evidence || evidence.overallState !== 'evidence_available') return null
   const items = validItems(evidence)
   const applicableSelectedFacts = items.selectedStayFacts.filter(fact => (
-    fact.scope === 'selected_stay' ||
-    (fact.scope === 'room_type' && validBoundedText(selectedProductId) && fact.selectedProductId === selectedProductId)
+    validBoundedText(selectedProductId) && fact.selectedProductId === selectedProductId
   ))
   const hasApplicableEvidence = applicableSelectedFacts.length > 0 || items.propertyFacts.length > 0 ||
     items.guestPatterns.length > 0 || items.nearbyContext.length > 0
