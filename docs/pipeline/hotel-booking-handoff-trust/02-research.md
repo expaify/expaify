@@ -26,7 +26,9 @@ Discovery is accurate. The three "verify first" questions all resolved, and two 
 
 Discovery asked whether `HotelOffer` or the search page holds check-in/check-out. Answer: **there are two different date concepts in this repo and they are not interchangeable.**
 
-**A true stay span exists, server-side, at the moment hotel offers are produced.** `app/api/search/route.ts:397-404` gates hotel search on `destIATA && depart && ret` and calls `hotellook.searchHotels(destIATA, { checkin: depart, checkout: ret })`. The provider prices the nightly rate *for that span* (`hotellook.ts:445-478`, `&checkIn=…&checkOut=…`, and the span is part of the 6h cache key). So the nightly rate on the card is genuinely a rate for a specific stay.
+**A true stay span exists, server-side, at the moment hotel offers are produced.** `app/api/search/route.ts:397-404` gates hotel search on `destIATA && depart && ret` and calls `searchHotelAvailability(destIATA, { checkin: depart, checkout: ret }, …)`. The provider prices the nightly rate *for that span* (`hotellook.ts:445-478`, `&checkIn=…&checkOut=…`, and the span is part of the 6h cache key). So the nightly rate on the card is genuinely a rate for a specific stay.
+
+Note the span's provenance: it is the **flight itinerary's** `depart`/`return`, not a hotel-specific date picker. That is still an honest source for `checkIn`/`checkOut` — it is literally the range the rate was quoted for — but the review screen must label it as the dates this rate covers, not as dates the traveler chose for the hotel. Copy in D1 is written to that standard.
 
 That span is then discarded. `HotelOffer` (`lib/types.ts:474-496`) has no date fields, and the NDJSON `hotels` message (`route.ts:409`) sends `{ type, source, data: offers, page }` — no range. The validated stay the provider was queried with never leaves the route handler.
 
@@ -44,7 +46,7 @@ That span is then discarded. `HotelOffer` (`lib/types.ts:474-496`) has no date f
 
 ### (b) URL vs. hotel-context store — measured, not estimated
 
-I measured the inline href on a deliberately heavy realistic offer (long property name, full street address, verified anchor + distance, complete funds-policy obligation, affiliate deeplink) using the throwaway fixture already sitting in the tree:
+I measured the inline href on a deliberately heavy realistic offer (long property name, full street address, verified anchor + distance, complete funds-policy obligation, affiliate deeplink). The measurement was taken with a throwaway fixture run under Jest and re-run to confirm; the fixture has since been removed from the tree (see §7.2):
 
 | Payload | Length |
 |---|---|
@@ -123,7 +125,8 @@ Testable. Each states the required behaviour, the absence behaviour, and the fai
 - Rendered stay block, when present: `"Check in {date} · Check out {date} · {n} nights"`, night count from `nightCount` only (never recomputed in the view).
 - Absence state (no stay carried) is honest and actionable, matching the shipped `/deals` rule: **"Stay dates not selected"** / **"Choose your dates with {partner} before comparing room options."** — never "not provided," which reads as data loss.
 - The unconditional sentence at `BookingFlow.tsx:1095-1096` becomes conditional on the same test, mirroring `HotelDealCriteria.tsx:146`.
-- **Fails if:** a review screen entered from a check-in-window search renders any night count or check-out date; or a dated search renders the absence state.
+- **`hasSearchDates` must be derived from the same stay, not defaulted.** `BookingFlow` defaults `hasSearchDates = true` (`:1248`) and `app/book/page.tsx` never passes it, so `ParkingSection` renders `"Space confirmed for these dates"` (`HotelParking.tsx:75`) on the very screen that says stay dates are not provided — a sixth contradiction on the same surface, and the one that makes a false availability claim. Derive it as `Boolean(hotelContext.checkIn && hotelContext.checkOut)` so parking copy falls back to `"for a selected stay"` whenever no stay is carried.
+- **Fails if:** a review screen entered from a check-in-window search renders any night count or check-out date; or a dated search renders the absence state; or parking evidence says "for these dates" on a screen with no stay block.
 
 ### D2 — Render class, rating, freshness and score from context, with provenance intact and no claims about the provider.
 
@@ -131,7 +134,7 @@ Testable. Each states the required behaviour, the absence behaviour, and the fai
 - `HotelDecisionSummary` renders each field only when the context carries it, preserving the verified vs. `provider_only` distinction already enforced on the card (`HotelCard.tsx:459-470`), with `reviewCount` and `sourceLabel` when present. The distinction must not be colour-only — carry it in text ("Verified guest reviews" vs. "Provider-reported").
 - **Delete the false claim.** `"This provider did not return guest-rating evidence."` (`:378`) is untrue whenever the card showed a rating and is unverifiable in general. Replace with neutral absence: **"Guest rating not available for this property."**
 - Deal Score: pass `hotelContext.dealScore` through to `DealScorePanel` unchanged. `confidence: 'low'` must still render the limited-history treatment (`DealScorePanel.tsx:25`, `:159`), never a bare verdict — thin data stays thin data.
-- Freshness: `priceCheckedAt` has no source in the repo today, so the absence line stays. Align its wording with the card's — the card says `"Last-checked time unavailable."` (`HotelCard.tsx:745`), the review says `"Last-checked time not provided."` (`:356`). Use the card's wording on both. Render an actual timestamp only when `priceCheckedAt` is present; do not soften absence into an implied freshness guarantee.
+- Freshness: `priceCheckedAt` has no source in the repo today, so the absence line stays. Align its wording with the card's — the card says `"Last-checked time unavailable."` (`HotelCard.tsx:746`), the review says `"Last-checked time not provided."` (`:356`). Use the card's wording on both. Render an actual timestamp only when `priceCheckedAt` is present; do not soften absence into an implied freshness guarantee.
 - **Fails if:** the review screen shows an absence line for a field the originating card displayed; or a `confidence: 'low'` score renders as a plain verdict; or any copy asserts what the provider did or did not return.
 
 ### D3 — Continuity must degrade to "not shown." It must never nullify the booking context.
@@ -189,7 +192,7 @@ Once continuity lands, add continuity-state dimensions to `hotel_handoff_viewed`
 ## 7. Out-of-scope findings (do not fix in this ticket)
 
 1. **`HotelCard` and the `/api/search` results stream are not mounted by any route** (§3). Worth its own ticket; it is the reason none of these defects have been reported by users.
-2. **`lib/booking/__tests__/zz-tmp-hrefLen.test.ts`** is a committed scratch fixture from a prior run (commit `ae340e87`). It cannot even resolve its own imports (`../../lib/booking/config` from inside `lib/booking/__tests__`), so it fails the suite as a "test suite failed to run". I left it in place — deleting it is outside this ticket — but DEV should remove it. I copied it to a temp path to take the §2(b) measurement and deleted the copy.
+2. **`lib/booking/__tests__/zz-tmp-hrefLen.test.ts` — removed.** This was a committed scratch fixture from an earlier run of *this same ticket* (commit `ae340e87`). It could not resolve its own imports (`../../lib/booking/config` from inside `lib/booking/__tests__` resolves to `lib/lib/booking/config`), so it failed the suite as a "test suite failed to run" and left `npm test` red on this branch. Because it is this stage's own scratch output rather than pre-existing code, I deleted it. The §2(b) measurement was taken from a path-corrected copy, run, and then discarded. After deletion: `npx tsc --noEmit --incremental false` exits 0; `npm test -- --passWithNoTests` passes 79 suites / 641 tests.
 3. **`priceCheckedAt` has no producer** anywhere in the repo. Owned by `hotel-price-freshness`, as discovery states.
 4. **`app/book/__tests__/BookingFlow.test.tsx:198`, `:204`** assert the exact hardcoded strings `'Stay dates not provided'` and `'Last-checked time not provided.'`. They must be rewritten against context-driven behaviour, not deleted.
 
