@@ -36,6 +36,7 @@ import type { HotelSmokingPolicyView } from '@/app/components/SmokingPolicyPanel
 import TrackedSmokingPolicyPanel from '@/app/components/TrackedSmokingPolicyPanel'
 import { HotelBookingOwnershipDisclosure } from '@/app/components/HotelBookingOwnership'
 import { HotelLoyaltyEligibilityDisclosure } from '@/app/components/HotelLoyaltyEligibility'
+import { HotelRoomViewConfidence } from '@/app/components/HotelRoomViewConfidence'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -1123,8 +1124,7 @@ function HotelHandoffReview({
       <section aria-labelledby="hotel-provider-title" className={`${panelCls} border-[color:var(--border-strong)] p-4 sm:p-6`}>
         <h2 id="hotel-provider-title" className="text-xl font-medium leading-tight text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
         <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
-          The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.
-          {' '}Choose or confirm your dates there before comparing room options.
+          The provider shows room options, live availability, final total, taxes and fees, cancellation policy, and terms. Choose or confirm your dates there before comparing rooms.
         </p>
         <HotelBookingOwnershipDisclosure
           partner={partner}
@@ -1136,6 +1136,7 @@ function HotelHandoffReview({
           partner={partner}
           onOpen={handleLoyaltyDisclosureOpen}
         />
+        <HotelRoomViewConfidence />
         <div className="mt-5 flex flex-col gap-3">
           <a
             href={hotelContext.providerUrl}
