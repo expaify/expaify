@@ -41,6 +41,7 @@ import {
   getHotelTransportHandoffGuidance,
   HotelTransportSection,
 } from '@/app/components/HotelTransport'
+import HotelCancellationChoicesUnavailable from '@/app/components/HotelCancellationChoicesUnavailable'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -1157,6 +1158,9 @@ function HotelHandoffReview({
         <p className="mt-4 break-words rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-2 text-sm font-medium leading-6 text-[color:var(--text-1)] [overflow-wrap:anywhere]">
           {feeHandoffCopy}
         </p>
+        <div className="mt-3">
+          <HotelCancellationChoicesUnavailable />
+        </div>
         <div className="mt-3 flex flex-col gap-3">
           <a
             href={hotelContext.providerUrl}
