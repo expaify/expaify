@@ -58,9 +58,9 @@ function childrenOf(node: TestElement): unknown[] {
   return Array.isArray(children) ? children : [children].filter(Boolean)
 }
 
-function resolveFunctionElement(node: TestElement): TestElement {
+function resolveFunctionElement(node: TestElement): unknown {
   if (typeof node.type === 'function') {
-    return (node.type as (props: Record<string, unknown>) => TestElement)(node.props)
+    return (node.type as (props: Record<string, unknown>) => unknown)(node.props)
   }
   return node
 }
@@ -70,7 +70,9 @@ function collectText(node: unknown): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(collectText).join('')
   if (typeof node === 'object') {
-    return childrenOf(resolveFunctionElement(node as TestElement)).map(collectText).join('')
+    const resolved = resolveFunctionElement(node as TestElement)
+    if (!resolved || typeof resolved !== 'object') return collectText(resolved)
+    return childrenOf(resolved as TestElement).map(collectText).join('')
   }
   return ''
 }
@@ -79,7 +81,8 @@ function collectElements(node: unknown): TestElement[] {
   if (node === null || node === undefined || typeof node !== 'object') return []
   if (Array.isArray(node)) return node.flatMap(collectElements)
   const resolved = resolveFunctionElement(node as TestElement)
-  return [resolved, ...childrenOf(resolved).flatMap(collectElements)]
+  if (!resolved || typeof resolved !== 'object') return []
+  return [resolved as TestElement, ...childrenOf(resolved as TestElement).flatMap(collectElements)]
 }
 
 function accessSection(root: unknown): TestElement {
@@ -101,15 +104,38 @@ describe('HotelCard access evidence', () => {
     const reviewLink = collectElements(collapsedCard).find(node => node.type === 'a' && collectText(node).includes('Review hotel'))
 
     expect(collapsedText).toContain('Deposit and hold policy not provided. Additional available funds may still be required.')
+    expect(collapsedText).toContain('Mandatory property fees: not confirmed by Hotellook.')
+    expect(collapsedText.indexOf('Rate from Hotellook')).toBeLessThan(collapsedText.indexOf('Mandatory property fees: not confirmed by Hotellook.'))
+    expect(collapsedText.indexOf('Mandatory property fees: not confirmed by Hotellook.')).toBeLessThan(collapsedText.indexOf('Restrictions not provided'))
     expect(collapsedText.indexOf('Deposit and hold policy not provided')).toBeLessThan(collapsedText.indexOf('Review hotel'))
+    expect(reviewLink?.props['aria-label']).toContain('Nightly rate $179 USD before taxes and fees. Mandatory property fees: not confirmed by Hotellook. Rate from Hotellook.')
     expect(reviewLink?.props['aria-label']).toContain('Deposit and hold policy was not provided.')
 
     expanded = true
     const expandedText = collectText(HotelCard({ hotel }))
-    expect(expandedText).toContain('Additional funds at the property')
+    expect(expandedText).toContain('Deposits and card holds')
+    expect(expandedText).toContain("Check the provider's total and any amount due at the property.")
     expect(expandedText).toContain('Source checked: Hotellook · Scope not provided')
-    expect(expandedText.indexOf('Price scope')).toBeLessThan(expandedText.indexOf('Additional funds at the property'))
-    expect(expandedText.indexOf('Additional funds at the property')).toBeLessThan(expandedText.indexOf('Provider handoff'))
+    expect(expandedText.indexOf('per night before taxes and feesMandatory property fees')).toBeGreaterThanOrEqual(0)
+    expect(expandedText.indexOf("Check the provider's total")).toBeLessThan(expandedText.indexOf('Rate check'))
+    expect(expandedText.indexOf('Price scope')).toBeLessThan(expandedText.indexOf('Deposits and card holds'))
+    expect(expandedText.indexOf('Deposits and card holds')).toBeLessThan(expandedText.indexOf('Provider handoff'))
+  })
+
+  it('keeps the fee status visible when price and provider identity are unavailable', () => {
+    const card = HotelCard({
+      hotel: {
+        ...hotel,
+        source: ' ',
+        pricePerNight: { priceCents: -1, currency: 'USD' },
+        deeplink: '',
+      },
+    })
+    const text = collectText(card)
+
+    expect(text).toContain('Mandatory property fees: not confirmed by the booking partner.')
+    expect(text).not.toContain('Mandatory property fees: not confirmed by Provider unavailable.')
+    expect(text.indexOf('Mandatory property fees')).toBeLessThan(text.indexOf('Booking unavailable'))
   })
 
   it('shows only the highest-priority guaranteed property chip when collapsed', () => {

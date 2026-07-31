@@ -37,8 +37,8 @@ function childrenOf(node: TestElement): unknown[] {
   return Array.isArray(children) ? children : [children].filter(Boolean)
 }
 
-function resolveFunctionElement(node: TestElement): TestElement {
-  if (typeof node.type === 'function') return (node.type as (props: Record<string, unknown>) => TestElement)(node.props)
+function resolveFunctionElement(node: TestElement): unknown {
+  if (typeof node.type === 'function') return (node.type as (props: Record<string, unknown>) => unknown)(node.props)
   return node
 }
 
@@ -46,7 +46,11 @@ function collectText(node: unknown): string {
   if (node === null || node === undefined || typeof node === 'boolean') return ''
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(collectText).join('')
-  if (typeof node === 'object') return childrenOf(resolveFunctionElement(node as TestElement)).map(collectText).join('')
+  if (typeof node === 'object') {
+    const resolved = resolveFunctionElement(node as TestElement)
+    if (!resolved || typeof resolved !== 'object') return collectText(resolved)
+    return childrenOf(resolved as TestElement).map(collectText).join('')
+  }
   return ''
 }
 
@@ -54,7 +58,8 @@ function collectElements(node: unknown): TestElement[] {
   if (node === null || node === undefined || typeof node !== 'object') return []
   if (Array.isArray(node)) return node.flatMap(collectElements)
   const resolved = resolveFunctionElement(node as TestElement)
-  return [resolved, ...childrenOf(resolved).flatMap(collectElements)]
+  if (!resolved || typeof resolved !== 'object') return []
+  return [resolved as TestElement, ...childrenOf(resolved as TestElement).flatMap(collectElements)]
 }
 
 function readyPolicy(overrides: Partial<Extract<HotelPetPolicyPresentation, { state: 'ready' }>> = {}): Extract<HotelPetPolicyPresentation, { state: 'ready' }> {
