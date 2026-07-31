@@ -102,6 +102,50 @@ describe('hotel accessibility fit presentation', () => {
     expect(presentation.rollup).toBe('needs_confirmation')
   })
 
+  it('names a documented room when the offered rate is not bound to it', () => {
+    const presentation = createAccessibilityPresentation(['roll_in_shower'], [fact({
+      rateId: undefined,
+      stayFingerprint: undefined,
+      confirmationReference: undefined,
+    })])
+    const ledger = renderToStaticMarkup(<AccessibilityFitLedger presentation={presentation} hotelName="Example Hotel" />)
+    const boundary = renderToStaticMarkup(<AccessibilityHandoffBoundary presentation={presentation} />)
+
+    expect(ledger).toContain('Accessible King has documented features, but this rate is not tied to that room. Confirm before booking.')
+    expect(boundary).toContain('Accessible King has documented features, but this rate is not tied to that room. Confirm before booking.')
+    expect(boundary).not.toContain('No room selected — accessibility fit is not confirmed.')
+  })
+
+  it('suppresses malformed fact metadata from the evidence ledger', () => {
+    const presentation = createAccessibilityPresentation(['roll_in_shower'], [fact({
+      state: 'malformed',
+      label: 'UNSAFE PROVIDER VALUE',
+      roomLabel: 'UNSAFE ROOM VALUE',
+      sourceLabel: 'UNSAFE SOURCE VALUE',
+    })])
+    const html = renderToStaticMarkup(<AccessibilityFitLedger presentation={presentation} hotelName="Example Hotel" />)
+
+    expect(html).toContain('The provider returned an accessibility detail we could not verify or display.')
+    expect(html).not.toContain('UNSAFE PROVIDER VALUE')
+    expect(html).not.toContain('UNSAFE ROOM VALUE')
+    expect(html).not.toContain('UNSAFE SOURCE VALUE')
+  })
+
+  it('lists a documented mismatch before unresolved unknown needs at handoff', () => {
+    const presentation = createAccessibilityPresentation(
+      ['roll_in_shower', 'accessible_tub'],
+      [fact({
+        canonicalId: 'accessible_tub',
+        needId: 'accessible_tub',
+        state: 'unavailable',
+        negativeCapability: true,
+      })],
+    )
+    const html = renderToStaticMarkup(<AccessibilityHandoffBoundary presentation={presentation} />)
+
+    expect(html.indexOf('Accessible tub: Documented mismatch')).toBeLessThan(html.indexOf('Roll-in shower: Not documented — confirm'))
+  })
+
   it('renders every selected need on the active linked card with matching accessible outcomes', () => {
     const presentation = createAccessibilityPresentation(['roll_in_shower', 'accessible_tub'], [fact()])
     const html = renderToStaticMarkup(<DealCard deal={deal} href="/deals/hotel-1" accessibility={presentation} />)

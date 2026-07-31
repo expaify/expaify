@@ -254,17 +254,18 @@ function formatCertainty(certainty?: AccessibilityCertainty): string {
 
 function EvidenceDefinitions({ need }: { need: AccessibilityNeedResult }) {
   const fact = need.facts[0]
+  const displayableFact = fact?.state === 'malformed' ? undefined : fact
   const rows: Array<[string, string]> = [
     ['Outcome', outcomeCopy(need)],
     ['What is documented', stateEvidenceCopy(need, fact)],
-    ['Scope', formatScope(fact?.scope)],
-    ['Certainty', formatCertainty(fact?.certainty)],
-    ['Room or product', fact?.roomLabel || fact?.roomProductId || 'No room or product identified'],
-    ['Rate or selected stay', fact?.rateId || fact?.stayFingerprint || 'No rate or selected stay identified'],
-    ['Source', fact?.sourceLabel?.trim() || 'Source not provided'],
-    ['Last checked', fact?.observedAt && isCurrentDate(fact.observedAt) ? new Date(fact.observedAt).toLocaleString('en-US') : 'Last checked not provided'],
+    ['Scope', formatScope(displayableFact?.scope)],
+    ['Certainty', formatCertainty(displayableFact?.certainty)],
+    ['Room or product', displayableFact?.roomLabel || displayableFact?.roomProductId || 'No room or product identified'],
+    ['Rate or selected stay', displayableFact?.rateId || displayableFact?.stayFingerprint || 'No rate or selected stay identified'],
+    ['Source', displayableFact?.sourceLabel?.trim() || 'Source not provided'],
+    ['Last checked', displayableFact?.observedAt && isCurrentDate(displayableFact.observedAt) ? new Date(displayableFact.observedAt).toLocaleString('en-US') : 'Last checked not provided'],
   ]
-  if (fact?.confirmationReference && need.outcome === 'documented') rows.push(['Confirmation reference', fact.confirmationReference])
+  if (displayableFact?.confirmationReference && need.outcome === 'documented') rows.push(['Confirmation reference', displayableFact.confirmationReference])
   return (
     <dl className="mt-3 grid min-w-0 grid-cols-1 gap-y-1 sm:grid-cols-[minmax(8rem,0.35fr)_minmax(0,1fr)] sm:gap-x-4 sm:gap-y-2">
       {rows.map(([term, value]) => (
@@ -284,6 +285,7 @@ function RequiredEvidenceRows({ need }: { need: AccessibilityNeedResult }) {
       <ul className="mt-2 space-y-3">
         {REQUIRED_FACT_IDS[need.id].map(canonicalId => {
           const fact = need.facts.find(candidate => candidate.canonicalId === canonicalId)
+          const displayableFact = fact?.state === 'malformed' ? undefined : fact
           const factOutcome = !fact
             ? 'Not documented — confirm'
             : fact.state === 'loading'
@@ -308,13 +310,13 @@ function RequiredEvidenceRows({ need }: { need: AccessibilityNeedResult }) {
                 {[
                   ['Outcome', factOutcome],
                   ['What is documented', fact ? stateEvidenceCopy({ ...need, state: fact.state, facts: [fact], requestable: fact.certainty === 'requestable' }, fact) : 'The available information does not establish this requirement.'],
-                  ['Scope', formatScope(fact?.scope)],
-                  ['Certainty', formatCertainty(fact?.certainty)],
-                  ['Room or product', fact?.roomLabel || fact?.roomProductId || 'No room or product identified'],
-                  ['Rate or selected stay', fact?.rateId || fact?.stayFingerprint || 'No rate or selected stay identified'],
-                  ['Source', fact?.sourceLabel?.trim() || 'Source not provided'],
-                  ['Last checked', fact?.observedAt && isCurrentDate(fact.observedAt) ? new Date(fact.observedAt).toLocaleString('en-US') : 'Last checked not provided'],
-                  ...(fact?.confirmationReference && factOutcome === 'Documented for this stay' ? [['Confirmation reference', fact.confirmationReference]] : []),
+                  ['Scope', formatScope(displayableFact?.scope)],
+                  ['Certainty', formatCertainty(displayableFact?.certainty)],
+                  ['Room or product', displayableFact?.roomLabel || displayableFact?.roomProductId || 'No room or product identified'],
+                  ['Rate or selected stay', displayableFact?.rateId || displayableFact?.stayFingerprint || 'No rate or selected stay identified'],
+                  ['Source', displayableFact?.sourceLabel?.trim() || 'Source not provided'],
+                  ['Last checked', displayableFact?.observedAt && isCurrentDate(displayableFact.observedAt) ? new Date(displayableFact.observedAt).toLocaleString('en-US') : 'Last checked not provided'],
+                  ...(displayableFact?.confirmationReference && factOutcome === 'Documented for this stay' ? [['Confirmation reference', displayableFact.confirmationReference]] : []),
                 ].map(([term, value]) => (
                   <div key={term} className="contents">
                     <dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">{term}</dt>
@@ -328,6 +330,21 @@ function RequiredEvidenceRows({ need }: { need: AccessibilityNeedResult }) {
       </ul>
     </div>
   )
+}
+
+function roomConfirmationCopy(presentation: AccessibilityPresentation): string {
+  if (presentation.needs.length === 0) return 'No accessibility needs were selected for comparison.'
+  if (presentation.rollup === 'all_documented') return 'Selected stay documents all chosen accessibility needs.'
+
+  const namedRoomFact = presentation.needs
+    .flatMap(need => need.facts)
+    .find(fact => fact.state === 'ready' && Boolean(fact.roomLabel?.trim() || fact.roomProductId?.trim()) && !hasSelectedStayBinding(fact))
+  if (namedRoomFact) {
+    const roomName = namedRoomFact.roomLabel?.trim() || namedRoomFact.roomProductId!.trim()
+    return `${roomName} has documented features, but this rate is not tied to that room. Confirm before booking.`
+  }
+
+  return 'No room selected — accessibility fit is not confirmed.'
 }
 
 export function AccessibilityFitLedger({ presentation, hotelName, criteriaValid = true }: {
@@ -360,7 +377,7 @@ export function AccessibilityFitLedger({ presentation, hotelName, criteriaValid 
       <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div><dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Selected needs</dt><dd className="mt-1 text-small text-[color:var(--text-2)]">{noNeeds ? 'None selected' : `${presentation.needs.length} selected`}</dd></div>
         <div><dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Evidence outcome</dt><dd className="mt-1 text-small text-[color:var(--text-2)]">{evidenceOutcome}</dd></div>
-        <div><dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Room confirmation</dt><dd className="mt-1 text-small text-[color:var(--text-2)]">{noNeeds ? 'No accessibility needs were selected for comparison.' : presentation.rollup === 'all_documented' ? 'Selected stay documents all chosen accessibility needs.' : 'No room selected — accessibility fit is not confirmed.'}</dd></div>
+        <div><dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Room confirmation</dt><dd className="mt-1 text-small text-[color:var(--text-2)]">{roomConfirmationCopy(presentation)}</dd></div>
       </dl>
       {presentation.rollup === 'loading' ? <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">Checking accessibility details for {hotelName}.</p> : null}
       {GROUPS.map(group => {
@@ -411,11 +428,13 @@ export function AccessibilityHandoffBoundary({ presentation }: { presentation: A
       </div>
     )
   }
-  const unresolved = presentation.needs.filter(need => need.outcome !== 'documented')
+  const unresolved = presentation.needs
+    .filter(need => need.outcome !== 'documented')
+    .sort((a, b) => Number(b.outcome === 'mismatch') - Number(a.outcome === 'mismatch'))
   return (
     <div className={`mt-4 rounded-[var(--radius-control)] border p-4 ${unresolved.some(need => need.state === 'error') ? 'border-[color:var(--error)] bg-[color:var(--error-soft)]' : 'border-[color:var(--border-strong)] bg-[color:var(--warning-soft)]'}`}>
       <p className="text-body font-medium text-[color:var(--text-1)]">{presentation.rollup === 'has_mismatch' ? 'Review before booking' : 'Confirm before booking'}</p>
-      <p className="mt-1 text-small leading-5 text-[color:var(--text-2)]">No room selected — accessibility fit is not confirmed.</p>
+      <p className="mt-1 text-small leading-5 text-[color:var(--text-2)]">{roomConfirmationCopy(presentation)}</p>
       <ul className="mt-2 list-disc space-y-1 pl-5 text-small text-[color:var(--text-2)]">{unresolved.map(need => <li key={need.id}>{need.label}: {outcomeCopy(need)}</li>)}</ul>
       {unresolved.some(need => need.requestable) ? <p className="mt-2 text-small leading-5 text-[color:var(--text-2)]">Request only — not guaranteed until the provider confirms.</p> : null}
     </div>
