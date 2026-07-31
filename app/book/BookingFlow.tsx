@@ -37,6 +37,10 @@ import TrackedSmokingPolicyPanel from '@/app/components/TrackedSmokingPolicyPane
 import { HotelBookingOwnershipDisclosure } from '@/app/components/HotelBookingOwnership'
 import { HotelLoyaltyEligibilityDisclosure } from '@/app/components/HotelLoyaltyEligibility'
 import { HotelRoomViewConfidence } from '@/app/components/HotelRoomViewConfidence'
+import {
+  getHotelTransportHandoffGuidance,
+  HotelTransportSection,
+} from '@/app/components/HotelTransport'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -1068,7 +1072,8 @@ function HotelHandoffReview({
   const feeAccessibleClause = feeProviderName
     ? `Mandatory property fees are not confirmed. Check the final total and any amount due at the property on ${feeProviderName}.`
     : "Mandatory property fees are not confirmed. Check the final total and any amount due at the property on the booking partner's site."
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. ${feeAccessibleClause} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
+  const transportGuidance = getHotelTransportHandoffGuidance(hotelContext.transportEvidence)
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. ${feeAccessibleClause} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
 
   return (
     <ReviewShell
@@ -1135,6 +1140,9 @@ function HotelHandoffReview({
         <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
           The provider shows room options, live availability, final total, taxes and fees, cancellation policy, and terms. Choose or confirm your dates there before comparing rooms.
         </p>
+        <p className="mt-3 break-words text-sm font-medium leading-6 text-[color:var(--text-2)]">
+          {transportGuidance}
+        </p>
         <HotelBookingOwnershipDisclosure
           partner={partner}
           expaifyIssueRoute={null}
@@ -1178,6 +1186,11 @@ function HotelHandoffReview({
               capability: hotelContext.rateEligibilityCapability,
             })}
             providerName={providerDisplayName(hotelContext.provider)}
+          />
+          <HotelTransportSection
+            hotelId={hotelContext.offerId}
+            evidence={hotelContext.transportEvidence}
+            bookingReview
           />
           <ParkingSection
             hotelId={hotelContext.offerId}
