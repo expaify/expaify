@@ -149,6 +149,74 @@ export interface HotelAmenityEvidence {
 
 export type HotelAccessEvidenceState = 'loading' | 'ready' | 'error';
 
+export type HotelTransportServiceKind =
+  | 'airport_shuttle'
+  | 'airport_transfer'
+  | 'other_documented';
+
+export type HotelTransportDirection =
+  | 'to_property'
+  | 'from_property'
+  | 'round_trip'
+  | 'unknown';
+
+export type HotelTransportOperator = 'property' | 'third_party' | 'unknown';
+export type HotelTransportCostState = 'included' | 'paid' | 'unknown';
+export type HotelTransportChargeBasis = 'per_person' | 'per_vehicle' | 'per_booking' | 'unknown';
+export type HotelTransportTripBasis = 'each_way' | 'round_trip' | 'unknown';
+export type HotelTransportHoursMode = '24_hours' | 'scheduled' | 'on_request' | 'unknown';
+export type HotelTransportAction =
+  | 'none_documented'
+  | 'reserve_before_arrival'
+  | 'call_on_arrival'
+  | 'contact_property'
+  | 'unknown';
+
+export interface HotelTransportTimeWindow {
+  startLocal: string;
+  endLocal: string;
+  days?: string;
+}
+
+export type HotelTransportConflictDimension =
+  | 'facility'
+  | 'service_kind'
+  | 'direction'
+  | 'operator'
+  | 'cost'
+  | 'hours'
+  | 'action';
+
+export interface HotelTransportEvidence {
+  state: 'loading' | 'ready' | 'error';
+  facilityStatus: HotelEvidenceStatus;
+  serviceKind?: HotelTransportServiceKind;
+  endpointName?: string;
+  direction?: HotelTransportDirection;
+  operator?: HotelTransportOperator;
+  cost?: {
+    state: HotelTransportCostState;
+    amount?: Money;
+    chargeBasis: HotelTransportChargeBasis;
+    tripBasis: HotelTransportTripBasis;
+  };
+  hours?: {
+    mode: HotelTransportHoursMode;
+    windows?: readonly HotelTransportTimeWindow[];
+    timezone?: string;
+  };
+  action?: {
+    kind: HotelTransportAction;
+    instruction?: string;
+    advanceDeadline?: string;
+  };
+  sourceLabel?: string;
+  fetchedAt?: string;
+  confidence?: HotelAmenityConfidence;
+  evidenceRevision: string;
+  conflictDimensions?: readonly HotelTransportConflictDimension[];
+}
+
 export type ParkingLocationKind = 'on_site' | 'nearby_off_site' | 'street' | 'unknown';
 
 export type ParkingSpaceState =
@@ -570,6 +638,7 @@ export interface HotelOffer {
   guestRating?: HotelRatingEvidence;
   amenityEvidence?: HotelAmenityEvidence[];
   accessEvidenceState?: HotelAccessEvidenceState;
+  transportEvidence?: HotelTransportEvidence;
   fundsPolicy: HotelFundsPolicyEvidence;
   smokingPolicy?: HotelSmokingPolicy;
   rateEligibility?: HotelRateEligibilityEvidence;

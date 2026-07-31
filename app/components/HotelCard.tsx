@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type MouseEvent as ReactMouseEvent } from 'react'
-import { DealScore, HotelAmenityEvidence, HotelEvidenceFee, HotelOffer, type HotelParkingConflictDimension, type HotelParkingEvidence } from '@/lib/types'
+import { DealScore, HotelAmenityEvidence, HotelEvidenceFee, HotelOffer, type HotelParkingConflictDimension, type HotelParkingEvidence, type HotelTransportEvidence } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
 import {
   buildBookingHotelContext,
@@ -37,6 +37,11 @@ import { HotelPetPolicyDetails, HotelPetPolicyScan } from './HotelPetPolicy'
 import type { HotelPetPolicyPresentation } from './HotelPetPolicy'
 import { getCollapsedSmokingPolicy, type HotelSmokingPolicyView } from './SmokingPolicyPanel'
 import TrackedSmokingPolicyPanel from './TrackedSmokingPolicyPanel'
+import {
+  getAirportDistanceTransportCaveat,
+  HotelTransportSection,
+  HotelTransportSummary,
+} from './HotelTransport'
 
 type Props = {
   hotel: HotelOffer
@@ -52,6 +57,8 @@ type Props = {
   fundsPolicyLoadState?: HotelFundsPolicyLoadState
   petPolicy?: HotelPetPolicyPresentation
   smokingPolicy?: HotelSmokingPolicyView
+  transportEvidence?: HotelTransportEvidence | null
+  airportLinked?: boolean
 }
 
 type AccessFactId =
@@ -771,6 +778,8 @@ export default function HotelCard({
   fundsPolicyLoadState = 'ready',
   petPolicy,
   smokingPolicy,
+  transportEvidence,
+  airportLinked,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [photoFailed, setPhotoFailed] = useState(false)
@@ -794,9 +803,12 @@ export default function HotelCard({
   const providerConfirmationCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
   const reviewDisclosure = providerConfirmationCopy
   const resolvedFundsPolicy = fundsPolicy ?? hotel.fundsPolicy
-  const selectedHotel = resolvedFundsPolicy === hotel.fundsPolicy
-    ? hotel
-    : { ...hotel, fundsPolicy: resolvedFundsPolicy }
+  const resolvedTransportEvidence = transportEvidence ?? hotel.transportEvidence
+  const selectedHotel = {
+    ...hotel,
+    fundsPolicy: resolvedFundsPolicy,
+    ...(resolvedTransportEvidence !== undefined ? { transportEvidence: resolvedTransportEvidence } : {}),
+  }
   const bookingHref = canBook ? buildHotelBookingHref(selectedHotel) : ''
   const bookingHrefNeedsReference = canBook && hotelBookingHrefRequiresReference(bookingHref)
   const rateEligibility = deriveRateEligibilityPresentation({
@@ -840,6 +852,8 @@ export default function HotelCard({
     : undefined
   const resolvedSmokingPolicy = smokingPolicy ?? hotel.smokingPolicy
   const collapsedSmokingPolicy = getCollapsedSmokingPolicy(resolvedSmokingPolicy)
+  const isAirportLinked = airportLinked ?? hotel.location?.anchor?.kind === 'airport'
+  const showTransportSummary = isAirportLinked || resolvedTransportEvidence !== undefined
   const fundsPolicyExposureRef = useHotelFundsPolicyExposure({
     evidence: resolvedFundsPolicy,
     loadState: fundsPolicyLoadState,
@@ -977,6 +991,8 @@ export default function HotelCard({
           hasSearchDates={hasSearchDates}
         />
 
+        {showTransportSummary ? <HotelTransportSummary evidence={resolvedTransportEvidence} /> : null}
+
         {canBook ? (
           <HotelFundsPolicyPanel
             evidence={resolvedFundsPolicy}
@@ -1078,9 +1094,18 @@ export default function HotelCard({
                 {location.note}
               </p>
               {location.distanceText ? (
-                <p className="mt-2 break-words text-[color:var(--text-2)]">{location.distanceText}</p>
+                <div className="mt-2">
+                  <p className="break-words text-[color:var(--text-2)]">{location.distanceText}</p>
+                  {isAirportLinked ? (
+                    <p className="mt-1 break-words text-[color:var(--text-3)]">
+                      {getAirportDistanceTransportCaveat(resolvedTransportEvidence)}
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
             </div>
+
+            <HotelTransportSection hotelId={hotel.id} evidence={resolvedTransportEvidence} />
 
             <HotelAdmissionPolicyCardBlock presentation={admissionPolicy} providerName={hasHotelProviderName ? providerName : ''} />
 
