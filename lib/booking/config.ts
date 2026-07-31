@@ -23,6 +23,16 @@ import type {
   HotelRatingEvidence,
   HotelSmokingDimension,
   HotelSmokingPolicy,
+  HotelTransportAction,
+  HotelTransportChargeBasis,
+  HotelTransportConflictDimension,
+  HotelTransportCostState,
+  HotelTransportDirection,
+  HotelTransportEvidence,
+  HotelTransportHoursMode,
+  HotelTransportOperator,
+  HotelTransportServiceKind,
+  HotelTransportTripBasis,
   PropertySmokingPolicyValue,
   RoomSmokingPolicyValue,
   SupplierAdmissionStatement,
@@ -80,6 +90,7 @@ export type BookingHotelContext = {
   hotelClass?: HotelRatingEvidence;
   guestRating?: HotelRatingEvidence;
   smokingPolicy?: HotelSmokingPolicy;
+  transportEvidence?: HotelTransportEvidence;
   rateEligibility?: HotelRateEligibilityEvidence;
   rateEligibilityCapability?: HotelRateEligibilityCapability;
   admissionPolicy?: HotelAdmissionPolicyEvidence;
@@ -137,6 +148,7 @@ type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
   documentVerificationUrl?: unknown;
   fundsPolicy?: unknown;
   smokingPolicy?: unknown;
+  transportEvidence?: unknown;
 };
 
 export function isBookingEnabled(): boolean {
@@ -789,6 +801,136 @@ function validateHotelAdmissionPolicyCapability(value: unknown): HotelAdmissionP
   };
 }
 
+const TRANSPORT_SERVICE_KINDS = new Set<HotelTransportServiceKind>(['airport_shuttle', 'airport_transfer', 'other_documented']);
+const TRANSPORT_DIRECTIONS = new Set<HotelTransportDirection>(['to_property', 'from_property', 'round_trip', 'unknown']);
+const TRANSPORT_OPERATORS = new Set<HotelTransportOperator>(['property', 'third_party', 'unknown']);
+const TRANSPORT_COST_STATES = new Set<HotelTransportCostState>(['included', 'paid', 'unknown']);
+const TRANSPORT_CHARGE_BASES = new Set<HotelTransportChargeBasis>(['per_person', 'per_vehicle', 'per_booking', 'unknown']);
+const TRANSPORT_TRIP_BASES = new Set<HotelTransportTripBasis>(['each_way', 'round_trip', 'unknown']);
+const TRANSPORT_HOURS_MODES = new Set<HotelTransportHoursMode>(['24_hours', 'scheduled', 'on_request', 'unknown']);
+const TRANSPORT_ACTIONS = new Set<HotelTransportAction>(['none_documented', 'reserve_before_arrival', 'call_on_arrival', 'contact_property', 'unknown']);
+const TRANSPORT_CONFLICT_DIMENSIONS = new Set<HotelTransportConflictDimension>(['facility', 'service_kind', 'direction', 'operator', 'cost', 'hours', 'action']);
+
+function unclearHotelTransportEvidence(revision = 'invalid-booking-context'): HotelTransportEvidence {
+  return {
+    state: 'ready',
+    facilityStatus: 'unknown',
+    evidenceRevision: revision,
+  };
+}
+
+function validateHotelTransportEvidence(value: unknown): HotelTransportEvidence | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return unclearHotelTransportEvidence();
+  const record = value as Record<string, unknown>;
+  const revision = cleanRequired(record.evidenceRevision);
+  const state = record.state;
+  const facilityStatus = record.facilityStatus;
+  if (
+    !revision ||
+    (state !== 'loading' && state !== 'ready' && state !== 'error') ||
+    (facilityStatus !== 'confirmed' && facilityStatus !== 'unavailable' && facilityStatus !== 'not_returned' && facilityStatus !== 'unknown')
+  ) return unclearHotelTransportEvidence(revision || undefined);
+
+  const serviceKind = TRANSPORT_SERVICE_KINDS.has(record.serviceKind as HotelTransportServiceKind)
+    ? record.serviceKind as HotelTransportServiceKind
+    : undefined;
+  const direction = TRANSPORT_DIRECTIONS.has(record.direction as HotelTransportDirection)
+    ? record.direction as HotelTransportDirection
+    : undefined;
+  const operator = TRANSPORT_OPERATORS.has(record.operator as HotelTransportOperator)
+    ? record.operator as HotelTransportOperator
+    : undefined;
+  const sourceLabel = cleanOptional(record.sourceLabel);
+  const fetchedAtValue = cleanOptional(record.fetchedAt);
+  const fetchedAt = fetchedAtValue && isValidDateInput(fetchedAtValue) ? fetchedAtValue : undefined;
+  const confidence = isHotelQualityConfidence(record.confidence) ? record.confidence : undefined;
+
+  let cost: HotelTransportEvidence['cost'];
+  if (typeof record.cost === 'object' && record.cost !== null && !Array.isArray(record.cost)) {
+    const costRecord = record.cost as Record<string, unknown>;
+    if (
+      TRANSPORT_COST_STATES.has(costRecord.state as HotelTransportCostState) &&
+      TRANSPORT_CHARGE_BASES.has(costRecord.chargeBasis as HotelTransportChargeBasis) &&
+      TRANSPORT_TRIP_BASES.has(costRecord.tripBasis as HotelTransportTripBasis)
+    ) {
+      const amountRecord = typeof costRecord.amount === 'object' && costRecord.amount !== null && !Array.isArray(costRecord.amount)
+        ? costRecord.amount as Record<string, unknown>
+        : undefined;
+      const amountCents = amountRecord ? parseInteger(amountRecord.priceCents) : null;
+      const amountCurrency = amountRecord ? cleanRequired(amountRecord.currency) : '';
+      const amount = amountCents !== null && amountCents > 0 && isCurrencyCode(amountCurrency)
+        ? { priceCents: amountCents, currency: amountCurrency }
+        : undefined;
+      cost = {
+        state: costRecord.state as HotelTransportCostState,
+        chargeBasis: costRecord.chargeBasis as HotelTransportChargeBasis,
+        tripBasis: costRecord.tripBasis as HotelTransportTripBasis,
+        ...(amount ? { amount } : {}),
+      };
+    }
+  }
+
+  let hours: HotelTransportEvidence['hours'];
+  if (typeof record.hours === 'object' && record.hours !== null && !Array.isArray(record.hours)) {
+    const hoursRecord = record.hours as Record<string, unknown>;
+    const mode = TRANSPORT_HOURS_MODES.has(hoursRecord.mode as HotelTransportHoursMode)
+      ? hoursRecord.mode as HotelTransportHoursMode
+      : 'unknown';
+    const windows = Array.isArray(hoursRecord.windows)
+      ? hoursRecord.windows.flatMap(window => {
+          if (typeof window !== 'object' || window === null || Array.isArray(window)) return [];
+          const windowRecord = window as Record<string, unknown>;
+          const startLocal = cleanRequired(windowRecord.startLocal);
+          const endLocal = cleanRequired(windowRecord.endLocal);
+          if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(startLocal) || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(endLocal)) return [];
+          const days = cleanOptional(windowRecord.days);
+          return [{ startLocal, endLocal, ...(days ? { days } : {}) }];
+        })
+      : undefined;
+    hours = {
+      mode: mode === 'scheduled' && !windows?.length ? 'unknown' : mode,
+      ...(windows?.length ? { windows } : {}),
+      ...(cleanOptional(hoursRecord.timezone) ? { timezone: cleanOptional(hoursRecord.timezone) } : {}),
+    };
+  }
+
+  let action: HotelTransportEvidence['action'];
+  if (typeof record.action === 'object' && record.action !== null && !Array.isArray(record.action)) {
+    const actionRecord = record.action as Record<string, unknown>;
+    if (TRANSPORT_ACTIONS.has(actionRecord.kind as HotelTransportAction)) {
+      const instruction = cleanOptional(actionRecord.instruction);
+      const advanceDeadline = cleanOptional(actionRecord.advanceDeadline);
+      action = {
+        kind: actionRecord.kind as HotelTransportAction,
+        ...(instruction ? { instruction } : {}),
+        ...(advanceDeadline ? { advanceDeadline } : {}),
+      };
+    }
+  }
+
+  const conflictDimensions = Array.isArray(record.conflictDimensions)
+    ? record.conflictDimensions.filter((item): item is HotelTransportConflictDimension => TRANSPORT_CONFLICT_DIMENSIONS.has(item as HotelTransportConflictDimension))
+    : undefined;
+
+  return {
+    state,
+    facilityStatus,
+    evidenceRevision: revision,
+    ...(serviceKind ? { serviceKind } : {}),
+    ...(cleanOptional(record.endpointName) ? { endpointName: cleanOptional(record.endpointName) } : {}),
+    ...(direction ? { direction } : {}),
+    ...(operator ? { operator } : {}),
+    ...(cost ? { cost } : {}),
+    ...(hours ? { hours } : {}),
+    ...(action ? { action } : {}),
+    ...(sourceLabel ? { sourceLabel } : {}),
+    ...(fetchedAt ? { fetchedAt } : {}),
+    ...(confidence ? { confidence } : {}),
+    ...(conflictDimensions?.length ? { conflictDimensions } : {}),
+  };
+}
+
 export function validateBookingHotelContext(input: HotelContextInput): BookingHotelContext | null {
   const kind = cleanRequired(input.kind);
   const offerId = cleanRequired(input.offerId);
@@ -821,6 +963,7 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const rateEligibilityCapability = validateHotelRateEligibilityCapability(input.rateEligibilityCapability) ?? undefined;
   const admissionPolicy = validateHotelAdmissionPolicyEvidence(input.admissionPolicy) ?? undefined;
   const admissionPolicyCapability = validateHotelAdmissionPolicyCapability(input.admissionPolicyCapability) ?? undefined;
+  const transportEvidence = validateHotelTransportEvidence(input.transportEvidence);
 
   if (
     kind !== 'hotel' ||
@@ -870,6 +1013,7 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     ...(rateEligibilityCapability !== undefined ? { rateEligibilityCapability } : {}),
     ...(admissionPolicy !== undefined ? { admissionPolicy } : {}),
     ...(admissionPolicyCapability !== undefined ? { admissionPolicyCapability } : {}),
+    ...(transportEvidence !== undefined ? { transportEvidence } : {}),
   };
 }
 
@@ -985,6 +1129,7 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     rateEligibilityCapability: parseJsonQueryParam(firstParam(params.rateEligibilityCapability)),
     admissionPolicy: parseJsonQueryParam(firstParam(params.admissionPolicy)),
     admissionPolicyCapability: parseJsonQueryParam(firstParam(params.admissionPolicyCapability)),
+    transportEvidence: parseJsonQueryParam(firstParam(params.transportEvidence)),
   });
 }
 
@@ -1080,6 +1225,7 @@ export function buildBookingHotelContext(hotel: HotelOffer, continuity?: Booking
     ...(hotel.rateEligibilityCapability !== undefined ? { rateEligibilityCapability: hotel.rateEligibilityCapability } : {}),
     ...(hotel.admissionPolicy !== undefined ? { admissionPolicy: hotel.admissionPolicy } : {}),
     ...(hotel.admissionPolicyCapability !== undefined ? { admissionPolicyCapability: hotel.admissionPolicyCapability } : {}),
+    ...(hotel.transportEvidence !== undefined ? { transportEvidence: hotel.transportEvidence } : {}),
     ...(continuity?.entrySource !== undefined ? { entrySource: continuity.entrySource } : {}),
     ...(continuity?.returnUrl !== undefined ? { returnUrl: continuity.returnUrl } : {}),
     ...(continuity?.checkIn !== undefined ? { checkIn: continuity.checkIn } : {}),
@@ -1146,6 +1292,7 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
   if (context.rateEligibilityCapability) params.set('rateEligibilityCapability', JSON.stringify(context.rateEligibilityCapability));
   if (context.admissionPolicy) params.set('admissionPolicy', JSON.stringify(context.admissionPolicy));
   if (context.admissionPolicyCapability) params.set('admissionPolicyCapability', JSON.stringify(context.admissionPolicyCapability));
+  if (context.transportEvidence) params.set('transportEvidence', JSON.stringify(context.transportEvidence));
   const issuerParams = [
     ['invoice', 'documentInvoiceIssuerRole', 'documentInvoiceIssuerName'],
     ['receipt', 'documentReceiptIssuerRole', 'documentReceiptIssuerName'],

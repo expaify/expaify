@@ -207,11 +207,13 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Check rooms with provider');
     expect(text).toContain('Check rooms at provider');
     expect(text).toContain('The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.');
+    expect(text).toContain('Airport-transfer details were not confirmed. Check directly with the property before arrival.');
     expect(text).toContain('Supporting evidence');
     expect(text).toContain('Rate restrictions');
     expect(text).toContain('Restrictions not provided');
     expect(text).toContain('Hotellook did not provide complete rate restrictions. Check membership, residency, age, and refund terms before paying.');
     expect(text).toContain('Source: Hotellook. Rate-detail freshness not available.');
+    expect(text).toContain('Airport transfer details could not be checked. Confirm directly with the property before arrival.');
     expect(text).toContain('I need an invoice or receipt for this stay');
     expect(text).toContain('We’ll show what the provider supplied before you continue.');
     expect(text).not.toContain('Hotellook did not provide invoice or receipt information for this rate.');
@@ -240,7 +242,7 @@ describe('BookingFlow fare context review', () => {
     const outbound = findElements(tree, element => element.type === 'a' && typeof element.props['aria-label'] === 'string' && element.props['aria-label'].startsWith('Check rooms at'))[0];
     expect(outbound.props.href).toBe(hotelContext.providerUrl);
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
-    expect(outbound.props['aria-label']).toBe('Check rooms at provider for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ. Confirm the room\'s smoking status and the property\'s current smoking rules on the booking partner.');
+    expect(outbound.props['aria-label']).toBe('Check rooms at provider for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ. Airport-transfer details were not confirmed. Check directly with the property before arrival. Confirm the room\'s smoking status and the property\'s current smoking rules on the booking partner.');
   });
 
   it('carries a hotel Deal Score through to the booking review when present', () => {
@@ -389,7 +391,7 @@ describe('BookingFlow fare context review', () => {
     expect(findElements(readiness, element => ['input', 'button', 'a', 'details'].includes(String(element.type)))).toHaveLength(0);
   });
 
-  it('places traveler readiness directly after the partner fact grid and before invoice intent', () => {
+  it('places traveler readiness after rate, transport, and parking evidence and before invoice intent', () => {
     const tree = BookingFlow({
       bookingEnabled: false,
       duffelSandbox: false,
@@ -407,13 +409,15 @@ describe('BookingFlow fare context review', () => {
     ));
 
     const readinessIndex = labelledBy.indexOf('hotel-traveler-readiness-title');
+    const transportIndex = labelledBy.indexOf(`hotel-transport-title-${hotelContext.offerId}-review`);
     const specialRequestsIndex = labelledBy.indexOf('hotel-special-requests-title');
     const invoiceControlIndex = items.findIndex(item => collectText(item).includes('I need an invoice or receipt for this stay'));
 
     expect(readinessIndex).toBeGreaterThan(-1);
+    expect(transportIndex).toBe(1);
     expect(invoiceControlIndex).toBeGreaterThan(-1);
     expect(specialRequestsIndex).toBeGreaterThan(-1);
-    expect(readinessIndex).toBe(2);
+    expect(readinessIndex).toBe(3);
     expect(invoiceControlIndex).toBeGreaterThan(readinessIndex);
     expect(specialRequestsIndex).toBeGreaterThan(invoiceControlIndex);
   });

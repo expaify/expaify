@@ -36,6 +36,10 @@ import type { HotelSmokingPolicyView } from '@/app/components/SmokingPolicyPanel
 import TrackedSmokingPolicyPanel from '@/app/components/TrackedSmokingPolicyPanel'
 import { HotelBookingOwnershipDisclosure } from '@/app/components/HotelBookingOwnership'
 import { HotelLoyaltyEligibilityDisclosure } from '@/app/components/HotelLoyaltyEligibility'
+import {
+  getHotelTransportHandoffGuidance,
+  HotelTransportSection,
+} from '@/app/components/HotelTransport'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -1058,7 +1062,8 @@ function HotelHandoffReview({
     ? `Opens ${partner.label} in a new tab. Your expaify search stays open here.`
     : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
   const accessiblePartner = partner.named ? partner.label : 'the booking partner’s site'
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
+  const transportGuidance = getHotelTransportHandoffGuidance(hotelContext.transportEvidence)
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
 
   return (
     <ReviewShell
@@ -1126,6 +1131,9 @@ function HotelHandoffReview({
           The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.
           {' '}Choose or confirm your dates there before comparing room options.
         </p>
+        <p className="mt-3 break-words text-sm font-medium leading-6 text-[color:var(--text-2)]">
+          {transportGuidance}
+        </p>
         <HotelBookingOwnershipDisclosure
           partner={partner}
           expaifyIssueRoute={null}
@@ -1165,6 +1173,11 @@ function HotelHandoffReview({
               capability: hotelContext.rateEligibilityCapability,
             })}
             providerName={providerDisplayName(hotelContext.provider)}
+          />
+          <HotelTransportSection
+            hotelId={hotelContext.offerId}
+            evidence={hotelContext.transportEvidence}
+            bookingReview
           />
           <ParkingSection
             hotelId={hotelContext.offerId}
