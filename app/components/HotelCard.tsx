@@ -42,6 +42,7 @@ import {
   HotelTransportSection,
   HotelTransportSummary,
 } from './HotelTransport'
+import HotelCancellationChoicesUnavailable from './HotelCancellationChoicesUnavailable'
 
 type Props = {
   hotel: HotelOffer
@@ -1162,6 +1163,8 @@ export default function HotelCard({
                 provider={hotel.source}
               />
             ) : null}
+
+            <HotelCancellationChoicesUnavailable headingLevel="h4" />
 
             <div className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[color:var(--text-2)]">
               <p className="font-medium text-[color:var(--text-1)]">Provider handoff</p>

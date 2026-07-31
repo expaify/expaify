@@ -18,6 +18,7 @@ import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
 import { notProvidedHotelDocumentReadiness } from '@/lib/providers/hotelDocumentReadiness'
+import HotelCancellationChoicesUnavailable from '@/app/components/HotelCancellationChoicesUnavailable'
 import {
   NO_QUIET_STAY_EVIDENCE,
   QuietStayEvidenceLedger,
@@ -395,6 +396,8 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
               </Suspense>
             </div>
           </section>
+
+          <HotelCancellationChoicesUnavailable headingLevel="h2" />
 
           <section aria-labelledby="saved-hotel-fit-title" data-hotel-decision-section="hotel_fit" data-hotel-decision-position="3" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="saved-hotel-fit-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Hotel fit</h2>
