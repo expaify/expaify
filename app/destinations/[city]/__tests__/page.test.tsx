@@ -65,4 +65,29 @@ describe('destination criteria continuity', () => {
     expect(feed).toBeUndefined()
     expect(mockGetActiveDeals).not.toHaveBeenCalled()
   })
+
+  it('bridges normalized funds-policy state into destination initial deals', async () => {
+    mockGetActiveDeals.mockResolvedValue([{
+      id: 'deal-1', hotel_id: 'hotel-1', hotel_name: 'Hotel One', stars: 4,
+      photo_url: null, city: 'Miami', deal_price_cents: 10_000, median_price_cents: 15_000,
+      discount_pct: 33, check_in_window: 'Aug 1–3', check_in_date: '2026-08-01', nights: 2,
+      snapshot_count: 20, ota_links: {}, headline: null, description: null, is_mock: false,
+      first_seen: null, expires_at: null, updated_at: null,
+    }])
+    mockGetFreeUnlockedDealIds.mockResolvedValue(new Set(['deal-1']))
+
+    const tree = await CityPage({ params: Promise.resolve({ city: 'miami' }), searchParams: Promise.resolve({}) })
+    const feed = walk(tree).find(element => element.type === DealFeed)
+
+    expect(feed?.props.initialDeals).toEqual([
+      expect.objectContaining({
+        id: 'deal-1',
+        fundsPolicy: {
+          provider: 'other', capability: { policy: false },
+          evidence: { state: 'not_returned', obligations: [], sourceLabel: 'Hotel provider', scope: 'not_returned' },
+          loadState: 'ready',
+        },
+      }),
+    ])
+  })
 })

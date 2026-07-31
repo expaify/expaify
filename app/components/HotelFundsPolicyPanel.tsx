@@ -6,6 +6,7 @@ import type {
   HotelFundsMissingField,
   HotelFundsObligationType,
   HotelFundsPolicyEvidence,
+  HotelFundsPolicyCapability,
   HotelFundsPolicyLoadState,
   Money,
 } from '@/lib/types'
@@ -36,6 +37,7 @@ type Props = {
   offerId?: string
   provider?: string
   rootRef?: Ref<HTMLElement>
+  capability?: HotelFundsPolicyCapability
 }
 
 const mechanismLabels: Record<HotelFundsObligationType, string> = {
@@ -247,8 +249,10 @@ export function getHotelFundsPolicyAccessibleSuffix(
   evidence: HotelFundsPolicyEvidence | null | undefined,
   loadState: HotelFundsPolicyLoadState = 'ready',
   sourceLabel = 'Hotel provider',
+  capability?: HotelFundsPolicyCapability,
 ): string {
   const resolved = resolvedEvidence(evidence, sourceLabel)
+  if (capability?.policy === false) return 'Deposit and hold details are unavailable from this provider.'
   if (loadState === 'loading') return 'Deposit and hold policy is still being checked; confirm with the booking partner.'
   if (loadState === 'error') return 'Deposit and hold policy could not be checked.'
   if (resolved.state === 'complete') return 'Deposit or card-hold policy reported; review details before provider handoff.'
@@ -270,16 +274,19 @@ export default function HotelFundsPolicyPanel({
   offerId,
   provider,
   rootRef,
+  capability,
 }: Props) {
   const resolved = resolvedEvidence(evidence, sourceLabel)
+  const providerIncapable = capability?.policy === false
   const displayedState = loadState === 'error' ? 'error' : loadState === 'loading' ? 'loading' : resolved.state
-  const warningState = ['partial', 'not_returned', 'conflicting', 'error'].includes(displayedState)
+  const warningState = !providerIncapable && ['partial', 'not_returned', 'conflicting', 'error'].includes(displayedState)
   const summary = summaryCopy(resolved, loadState)
   const summaryClasses = warningState
     ? 'border-[color:var(--border-strong)] bg-[color:var(--warning-soft)]'
     : 'border-[color:var(--border)] bg-[color:var(--bg-raised)]'
 
   if (variant === 'summary') {
+    if (capability && (providerIncapable || loadState !== 'ready' || !['complete', 'partial', 'conflicting', 'explicit_none'].includes(resolved.state))) return null
     return (
       <div
         ref={rootRef as Ref<HTMLDivElement>}
@@ -293,7 +300,9 @@ export default function HotelFundsPolicyPanel({
     )
   }
 
-  const panelTone = displayedState === 'error'
+  const panelTone = providerIncapable
+    ? 'border-[color:var(--border)] bg-[color:var(--bg-surface)]'
+    : displayedState === 'error'
     ? 'border-[color:var(--border-strong)] bg-[color:var(--error-soft)]'
     : warningState
       ? 'border-[color:var(--border-strong)] bg-[color:var(--warning-soft)]'
@@ -302,6 +311,8 @@ export default function HotelFundsPolicyPanel({
         : 'border-[color:var(--border)] bg-[color:var(--bg-surface)]'
   const headingId = `hotel-funds-policy-${surface}-${hotelName?.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'offer'}`
   const showConfirmation = surface === 'book_handoff' && Boolean(confirmHref) && (
+    providerIncapable
+    ||
     loadState === 'error'
     || resolved.state === 'partial'
     || resolved.state === 'not_returned'
@@ -319,16 +330,22 @@ export default function HotelFundsPolicyPanel({
     <section
       ref={rootRef}
       aria-labelledby={headingId}
-      role={loadState === 'loading' || loadState === 'error' ? 'status' : undefined}
-      aria-live={loadState === 'loading' || loadState === 'error' ? 'polite' : undefined}
-      aria-busy={loadState === 'loading' ? 'true' : undefined}
+      role={!providerIncapable && (loadState === 'loading' || loadState === 'error') ? 'status' : undefined}
+      aria-live={!providerIncapable && (loadState === 'loading' || loadState === 'error') ? 'polite' : undefined}
+      aria-busy={!providerIncapable && loadState === 'loading' ? 'true' : undefined}
       className={`rounded-[var(--radius-card)] border p-3.5 sm:p-5 ${panelTone}`}
     >
       <h3 id={headingId} className="text-base font-medium leading-6 text-[color:var(--text-1)] sm:text-lg">
         Deposits and card holds
       </h3>
 
-      {loadState === 'loading' ? (
+      {providerIncapable ? (
+        <>
+          <p className="mt-2 text-sm font-medium leading-6 text-[color:var(--text-1)]">Deposit and hold details unavailable from this provider</p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">This provider does not supply deposit or incidental-hold details. The property may still require additional available funds.</p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">Confirm whether this property requires additional available funds before booking.</p>
+        </>
+      ) : loadState === 'loading' ? (
         <>
           <p className="mt-2 text-sm font-medium leading-6 text-[color:var(--text-1)]">Checking deposit and hold policy…</p>
           <div className="mt-4 space-y-3" aria-hidden="true">
@@ -345,8 +362,8 @@ export default function HotelFundsPolicyPanel({
         </>
       ) : resolved.state === 'not_returned' ? (
         <>
-          <p className="mt-2 text-sm font-medium leading-6 text-[color:var(--text-1)]">Policy not provided</p>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">The provider did not supply a deposit or incidental-hold policy for this offer.</p>
+          <p className="mt-2 text-sm font-medium leading-6 text-[color:var(--text-1)]">{capability?.policy === true ? 'Policy not provided for this offer' : 'Policy not provided'}</p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">{capability?.policy === true ? 'The provider can supply deposit or incidental-hold details, but did not return a policy for this offer.' : 'The provider did not supply a deposit or incidental-hold policy for this offer.'}</p>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">Confirm whether this property requires additional available funds before booking.</p>
         </>
       ) : resolved.state === 'explicit_none' ? (
@@ -387,11 +404,11 @@ export default function HotelFundsPolicyPanel({
         </>
       )}
 
-      {loadState === 'ready' ? (
+      {loadState === 'ready' || providerIncapable ? (
         <>
           {caution ? <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">{caution}</p> : null}
           <p className="mt-3 break-words border-t border-[color:var(--border)] pt-3 text-xs font-medium leading-5 text-[color:var(--text-3)] [overflow-wrap:anywhere]">
-            {sourceCopy(resolved, resolved.state === 'not_returned')}
+            {sourceCopy(resolved, providerIncapable || resolved.state === 'not_returned')}
           </p>
         </>
       ) : null}

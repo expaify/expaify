@@ -77,6 +77,8 @@ const hotel: HotelOffer = {
     billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
   },
   fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
+  fundsPolicyCapability: { policy: false },
+  fundsPolicyLoadState: 'ready',
 };
 
 describe('booking fare context continuity', () => {
@@ -213,6 +215,8 @@ describe('booking hotel context continuity', () => {
     expect(url.searchParams.get('documentStatus')).toBe('not_provided');
     expect(url.searchParams.get('documentScope')).toBe('rate');
     expect(url.searchParams.get('documentSourceLabel')).toBe('Hotellook');
+    expect(JSON.parse(url.searchParams.get('fundsPolicyCapability') ?? '')).toEqual({ policy: false });
+    expect(url.searchParams.get('fundsPolicyLoadState')).toBe('ready');
   });
 
   it('preserves validated document evidence and affiliate verification markers through /book', () => {
@@ -268,6 +272,8 @@ describe('booking hotel context continuity', () => {
       priceBasis: 'per_night_before_taxes_fees',
       providerUrl: 'https://tp.media/r?marker=hotel-marker',
       fundsPolicy: JSON.stringify({ state: 'not_returned', obligations: [], sourceLabel: 'hotellook', scope: 'not_returned' }),
+      fundsPolicyCapability: JSON.stringify({ policy: true }),
+      fundsPolicyLoadState: 'error',
     });
 
     expect(parsed).toEqual({
@@ -306,6 +312,8 @@ describe('booking hotel context continuity', () => {
         source: { label: 'Hotellook' },
       },
       fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'hotellook', scope: 'not_returned' },
+      fundsPolicyCapability: { policy: true },
+      fundsPolicyLoadState: 'error',
       smokingPolicy: {
         loadState: 'error',
         room: { state: 'unavailable', statements: [] },

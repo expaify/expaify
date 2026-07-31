@@ -10,6 +10,11 @@ import {
   getQuietEvidenceResultCue,
   type QuietStayEvidence,
 } from './QuietStayEvidenceLedger'
+import {
+  DepositHoldCardSignal,
+  getHotelFundsCardSignal,
+  type ApiDealFundsPolicy,
+} from '../HotelFundsPolicyComparison'
 
 type DealLinks = {
   expedia?: string
@@ -35,6 +40,7 @@ type DealCardDeal = {
   firstSeen?: string
   updatedAt?: string | null
   expired?: boolean
+  fundsPolicy?: ApiDealFundsPolicy
 }
 
 type DealCardProps = {
@@ -67,6 +73,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence }: DealCardProp
   const showSavings = savings >= 2000
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
   const quietEvidenceCue = getQuietEvidenceResultCue(quietStayEvidence)
+  const fundsPolicySignal = getHotelFundsCardSignal(deal.fundsPolicy)
 
   const content = (
     <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
@@ -126,6 +133,8 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence }: DealCardProp
           ) : null}
         </div>
 
+        <DepositHoldCardSignal policy={deal.fundsPolicy} />
+
         <PropertyPhoto src={deal.photoUrl} size="card" />
 
         {deal.expired ? null : deal.isMock ? (
@@ -154,7 +163,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence }: DealCardProp
         if ((event.target as Element).closest('a') === event.currentTarget) onOpen?.()
       }}
       className="block text-inherit no-underline"
-      aria-label={`View deal: ${deal.hotelName}${quietEvidenceCue ? `; ${quietEvidenceCue.replace(' · ', ': ')}` : ''}`}
+      aria-label={`View deal: ${deal.hotelName}${quietEvidenceCue ? `; ${quietEvidenceCue.replace(' · ', ': ')}` : ''}${fundsPolicySignal ? `. ${fundsPolicySignal.copy}` : ''}`}
     >
       {content}
     </a>

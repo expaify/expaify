@@ -391,6 +391,19 @@ export interface HotelFundsPolicyEvidence {
 
 export type HotelFundsPolicyLoadState = 'loading' | 'ready' | 'error';
 
+export interface HotelFundsPolicyCapability {
+  /** True only when the provider adapter can return deposit/hold evidence. */
+  policy: boolean;
+}
+
+/** Provider-normalized policy envelope retained across list, detail, and handoff. */
+export interface HotelFundsPolicyBridge {
+  provider: string;
+  capability: HotelFundsPolicyCapability;
+  evidence: HotelFundsPolicyEvidence;
+  loadState: HotelFundsPolicyLoadState;
+}
+
 export type HotelSmokingEvidenceState =
   | 'confirmed'
   | 'ambiguous'
@@ -640,6 +653,8 @@ export interface HotelOffer {
   accessEvidenceState?: HotelAccessEvidenceState;
   transportEvidence?: HotelTransportEvidence;
   fundsPolicy: HotelFundsPolicyEvidence;
+  fundsPolicyCapability?: HotelFundsPolicyCapability;
+  fundsPolicyLoadState?: HotelFundsPolicyLoadState;
   smokingPolicy?: HotelSmokingPolicy;
   rateEligibility?: HotelRateEligibilityEvidence;
   rateEligibilityCapability?: HotelRateEligibilityCapability;

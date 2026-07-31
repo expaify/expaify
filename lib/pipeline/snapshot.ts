@@ -1,5 +1,7 @@
 import { query } from '../db/client'
 import { buildOtaLinks } from './otaLinks'
+import { createUnsupportedHotelFundsPolicyBridge } from '../hotels/fundsPolicy'
+import type { HotelFundsPolicyBridge } from '../types'
 
 const NIGHTS = 2
 
@@ -61,6 +63,7 @@ type HotelEntry = {
   stars: number | null
   priceCents: number   // per night
   photoUrl: string | null
+  fundsPolicyBridge?: HotelFundsPolicyBridge
 }
 
 export class RateLimitError extends Error {
@@ -97,7 +100,14 @@ async function fetchBookingCom15(iata: string, checkIn: string, checkOut: string
     const price = (prop.priceBreakdown as { grossPrice?: { value?: number } } | undefined)?.grossPrice?.value ?? 0
     const priceCents = Math.round(price * 100)
     if (!id || !name || priceCents <= 0) return []
-    return [{ hotelId: `bk_${id}`, hotelName: name, stars, priceCents, photoUrl: photo }]
+    return [{
+      hotelId: `bk_${id}`,
+      hotelName: name,
+      stars,
+      priceCents,
+      photoUrl: photo,
+      fundsPolicyBridge: createUnsupportedHotelFundsPolicyBridge('booking-com15', 'Booking.com'),
+    }]
   })
 }
 
@@ -132,7 +142,14 @@ async function fetchBookingComCoords(iata: string, checkIn: string, checkOut: st
     const priceCents = Math.round((totalPrice / NIGHTS) * 100)
     // Skip apartments/non-hotel accommodation (class 0 = no star rating / unclassified)
     if (!id || !name || priceCents <= 0 || (stars !== null && stars < 1)) return []
-    return [{ hotelId: `bk_${id}`, hotelName: name, stars: stars || null, priceCents, photoUrl: photo || null }]
+    return [{
+      hotelId: `bk_${id}`,
+      hotelName: name,
+      stars: stars || null,
+      priceCents,
+      photoUrl: photo || null,
+      fundsPolicyBridge: createUnsupportedHotelFundsPolicyBridge('booking-com', 'Booking.com'),
+    }]
   })
 }
 
@@ -170,7 +187,14 @@ async function fetchTripAdvisor(iata: string, checkIn: string, checkOut: string,
     const photo = photoTpl ? photoTpl.replace('{width}', '600').replace('{height}', '400') : null
     const priceCents = parseTAPrice(hotel.priceForDisplay as string | undefined)
     if (!id || !name || priceCents <= 0) return []
-    return [{ hotelId: `ta_${id}`, hotelName: name, stars: stars ? Number(stars) : null, priceCents, photoUrl: photo }]
+    return [{
+      hotelId: `ta_${id}`,
+      hotelName: name,
+      stars: stars ? Number(stars) : null,
+      priceCents,
+      photoUrl: photo,
+      fundsPolicyBridge: createUnsupportedHotelFundsPolicyBridge('tripadvisor16', 'Tripadvisor'),
+    }]
   })
 }
 
@@ -203,11 +227,24 @@ async function fetchWithRotation(
 async function storeSnapshot(market: Market, hotel: HotelEntry, checkIn: string, isMock: boolean): Promise<void> {
   await query(
     `INSERT INTO price_snapshots
-       (hotel_id, hotel_name, stars, photo_url, market_id, check_in, nights, price_cents, currency, snapshot_date, is_mock)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'USD',CURRENT_DATE,$9)
+       (hotel_id, hotel_name, stars, photo_url, market_id, check_in, nights, price_cents, currency, snapshot_date, is_mock, funds_policy_bridge)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'USD',CURRENT_DATE,$9,$10)
      ON CONFLICT ON CONSTRAINT price_snapshots_unique
-     DO UPDATE SET price_cents = EXCLUDED.price_cents, photo_url = COALESCE(EXCLUDED.photo_url, price_snapshots.photo_url)`,
-    [hotel.hotelId, hotel.hotelName, hotel.stars, hotel.photoUrl, market.id, checkIn, NIGHTS, hotel.priceCents, isMock]
+     DO UPDATE SET price_cents = EXCLUDED.price_cents,
+       photo_url = COALESCE(EXCLUDED.photo_url, price_snapshots.photo_url),
+       funds_policy_bridge = EXCLUDED.funds_policy_bridge`,
+    [
+      hotel.hotelId,
+      hotel.hotelName,
+      hotel.stars,
+      hotel.photoUrl,
+      market.id,
+      checkIn,
+      NIGHTS,
+      hotel.priceCents,
+      isMock,
+      hotel.fundsPolicyBridge ? JSON.stringify(hotel.fundsPolicyBridge) : null,
+    ]
   )
 }
 

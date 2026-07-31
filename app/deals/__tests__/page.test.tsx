@@ -96,6 +96,13 @@ describe('/deals server reconstruction', () => {
 
     expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ limit: 13, offset: 0 }))
     expect((props.initialDeals as unknown[])).toHaveLength(12)
+    expect(props.initialDeals).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        fundsPolicy: expect.objectContaining({
+          provider: 'other', capability: { policy: false }, loadState: 'ready',
+        }),
+      }),
+    ]))
     expect(props.initialCoverage).toEqual({ state: 'more_available', nextOffset: 12 })
   })
 

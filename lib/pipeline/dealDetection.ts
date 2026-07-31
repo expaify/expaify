@@ -3,6 +3,7 @@ import { generateHeadlines } from '../ai/generateHeadline'
 import { buildOtaLinks } from './otaLinks'
 import { evaluateDeal } from './dealRules'
 import type { HotelDealSort } from '../deals/feedContract'
+import { normalizePersistedDealFundsPolicyBridge } from '../hotels/dealFundsPolicy'
 
 type Market = { id: number; city: string; country: string; iata: string }
 
@@ -17,6 +18,7 @@ type SnapshotRow = {
   latest_price_cents: number
   snapshot_count: number
   is_mock: boolean
+  funds_policy_bridge: unknown
 }
 
 type CopyCandidate = {
@@ -52,6 +54,9 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
        (SELECT price_cents FROM price_snapshots ps2
         WHERE ps2.hotel_id = ps.hotel_id AND ps2.market_id = ps.market_id AND ps2.check_in = ps.check_in
         ORDER BY captured_at DESC LIMIT 1)                           AS latest_price_cents,
+       (SELECT funds_policy_bridge FROM price_snapshots ps3
+        WHERE ps3.hotel_id = ps.hotel_id AND ps3.market_id = ps.market_id AND ps3.check_in = ps.check_in
+        ORDER BY captured_at DESC LIMIT 1)                           AS funds_policy_bridge,
        COUNT(*)::INT                                                  AS snapshot_count,
        bool_or(is_mock)                                              AS is_mock
      FROM price_snapshots ps
@@ -67,6 +72,7 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
 
   for (const row of snaps.rows) {
     const { hotel_id, hotel_name, stars, photo_url, check_in, median_price_cents, latest_price_cents, snapshot_count, is_mock } = row
+    const fundsPolicyBridge = normalizePersistedDealFundsPolicyBridge(row.funds_policy_bridge)
 
     const decision = evaluateDeal({
       latestPriceCents: latest_price_cents,
@@ -93,8 +99,8 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
         `INSERT INTO deals
            (hotel_id, hotel_name, stars, photo_url, market_id, deal_price_cents,
             median_price_cents, discount_pct, check_in_window, check_in_date, nights,
-            snapshot_count, ota_links, status, is_mock, expires_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,2,$11,$12,'active',$13,
+            snapshot_count, ota_links, funds_policy_bridge, status, is_mock, expires_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,2,$11,$12,$14,'active',$13,
                  $10::DATE + INTERVAL '90 days', NOW())
          ON CONFLICT (hotel_id, market_id, check_in_date) DO UPDATE SET
            deal_price_cents   = EXCLUDED.deal_price_cents,
@@ -102,6 +108,7 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
            discount_pct       = EXCLUDED.discount_pct,
            snapshot_count     = EXCLUDED.snapshot_count,
            ota_links          = EXCLUDED.ota_links,
+           funds_policy_bridge = EXCLUDED.funds_policy_bridge,
            status             = 'active',
            is_mock            = EXCLUDED.is_mock,
            updated_at         = NOW()
@@ -111,6 +118,7 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
           latest_price_cents, median_price_cents, discountPct,
           checkInWindow, checkInStr,
           snapshot_count, JSON.stringify(links), is_mock,
+          fundsPolicyBridge ? JSON.stringify(fundsPolicyBridge) : null,
         ]
       )
       const dealId = upserted.rows[0]?.id
@@ -173,6 +181,7 @@ export type DealRow = {
   first_seen: string | null
   expires_at: string | null
   updated_at: string | null
+  funds_policy_bridge: unknown
 }
 
 export type PriceHistoryPoint = {
@@ -187,7 +196,7 @@ export async function getDealById(id: string): Promise<DealRow | null> {
        m.city,
        d.deal_price_cents, d.median_price_cents, d.discount_pct,
        d.check_in_window, d.check_in_date::TEXT, d.nights,
-       d.snapshot_count, d.ota_links, d.headline, d.description, d.is_mock,
+       d.snapshot_count, d.ota_links, d.funds_policy_bridge, d.headline, d.description, d.is_mock,
        d.first_seen::TEXT, d.expires_at::TEXT, d.updated_at::TEXT
      FROM deals d
      JOIN tracked_markets m ON m.id = d.market_id
@@ -285,7 +294,7 @@ export async function getActiveDeals(opts: {
        m.city,
        d.deal_price_cents, d.median_price_cents, d.discount_pct,
        d.check_in_window, d.check_in_date::TEXT, d.nights,
-       d.snapshot_count, d.ota_links, d.headline, d.description, d.is_mock,
+       d.snapshot_count, d.ota_links, d.funds_policy_bridge, d.headline, d.description, d.is_mock,
        d.first_seen::TEXT, d.expires_at::TEXT, d.updated_at::TEXT
      FROM deals d
      JOIN tracked_markets m ON m.id = d.market_id

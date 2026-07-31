@@ -29,6 +29,8 @@ import { timeAgo } from '@/lib/timeAgo'
 import { HotelContinuityPrototype } from '@/app/components/research/HotelContinuityPrototype'
 import { createContinuityFixture, parseContinuityFixture } from '@/app/components/research/hotelContinuityFixtures'
 import { HotelDealCriteriaHandoff, HotelDealCriteriaSummary } from '@/app/components/HotelDealCriteria'
+import HotelFundsPolicyPanel from '@/app/components/HotelFundsPolicyPanel'
+import { normalizePersistedDealFundsPolicyBridge } from '@/lib/hotels/dealFundsPolicy'
 import {
   buildHotelBackUrl,
   hotelCriteriaContextStatus,
@@ -210,6 +212,7 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
 
   let score: DealScore | null = null
   if (pricePoints.length > 0) {
+    const fundsPolicy = normalizePersistedDealFundsPolicyBridge(deal.funds_policy_bridge)
     const offer: HotelOffer = {
       id: deal.id,
       name: deal.hotel_name,
@@ -219,7 +222,11 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
       deeplink: '',
       source: 'expaify',
       documentReadiness: notProvidedHotelDocumentReadiness('Hotel provider'),
-      fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'expaify', scope: 'not_returned' },
+      fundsPolicy: fundsPolicy?.evidence ?? { state: 'not_returned', obligations: [], sourceLabel: 'Hotel provider', scope: 'not_returned' },
+      ...(fundsPolicy ? {
+        fundsPolicyCapability: fundsPolicy.capability,
+        fundsPolicyLoadState: fundsPolicy.loadState,
+      } : {}),
     }
     score = scoreDeal(offer, pricePoints)
   }
@@ -277,6 +284,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const isAging = !isExpired && updatedAgeHours !== null && updatedAgeHours >= 30 && updatedAgeHours < 48
   const isStale = !isExpired && updatedAgeHours !== null && updatedAgeHours >= 48
   const foundAgo = timeAgo(deal.first_seen)
+  const fundsPolicy = normalizePersistedDealFundsPolicyBridge(deal.funds_policy_bridge)
 
   // check-in / check-out derived
   const checkInDisplay = deal.check_in_date ? fmtShort(deal.check_in_date) : null
@@ -424,7 +432,22 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <a href="/deals" className="btn btn-primary mt-4 inline-flex min-h-11 w-full items-center justify-center text-center">Search current deals</a>
               </div>
             ) : (
-              <HotelDealCriteriaHandoff context={criteriaContext} deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }} links={deal.ota_links ?? {}} hotelName={deal.hotel_name} datesIncomplete={datesIncomplete} />
+              <>
+                {fundsPolicy ? <div className="mt-4">
+                  <HotelFundsPolicyPanel
+                    evidence={fundsPolicy.evidence}
+                    loadState={fundsPolicy.loadState}
+                    surface="hotel_detail"
+                    sourceLabel={fundsPolicy.evidence.sourceLabel}
+                    hotelName={deal.hotel_name}
+                    variant="full"
+                    offerId={deal.id}
+                    provider={fundsPolicy.provider}
+                    capability={fundsPolicy.capability}
+                  />
+                </div> : null}
+                <HotelDealCriteriaHandoff context={criteriaContext} deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }} links={deal.ota_links ?? {}} hotelName={deal.hotel_name} datesIncomplete={datesIncomplete} />
+              </>
             )}
           </section>
 

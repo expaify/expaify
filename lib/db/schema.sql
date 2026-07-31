@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS price_snapshots (
   currency        CHAR(3)     NOT NULL DEFAULT 'USD',
   snapshot_date   DATE        NOT NULL DEFAULT CURRENT_DATE,
   is_mock         BOOLEAN     NOT NULL DEFAULT false,
+  funds_policy_bridge JSONB,
   captured_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT price_snapshots_unique UNIQUE (hotel_id, market_id, check_in, snapshot_date)
 );
@@ -121,6 +122,7 @@ CREATE INDEX IF NOT EXISTS idx_price_snapshots_hotel_market
   ON price_snapshots (hotel_id, market_id, check_in DESC);
 CREATE INDEX IF NOT EXISTS idx_price_snapshots_captured
   ON price_snapshots (captured_at DESC);
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS funds_policy_bridge JSONB;
 
 CREATE TABLE IF NOT EXISTS deals (
   id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -137,6 +139,7 @@ CREATE TABLE IF NOT EXISTS deals (
   nights              SMALLINT    NOT NULL DEFAULT 2,
   snapshot_count      INTEGER     NOT NULL,
   ota_links           JSONB       NOT NULL DEFAULT '{}',
+  funds_policy_bridge JSONB,
   headline            TEXT,
   description         TEXT,
   status              TEXT        NOT NULL DEFAULT 'active',  -- active | expired
@@ -155,6 +158,7 @@ CREATE INDEX IF NOT EXISTS idx_deals_active_discount
   ON deals (discount_pct DESC, first_seen DESC, id ASC) WHERE status = 'active';
 CREATE INDEX IF NOT EXISTS idx_deals_active_price
   ON deals (deal_price_cents ASC, first_seen DESC, id ASC) WHERE status = 'active';
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS funds_policy_bridge JSONB;
 
 -- ── Auth (NextAuth v5 / Auth.js PG adapter) ───────────────────────────────
 -- Table names are plural to match @auth/pg-adapter v1.x expectations

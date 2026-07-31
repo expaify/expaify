@@ -14,6 +14,8 @@ import type {
   HotelDocumentReadiness,
   HotelDocumentStatus,
   HotelFundsPolicyEvidence,
+  HotelFundsPolicyCapability,
+  HotelFundsPolicyLoadState,
   HotelOffer,
   HotelQualityConfidence,
   HotelQualityKind,
@@ -39,7 +41,7 @@ import type {
   SupplierSmokingStatement,
   NormalizedFare,
 } from '../types';
-import { normalizeHotelFundsPolicyEvidence } from '../hotels/fundsPolicy';
+import { normalizeHotelFundsPolicyBridge } from '../hotels/fundsPolicy';
 import {
   normalizeHotelDocumentReadiness,
   notProvidedHotelDocumentReadiness,
@@ -80,6 +82,8 @@ export type BookingHotelContext = {
   providerUrl: string;
   documentReadiness: HotelDocumentReadiness;
   fundsPolicy: HotelFundsPolicyEvidence;
+  fundsPolicyCapability: HotelFundsPolicyCapability;
+  fundsPolicyLoadState: HotelFundsPolicyLoadState;
   entrySource?: BookingHotelEntrySource;
   returnUrl?: string;
   checkIn?: string;
@@ -147,6 +151,8 @@ type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
   documentVerificationRole?: unknown;
   documentVerificationUrl?: unknown;
   fundsPolicy?: unknown;
+  fundsPolicyCapability?: unknown;
+  fundsPolicyLoadState?: unknown;
   smokingPolicy?: unknown;
   transportEvidence?: unknown;
 };
@@ -946,7 +952,12 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     documentReadinessInput(input, provider),
     providerEvidenceLabel(provider),
   );
-  const fundsPolicy = normalizeHotelFundsPolicyEvidence(input.fundsPolicy, provider || 'Hotel provider');
+  const fundsPolicyBridge = normalizeHotelFundsPolicyBridge({
+    provider: provider || 'Hotel provider',
+    capability: input.fundsPolicyCapability,
+    evidence: input.fundsPolicy,
+    loadState: input.fundsPolicyLoadState,
+  });
   const entrySourceValue = cleanOptional(input.entrySource);
   const returnUrl = validateHotelReturnUrl(input.returnUrl);
   const stayContinuity = validateHotelStayContinuity(input);
@@ -998,7 +1009,9 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     priceBasis,
     providerUrl,
     documentReadiness,
-    fundsPolicy,
+    fundsPolicy: fundsPolicyBridge.evidence,
+    fundsPolicyCapability: fundsPolicyBridge.capability,
+    fundsPolicyLoadState: fundsPolicyBridge.loadState,
     ...(entrySourceValue !== undefined ? { entrySource: entrySourceValue as BookingHotelEntrySource } : {}),
     ...(returnUrl !== undefined ? { returnUrl } : {}),
     ...(stayContinuity?.checkIn !== undefined ? { checkIn: stayContinuity.checkIn } : {}),
@@ -1115,6 +1128,8 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     priceBasis: firstParam(params.priceBasis),
     providerUrl: firstParam(params.providerUrl),
     fundsPolicy: parseJsonQueryParam(firstParam(params.fundsPolicy)),
+    fundsPolicyCapability: parseJsonQueryParam(firstParam(params.fundsPolicyCapability)),
+    fundsPolicyLoadState: firstParam(params.fundsPolicyLoadState),
     entrySource: firstParam(params.entrySource),
     returnUrl: firstParam(params.returnUrl),
     checkIn: firstParam(params.checkIn),
@@ -1205,6 +1220,12 @@ export type BookingHotelContinuity = Partial<Pick<
 
 export function buildBookingHotelContext(hotel: HotelOffer, continuity?: BookingHotelContinuity): BookingHotelContext {
   const documentReadiness = normalizeHotelDocumentReadiness(hotel.documentReadiness, providerEvidenceLabel(hotel.source));
+  const fundsPolicyBridge = normalizeHotelFundsPolicyBridge({
+    provider: hotel.source,
+    capability: hotel.fundsPolicyCapability,
+    evidence: hotel.fundsPolicy,
+    loadState: hotel.fundsPolicyLoadState,
+  });
   return {
     kind: 'hotel',
     offerId: hotel.id,
@@ -1217,7 +1238,9 @@ export function buildBookingHotelContext(hotel: HotelOffer, continuity?: Booking
     priceBasis: hotel.priceBasis ?? 'per_night_before_taxes_fees',
     providerUrl: hotel.deeplink,
     documentReadiness,
-    fundsPolicy: normalizeHotelFundsPolicyEvidence(hotel.fundsPolicy, hotel.source),
+    fundsPolicy: fundsPolicyBridge.evidence,
+    fundsPolicyCapability: fundsPolicyBridge.capability,
+    fundsPolicyLoadState: fundsPolicyBridge.loadState,
     smokingPolicy: hotel.smokingPolicy === undefined
       ? unavailableHotelSmokingPolicy()
       : normalizeHotelSmokingPolicy(hotel.smokingPolicy, hotel.source),
@@ -1249,6 +1272,8 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
     priceBasis: context.priceBasis,
     providerUrl: context.providerUrl,
     fundsPolicy: JSON.stringify(context.fundsPolicy),
+    fundsPolicyCapability: JSON.stringify(context.fundsPolicyCapability),
+    fundsPolicyLoadState: context.fundsPolicyLoadState,
     documentStatus: context.documentReadiness.status,
     documentScope: context.documentReadiness.scope,
     documentTypes: context.documentReadiness.documentTypes.join(','),
