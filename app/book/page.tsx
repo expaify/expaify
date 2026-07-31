@@ -1,6 +1,11 @@
 import { Suspense } from 'react';
 import { isBookingEnabled, isDuffelSandboxMode, parseBookingFareContext, parseBookingHotelContext } from '@/lib/booking/config';
 import { resolveBookingHotelContext } from '@/lib/booking/hotelContextStore';
+import {
+  createWifiFixture,
+  isWifiResearchPrototypeEnabled,
+  parseWifiFixture,
+} from '@/app/components/research/hotelWifiFixtures';
 import BookingFlow from './BookingFlow';
 
 export const metadata = { title: 'Booking review — expaify' };
@@ -22,6 +27,10 @@ export default async function BookPage({ searchParams }: BookPageProps) {
     ? referencedHotelContext.data
     : parseBookingHotelContext(params);
   const requestedHotelReview = params.kind === 'hotel' || (Array.isArray(params.kind) && params.kind[0] === 'hotel');
+  const wifiFixtureId = isWifiResearchPrototypeEnabled()
+    ? parseWifiFixture(params.wifiFixture)
+    : 'control';
+  const wifiEvidence = createWifiFixture(wifiFixtureId);
 
   return (
     <div className="min-h-screen bg-[color:var(--bg-base)]">
@@ -50,6 +59,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
           fareContext={fareContext}
           hotelContext={hotelContext}
           hotelSmokingPolicy={hotelContext?.smokingPolicy}
+          hotelWifiEvidence={wifiEvidence}
           invalidHotelSelection={requestedHotelReview && !hotelContext}
         />
       </Suspense>
