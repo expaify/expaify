@@ -83,6 +83,7 @@ describe('HotelFundsPolicyPanel', () => {
     const tree = panel(completeHold)
     const text = collectText(tree)
 
+    expect(text).toContain('Deposits and card holds')
     expect(text).toContain('Temporary card hold')
     expect(text).toContain('$150\u00a0USD per stay')
     expect(text).toContain('temporary authorization, not part of the stay price')
@@ -203,7 +204,7 @@ describe('HotelFundsPolicyPanel', () => {
   })
 
   it('provides state-only action suffixes, including loading and provider error', () => {
-    expect(getHotelFundsPolicyAccessibleSuffix(completeHold)).toBe('Additional-funds policy reported; review details before provider handoff.')
+    expect(getHotelFundsPolicyAccessibleSuffix(completeHold)).toBe('Deposit or card-hold policy reported; review details before provider handoff.')
     expect(getHotelFundsPolicyAccessibleSuffix(undefined)).toBe('Deposit and hold policy was not provided.')
     expect(getHotelFundsPolicyAccessibleSuffix(undefined, 'loading')).toContain('still being checked')
     expect(getHotelFundsPolicyAccessibleSuffix(undefined, 'error')).toBe('Deposit and hold policy could not be checked.')

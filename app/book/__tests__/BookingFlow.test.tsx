@@ -181,7 +181,7 @@ describe('BookingFlow fare context review', () => {
     expect(text).not.toContain('Confirm booking');
   });
 
-  it('shows the unresolved-partner handoff with honest rate and responsibility context', () => {
+  it('uses the normalized offer provider for fee copy when the destination partner is unresolved', () => {
     const tree = BookingFlow({
       bookingEnabled: false,
       duffelSandbox: true,
@@ -222,7 +222,7 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Have the lead guest’s full name, a confirmation email, and a reachable phone number ready. The booking partner will show exactly what is required.');
     expect(text).toContain('Booking for someone else? Use the name of the person checking in as the lead guest. The booking partner will tell you whose email and phone it needs.');
     expect(text).toContain('Special requests');
-    expect(text).toContain('Additional funds at the property');
+    expect(text).toContain('Deposits and card holds');
     expect(text).toContain('Policy not provided');
     expect(text).toContain('Source checked: Hotellook · Scope not provided');
     expect(text).toContain('Confirm policy with booking partner');
@@ -230,6 +230,7 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Add your request on the booking partner’s site while booking. Nothing is selected or sent by expaify.');
     expect(text).toContain('Requests depend on availability and are not guaranteed. After booking, use your confirmation or itinerary to contact the property and ask it to confirm what it can provide.');
     expect(text).toContain('Opens the booking partner’s site in a new tab. Your expaify search stays open here.');
+    expect(text).toContain('Mandatory property fees are not confirmed. On Hotellook, check the final total and any amount due at the property before you continue.');
     expect(text).not.toContain('Provider confirmation required');
     expect(text).not.toContain('Before you continue');
     expect(text).not.toContain('tp.media takes payment');
@@ -243,7 +244,22 @@ describe('BookingFlow fare context review', () => {
     const outbound = findElements(tree, element => element.type === 'a' && typeof element.props['aria-label'] === 'string' && element.props['aria-label'].startsWith('Check rooms at'))[0];
     expect(outbound.props.href).toBe(hotelContext.providerUrl);
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
-    expect(outbound.props['aria-label']).toBe('Check rooms at provider for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. The final total may differ. Confirm the room\'s smoking status and the property\'s current smoking rules on the booking partner.');
+    expect(outbound.props['aria-label']).toBe("Check rooms at provider for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. Mandatory property fees are not confirmed. Check the final total and any amount due at the property on Hotellook. Confirm the room's smoking status and the property's current smoking rules on the booking partner.");
+  });
+
+  it('uses booking-partner fee copy only when the normalized offer provider is missing', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: true,
+      fareContext: null,
+      hotelContext: { ...hotelContext, provider: '   ' },
+    });
+    const text = collectText(tree);
+    const outbound = findElements(tree, element => element.type === 'a' && typeof element.props['aria-label'] === 'string' && element.props['aria-label'].startsWith('Check rooms at'))[0];
+
+    expect(text).toContain("Mandatory property fees are not confirmed. On the booking partner's site, check the final total and any amount due at the property before you continue.");
+    expect(outbound.props['aria-label']).toContain("Mandatory property fees are not confirmed. Check the final total and any amount due at the property on the booking partner's site.");
+    expect(outbound.props['aria-label']).not.toContain('Provider unavailable');
   });
 
   it('carries a hotel Deal Score through to the booking review when present', () => {
@@ -285,6 +301,8 @@ describe('BookingFlow fare context review', () => {
     const outbound = findElements(tree, element => element.type === 'a' && typeof element.props['aria-label'] === 'string' && element.props['aria-label'].startsWith('Check rooms at'))[0];
 
     expect(text).toContain('Check rooms at Booking.com');
+    expect(text).toContain('Mandatory property fees are not confirmed. On Hotellook, check the final total and any amount due at the property before you continue.');
+    expect(text).not.toContain('Mandatory property fees are not confirmed. On Booking.com');
     expect(text).toContain('Opens Booking.com in a new tab. Your expaify search stays open here.');
     expect(text).toContain('Add your request on Booking.com while booking. Nothing is selected or sent by expaify.');
     expect(text).toContain('The booking partner will show exactly what is required.');
@@ -293,6 +311,8 @@ describe('BookingFlow fare context review', () => {
     expect(outbound.props.href).toBe(providerUrl);
     expect(outbound.props.target).toBe('_blank');
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
+    expect(outbound.props['aria-label']).toContain('Mandatory property fees are not confirmed. Check the final total and any amount due at the property on Hotellook.');
+    expect(outbound.props['aria-label']).not.toContain('amount due at the property on Booking.com');
   });
 
   it('wraps a maximal derived partner label without a sticky desktop handoff rail', () => {
@@ -361,10 +381,11 @@ describe('BookingFlow fare context review', () => {
     expect(providerIndex).toBeGreaterThanOrEqual(0);
     expect(supportingIndex).toBeGreaterThan(providerIndex);
     expect(providerText).toContain('Check rooms at provider');
-    expect(providerText).not.toContain('Additional funds at the property');
+    expect(providerText).not.toContain('Deposits and card holds');
+    expect(providerText).toContain('Mandatory property fees are not confirmed.');
     expect(supportingText).toContain('I need an invoice or receipt for this stay');
     expect(supportingText).toContain('What you may need');
-    expect(supportingText).toContain('Additional funds at the property');
+    expect(supportingText).toContain('Deposits and card holds');
   });
 
   it('places static room-view confidence after disclosures and immediately before the provider action', () => {

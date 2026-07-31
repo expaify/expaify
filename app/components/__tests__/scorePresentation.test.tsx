@@ -35,9 +35,9 @@ function childrenOf(node: TestElement): unknown[] {
   return Array.isArray(children) ? children : [children].filter(Boolean)
 }
 
-function resolveFunctionElement(node: TestElement): TestElement {
+function resolveFunctionElement(node: TestElement): unknown {
   if (typeof node.type === 'function') {
-    return (node.type as (props: Record<string, unknown>) => TestElement)(node.props)
+    return (node.type as (props: Record<string, unknown>) => unknown)(node.props)
   }
 
   return node
@@ -49,8 +49,8 @@ function collectText(node: unknown): string {
   if (Array.isArray(node)) return node.map(collectText).join('')
   if (typeof node === 'object') {
     const resolved = resolveFunctionElement(node as TestElement)
-    if (resolved === null || resolved === undefined) return ''
-    return childrenOf(resolved).map(collectText).join('')
+    if (!resolved || typeof resolved !== 'object') return collectText(resolved)
+    return childrenOf(resolved as TestElement).map(collectText).join('')
   }
   return ''
 }
@@ -67,11 +67,12 @@ function findFirstProp(node: unknown, propName: string, predicate: (value: unkno
   }
   if (typeof node === 'object') {
     const resolved = resolveFunctionElement(node as TestElement)
-    if (resolved === null || resolved === undefined) return undefined
-    const propValue = resolved.props?.[propName]
+    if (!resolved || typeof resolved !== 'object') return undefined
+    const element = resolved as TestElement
+    const propValue = element.props?.[propName]
     if (predicate(propValue)) return propValue
 
-    for (const child of childrenOf(resolved)) {
+    for (const child of childrenOf(element)) {
       const match = findFirstProp(child, propName, predicate)
       if (match !== undefined) return match
     }
@@ -91,10 +92,11 @@ function findFirstElement(node: unknown, type: string): TestElement | undefined 
   }
   if (typeof node === 'object') {
     const resolved = resolveFunctionElement(node as TestElement)
-    if (resolved === null || resolved === undefined) return undefined
-    if (resolved.type === type) return resolved
+    if (!resolved || typeof resolved !== 'object') return undefined
+    const element = resolved as TestElement
+    if (element.type === type) return element
 
-    for (const child of childrenOf(resolved)) {
+    for (const child of childrenOf(element)) {
       const match = findFirstElement(child, type)
       if (match) return match
     }
