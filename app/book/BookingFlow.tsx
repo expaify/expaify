@@ -27,6 +27,7 @@ import {
   HotelDocumentReadinessDisclosure,
 } from '@/app/components/HotelDocumentReadiness'
 import HotelFundsPolicyPanel, {
+  type HotelFundsPolicyCapability,
   type HotelFundsPolicyEvidence,
   type HotelFundsPolicyLoadState,
 } from '@/app/components/HotelFundsPolicyPanel'
@@ -192,6 +193,7 @@ type BookingFlowProps = {
   parkingEvidenceMalformed?: boolean
   hasSearchDates?: boolean
   hotelFundsPolicy?: HotelFundsPolicyEvidence | null
+  hotelFundsPolicyCapability?: HotelFundsPolicyCapability
   hotelFundsPolicyLoadState?: HotelFundsPolicyLoadState
   hotelSmokingPolicy?: HotelSmokingPolicyView
 }
@@ -712,6 +714,7 @@ function HotelHandoffReview({
   parkingEvidenceMalformed = false,
   hasSearchDates = true,
   fundsPolicy,
+  fundsPolicyCapability,
   fundsPolicyLoadState = 'ready',
   hotelSmokingPolicy,
 }: {
@@ -722,6 +725,7 @@ function HotelHandoffReview({
   parkingEvidenceMalformed?: boolean
   hasSearchDates?: boolean
   fundsPolicy?: HotelFundsPolicyEvidence | null
+  fundsPolicyCapability?: HotelFundsPolicyCapability
   fundsPolicyLoadState?: HotelFundsPolicyLoadState
   hotelSmokingPolicy?: HotelSmokingPolicyView
 }) {
@@ -1252,6 +1256,7 @@ function HotelHandoffReview({
             offerId={hotelContext.offerId}
             provider={hotelContext.provider}
             rootRef={fundsPolicyExposureRef}
+            capability={fundsPolicyCapability}
           />
         </div>
           <details className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
@@ -1279,6 +1284,7 @@ export default function BookingFlow({
   parkingEvidenceMalformed = false,
   hasSearchDates = true,
   hotelFundsPolicy,
+  hotelFundsPolicyCapability,
   hotelFundsPolicyLoadState = 'ready',
   hotelSmokingPolicy,
 }: BookingFlowProps) {
@@ -1308,6 +1314,7 @@ export default function BookingFlow({
         parkingEvidenceMalformed={parkingEvidenceMalformed}
         hasSearchDates={hasSearchDates}
         fundsPolicy={hotelFundsPolicy}
+        fundsPolicyCapability={hotelFundsPolicyCapability}
         fundsPolicyLoadState={hotelFundsPolicyLoadState}
         hotelSmokingPolicy={hotelSmokingPolicy}
       />

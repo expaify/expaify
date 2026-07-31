@@ -5,8 +5,8 @@ import type {
   HotelFundsEvidenceScope,
   HotelFundsMissingField,
   HotelFundsObligationType,
-  HotelFundsPolicyEvidence,
   HotelFundsPolicyCapability,
+  HotelFundsPolicyEvidence,
   HotelFundsPolicyLoadState,
   Money,
 } from '@/lib/types'
@@ -20,6 +20,7 @@ export type {
   HotelFundsEvidenceScope,
   HotelFundsMissingField,
   HotelFundsObligationType,
+  HotelFundsPolicyCapability,
   HotelFundsPolicyEvidence,
   HotelFundsPolicyLoadState,
   HotelFundsPolicyState,
