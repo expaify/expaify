@@ -174,6 +174,8 @@ describe('HotellookProvider.searchHotels', () => {
         amenityEvidence: notReturnedEvidence,
         accessEvidenceState: 'ready',
         fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
+        fundsPolicyCapability: { policy: false },
+        fundsPolicyLoadState: 'ready',
         smokingPolicy: {
           loadState: 'ready',
           room: { state: 'not_provided', statements: [] },
@@ -217,6 +219,8 @@ describe('HotellookProvider.searchHotels', () => {
             sourceLabel: 'Hotellook',
             scope: 'not_returned',
           },
+          fundsPolicyCapability: { policy: false },
+          fundsPolicyLoadState: 'ready',
         }],
       },
     });
@@ -488,6 +492,8 @@ describe('HotellookProvider.searchHotels', () => {
           amenityEvidence: notReturnedEvidence,
           accessEvidenceState: 'ready',
           fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
+          fundsPolicyCapability: { policy: false },
+          fundsPolicyLoadState: 'ready',
         }],
       },
     });
@@ -511,6 +517,8 @@ describe('HotellookProvider.searchHotels', () => {
       data: {
         offers: [{
           fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
+          fundsPolicyCapability: { policy: false },
+          fundsPolicyLoadState: 'ready',
         }],
       },
     });

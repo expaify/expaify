@@ -6,6 +6,8 @@ import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { generateMockDeals } from '@/lib/pipeline/mock'
 import { buildDealPage, HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
 import { resolveHotelResultsView, resolveHotelSearchCriteria } from '@/lib/hotels/searchCriteria'
+import { createDealFundsPolicyBridge } from '@/lib/hotels/dealFundsPolicy'
+import type { HotelFundsPolicyBridge } from '@/lib/types'
 
 export const runtime = 'nodejs'
 
@@ -29,6 +31,7 @@ type ApiDeal = {
   firstSeen: string | null
   updatedAt: string | null
   locked: boolean
+  fundsPolicy?: HotelFundsPolicyBridge
 }
 
 function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
@@ -75,6 +78,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
     firstSeen: row.first_seen,
     updatedAt: row.updated_at,
     locked: false,
+    fundsPolicy: createDealFundsPolicyBridge(),
   }
 }
 

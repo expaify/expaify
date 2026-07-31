@@ -103,6 +103,8 @@ const hotelContext: BookingHotelContext = {
     billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
   },
   fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
+  fundsPolicyCapability: { policy: false },
+  fundsPolicyLoadState: 'ready',
 };
 
 describe('BookingFlow fare context review', () => {
@@ -223,7 +225,7 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Booking for someone else? Use the name of the person checking in as the lead guest. The booking partner will tell you whose email and phone it needs.');
     expect(text).toContain('Special requests');
     expect(text).toContain('Additional funds at the property');
-    expect(text).toContain('Policy not provided');
+    expect(text).toContain('Deposit and hold details unavailable from this provider');
     expect(text).toContain('Source checked: Hotellook · Scope not provided');
     expect(text).toContain('Confirm policy with booking partner');
     expect(text).toContain('Need a quiet room, high floor, preferred bed setup, or early check-in?');

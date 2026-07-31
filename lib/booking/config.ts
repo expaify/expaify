@@ -14,6 +14,8 @@ import type {
   HotelDocumentReadiness,
   HotelDocumentStatus,
   HotelFundsPolicyEvidence,
+  HotelFundsPolicyCapability,
+  HotelFundsPolicyLoadState,
   HotelOffer,
   HotelQualityConfidence,
   HotelQualityKind,
@@ -29,7 +31,11 @@ import type {
   SupplierSmokingStatement,
   NormalizedFare,
 } from '../types';
-import { normalizeHotelFundsPolicyEvidence } from '../hotels/fundsPolicy';
+import {
+  normalizeHotelFundsPolicyCapability,
+  normalizeHotelFundsPolicyEvidence,
+  normalizeHotelFundsPolicyLoadState,
+} from '../hotels/fundsPolicy';
 import {
   normalizeHotelDocumentReadiness,
   notProvidedHotelDocumentReadiness,
@@ -70,6 +76,8 @@ export type BookingHotelContext = {
   providerUrl: string;
   documentReadiness: HotelDocumentReadiness;
   fundsPolicy: HotelFundsPolicyEvidence;
+  fundsPolicyCapability: HotelFundsPolicyCapability;
+  fundsPolicyLoadState: HotelFundsPolicyLoadState;
   entrySource?: BookingHotelEntrySource;
   returnUrl?: string;
   checkIn?: string;
@@ -136,6 +144,8 @@ type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
   documentVerificationRole?: unknown;
   documentVerificationUrl?: unknown;
   fundsPolicy?: unknown;
+  fundsPolicyCapability?: unknown;
+  fundsPolicyLoadState?: unknown;
   smokingPolicy?: unknown;
 };
 
@@ -805,6 +815,8 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     providerEvidenceLabel(provider),
   );
   const fundsPolicy = normalizeHotelFundsPolicyEvidence(input.fundsPolicy, provider || 'Hotel provider');
+  const fundsPolicyCapability = normalizeHotelFundsPolicyCapability(input.fundsPolicyCapability);
+  const fundsPolicyLoadState = normalizeHotelFundsPolicyLoadState(input.fundsPolicyLoadState);
   const entrySourceValue = cleanOptional(input.entrySource);
   const returnUrl = validateHotelReturnUrl(input.returnUrl);
   const stayContinuity = validateHotelStayContinuity(input);
@@ -856,6 +868,8 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     providerUrl,
     documentReadiness,
     fundsPolicy,
+    fundsPolicyCapability,
+    fundsPolicyLoadState,
     ...(entrySourceValue !== undefined ? { entrySource: entrySourceValue as BookingHotelEntrySource } : {}),
     ...(returnUrl !== undefined ? { returnUrl } : {}),
     ...(stayContinuity?.checkIn !== undefined ? { checkIn: stayContinuity.checkIn } : {}),
@@ -971,6 +985,8 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     priceBasis: firstParam(params.priceBasis),
     providerUrl: firstParam(params.providerUrl),
     fundsPolicy: parseJsonQueryParam(firstParam(params.fundsPolicy)),
+    fundsPolicyCapability: parseJsonQueryParam(firstParam(params.fundsPolicyCapability)),
+    fundsPolicyLoadState: firstParam(params.fundsPolicyLoadState),
     entrySource: firstParam(params.entrySource),
     returnUrl: firstParam(params.returnUrl),
     checkIn: firstParam(params.checkIn),
@@ -1073,6 +1089,8 @@ export function buildBookingHotelContext(hotel: HotelOffer, continuity?: Booking
     providerUrl: hotel.deeplink,
     documentReadiness,
     fundsPolicy: normalizeHotelFundsPolicyEvidence(hotel.fundsPolicy, hotel.source),
+    fundsPolicyCapability: normalizeHotelFundsPolicyCapability(hotel.fundsPolicyCapability),
+    fundsPolicyLoadState: normalizeHotelFundsPolicyLoadState(hotel.fundsPolicyLoadState),
     smokingPolicy: hotel.smokingPolicy === undefined
       ? unavailableHotelSmokingPolicy()
       : normalizeHotelSmokingPolicy(hotel.smokingPolicy, hotel.source),
@@ -1103,6 +1121,8 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
     priceBasis: context.priceBasis,
     providerUrl: context.providerUrl,
     fundsPolicy: JSON.stringify(context.fundsPolicy),
+    fundsPolicyCapability: JSON.stringify(context.fundsPolicyCapability),
+    fundsPolicyLoadState: context.fundsPolicyLoadState,
     documentStatus: context.documentReadiness.status,
     documentScope: context.documentReadiness.scope,
     documentTypes: context.documentReadiness.documentTypes.join(','),

@@ -47,6 +47,8 @@ const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries
     resilience_disclosure_opened: ['dealId', 'evidenceState', 'entrySurface'],
     hotel_admission_policy_viewed: ['hotel_id', 'surface', 'source', 'evidence_state', 'families_reported', 'viewport_group'],
     hotel_handoff_with_admission_restriction: ['hotel_id', 'surface', 'source', 'restricted_families'],
+    hotel_funds_policy_set_viewed: ['capabilityState', 'visibleBookableCount', 'supportedOfferCount', 'completeCount', 'partialCount', 'conflictingCount', 'explicitNoneCount', 'notReturnedCount', 'surface'],
+    hotel_funds_policy_pair_invalid: ['capabilityState', 'invalidPairCount', 'visibleBookableCount', 'surface'],
   }).map(([event, keys]) => [event, new Set(keys)]),
 )
 
@@ -88,6 +90,8 @@ const REQUIRED_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntr
     resilience_disclosure_opened: ['dealId', 'evidenceState', 'entrySurface'],
     hotel_admission_policy_viewed: ['hotel_id', 'surface', 'source', 'evidence_state', 'families_reported', 'viewport_group'],
     hotel_handoff_with_admission_restriction: ['hotel_id', 'surface', 'source', 'restricted_families'],
+    hotel_funds_policy_set_viewed: ['capabilityState', 'visibleBookableCount', 'supportedOfferCount', 'completeCount', 'partialCount', 'conflictingCount', 'explicitNoneCount', 'notReturnedCount', 'surface'],
+    hotel_funds_policy_pair_invalid: ['capabilityState', 'invalidPairCount', 'visibleBookableCount', 'surface'],
   }).map(([event, keys]) => [event, new Set(keys)]),
 )
 
@@ -132,7 +136,10 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
     key === 'partnerNamed' || key === 'guidanceSeen' || key === 'has_dates' || key === 'has_verified_guest_rating') {
     return typeof value === 'boolean'
   }
-  if (key === 'surface') return oneOf(value, ['results', 'detail', 'handoff'])
+  if (key === 'surface') {
+    if (event === 'hotel_funds_policy_set_viewed' || event === 'hotel_funds_policy_pair_invalid') return value === 'deal_feed'
+    return oneOf(value, ['results', 'detail', 'handoff'])
+  }
   if (key === 'date_state') return oneOf(value, ['checkin_window', 'missing'])
   if (key === 'occupancy_state' || key === 'room_state') return oneOf(value, ['applied', 'not_captured'])
   if (key === 'criteria_source') return oneOf(value, ['deals_page', 'destination_page', 'edit', 'restored'])
@@ -184,7 +191,19 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
       (value === 'external-provider' || /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(value))
   }
   if (key === 'awayDurationBucket') return oneOf(value, ['<5s', '5–30s', '30–120s', '120s+'])
-  if (key === 'capabilityState') return value === 'provider_directed_only'
+  if (key === 'capabilityState') {
+    if (event === 'hotel_funds_policy_set_viewed' || event === 'hotel_funds_policy_pair_invalid') {
+      return oneOf(value, ['none', 'mixed', 'all', 'error'])
+    }
+    return value === 'provider_directed_only'
+  }
+  if (
+    key === 'visibleBookableCount' || key === 'supportedOfferCount' || key === 'completeCount' ||
+    key === 'partialCount' || key === 'conflictingCount' || key === 'explicitNoneCount' ||
+    key === 'notReturnedCount' || key === 'invalidPairCount'
+  ) {
+    return boundedInteger(value, 10_000)
+  }
   if (key === 'condition') {
     return oneOf(value, [
       'control', 'confirmed', 'missing', 'partial', 'stale', 'conflict', 'property-error',
@@ -222,6 +241,25 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
   return false
 }
 
+function validHotelFundsPolicyCounts(event: string, props: Record<string, Primitive>): boolean {
+  if (event === 'hotel_funds_policy_pair_invalid') {
+    const invalid = props.invalidPairCount as number
+    const visible = props.visibleBookableCount as number
+    return invalid > 0 && invalid <= visible && props.capabilityState !== 'all' && props.capabilityState !== 'error'
+  }
+  if (event !== 'hotel_funds_policy_set_viewed') return true
+  const visible = props.visibleBookableCount as number
+  const supported = props.supportedOfferCount as number
+  const evidenceCount = (props.completeCount as number) + (props.partialCount as number) +
+    (props.conflictingCount as number) + (props.explicitNoneCount as number) +
+    (props.notReturnedCount as number)
+  if (visible === 0 || supported > visible || evidenceCount !== supported) return false
+  if (props.capabilityState === 'error') return supported === 0 && evidenceCount === 0
+  if (props.capabilityState === 'none') return supported === 0
+  if (props.capabilityState === 'all') return supported === visible
+  return supported > 0 && supported < visible
+}
+
 function parseBody(value: unknown): {
   eventId: string
   sessionId: string
@@ -257,6 +295,7 @@ function parseBody(value: unknown): {
     if (!validPropertyValue(body.event, key, item)) return null
     props[key] = item
   }
+  if (!validHotelFundsPolicyCounts(body.event, props)) return null
   return { eventId: body.eventId, sessionId: body.sessionId, event: body.event, occurredAt, path: body.path, props }
 }
 

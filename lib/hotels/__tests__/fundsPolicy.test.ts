@@ -1,6 +1,8 @@
 import {
   createNotReturnedHotelFundsPolicy,
+  createUnsupportedHotelFundsPolicyBridge,
   getHotelFundsAnalyticsDimensions,
+  normalizeHotelFundsPolicyBridge,
   normalizeHotelFundsPolicyEvidence,
 } from '../fundsPolicy';
 import type { HotelFundsPolicyEvidence } from '@/lib/types';
@@ -42,6 +44,29 @@ const mixedObligations: HotelFundsPolicyEvidence = {
 };
 
 describe('hotel funds policy normalization', () => {
+  it('normalizes the full capability, evidence, and load-state bridge across cache replay', () => {
+    const bridge = normalizeHotelFundsPolicyBridge({
+      provider: 'Capable provider',
+      capability: { policy: true },
+      evidence: completeHold,
+      loadState: 'ready',
+    });
+
+    expect(normalizeHotelFundsPolicyBridge(JSON.parse(JSON.stringify(bridge)))).toEqual(bridge);
+    expect(normalizeHotelFundsPolicyBridge({
+      provider: 'Legacy provider',
+      capability: { policy: 'yes' },
+      evidence: completeHold,
+      loadState: 'stale',
+    })).toMatchObject({ capability: { policy: false }, loadState: 'ready' });
+    expect(createUnsupportedHotelFundsPolicyBridge('hotellook', 'Hotellook')).toEqual({
+      provider: 'hotellook',
+      capability: { policy: false },
+      evidence: createNotReturnedHotelFundsPolicy('Hotellook'),
+      loadState: 'ready',
+    });
+  });
+
   it('is semantically stable across serialized cache-style replay', () => {
     const live = normalizeHotelFundsPolicyEvidence(completeHold, 'Fallback');
     const replayed = normalizeHotelFundsPolicyEvidence(JSON.parse(JSON.stringify(live)), 'Fallback');

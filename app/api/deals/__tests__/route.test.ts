@@ -75,6 +75,12 @@ describe('GET /api/deals sorting', () => {
       id: 'deal-cheapest',
       dealPriceCents: 9_999,
       locked: false,
+      fundsPolicy: {
+        provider: 'other',
+        capability: { policy: false },
+        evidence: { state: 'not_returned', obligations: [], sourceLabel: 'Hotel provider', scope: 'not_returned' },
+        loadState: 'ready',
+      },
     })
     expect(mockGetFreeUnlockedDealIds).not.toHaveBeenCalled()
   })
@@ -98,6 +104,7 @@ describe('GET /api/deals sorting', () => {
       dealPriceCents: 0,
       locked: true,
     })
+    expect(body.deals[0]).not.toHaveProperty('fundsPolicy')
   })
 
   it('applies validated destination and date criteria for free requests and echoes the successful version', async () => {

@@ -17,6 +17,7 @@ import { getSubscription, isPremium } from '@/lib/subscription'
 import { WatchCityCta } from '@/app/components/WatchCityCta'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { WatchCityPill } from '@/app/components/ui/WatchCityPill'
+import { createDealFundsPolicyBridge } from '@/lib/hotels/dealFundsPolicy'
 
 function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
   if (locked) {
@@ -40,6 +41,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
     nights: row.nights, snapshotCount: row.snapshot_count,
     otaLinks: row.ota_links, headline: row.headline, isMock: row.is_mock,
     firstSeen: row.first_seen, updatedAt: row.updated_at, locked: false,
+    fundsPolicy: createDealFundsPolicyBridge(),
   }
 }
 

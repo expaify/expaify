@@ -45,6 +45,8 @@ const hotel: HotelOffer = {
       scope: 'selected_stay',
     }],
   },
+  fundsPolicyCapability: { policy: true },
+  fundsPolicyLoadState: 'ready',
 };
 
 describe('opaque hotel booking context store', () => {

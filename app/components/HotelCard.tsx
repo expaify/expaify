@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type MouseEvent as ReactMouseEvent } from 'react'
-import { DealScore, HotelAmenityEvidence, HotelEvidenceFee, HotelOffer, type HotelParkingConflictDimension, type HotelParkingEvidence } from '@/lib/types'
+import { DealScore, HotelAmenityEvidence, HotelEvidenceFee, HotelOffer, type HotelFundsPolicyCapability, type HotelParkingConflictDimension, type HotelParkingEvidence } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
 import {
   buildBookingHotelContext,
@@ -50,6 +50,7 @@ type Props = {
   hasSearchDates?: boolean
   fundsPolicy?: HotelFundsPolicyEvidence | null
   fundsPolicyLoadState?: HotelFundsPolicyLoadState
+  fundsPolicyCapability?: HotelFundsPolicyCapability
   petPolicy?: HotelPetPolicyPresentation
   smokingPolicy?: HotelSmokingPolicyView
 }
@@ -768,7 +769,8 @@ export default function HotelCard({
   parkingEvidenceMalformed = false,
   hasSearchDates = true,
   fundsPolicy,
-  fundsPolicyLoadState = 'ready',
+  fundsPolicyLoadState,
+  fundsPolicyCapability,
   petPolicy,
   smokingPolicy,
 }: Props) {
@@ -792,9 +794,18 @@ export default function HotelCard({
   const providerConfirmationCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
   const reviewDisclosure = providerConfirmationCopy
   const resolvedFundsPolicy = fundsPolicy ?? hotel.fundsPolicy
+  const resolvedFundsPolicyCapability = fundsPolicyCapability ?? hotel.fundsPolicyCapability
+  const resolvedFundsPolicyLoadState = fundsPolicyLoadState ?? hotel.fundsPolicyLoadState ?? 'ready'
   const selectedHotel = resolvedFundsPolicy === hotel.fundsPolicy
+      && resolvedFundsPolicyCapability === hotel.fundsPolicyCapability
+      && resolvedFundsPolicyLoadState === (hotel.fundsPolicyLoadState ?? 'ready')
     ? hotel
-    : { ...hotel, fundsPolicy: resolvedFundsPolicy }
+    : {
+        ...hotel,
+        fundsPolicy: resolvedFundsPolicy,
+        fundsPolicyCapability: resolvedFundsPolicyCapability,
+        fundsPolicyLoadState: resolvedFundsPolicyLoadState,
+      }
   const bookingHref = canBook ? buildHotelBookingHref(selectedHotel) : ''
   const bookingHrefNeedsReference = canBook && hotelBookingHrefRequiresReference(bookingHref)
   const rateEligibility = deriveRateEligibilityPresentation({
@@ -817,7 +828,7 @@ export default function HotelCard({
     source: hotel.source,
     surface: 'results',
   })
-  const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(resolvedFundsPolicy, fundsPolicyLoadState, providerName)
+  const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(resolvedFundsPolicy, resolvedFundsPolicyLoadState, providerName, resolvedFundsPolicyCapability)
   const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy} ${policyAriaSuffix}`
   const unavailableAriaLabel = hasValidPrice
     ? `Provider link unavailable for ${hotel.name}. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
@@ -840,7 +851,7 @@ export default function HotelCard({
   const collapsedSmokingPolicy = getCollapsedSmokingPolicy(resolvedSmokingPolicy)
   const fundsPolicyExposureRef = useHotelFundsPolicyExposure({
     evidence: resolvedFundsPolicy,
-    loadState: fundsPolicyLoadState,
+    loadState: resolvedFundsPolicyLoadState,
     offerId: hotel.id,
     provider: hotel.source,
     surface: 'hotel_card',
@@ -850,7 +861,7 @@ export default function HotelCard({
     if (!isExpanded && canBook) {
       trackHotelFundsPolicyDetailsOpened({
         evidence: resolvedFundsPolicy,
-        loadState: fundsPolicyLoadState,
+        loadState: resolvedFundsPolicyLoadState,
         offerId: hotel.id,
         provider: hotel.source,
       })
@@ -974,13 +985,14 @@ export default function HotelCard({
         {canBook ? (
           <HotelFundsPolicyPanel
             evidence={resolvedFundsPolicy}
-            loadState={fundsPolicyLoadState}
+            loadState={resolvedFundsPolicyLoadState}
             surface="hotel_detail"
             sourceLabel={providerName}
             variant="summary"
             offerId={hotel.id}
             provider={hotel.source}
             rootRef={fundsPolicyExposureRef}
+            capability={resolvedFundsPolicyCapability}
           />
         ) : null}
 
@@ -1116,13 +1128,14 @@ export default function HotelCard({
             {canBook ? (
               <HotelFundsPolicyPanel
                 evidence={resolvedFundsPolicy}
-                loadState={fundsPolicyLoadState}
+                loadState={resolvedFundsPolicyLoadState}
                 surface="hotel_detail"
                 sourceLabel={providerName}
                 hotelName={hotel.name}
                 variant="full"
                 offerId={hotel.id}
                 provider={hotel.source}
+                capability={resolvedFundsPolicyCapability}
               />
             ) : null}
 

@@ -6,6 +6,9 @@ import type {
   HotelFundsMissingField,
   HotelFundsObligationType,
   HotelFundsPolicyEvidence,
+  HotelFundsPolicyBridge,
+  HotelFundsPolicyCapability,
+  HotelFundsPolicyLoadState,
   HotelFundsPolicyState,
   Money,
 } from '../types';
@@ -185,6 +188,41 @@ export function createNotReturnedHotelFundsPolicy(sourceLabel: string): HotelFun
     sourceLabel: normalizeSourceLabel(undefined, sourceLabel),
     scope: 'not_returned',
   };
+}
+
+export function normalizeHotelFundsPolicyCapability(input: unknown): HotelFundsPolicyCapability {
+  return { policy: isRecord(input) && input.policy === true };
+}
+
+export function normalizeHotelFundsPolicyLoadState(input: unknown): HotelFundsPolicyLoadState {
+  return input === 'loading' || input === 'error' ? input : 'ready';
+}
+
+export function normalizeHotelFundsPolicyBridge(input: {
+  provider: unknown;
+  capability: unknown;
+  evidence: unknown;
+  loadState: unknown;
+}): HotelFundsPolicyBridge {
+  const provider = normalizeSourceLabel(input.provider, 'Hotel provider');
+  return {
+    provider,
+    capability: normalizeHotelFundsPolicyCapability(input.capability),
+    evidence: normalizeHotelFundsPolicyEvidence(input.evidence, provider),
+    loadState: normalizeHotelFundsPolicyLoadState(input.loadState),
+  };
+}
+
+export function createUnsupportedHotelFundsPolicyBridge(
+  provider: string,
+  sourceLabel = provider,
+): HotelFundsPolicyBridge {
+  return normalizeHotelFundsPolicyBridge({
+    provider,
+    capability: { policy: false },
+    evidence: createNotReturnedHotelFundsPolicy(sourceLabel),
+    loadState: 'ready',
+  });
 }
 
 export function normalizeHotelFundsPolicyEvidence(

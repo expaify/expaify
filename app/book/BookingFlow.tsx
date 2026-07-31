@@ -713,7 +713,7 @@ function HotelHandoffReview({
   parkingEvidenceMalformed = false,
   hasSearchDates = true,
   fundsPolicy,
-  fundsPolicyLoadState = 'ready',
+  fundsPolicyLoadState,
   hotelSmokingPolicy,
 }: {
   hotelContext: BookingHotelContext
@@ -736,9 +736,10 @@ function HotelHandoffReview({
     capability: hotelContext.admissionPolicyCapability,
   })
   const resolvedFundsPolicy = fundsPolicy ?? hotelContext.fundsPolicy
+  const resolvedFundsPolicyLoadState = fundsPolicyLoadState ?? hotelContext.fundsPolicyLoadState
   const policyDimensions = getHotelFundsAnalyticsDimensions({
     evidence: resolvedFundsPolicy,
-    loadState: fundsPolicyLoadState,
+    loadState: resolvedFundsPolicyLoadState,
     provider: hotelContext.provider,
     surface: 'book_handoff',
   })
@@ -869,7 +870,7 @@ function HotelHandoffReview({
   }, [documentReadiness, hotelContext.provider, invoiceNeeded])
   const fundsPolicyExposureRef = useHotelFundsPolicyExposure({
     evidence: resolvedFundsPolicy,
-    loadState: fundsPolicyLoadState,
+    loadState: resolvedFundsPolicyLoadState,
     offerId: hotelContext.offerId,
     provider: hotelContext.provider,
     surface: 'book_handoff',
@@ -1243,7 +1244,7 @@ function HotelHandoffReview({
         <div className="mt-5">
           <HotelFundsPolicyPanel
             evidence={resolvedFundsPolicy}
-            loadState={fundsPolicyLoadState}
+            loadState={resolvedFundsPolicyLoadState}
             surface="book_handoff"
             partnerLabel={partner.named ? partner.label : undefined}
             confirmHref={hotelContext.providerUrl}
@@ -1253,6 +1254,7 @@ function HotelHandoffReview({
             offerId={hotelContext.offerId}
             provider={hotelContext.provider}
             rootRef={fundsPolicyExposureRef}
+            capability={hotelContext.fundsPolicyCapability}
           />
         </div>
           <details className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
@@ -1280,7 +1282,7 @@ export default function BookingFlow({
   parkingEvidenceMalformed = false,
   hasSearchDates = true,
   hotelFundsPolicy,
-  hotelFundsPolicyLoadState = 'ready',
+  hotelFundsPolicyLoadState,
   hotelSmokingPolicy,
 }: BookingFlowProps) {
   const [state, setState] = useState<BookingState>('idle')

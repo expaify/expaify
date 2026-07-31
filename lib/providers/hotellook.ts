@@ -17,6 +17,7 @@ import { HOTEL_ADMISSION_POLICY_UNSUPPORTED } from '../hotels/admissionPolicy';
 
 const ENGINE_BASE = 'https://engine.hotellook.com/api/v2/cache.json';
 const CACHE_TTL = 21600; // 6 hours
+const HOTEL_FUNDS_POLICY_UNSUPPORTED = { policy: false } as const;
 
 // ─── API response shapes ──────────────────────────────────────────────────────
 
@@ -405,6 +406,8 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     amenityEvidence: access.evidence,
     accessEvidenceState,
     fundsPolicy: createNotReturnedHotelFundsPolicy('Hotellook'),
+    fundsPolicyCapability: HOTEL_FUNDS_POLICY_UNSUPPORTED,
+    fundsPolicyLoadState: 'ready',
     smokingPolicy,
     rateEligibilityCapability: HOTEL_RATE_ELIGIBILITY_UNSUPPORTED,
     admissionPolicyCapability: HOTEL_ADMISSION_POLICY_UNSUPPORTED,
@@ -534,6 +537,8 @@ export class HotellookProvider implements HotelProvider {
           amenityEvidence: access.evidence,
           accessEvidenceState: access.state,
           fundsPolicy: createNotReturnedHotelFundsPolicy('Hotellook'),
+          fundsPolicyCapability: HOTEL_FUNDS_POLICY_UNSUPPORTED,
+          fundsPolicyLoadState: 'ready',
           // cache.json exposes no supported, scoped smoking-policy fields. A
           // successful check is explicit absence, never a policy inference.
           smokingPolicy: notProvidedHotelSmokingPolicy(),

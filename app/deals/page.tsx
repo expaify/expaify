@@ -16,6 +16,7 @@ import {
   resolveHotelResultsView,
   resolveHotelSearchCriteria,
 } from '@/lib/hotels/searchCriteria'
+import { createDealFundsPolicyBridge } from '@/lib/hotels/dealFundsPolicy'
 
 export const metadata: Metadata = {
   title: 'Hotel deals today — expaify',
@@ -44,6 +45,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
     nights: row.nights, snapshotCount: row.snapshot_count,
     otaLinks: row.ota_links, headline: row.headline, isMock: row.is_mock,
     firstSeen: row.first_seen, updatedAt: row.updated_at, locked: false,
+    fundsPolicy: createDealFundsPolicyBridge(),
   }
 }
 

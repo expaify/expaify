@@ -44,6 +44,55 @@ describe('POST /api/analytics', () => {
     ]))
   })
 
+  it('stores the bounded hotel funds-policy set exposure contract', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_funds_policy_set_viewed',
+      occurredAt: new Date().toISOString(),
+      path: '/deals',
+      props: {
+        capabilityState: 'mixed',
+        visibleBookableCount: 4,
+        supportedOfferCount: 3,
+        completeCount: 1,
+        partialCount: 0,
+        conflictingCount: 0,
+        explicitNoneCount: 1,
+        notReturnedCount: 1,
+        surface: 'deal_feed',
+      },
+    }))
+
+    expect(response.status).toBe(202)
+  })
+
+  it('accepts bounded invalid-pair diagnostics and rejects contradictory counts', async () => {
+    const valid = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_funds_policy_pair_invalid',
+      occurredAt: new Date().toISOString(),
+      path: '/deals',
+      props: { capabilityState: 'none', invalidPairCount: 1, visibleBookableCount: 2, surface: 'deal_feed' },
+    }))
+    const invalid = await POST(request({
+      eventId: '6c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_funds_policy_set_viewed',
+      occurredAt: new Date().toISOString(),
+      path: '/deals',
+      props: {
+        capabilityState: 'all', visibleBookableCount: 2, supportedOfferCount: 1,
+        completeCount: 1, partialCount: 0, conflictingCount: 0,
+        explicitNoneCount: 0, notReturnedCount: 0, surface: 'deal_feed',
+      },
+    }))
+
+    expect(valid.status).toBe(202)
+    expect(invalid.status).toBe(400)
+  })
+
   it('rejects malformed sessions and nested properties', async () => {
     const response = await POST(request({
       eventId: 'not-an-id',
