@@ -1,80 +1,130 @@
-# UXD-HOTEL-PET-POLICY-01: Pet-Friendly Hotel Policy Fit Discovery
+# UXD-HOTEL-PET-POLICY-01: Hotel Pet-Policy Fit Discovery
 
-Date: 2026-07-22  
-Stage: UX Discovery  
-Priority: P1  
+Date: 2026-07-31
+Stage: UX Discovery
+Priority: P1
 Feature slug: `hotel-pet-policy`
 
-## User Pain Point
+## User pain point
 
-A traveller with a pet cannot determine whether a hotel is suitable for their specific animal and stay from expaify—because allowed pet types, mandatory fees, size or weight limits, and property-specific restrictions are absent—so they may choose an unsuitable property or must leave the product to investigate every candidate.
+A traveler bringing a pet cannot tell from expaify whether a hotel accepts their animal for the selected stay or what mandatory pet charges, deposits, and limits apply, so an apparently eligible deal can become unusable only after they open the hotel or leave for a booking provider.
 
-## Who Is Affected And Where
+## Who is affected and where the decision breaks
 
-This affects travellers whose lodging decision depends on bringing a pet: dog owners affected by weight, breed, count, or room restrictions; cat and other-animal owners affected by species exclusions; and price-sensitive travellers for whom a mandatory pet fee changes the apparent deal value.
+This affects travelers for whom a pet is a non-negotiable member of the party, especially:
 
-The affected decision path starts with hotel search and result filtering, continues through the collapsed result scan and expanded hotel detail, and ends immediately before the provider handoff. The immediate implementation surfaces are:
+- dog, cat, and other-animal owners subject to animal-type exclusions;
+- travelers with large or multiple animals subject to weight, size, breed, or count limits;
+- price-sensitive travelers for whom a nightly or per-stay charge, per-pet multiplier, or deposit changes the affordability of the stay; and
+- travelers who need advance property approval and cannot safely treat “pets allowed” as confirmation.
 
-- `app/api/search/route.ts`, which returns hotel availability after a dated destination search;
-- `app/components/HotelCard.tsx`, which is the comparison and expanded-detail surface for each `HotelOffer`;
-- `lib/types.ts` and `lib/providers/hotellook.ts`, which define and normalize the data available to those surfaces.
+The relevant decision is not “does this hotel advertise itself as pet friendly?” It is “does the available evidence support this pet and this stay, and what cost or confirmation remains?” That decision currently breaks across the active result-to-provider path:
 
-The issue is most harmful when a low nightly rate encourages a traveller to click through or select a hotel before learning that their pet type is excluded, that a non-refundable fee materially changes the cost, or that a size/count rule makes the stay impossible.
+1. **Result scan — `/deals`.** `app/deals/DealFeed.tsx` renders `app/components/ui/DealCard.tsx`. The deal shape carries price, discount, dates, hotel class, and links, but no pet profile, policy evidence, fit state, fee, deposit, or restriction. A traveler cannot keep, rule out, or mark a property for verification from the result.
+2. **Saved-hotel detail — `/deals/[dealId]`.** The page’s `Hotel fit` section shows hotel class, missing guest-rating evidence, and quiet-stay evidence. It contains no pet-policy disclosure. The next primary decision is `Check rooms with provider`, so the first possible policy discovery occurs outside expaify.
+3. **Provider handoff.** The outbound choices are affiliate links. No pet-policy outcome or unresolved pet question is repeated before the traveler opens a provider option, and no property contact or policy-verification workflow exists in expaify.
 
-## Current, Measurable Signal
+A separate comparison component, `app/components/HotelCard.tsx`, contains an optional `petPolicy` presentation path. When supplied, it can show a scan outcome and expanded `Pet policy for your stay` facts. This is not an end-to-end capability:
 
-This is a verifiable data-and-decision gap, not an assumed preference:
+- repository tracing finds no production page that mounts `HotelCard`;
+- `HotelPetPolicyEvidence` and `PetFitEvaluation` live in the UI component file rather than the normalized provider contract;
+- no production caller supplies `petPolicy`;
+- no traveler pet-profile input or evaluation service exists; and
+- the presentation contract models a pet fee but not a distinct deposit amount, refundability, or return condition.
 
-1. `HotelOffer` in `lib/types.ts` has no pet-policy field. It cannot express whether pets are allowed, which types are allowed, a fee, a size/weight limit, a pet-count limit, property restrictions, source, or a policy-data state.
-2. `HotellookProvider` has no pet-policy mapping. Its cache-entry shape and live/cached normalization in `lib/providers/hotellook.ts` preserve price, location, hotel class, and rating evidence, but no pet policy. Thus the provider boundary currently carries no normalized policy fact or explicit policy-data absence.
-3. `HotelCard` exposes quality, location, Deal Score, price scope, and provider-handoff information, but no pet-policy summary in its collapsed scan or expanded details. A traveller cannot answer the suitability question without leaving expaify.
-4. `GET /api/search` can distinguish hotel inventory as available, empty, unavailable, or skipped, but it cannot distinguish *hotel inventory found, pet policy not returned* from *pet policy explicitly prohibits the traveller's pet*. Those are decisionally opposite states.
+The existing component is therefore useful prior design evidence, not proof that a traveler can complete the task.
 
-Instrument these signals once the data and surface exist:
+## Current evidence and normalized-data sufficiency
 
-- **Pet filter engagement:** the share of hotel-search sessions that open, apply, change, or clear a pet-suitability filter. Segment by policy coverage and unknown-policy share; an uninformative filter over unknown inventory is not success.
-- **Policy-related exits:** from a hotel detail or provider-handoff intent, record an exit/back-out or search refinement without a provider CTA, paired with a policy state where available. This is a proxy for discovering a restriction late. It must not infer a reason when no policy is shown.
-- **Validated decision signal (primary):** in a comprehension task or event-backed confirmation, the share of pet travellers who can correctly identify a property as suitable, unsuitable, or unknown for their stated pet before provider handoff. Count an explicit unknown as a correct, safe outcome; do not treat it as a match or exclusion.
+The current normalized provider data is **not sufficient** to identify an eligible stay.
 
-Baseline: the code-level coverage of the required policy facts is zero, so expaify currently cannot provide a validated on-platform pet-suitability decision for any hotel.
+- `HotelOffer` in `lib/types.ts` has no pet-policy field. It cannot carry permission, animal types, limits, fee basis, deposit terms, evidence state, scope, provenance, or freshness.
+- `lib/providers/hotellook.ts` maps the live response and cached replay into `HotelOffer` without pet data. A successful hotel result currently means only that inventory was returned; it says nothing about pet-policy availability.
+- `app/api/search/route.ts` can distinguish hotel inventory states, but cannot distinguish “policy confirms fit,” “policy confirms mismatch,” “approval required,” “policy not returned,” or “policy lookup failed.”
+- The current UI-only policy shape can represent `allowed`, `prohibited`, `by_arrangement`, fee amount/basis, animal types, count, weight, restrictions, scope, source, freshness, conflict, and derived fit. It cannot by itself establish supplier coverage, survive provider/cache normalization, capture a separate deposit, or compute fit without a stated pet profile.
+
+The structural baseline is consequently:
+
+- **normalized policy coverage:** 0% of active hotel offers;
+- **production result-card policy coverage:** 0%;
+- **production detail policy coverage:** 0%; and
+- **validated on-platform eligible-stay identification:** 0%, because the active flow exposes neither evidence nor a supported unknown state.
+
+Missing evidence must not be counted as prohibition, permission, no charge, no deposit, or no limit. Likewise, a generic property-level `pets allowed` claim is insufficient to certify a specific animal, room/rate, or stay.
+
+## Minimum data model to validate in research
+
+UXR should validate whether the following is the smallest provider-neutral model that supports a safe decision. Each family must allow an explicit `not_returned`, `unknown`, malformed, and conflicting state where applicable.
+
+1. **Traveler pet profile:** animal type, pet count, and weight/size when known. Breed should remain optional and collected only if supplier evidence makes it decision-relevant. Service-animal status and legal eligibility are not part of this general pet flow.
+2. **Acceptance:** allowed, prohibited, by arrangement, or unknown, plus included and excluded animal types.
+3. **Eligibility limits:** maximum pet count, weight/size limit with unit, and only supplier-reported material restrictions such as breed, room/area, advance notice, or unattended-animal rules.
+4. **Pet charge:** free, mandatory, may apply, or unknown; known money as `{ priceCents, currency }`; and an explicit basis such as per pet per night, per pet per stay, per night, or per stay.
+5. **Deposit:** separate from the pet charge, with known money when supplied, required/possible/unknown state, refundability or return condition when supplied, and a basis if the supplier applies it per pet or per stay. A deposit must never be added to the nightly rate or described as a fee merely because both are payable.
+6. **Evidence boundary:** property/room/rate/selected-stay scope, source label, observed time or freshness when available, schema revision, and conflict preservation. Only selected-stay evidence that resolves every material dimension may support a positive match.
+
+The decision output to validate is intentionally three-way:
+
+- **eligible** — supplier evidence resolves the stated animal type, count, applicable limit, material restrictions, selected-stay scope, and cost state;
+- **ineligible** — supplier evidence explicitly establishes a mismatch; or
+- **needs confirmation** — any material dimension is absent, conditional, stale, malformed, conflicting, or scoped more broadly than the selected stay.
+
+An honest `needs confirmation` is a successful safe outcome. It must not be hidden from results and must not be promoted to eligible.
+
+## Minimum disclosure hypothesis
+
+The smallest disclosure worth testing is:
+
+- a concise result-level outcome for the stated pet, with the first decision-changing reason and charge basis when known;
+- a detail-level breakdown of acceptance, animal types, charge, deposit, count/size limits, other restrictions, scope, source, freshness, and unresolved items; and
+- a repeated confirmation boundary before an outbound provider option whenever eligibility or cost is unresolved.
+
+The scan signal should help a traveler keep, rule out, or verify a property without opening every hotel. Detail should explain the evidence behind that signal; it should not introduce a contradictory outcome. This ticket does not authorize a filter until provider coverage is measured and unknown inventory can remain visible rather than being silently excluded.
+
+## Measurable signals
+
+The primary success measure is **eligible-stay identification accuracy**: in a scenario-based comprehension task with a stated pet and representative policy states, the share of first-time travelers who correctly answer `eligible`, `ineligible`, or `needs confirmation` from the result signal, without opening the detail for clearly supported outcomes. A correct unknown/confirmation answer counts as success.
+
+Supporting measures are:
+
+- **Unsupported-option open rate:** the share of result opens or provider handoffs involving a policy that explicitly conflicts with the stated pet. The desired direction is down; confirmed-ineligible options should reach 0 provider handoffs in the validation task unless the participant deliberately chooses to verify changed policy.
+- **Fee and deposit comprehension:** the share who can separately state whether a charge and deposit apply, their known amount and basis, and what remains unknown. Confusing a nightly fee with a per-stay fee, or a refundable deposit with a fee, is a failure.
+- **Unknown-state comprehension:** the share who correctly understand that `not returned`, `by arrangement`, property-only, stale, or conflicting evidence is neither permission nor prohibition.
+- **Evidence coverage:** by provider, the share of offers with enough normalized evidence to resolve acceptance, types, limits, charges, deposits, scope, and provenance. Report full, partial, not-returned, malformed, and conflicting coverage separately; do not collapse them into one availability rate.
+- **Avoidable property mismatch:** in moderated validation first, the share of chosen properties later revealed by the supplied policy fixture to reject the stated pet or impose a decision-changing undisclosed cost. Production measurement would require a provider/booking outcome or explicit traveler report that does not exist today.
+
+Generic exits, back navigation, detail opens, and session abandonment are diagnostic only. They must not be labelled “pet-policy related” unless the traveler explicitly selects that reason or activates a policy-specific confirmation action.
 
 ## Constraints
 
-1. **Normalized, attributed supplier data only.** All pet policy facts must arrive through `lib/providers` and be normalized before components receive them. The UI must not parse supplier prose, infer a policy from a property type, star rating, photo, generic "pet-friendly" tag, or marketing copy, or make a provider request from a component. Preserve source/provenance and any observed-at timestamp when supplied.
-2. **Explicit unknown is mandatory.** Missing policy data means `unknown`/`not returned by provider`; it does not mean pets are prohibited, permitted, free, or unrestricted. A supplier-confirmed prohibition is distinct from unknown. Unknown inventory must remain visible rather than being silently treated as a failed pet-friendly filter result.
-3. **Pet suitability is multi-part, not a boolean.** The MVP policy shape must be capable of representing: allowed/prohibited/unknown; allowed pet types; fee with its basis when documented; size or weight limits; and property-specific restrictions (for example maximum pet count, room-area restrictions, advance notice, or service-animal distinction when explicitly supplied). Fee values must use `{ priceCents, currency }`; no floats or bare amounts. Unstructured supplier wording must not be compressed into a misleading yes/no state.
-4. **Do not overstate stay-level certainty.** A property-level policy cannot be represented as confirmed availability for the selected room or rate unless a supplier explicitly provides that scope. The provider remains the authority for final policy, fees, availability, and terms at handoff.
-5. **Keep the comparison hierarchy intact.** At 375px and desktop, a concise pet-decision signal may not displace or obscure nightly price, Deal Score, location, quality evidence, or the review CTA. Status cannot rely on icon or color alone and must be readable by keyboard and assistive technology.
+1. **Provider-backed data integrity.** Every policy fact must enter through `lib/providers`, survive live and cached normalization, preserve source and scope, and use canonical integer money. Components must not parse supplier prose, call vendors, infer from photos/stars/property type, merge contradictory sources into a permissive policy, or treat absence as a claim.
+2. **No false certainty or cost blending.** Property-level permission, by-arrangement wording, missing limits, unresolved room/rate applicability, stale evidence, and conflicts cannot yield an eligible stay. Pet charges and deposits remain separate from each other, the displayed nightly rate, and Deal Score unless separately approved total-price work establishes a correct calculation.
+3. **Repair scope and usable hierarchy.** Keep scope to concise eligibility, restriction, fee, deposit, and confirmation signals across result, detail, and handoff. Do not build pet services, veterinary/boarding content, property messaging, legal/service-animal advice, ranking changes, or a new supplier integration in this discovery. Any future UI must preserve price, Deal Score, location, and provider options; remain readable at 375px and 1280px; use text rather than color/icon alone; and support keyboard and assistive technology.
 
-## Scope Boundary
+## Success statement
 
-This ticket owns the **pet-policy fit decision**: whether a traveller can decide, for their stated pet, whether to consider, rule out, or verify a property before handoff.
+This is solved when a first-time traveler can identify an eligible hotel for their stated pet—or correctly identify that confirmation is still required—from the result card, understand any supplier-reported charge, deposit, and material limit before provider handoff, and avoid opening an option that the available evidence already shows is unsupported.
 
-It does not reopen the general hotel-amenity work. `docs/pipeline/hotel-amenity-fit/01-discovery.md` and `docs/pipeline/hotel-amenity-provenance/02-research.md` establish the broader provider-backed amenity evidence approach. This feature should reuse that provenance discipline, but requires pet-specific structure because a generic `pets` boolean cannot faithfully answer pet type, fee, size, or restrictions.
+## Required UXR handoff
 
-Out of scope for this discovery:
+`UXR-HOTEL-PET-POLICY-01` must read this report and refresh the existing research artifact against the current branch rather than assuming the dormant presentation component is live. It must:
 
-- creating a new hotel supplier integration, scraping policy pages, or treating third-party text as verified data;
-- changing Deal Score, ranking, price history, or cash/award provider contracts outside hotel policy evidence;
-- booking or collecting pet details within expaify; the app presently hands hotel review to the provider;
-- service-animal eligibility or legal/compliance advice. Only supplier-documented property policy may be shown, with final confirmation deferred to the provider;
-- filtering implementation itself until UXR validates policy coverage and the rules for retaining unknown results.
+1. audit both active flows (`DealCard` → saved detail → affiliate provider) and the unmounted `HotelCard` comparison prototype;
+2. verify real supplier payload coverage before declaring any populated policy state shippable;
+3. test the minimum profile, evidence, fee-versus-deposit, scope, and three-way evaluation model above;
+4. compare one or two established hotel-search interaction patterns at the pattern level, including how they disclose animal-type limits, fee basis, deposits, and unknown policies;
+5. define the usability protocol and event boundaries for eligible-stay accuracy, unsupported-option opens, cost comprehension, unknown-state comprehension, and mismatch reporting; and
+6. produce 3–5 exact, testable directives for the production result, detail, and pre-handoff hierarchy, including loading, not-returned, error, stale, malformed, conflict, mobile, desktop, keyboard, and screen-reader states.
 
-## Success Statement
+The research must explicitly decide whether the current UI-local policy contract can be promoted and extended or should be replaced by a normalized domain model. It must not treat the pre-existing `02-research.md` or `03-design.md` as evidence that the current product flow is implemented.
 
-This is solved when a first-time traveller with a stated pet can, before selecting a hotel or leaving expaify, correctly tell whether the property is supplier-confirmed suitable, supplier-confirmed unsuitable, or unknown for that pet—including any documented fee, size limit, permitted pet type, and material property restriction—without mistaking missing policy data for permission or prohibition.
+## Out-of-scope findings
 
-## Handoff Requirements For UXR
-
-`UXR-HOTEL-PET-POLICY-01` must read this report and produce `docs/pipeline/hotel-pet-policy/02-research.md`. It must:
-
-1. Audit the actual `HotelOffer`, `HotellookProvider`, cache normalization, search event, `HotelCard`, and existing amenity-provenance work to identify the smallest compatible provider-neutral policy evidence contract.
-2. Validate supplier coverage and raw vocabulary for permitted/prohibited/unknown, pet types, fee/currency/basis, size/weight limits, count limits, and restrictions. If current supply cannot support a field, retain it as unknown; do not design a synthetic fallback.
-3. Define a testable pet-suitability evaluation for a stated pet profile, including exact treatment of unknown fields and conflicting supplier statements. It must distinguish provider-confirmed unsuitable from unknown and never silently exclude unknown inventory.
-4. Compare one or two established hotel-search interaction patterns at the interaction level: pet filtering, result scan, detail-policy disclosure, fee/restriction hierarchy, and unknown-policy handling—not visual styling.
-5. Specify measurement definitions for policy-related exits, filter engagement, coverage, and the primary validated-decision signal, including event boundaries that do not claim an unobserved reason for an exit.
-6. Produce 3–5 specific, testable directives for UXDES, covering result scan, detail review, the no-policy-data state, accessibility, and 375px/1280px fit. State whether a pet filter is viable only after coverage research.
+- `HotelCard` is not mounted in a production page; wiring or replacing that surface is a separate implementation/integration decision.
+- The existing UI-only pet model has no distinct deposit representation. That gap is relevant to this discovery but no type or UI change is authorized at UXD.
+- Current provider supply supports no positive or negative pet-policy classification. A populated-state UI can only be a research fixture until a verified supplier contract exists.
+- Existing downstream `02-research.md` and `03-design.md` files predate this board run. They were not edited; UXR must reconcile them with this refreshed discovery and current code.
 
 ## Handoff
 
-Create `UXR-HOTEL-PET-POLICY-01` with this report path and the problem statement embedded. The research ticket must explicitly preserve the unknown state and the normalized-supplier-data boundary.
+Create `UXR-HOTEL-PET-POLICY-01` with this report path and the one-sentence problem statement. The ticket must preserve explicit unknown states, separate pet charges from deposits, and treat provider coverage plus production-surface reachability as release gates.
