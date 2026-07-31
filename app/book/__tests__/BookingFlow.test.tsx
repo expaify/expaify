@@ -223,7 +223,7 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Policy not provided');
     expect(text).toContain('Source checked: Hotellook · Scope not provided');
     expect(text).toContain('Confirm policy with booking partner');
-    expect(text).toContain('Need a quiet room, high floor, or early check-in?');
+    expect(text).toContain('Need a quiet room, high floor, preferred bed setup, or early check-in?');
     expect(text).toContain('Add your request on the booking partner’s site while booking. Nothing is selected or sent by expaify.');
     expect(text).toContain('Requests depend on availability and are not guaranteed. After booking, use your confirmation or itinerary to contact the property and ask it to confirm what it can provide.');
     expect(text).toContain('Opens the booking partner’s site in a new tab. Your expaify search stays open here.');
@@ -719,7 +719,7 @@ describe('BookingFlow fare context review', () => {
         source: 'hotellook',
         partnerHost: 'www.booking.com',
         capabilityState: 'provider_directed_only',
-        eligibleRequestCount: 3,
+        eligibleRequestCount: 4,
       });
 
       intersectionCallback?.([{
@@ -752,7 +752,7 @@ describe('BookingFlow fare context review', () => {
         source: 'hotellook',
         partnerHost: 'www.booking.com',
         capabilityState: 'provider_directed_only',
-        eligibleRequestCount: 3,
+        eligibleRequestCount: 4,
         selectedRequestCount: 0,
         guidanceSeen: true,
       });

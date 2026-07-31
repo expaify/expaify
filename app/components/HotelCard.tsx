@@ -682,6 +682,45 @@ function QualityEvidencePanel({ hotelClass, guestRating, legacyRatingPresent, so
   )
 }
 
+function RoomRateDetailsPanel() {
+  return (
+    <section
+      className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs leading-5 text-[color:var(--text-2)]"
+      aria-label="Room and rate details"
+    >
+      <p className="font-bold text-[color:var(--text-1)]">Room &amp; rate details</p>
+      <dl className="mt-2">
+        <div>
+          <dt className="font-bold text-[color:var(--text-1)]">Refundable</dt>
+          <dd className="mt-0.5 break-words font-medium text-[color:var(--warning)]">
+            Refundability not provided by this provider — confirm before payment
+          </dd>
+        </div>
+        <div className="mt-2 border-l border-[color:var(--border)] pl-3">
+          <dt className="font-bold text-[color:var(--text-1)]">Cancellation deadline</dt>
+          <dd className="mt-0.5 break-words font-medium text-[color:var(--text-3)]">
+            Cancellation deadline not provided by this provider
+          </dd>
+        </div>
+      </dl>
+      <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-x-6">
+        <div>
+          <dt className="font-bold text-[color:var(--text-1)]">Room &amp; bed</dt>
+          <dd className="mt-0.5 break-words font-medium text-[color:var(--text-2)]">
+            Room type not provided by this provider
+          </dd>
+        </div>
+        <div>
+          <dt className="font-bold text-[color:var(--text-1)]">Meal plan (this rate)</dt>
+          <dd className="mt-0.5 break-words font-medium text-[color:var(--text-2)]">
+            Meal plan not provided by this provider for this rate
+          </dd>
+        </div>
+      </dl>
+    </section>
+  )
+}
+
 function ScoreChip({ score, loading }: { score: DealScore | null; loading: boolean }) {
   if (loading) {
     return (
@@ -1020,6 +1059,8 @@ export default function HotelCard({
               legacyRatingPresent={legacyRatingPresent}
               source={hotel.source}
             />
+
+            <RoomRateDetailsPanel />
 
             <div className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[color:var(--text-2)]">
               <p className="font-medium text-[color:var(--text-1)]">Location</p>
