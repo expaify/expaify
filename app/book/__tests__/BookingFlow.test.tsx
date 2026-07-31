@@ -206,7 +206,10 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Hotel fit');
     expect(text).toContain('Check rooms with provider');
     expect(text).toContain('Check rooms at provider');
-    expect(text).toContain('The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.');
+    expect(text).toContain('The provider shows room options, live availability, final total, taxes and fees, cancellation policy, and terms. Choose or confirm your dates there before comparing rooms.');
+    expect(text).toContain('Room view');
+    expect(text).toContain('View not confirmed');
+    expect(text).toContain('View not confirmed for the room you choose. Photos may show the property or other room categories. Confirm the room’s view with the provider before booking.');
     expect(text).toContain('Supporting evidence');
     expect(text).toContain('Rate restrictions');
     expect(text).toContain('Restrictions not provided');
@@ -362,6 +365,32 @@ describe('BookingFlow fare context review', () => {
     expect(supportingText).toContain('I need an invoice or receipt for this stay');
     expect(supportingText).toContain('What you may need');
     expect(supportingText).toContain('Additional funds at the property');
+  });
+
+  it('places static room-view confidence after disclosures and immediately before the provider action', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext,
+    });
+    const providerSection = findElements(tree, element => (
+      element.type === 'section'
+      && element.props['aria-labelledby'] === 'hotel-provider-title'
+    ))[0];
+    const roomViewSection = findElements(providerSection, element => (
+      element.type === 'section'
+      && element.props['aria-labelledby'] === 'hotel-room-view-title'
+    ))[0];
+    const providerAction = findElements(providerSection, element => element.type === 'a' && element.props.target === '_blank')[0];
+    const text = collectText(roomViewSection);
+
+    expect(roomViewSection).toBeDefined();
+    expect(text).toContain('View not confirmed');
+    expect(roomViewSection.props.role).toBeUndefined();
+    expect(roomViewSection.props['aria-live']).toBeUndefined();
+    expect(findElements(roomViewSection, element => ['a', 'button', 'input', 'details'].includes(String(element.type)))).toHaveLength(0);
+    expect(collectText(providerSection).indexOf(text)).toBeLessThan(collectText(providerSection).indexOf(collectText(providerAction)));
   });
 
   it('renders traveler readiness as static, neutrally styled supporting guidance', () => {
