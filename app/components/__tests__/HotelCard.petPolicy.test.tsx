@@ -46,7 +46,11 @@ function collectText(node: unknown): string {
   if (node === null || node === undefined || typeof node === 'boolean') return ''
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(collectText).join('')
-  if (typeof node === 'object') return childrenOf(resolveFunctionElement(node as TestElement)).map(collectText).join('')
+  if (typeof node === 'object') {
+    const resolved = resolveFunctionElement(node as TestElement)
+    if (resolved === null || resolved === undefined) return ''
+    return childrenOf(resolved).map(collectText).join('')
+  }
   return ''
 }
 
@@ -54,6 +58,7 @@ function collectElements(node: unknown): TestElement[] {
   if (node === null || node === undefined || typeof node !== 'object') return []
   if (Array.isArray(node)) return node.flatMap(collectElements)
   const resolved = resolveFunctionElement(node as TestElement)
+  if (resolved === null || resolved === undefined) return []
   return [resolved, ...childrenOf(resolved).flatMap(collectElements)]
 }
 

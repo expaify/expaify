@@ -70,7 +70,9 @@ function collectText(node: unknown): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(collectText).join('')
   if (typeof node === 'object') {
-    return childrenOf(resolveFunctionElement(node as TestElement)).map(collectText).join('')
+    const resolved = resolveFunctionElement(node as TestElement)
+    if (resolved === null || resolved === undefined) return ''
+    return childrenOf(resolved).map(collectText).join('')
   }
   return ''
 }
@@ -79,6 +81,7 @@ function collectElements(node: unknown): TestElement[] {
   if (node === null || node === undefined || typeof node !== 'object') return []
   if (Array.isArray(node)) return node.flatMap(collectElements)
   const resolved = resolveFunctionElement(node as TestElement)
+  if (resolved === null || resolved === undefined) return []
   return [resolved, ...childrenOf(resolved).flatMap(collectElements)]
 }
 
@@ -87,6 +90,14 @@ function accessSection(root: unknown): TestElement {
     node.type === 'section' && collectText(node).includes('Access & room requests')
   ))
   if (!match) throw new Error('Could not find access evidence section')
+  return match
+}
+
+function roomRateSection(root: unknown): TestElement {
+  const match = collectElements(root).find(node => (
+    node.type === 'section' && node.props['aria-label'] === 'Room and rate details'
+  ))
+  if (!match) throw new Error('Could not find room and rate details section')
   return match
 }
 
@@ -179,6 +190,29 @@ describe('HotelCard access evidence', () => {
     )
     expect(text.indexOf('Access & room requests')).toBeLessThan(text.indexOf('Provider handoff'))
     expect(String(section.props.className)).toContain('bg-[color:var(--bg-raised)]')
+  })
+
+  it('renders one honest room and bed disclosure in the expanded room-rate panel', () => {
+    expanded = true
+    const card = HotelCard({ hotel })
+    const section = roomRateSection(card)
+    const text = collectText(section)
+    const roomRows = collectElements(section).filter(node => (
+      node.type === 'dt' && collectText(node) === 'Room & bed'
+    ))
+    const responsiveGrid = collectElements(section).find(node => (
+      node.type === 'dl' && collectText(node).includes('Room & bed')
+    ))
+
+    expect(text).toContain('Room & rate details')
+    expect(text).toContain('Refundability not provided by this provider — confirm before payment')
+    expect(text).toContain('Cancellation deadline not provided by this provider')
+    expect(text).toContain('Room type not provided by this provider')
+    expect(text).toContain('Meal plan not provided by this provider for this rate')
+    expect(roomRows).toHaveLength(1)
+    expect(String(responsiveGrid?.props.className)).toContain('grid-cols-1')
+    expect(String(responsiveGrid?.props.className)).toContain('sm:grid-cols-2')
+    expect(collectElements(section).some(node => node.props.tabIndex !== undefined)).toBe(false)
   })
 
   it.each([

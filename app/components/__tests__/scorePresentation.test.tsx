@@ -48,7 +48,9 @@ function collectText(node: unknown): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(collectText).join('')
   if (typeof node === 'object') {
-    return childrenOf(resolveFunctionElement(node as TestElement)).map(collectText).join('')
+    const resolved = resolveFunctionElement(node as TestElement)
+    if (resolved === null || resolved === undefined) return ''
+    return childrenOf(resolved).map(collectText).join('')
   }
   return ''
 }
@@ -65,6 +67,7 @@ function findFirstProp(node: unknown, propName: string, predicate: (value: unkno
   }
   if (typeof node === 'object') {
     const resolved = resolveFunctionElement(node as TestElement)
+    if (resolved === null || resolved === undefined) return undefined
     const propValue = resolved.props?.[propName]
     if (predicate(propValue)) return propValue
 
@@ -88,6 +91,7 @@ function findFirstElement(node: unknown, type: string): TestElement | undefined 
   }
   if (typeof node === 'object') {
     const resolved = resolveFunctionElement(node as TestElement)
+    if (resolved === null || resolved === undefined) return undefined
     if (resolved.type === type) return resolved
 
     for (const child of childrenOf(resolved)) {

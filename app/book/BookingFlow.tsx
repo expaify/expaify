@@ -909,7 +909,7 @@ function HotelHandoffReview({
           source: hotelContext.provider,
           partnerHost: partner.host,
           capabilityState: 'provider_directed_only',
-          eligibleRequestCount: 3,
+          eligibleRequestCount: 4,
         })
       }, 1_000)
     }, { threshold: 0.5 })
@@ -979,7 +979,7 @@ function HotelHandoffReview({
         source: hotelContext.provider,
         partnerHost: partner.host,
         capabilityState: 'provider_directed_only',
-        eligibleRequestCount: 3,
+        eligibleRequestCount: 4,
         selectedRequestCount: 0,
         guidanceSeen: true,
       })
@@ -1217,7 +1217,7 @@ function HotelHandoffReview({
             Special requests
           </h3>
           <p className="mt-2 text-sm font-medium leading-5 text-[color:var(--text-1)]">
-            Need a quiet room, high floor, or early check-in?
+            Need a quiet room, high floor, preferred bed setup, or early check-in?
           </p>
           <p className={`mt-2 text-sm leading-6 text-[color:var(--text-2)] ${partnerLabelWrapCls}`}>
             {partner.named
