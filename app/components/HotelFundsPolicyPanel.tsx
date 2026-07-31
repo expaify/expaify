@@ -141,12 +141,12 @@ function summaryCopy(evidence: HotelFundsPolicyEvidence, loadState: HotelFundsPo
   }
   if (evidence.obligations.length === 1) return mechanismSummary(evidence.obligations[0])
   if (evidence.obligations.length === 2) {
-    return `Additional funds reported: ${evidence.obligations.map(record => {
+    return `Deposits or card holds reported: ${evidence.obligations.map(record => {
       const label = record.type ? mechanismLabels[record.type].toLowerCase() : 'unspecified obligation'
       return `${label} ${record.amount?.kind === 'variable' ? 'amount varies' : amountAndBasis(record)}`
     }).join('; ')}.`
   }
-  return `Additional funds reported: ${evidence.obligations.length} separate refundable deposit or hold requirements. Review each before booking.`
+  return `Deposits or card holds reported: ${evidence.obligations.length} separate refundable requirements. Review each before booking.`
 }
 
 function joinList(values: string[]): string {
@@ -251,7 +251,7 @@ export function getHotelFundsPolicyAccessibleSuffix(
   const resolved = resolvedEvidence(evidence, sourceLabel)
   if (loadState === 'loading') return 'Deposit and hold policy is still being checked; confirm with the booking partner.'
   if (loadState === 'error') return 'Deposit and hold policy could not be checked.'
-  if (resolved.state === 'complete') return 'Additional-funds policy reported; review details before provider handoff.'
+  if (resolved.state === 'complete') return 'Deposit or card-hold policy reported; review details before provider handoff.'
   if (resolved.state === 'partial') return 'Deposit or hold details are incomplete.'
   if (resolved.state === 'explicit_none') return `Provider reports no deposit or incidental hold for ${scopePhrases[resolved.scope]}.`
   if (resolved.state === 'conflicting') return 'Deposit or hold details conflict.'
@@ -325,7 +325,7 @@ export default function HotelFundsPolicyPanel({
       className={`rounded-[var(--radius-card)] border p-3.5 sm:p-5 ${panelTone}`}
     >
       <h3 id={headingId} className="text-base font-medium leading-6 text-[color:var(--text-1)] sm:text-lg">
-        Additional funds at the property
+        Deposits and card holds
       </h3>
 
       {loadState === 'loading' ? (

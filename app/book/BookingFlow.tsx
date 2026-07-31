@@ -1059,7 +1059,16 @@ function HotelHandoffReview({
     ? `Opens ${partner.label} in a new tab. Your expaify search stays open here.`
     : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
   const accessiblePartner = partner.named ? partner.label : 'the booking partner’s site'
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. The final total may differ. Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
+  const feeProviderName = hasProviderName(hotelContext.provider)
+    ? providerDisplayName(hotelContext.provider)
+    : null
+  const feeHandoffCopy = feeProviderName
+    ? `Mandatory property fees are not confirmed. On ${feeProviderName}, check the final total and any amount due at the property before you continue.`
+    : "Mandatory property fees are not confirmed. On the booking partner's site, check the final total and any amount due at the property before you continue."
+  const feeAccessibleClause = feeProviderName
+    ? `Mandatory property fees are not confirmed. Check the final total and any amount due at the property on ${feeProviderName}.`
+    : "Mandatory property fees are not confirmed. Check the final total and any amount due at the property on the booking partner's site."
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. ${feeAccessibleClause} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
 
   return (
     <ReviewShell
@@ -1137,7 +1146,10 @@ function HotelHandoffReview({
           onOpen={handleLoyaltyDisclosureOpen}
         />
         <HotelRoomViewConfidence />
-        <div className="mt-5 flex flex-col gap-3">
+        <p className="mt-4 break-words rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-2 text-sm font-medium leading-6 text-[color:var(--text-1)] [overflow-wrap:anywhere]">
+          {feeHandoffCopy}
+        </p>
+        <div className="mt-3 flex flex-col gap-3">
           <a
             href={hotelContext.providerUrl}
             target="_blank"
