@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CompareRow, eligibleHotelProviderLinks } from '@/app/components/ui/CompareRow'
 import { track } from '@/lib/analytics'
@@ -24,6 +24,12 @@ import {
   HotelSearchCriteriaEditor,
   HotelSearchCriteriaSummary,
 } from './HotelSearchCriteria'
+import type { HotelDisruptionEvidence } from '@/lib/types'
+import {
+  hotelDisruptionAnalyticsContext,
+  HotelDisruptionHandoffNotice,
+  NO_HOTEL_DISRUPTION_EVIDENCE,
+} from '@/app/components/ui/HotelDisruptionNotice'
 
 type ResolvedContext = {
   criteria?: HotelSearchCriteriaV1
@@ -118,20 +124,92 @@ export function HotelDealCriteriaSummary({ context, deal }: {
   )
 }
 
-export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, datesIncomplete }: {
+export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, datesIncomplete, disruptionEvidence = NO_HOTEL_DISRUPTION_EVIDENCE, disruptionFixture = false }: {
   context: ResolvedContext
   deal: { id: string; city: string; checkInDate?: string | null }
   links: Record<string, string>
   hotelName?: string
   datesIncomplete?: boolean
+  disruptionEvidence?: HotelDisruptionEvidence
+  disruptionFixture?: boolean
 }) {
   const criteria = context.criteria
   const status = criteria ? hotelCriteriaContextStatus(criteria, deal) : context.status
+  const [handoffReached, setHandoffReached] = useState(false)
+  const [providerActivated, setProviderActivated] = useState(false)
+  const [showReturnPrompt, setShowReturnPrompt] = useState(false)
+  const [mismatchReported, setMismatchReported] = useState(false)
+  const wasHidden = useRef(false)
+  const feedbackKey = `expaify.disruption.feedback.${deal.id}.${disruptionEvidence.evidenceRevision}`
+
+  useEffect(() => {
+    if (!providerActivated) return
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        wasHidden.current = true
+        return
+      }
+      if (!wasHidden.current) return
+      try {
+        if (window.sessionStorage.getItem(feedbackKey)) return
+      } catch {
+        // Storage is optional; the one-time prompt remains scoped to this mount.
+      }
+      setShowReturnPrompt(true)
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [feedbackKey, providerActivated])
+
+  function finishFeedback(answer: 'yes' | 'no') {
+    try {
+      window.sessionStorage.setItem(feedbackKey, answer)
+    } catch {
+      // Feedback remains usable when session storage is disabled.
+    }
+    setShowReturnPrompt(false)
+    if (answer === 'yes') {
+      const analytics = hotelDisruptionAnalyticsContext(disruptionEvidence)
+      track('hotel_disruption_return_reason', {
+        reason: 'renovation_or_closure_details_mismatch',
+        evidence_state: analytics.evidence_state,
+        relation: analytics.relation,
+        revision_bucket: analytics.revision_bucket,
+        viewport_band: window.innerWidth <= 480 ? 'mobile_375' : window.innerWidth >= 1024 ? 'desktop_1280' : 'other',
+      })
+      setMismatchReported(true)
+    }
+  }
+
+  const disruptionNotice = (
+    <>
+      <HotelDisruptionHandoffNotice
+        evidence={disruptionEvidence}
+        analyticsKey={deal.id}
+        fixture={disruptionFixture}
+        onReached={() => setHandoffReached(true)}
+      />
+      {showReturnPrompt ? (
+        <div className="mt-3 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">
+          <p className="text-sm font-medium leading-6 text-[color:var(--text-1)]">Did the provider show different renovation or closure details?</p>
+          <div className="mt-3 flex flex-col gap-2 min-[480px]:flex-row">
+            <button type="button" onClick={() => finishFeedback('yes')} className="btn btn-outline min-h-11 w-full px-4">Yes, details were different</button>
+            <button type="button" onClick={() => finishFeedback('no')} className="btn btn-outline min-h-11 w-full px-4">No</button>
+          </div>
+        </div>
+      ) : null}
+      {mismatchReported ? <p role="status" aria-live="polite" className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">Thanks. We’ll record that the provider details did not match this notice.</p> : null}
+    </>
+  )
+
   if (status === 'mismatch' && criteria) {
     return (
-      <div className="mt-4" role="status">
-        <p className="text-sm font-medium text-[color:var(--text-1)]">Provider link unavailable</p>
-        <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Review the search mismatch below before inspecting room options.</p>
+      <div className="mt-4">
+        {disruptionNotice}
+        <div className="mt-4" role="status">
+          <p className="text-sm font-medium text-[color:var(--text-1)]">Provider link unavailable</p>
+          <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Review the search mismatch below before inspecting room options.</p>
+        </div>
       </div>
     )
   }
@@ -146,6 +224,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
             The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.
             {!criteria || datesIncomplete ? ' Choose or confirm your dates there before comparing room options.' : null}
           </p>
+          {disruptionNotice}
           <div className="mt-4">
           <CompareRow
             links={eligibleLinks}
@@ -158,14 +237,28 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
               destinationPresent: criteria?.destination.state === 'selected',
               dateState: criteria?.dates.semantic ?? 'missing',
             }}
+            onProviderOpen={(provider) => {
+              setProviderActivated(true)
+              if (!handoffReached) return
+              const analytics = hotelDisruptionAnalyticsContext(disruptionEvidence)
+              track('hotel_disruption_handoff_clicked', {
+                surface: 'handoff',
+                ...analytics,
+                viewport_band: window.innerWidth <= 480 ? 'mobile_375' : window.innerWidth >= 1024 ? 'desktop_1280' : 'other',
+                provider,
+              })
+            }}
           />
           </div>
         </>
       ) : (
-        <div role="status">
-          <p className="text-sm font-medium text-[color:var(--text-1)]">Provider link unavailable</p>
-          <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">You can review this hotel here, but expaify does not have a valid provider link for room inspection.</p>
-          <a href="/deals" className="btn btn-outline mt-4 inline-flex min-h-11 w-full items-center justify-center text-center">Search current deals</a>
+        <div>
+          {disruptionNotice}
+          <div className="mt-4" role="status">
+            <p className="text-sm font-medium text-[color:var(--text-1)]">Provider link unavailable</p>
+            <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">You can review this hotel here, but expaify does not have a valid provider link for room inspection.</p>
+            <a href="/deals" className="btn btn-outline mt-4 inline-flex min-h-11 w-full items-center justify-center text-center">Search current deals</a>
+          </div>
         </div>
       )}
     </div>

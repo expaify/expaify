@@ -149,6 +149,69 @@ export interface HotelAmenityEvidence {
 
 export type HotelAccessEvidenceState = 'loading' | 'ready' | 'error';
 
+export type HotelDisruptionEvidenceState =
+  | 'reported'
+  | 'not_returned'
+  | 'check_failed'
+  | 'malformed'
+  | 'conflicting'
+  | 'stale_unconfirmed';
+
+export type HotelDisruptionLoadState = 'loading' | 'ready' | 'refreshing';
+
+export type HotelDisruptionNoticeType =
+  | 'renovation'
+  | 'construction'
+  | 'facility_closure'
+  | 'facility_restriction'
+  | 'access_restriction'
+  | 'service_restriction';
+
+export type HotelDisruptionImpactClass =
+  | 'reported_noise'
+  | 'guest_room_work'
+  | 'guest_area_work'
+  | 'arrival_or_checkin'
+  | 'guest_circulation'
+  | 'primary_facility_closure'
+  | 'primary_facility_restriction'
+  | 'access_limitation'
+  | 'service_limitation'
+  | 'non_guest_cosmetic'
+  | 'impact_not_provided';
+
+export type HotelDisruptionRelation =
+  | 'overlap'
+  | 'partial_overlap'
+  | 'no_overlap'
+  | 'timing_unknown';
+
+export interface SupplierDisruptionStatement {
+  id: string;
+  noticeType: HotelDisruptionNoticeType;
+  impactClasses: HotelDisruptionImpactClass[];
+  affectedScopes: string[];
+  summaryImpactLabel?: string;
+  sourceLabel: string;
+  sourceText: string;
+  sourceLanguage?: string;
+  reportedStart?: string;
+  reportedEnd?: string;
+  reportedHours?: string;
+  supplierSeverityLabel?: string;
+  observedAt: string;
+}
+
+export interface HotelDisruptionEvidence {
+  loadState: HotelDisruptionLoadState;
+  state: HotelDisruptionEvidenceState;
+  relation?: HotelDisruptionRelation;
+  material: boolean;
+  promoted: boolean;
+  statements: SupplierDisruptionStatement[];
+  evidenceRevision: string;
+}
+
 export type HotelTransportServiceKind =
   | 'airport_shuttle'
   | 'airport_transfer'
