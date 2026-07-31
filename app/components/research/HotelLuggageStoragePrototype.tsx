@@ -35,9 +35,21 @@ function formatCharge(charge: StorageCharge, serviceUnavailable: boolean, notRet
     per_bag: 'per bag', per_hour: 'per hour', per_day: 'per day', per_stay: 'per stay', other: 'under another basis',
   } as const)[charge.basis]
   const amount = charge.amount
-  const validAmount = amount && Number.isInteger(amount.priceCents) && amount.priceCents >= 0 && /^[A-Z]{3}$/.test(amount.currency)
-    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: amount.currency }).format(amount.priceCents / 100)
-    : null
+  const currencySupported = amount
+    ? Intl.supportedValuesOf('currency').includes(amount.currency)
+    : false
+  let validAmount: string | null = null
+  if (amount && Number.isInteger(amount.priceCents) && amount.priceCents >= 0 && currencySupported) {
+    try {
+      validAmount = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: amount.currency,
+      }).format(amount.priceCents / 100)
+    } catch {
+      // Unsupported ISO-like currency codes remain paid evidence, but must not
+      // be rendered as a trustworthy amount.
+    }
+  }
   if (validAmount && basis) return `A charge of ${validAmount} ${basis} is reported.`
   if (validAmount) return `A charge of ${validAmount} is reported; the basis was not provided.`
   if (basis) return `A storage charge ${basis} is reported; the amount was not provided.`
@@ -99,6 +111,19 @@ export function HotelLuggageStoragePrototype({ evidence, hotelId, surface }: Pro
   const presentation = getPresentation(evidence)
   const notReturned = evidence.serviceState === 'not_returned'
   const serviceUnavailable = evidence.serviceState === 'explicitly_unavailable'
+  const conflicting = evidence.serviceState === 'conflicting'
+    || evidence.beforeCheckin === 'conflicting'
+    || evidence.afterCheckout === 'conflicting'
+  const partial = evidence.state === 'ready'
+    && !conflicting
+    && !notReturned
+    && !serviceUnavailable
+    && evidence.beforeCheckin !== 'explicitly_unavailable'
+    && evidence.afterCheckout !== 'explicitly_unavailable'
+    && (evidence.beforeCheckin === 'not_specified'
+      || evidence.afterCheckout === 'not_specified'
+      || evidence.charge.state === 'unknown')
+  const showMissingSupplemental = evidence.state === 'ready' && (partial || conflicting || notReturned)
 
   const retry = () => {
     setRetryFailed(false)
@@ -151,8 +176,8 @@ export function HotelLuggageStoragePrototype({ evidence, hotelId, surface }: Pro
             </dl>
           ) : null}
 
-          {evidence.schedule ? <p className="mt-3 break-words border-t border-[color:var(--border)] pt-3 text-sm leading-6 text-[color:var(--text-2)]"><span className="font-medium text-[color:var(--text-1)]">Reported hours: </span>{evidence.schedule.providerWording}</p> : null}
-          {evidence.conditions.length ? <div className="mt-3"><p className="text-sm font-medium text-[color:var(--text-1)]">Reported conditions</p><ul className="mt-1 list-disc space-y-1 pl-5 text-sm leading-6 text-[color:var(--text-2)]">{evidence.conditions.slice(0, 3).map(condition => <li key={condition.id} className="break-words">{condition.providerWording}</li>)}</ul>{evidence.conditions.length > 3 ? <p className="mt-1 text-sm text-[color:var(--text-2)]">Additional conditions may apply; verify before booking.</p> : null}</div> : null}
+          {evidence.schedule ? <p className="mt-3 break-words border-t border-[color:var(--border)] pt-3 text-sm leading-6 text-[color:var(--text-2)]"><span className="font-medium text-[color:var(--text-1)]">Reported hours: </span>{evidence.schedule.providerWording}</p> : showMissingSupplemental ? <p className="mt-3 break-words border-t border-[color:var(--border)] pt-3 text-sm leading-6 text-[color:var(--text-2)]"><span className="font-medium text-[color:var(--text-1)]">Reported hours: </span>Not specified by this provider.</p> : null}
+          {evidence.conditions.length ? <div className="mt-3"><p className="text-sm font-medium text-[color:var(--text-1)]">Reported conditions</p><ul className="mt-1 list-disc space-y-1 pl-5 text-sm leading-6 text-[color:var(--text-2)]">{evidence.conditions.slice(0, 3).map(condition => <li key={condition.id} className="break-words">{condition.providerWording}</li>)}</ul>{evidence.conditions.length > 3 ? <p className="mt-1 text-sm text-[color:var(--text-2)]">Additional conditions may apply; verify before booking.</p> : null}</div> : showMissingSupplemental ? <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]"><span className="font-medium text-[color:var(--text-1)]">Reported conditions: </span>Not specified by this provider.</p> : null}
           {evidence.conflicts?.length ? <div className="mt-3"><p className="text-sm font-medium text-[color:var(--text-1)]">Conflicting statements</p><ul className="mt-1 space-y-2 text-sm leading-6 text-[color:var(--text-2)]">{evidence.conflicts.map(item => <li key={item.sourceLabel} className="break-words"><span className="font-medium">{item.sourceLabel}:</span> “{item.statement}”</li>)}</ul></div> : null}
           {presentation.guidance ? <p className="mt-3 text-sm font-medium leading-6 text-[color:var(--text-2)]">{presentation.guidance}</p> : null}
           {evidence.state === 'error' ? <button type="button" className="btn btn-outline btn-sm mt-3 w-full sm:w-auto" onClick={retry}>Try storage check again</button> : null}
