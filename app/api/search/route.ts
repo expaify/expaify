@@ -7,7 +7,7 @@ import { travelpayouts } from '../../../lib/providers/travelpayouts';
 import { duffel } from '../../../lib/providers/duffel';
 import { amadeus } from '../../../lib/providers/amadeus';
 import { kiwi } from '../../../lib/providers/kiwi';
-import { hotellook } from '../../../lib/providers/hotellook';
+import { bookingComHotels } from '../../../lib/providers/bookingComHotelsRapidApi';
 import { query } from '../../../lib/db/client';
 import {
   type FlightDateCoverage,
@@ -175,9 +175,9 @@ async function searchHotelAvailability(
   anchor: ReturnType<typeof getSearchLinkedAirportAnchor>
 ): Promise<Result<HotelSearchPage>> {
   try {
-    return await hotellook.searchHotels(area, range, anchor ? { anchor } : undefined);
+    return await bookingComHotels.searchHotels(area, range, anchor ? { anchor } : undefined);
   } catch (error) {
-    return { ok: false, reason: providerExceptionReason('HotelLook', error) };
+    return { ok: false, reason: providerExceptionReason('Booking.com', error) };
   }
 }
 
@@ -405,11 +405,11 @@ export async function GET(request: NextRequest) {
         if (hotelsResult.ok && hotelsResult.data.offers.length > 0) {
           const { offers, ...page } = hotelsResult.data;
           send({ type: 'hotel-status', status: 'available', coverage: page.coverage });
-          send({ type: 'hotels', source: 'hotellook', data: offers, page });
+          send({ type: 'hotels', source: 'booking.com', data: offers, page });
           send({
             type: 'hotel-smoking-policy-status',
             status: 'ready',
-            provider: 'hotellook',
+            provider: 'Booking.com',
             normalizedCoverageCount: 0,
             totalCount: offers.length,
             filterEnabled: false,
@@ -435,7 +435,7 @@ export async function GET(request: NextRequest) {
           send({
             type: 'hotel-smoking-policy-status',
             status: 'ready',
-            provider: 'hotellook',
+            provider: 'Booking.com',
             normalizedCoverageCount: 0,
             totalCount: 0,
             filterEnabled: false,
@@ -445,7 +445,7 @@ export async function GET(request: NextRequest) {
           send({
             type: 'hotel-status',
             status: 'unavailable',
-            provider: 'Hotellook',
+            provider: 'Booking.com',
             providerStatus: status,
             message: isTimeoutReason(hotelsResult.reason)
               ? 'The hotel provider did not respond in time. Hotel inventory was not confirmed for this search.'
@@ -461,7 +461,7 @@ export async function GET(request: NextRequest) {
           send({
             type: 'hotel-smoking-policy-status',
             status: 'error',
-            provider: 'hotellook',
+            provider: 'Booking.com',
             message: 'Smoking policy could not be checked because the hotel provider is unavailable.',
             filterEnabled: false,
           });

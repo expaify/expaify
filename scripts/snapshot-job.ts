@@ -1,6 +1,6 @@
 import { GOLDEN_ROUTES } from './golden-routes';
 import { travelpayouts } from '../lib/providers/travelpayouts';
-import { hotellook } from '../lib/providers/hotellook';
+import { bookingComHotels } from '../lib/providers/bookingComHotelsRapidApi';
 import { query } from '../lib/db/client';
 import type { HotelOffer, PricePoint } from '../lib/types';
 
@@ -84,7 +84,7 @@ async function snapshotTopHotels(): Promise<void> {
       const label = `hotels:${destination}`;
 
       try {
-        const result = await hotellook.searchHotels(destination, { checkin, checkout });
+        const result = await bookingComHotels.searchHotels(destination, { checkin, checkout });
         if (!result.ok) {
           console.error(`[${label}] ${result.reason}`);
           continue;

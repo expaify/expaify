@@ -5,7 +5,7 @@ import { travelpayouts } from '../../../../lib/providers/travelpayouts';
 import { duffel } from '../../../../lib/providers/duffel';
 import { amadeus } from '../../../../lib/providers/amadeus';
 import { kiwi } from '../../../../lib/providers/kiwi';
-import { hotellook } from '../../../../lib/providers/hotellook';
+import { bookingComHotels } from '../../../../lib/providers/bookingComHotelsRapidApi';
 import { query } from '../../../../lib/db/client';
 
 jest.mock('../../../../lib/providers/travelpayouts', () => ({
@@ -24,8 +24,8 @@ jest.mock('../../../../lib/providers/kiwi', () => ({
   kiwi: { searchFares: jest.fn() },
 }));
 
-jest.mock('../../../../lib/providers/hotellook', () => ({
-  hotellook: { searchHotels: jest.fn() },
+jest.mock('../../../../lib/providers/bookingComHotelsRapidApi', () => ({
+  bookingComHotels: { searchHotels: jest.fn() },
 }));
 
 jest.mock('../../../../lib/db/client', () => ({
@@ -35,7 +35,7 @@ jest.mock('../../../../lib/db/client', () => ({
 const flightProviders = [travelpayouts, duffel, amadeus, kiwi] as unknown as Array<{
   searchFares: jest.Mock;
 }>;
-const mockHotelSearch = hotellook.searchHotels as jest.Mock;
+const mockHotelSearch = bookingComHotels.searchHotels as jest.Mock;
 const mockQuery = query as jest.MockedFunction<typeof query>;
 
 const fare: NormalizedFare = {
@@ -74,7 +74,7 @@ const hotelOffer: HotelOffer = {
   rating: 4,
   pricePerNight: { priceCents: 18999, currency: 'USD' },
   deeplink: 'https://example.com/hotel?marker=test',
-  source: 'hotellook',
+  source: 'booking.com',
   documentReadiness: {
     status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
     billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
@@ -477,7 +477,7 @@ describe('GET /api/search guardrails and provider failures', () => {
     expect(messages).toContainEqual({
       type: 'hotel-status',
       status: 'unavailable',
-      provider: 'Hotellook',
+      provider: 'Booking.com',
       providerStatus: 'unavailable',
       message: 'The hotel provider is unavailable right now.',
     });
@@ -496,7 +496,7 @@ describe('GET /api/search guardrails and provider failures', () => {
     expect(messages).toContainEqual({
       type: 'hotel-status',
       status: 'unavailable',
-      provider: 'Hotellook',
+      provider: 'Booking.com',
       providerStatus: 'unavailable',
       message: 'The hotel provider did not respond in time. Hotel inventory was not confirmed for this search.',
     });
@@ -538,7 +538,7 @@ describe('GET /api/search guardrails and provider failures', () => {
     });
     expect(messages).toContainEqual({
       type: 'hotels',
-      source: 'hotellook',
+      source: 'booking.com',
       data: [hotelOffer],
       page: { coverage: 'unconfirmed' },
     });
@@ -568,7 +568,7 @@ describe('GET /api/search guardrails and provider failures', () => {
     });
     expect(messages).toContainEqual({
       type: 'hotels',
-      source: 'hotellook',
+      source: 'booking.com',
       data: [hotelWithAccessError],
       page: { coverage: 'unconfirmed' },
     });
