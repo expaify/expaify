@@ -64,9 +64,63 @@ describe('GuestReviewEvidence', () => {
     expect(rendered).not.toContain('includes reviews through')
   })
 
+  it('keeps missing count and dates explicit without weakening a verified score', () => {
+    const evidence: HotelReviewEvidence = {
+      ...completeAggregate,
+      overallReviewCount: undefined,
+      coverage: { kind: 'none' },
+      contextCue: undefined,
+    }
+    const rendered = text(GuestReviewEvidence({ evidence }))
+    expect(rendered).toContain('8.7/10 guest score from Fixture Guest Reviews.')
+    expect(rendered).toContain('Review count not provided.')
+    expect(rendered).toContain('Review dates not provided.')
+    expect(getGuestReviewScanLine(evidence)?.visible).toBe('8.7/10 guest score')
+  })
+
+  it('labels provider-only evidence without promoting it to a guest score', () => {
+    const evidence: HotelReviewEvidence = { ...completeAggregate, provenance: 'provider_only', contextCue: undefined }
+    const rendered = text(GuestReviewEvidence({ evidence }))
+    expect(rendered).toContain('Provider rating: 8.7/10 from Fixture Guest Reviews.')
+    expect(rendered).toContain('does not identify this as a verified guest score')
+    expect(getGuestReviewScanLine(evidence)).toBeNull()
+  })
+
+  it('suppresses unlicensed or conflicting traveler context without dropping valid core facts', () => {
+    const unlicensed = {
+      ...completeAggregate,
+      contextCue: { ...completeAggregate.contextCue, licensedForDisplay: false },
+    } as unknown as HotelReviewEvidence
+    const conflicting: HotelReviewEvidence = {
+      ...completeAggregate,
+      contextCue: {
+        ...completeAggregate.contextCue!,
+        windowStartMonth: '2026-03',
+        windowEndMonth: '2026-04',
+      },
+    }
+    for (const evidence of [unlicensed, conflicting]) {
+      const rendered = text(GuestReviewEvidence({ evidence }))
+      expect(rendered).toContain('8.7/10 guest score')
+      expect(rendered).not.toContain('Traveler feedback')
+    }
+  })
+
   it('rejects mismatches and malformed counts atomically', () => {
     expect(text(GuestReviewEvidence({ evidence: completeAggregate, expectedPropertyId: 'hotel-2' }))).toContain('returned rating details could not be verified')
     expect(text(GuestReviewEvidence({ evidence: { ...completeAggregate, overallReviewCount: 0 } }))).not.toContain('8.7/10')
+  })
+
+  it('rejects unknown runtime state and provenance values instead of rendering a numeric claim', () => {
+    const unknownState = { ...completeAggregate, state: 'complete' } as unknown as HotelReviewEvidence
+    const unknownProvenance = { ...completeAggregate, provenance: 'recommended' } as unknown as HotelReviewEvidence
+
+    for (const evidence of [unknownState, unknownProvenance]) {
+      const rendered = text(GuestReviewEvidence({ evidence }))
+      expect(rendered).toContain('returned rating details could not be verified')
+      expect(rendered).not.toContain('8.7/10')
+      expect(getGuestReviewScanLine(evidence)).toBeNull()
+    }
   })
 
   it('only exposes a DealCard scan line for verified guest evidence', () => {

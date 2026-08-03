@@ -22,6 +22,12 @@ const ALLOWED_CONTEXT_TOPICS = new Set([
   'accessibility', 'bed_comfort', 'cleanliness', 'location', 'quiet_rooms',
   'room_comfort', 'service', 'street_noise',
 ])
+const REVIEW_STATES = new Set([
+  'loading', 'ready', 'not_provided', 'error', 'invalid', 'stale',
+])
+const REVIEW_PROVENANCE = new Set([
+  'verified_guest', 'provider_only', 'inferred', 'unavailable',
+])
 
 function isPositiveInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
@@ -56,6 +62,7 @@ function validateCore(
 ): ValidCore | null {
   if (!evidence || typeof evidence !== 'object' || evidence.schemaVersion !== 1) return null
   if (!evidence.providerId?.trim() || !evidence.providerPropertyId?.trim()) return null
+  if (!REVIEW_STATES.has(evidence.state) || !REVIEW_PROVENANCE.has(evidence.provenance)) return null
   if (expectedProviderId && evidence.providerId !== expectedProviderId) return null
   if (expectedPropertyId && evidence.providerPropertyId !== expectedPropertyId) return null
 
@@ -179,7 +186,7 @@ export default function GuestReviewEvidence({ evidence, expectedProviderId, expe
       <h3 id="guest-review-evidence-title" className="text-body font-display font-bold leading-snug text-[color:var(--text-1)]">Guest review evidence</h3>
       {isLoading ? <LoadingState /> : null}
       {stateCopy ? (
-        <div role={state === 'error' ? 'status' : undefined}>
+        <div role="status" aria-live="polite" aria-atomic="true">
           <p className="mt-2 break-words text-small font-medium leading-5 text-[color:var(--text-1)]">{stateCopy.lead}</p>
           <p className="mt-1 break-words text-caption leading-5 text-[color:var(--text-2)]">{stateCopy.detail}</p>
         </div>
