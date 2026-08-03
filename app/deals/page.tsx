@@ -16,6 +16,7 @@ import {
   resolveHotelResultsView,
   resolveHotelSearchCriteria,
 } from '@/lib/hotels/searchCriteria'
+import { parseHotelPoolFixture } from '@/app/components/research/hotelPoolFixtures'
 
 export const metadata: Metadata = {
   title: 'Hotel deals today — expaify',
@@ -49,6 +50,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
 
 export default async function DealsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const requestedParams = await searchParams
+  const poolFixtureId = process.env.NODE_ENV === 'production' ? null : parseHotelPoolFixture(requestedParams.poolFixture)
   const session = await auth()
   if (session?.user?.id) {
     const sub = await getSubscription(session.user.id).catch(() => null)
@@ -168,6 +170,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           initialView={effectiveView}
           initialError={initialError}
           initialCoverage={rows.length > 0 ? { state: initialPage.coverage, nextOffset: initialPage.page.nextOffset } : null}
+          poolFixtureId={poolFixtureId}
         />
       </main>
     </>
