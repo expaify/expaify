@@ -30,14 +30,14 @@ export default function LoadingDealDetail() {
           <div className="skeleton mt-2 h-4 w-52 rounded-full" />
         </div>
 
-        <div className="mb-8">
-          <div className="skeleton mb-2 h-3 w-32 rounded-full" />
-          <div className="grid grid-cols-2 gap-2 min-[480px]:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="skeleton h-[52px] rounded-[var(--radius-input)]" />
-            ))}
-          </div>
-        </div>
+        <section aria-hidden="true" className="mb-8 rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+          <div className="skeleton h-7 w-56 rounded-[var(--radius-input)]" />
+          <div className="skeleton mt-4 h-20 w-full rounded-[var(--radius-control)]" />
+          <div className="skeleton mt-4 h-4 w-3/4 rounded-full" />
+          <div className="skeleton mt-2 h-4 w-2/3 rounded-full" />
+          <div className="skeleton mt-2 h-4 w-56 max-w-full rounded-full" />
+          <div className="skeleton mt-4 h-[52px] w-full rounded-[var(--radius-input)]" />
+        </section>
 
         <div className="mb-8 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
           <div className="skeleton mb-4 h-6 w-40 rounded-[var(--radius-input)]" />

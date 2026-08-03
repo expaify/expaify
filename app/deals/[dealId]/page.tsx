@@ -440,12 +440,20 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
               <div className="mt-4" role="status">
                 <p className="text-sm font-medium text-[color:var(--text-1)]">Saved rate expired</p>
                 <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">This observed nightly rate is no longer current. Search again before inspecting room options.</p>
+                <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Room availability was not checked by expaify.</p>
                 <a href="/deals" className="btn btn-primary mt-4 inline-flex min-h-11 w-full items-center justify-center text-center">Search current deals</a>
               </div>
             ) : (
               <HotelDealCriteriaHandoff
                 context={criteriaContext}
-                deal={{ id: deal.id, city: deal.city, checkInDate: deal.check_in_date }}
+                deal={{
+                  id: deal.id,
+                  city: deal.city,
+                  checkInDate: deal.check_in_date,
+                  checkInDisplay,
+                  checkOutDisplay,
+                  nights: deal.nights,
+                }}
                 links={deal.ota_links ?? {}}
                 hotelName={deal.hotel_name}
                 datesIncomplete={datesIncomplete}

@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CompareRow, eligibleHotelProviderLinks } from '@/app/components/ui/CompareRow'
+import {
+  CompareRow,
+  eligibleHotelProviderLinks,
+  isAttributedHotelProviderUrl,
+  type CompareLinks,
+} from '@/app/components/ui/CompareRow'
 import { track } from '@/lib/analytics'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import {
@@ -35,6 +40,51 @@ type ResolvedContext = {
   criteria?: HotelSearchCriteriaV1
   status: HotelCriteriaContextStatus
   backHref: string
+}
+
+type RoomHandoffSession = {
+  id: string
+  provider: keyof CompareLinks
+  href: string
+  state: 'armed' | 'away' | 'returned'
+}
+
+export function roomHandoffVisibilityTransition(
+  state: RoomHandoffSession['state'],
+  visibility: DocumentVisibilityState,
+): RoomHandoffSession['state'] {
+  if (visibility === 'hidden') return 'away'
+  if (visibility === 'visible' && state === 'away') return 'returned'
+  return state
+}
+
+const ROOM_HANDOFF_STORAGE_PREFIX = 'expaify.hotel-room-handoff.'
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function readRoomHandoffSession(key: string): RoomHandoffSession | null {
+  try {
+    const value = window.sessionStorage.getItem(key)
+    if (!value) return null
+    const parsed = JSON.parse(value) as Partial<RoomHandoffSession>
+    if (
+      typeof parsed.id !== 'string' || !UUID.test(parsed.id) ||
+      !['expedia', 'booking', 'kiwi', 'trip'].includes(parsed.provider ?? '') ||
+      typeof parsed.href !== 'string' ||
+      !['armed', 'away', 'returned'].includes(parsed.state ?? '') ||
+      !isAttributedHotelProviderUrl(parsed.provider as keyof CompareLinks, parsed.href)
+    ) return null
+    return parsed as RoomHandoffSession
+  } catch {
+    return null
+  }
+}
+
+function storeRoomHandoffSession(key: string, session: RoomHandoffSession): void {
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify(session))
+  } catch {
+    // Return detection remains mount-scoped when storage is unavailable.
+  }
 }
 
 export function HotelDealCriteriaSummary({ context, deal }: {
@@ -126,7 +176,14 @@ export function HotelDealCriteriaSummary({ context, deal }: {
 
 export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, datesIncomplete, disruptionEvidence = NO_HOTEL_DISRUPTION_EVIDENCE, disruptionFixture = false }: {
   context: ResolvedContext
-  deal: { id: string; city: string; checkInDate?: string | null }
+  deal: {
+    id: string
+    city: string
+    checkInDate?: string | null
+    checkInDisplay?: string | null
+    checkOutDisplay?: string | null
+    nights?: number | null
+  }
   links: Record<string, string>
   hotelName?: string
   datesIncomplete?: boolean
@@ -136,20 +193,56 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
   const criteria = context.criteria
   const status = criteria ? hotelCriteriaContextStatus(criteria, deal) : context.status
   const [handoffReached, setHandoffReached] = useState(false)
-  const [providerActivated, setProviderActivated] = useState(false)
   const [showReturnPrompt, setShowReturnPrompt] = useState(false)
+  const [showRoomRecovery, setShowRoomRecovery] = useState(false)
+  const [providerLinkUnavailable, setProviderLinkUnavailable] = useState(false)
   const [mismatchReported, setMismatchReported] = useState(false)
-  const wasHidden = useRef(false)
+  const activeRoomHandoff = useRef<RoomHandoffSession | null>(null)
   const feedbackKey = `expaify.disruption.feedback.${deal.id}.${disruptionEvidence.evidenceRevision}`
+  const roomHandoffKey = `${ROOM_HANDOFF_STORAGE_PREFIX}${deal.id}.${criteria?.criteriaVersion ?? status}`
+
+  function beginRoomHandoff(provider: keyof CompareLinks, href: string): void {
+    if (!isAttributedHotelProviderUrl(provider, href)) {
+      setProviderLinkUnavailable(true)
+      return
+    }
+    const current = activeRoomHandoff.current
+    if (current?.state === 'armed' && current.provider === provider && current.href === href) return
+    const session: RoomHandoffSession = {
+      id: crypto.randomUUID(),
+      provider,
+      href,
+      state: 'armed',
+    }
+    activeRoomHandoff.current = session
+    setShowRoomRecovery(false)
+    storeRoomHandoffSession(roomHandoffKey, session)
+  }
 
   useEffect(() => {
-    if (!providerActivated) return
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        wasHidden.current = true
-        return
+    const restored = readRoomHandoffSession(roomHandoffKey)
+    if (restored) {
+      if (restored.state === 'away' && document.visibilityState === 'visible') {
+        const returned = { ...restored, state: 'returned' as const }
+        activeRoomHandoff.current = returned
+        storeRoomHandoffSession(roomHandoffKey, returned)
+        setShowRoomRecovery(true)
+      } else {
+        activeRoomHandoff.current = restored
+        if (restored.state === 'returned') setShowRoomRecovery(true)
       }
-      if (!wasHidden.current) return
+    }
+
+    const onVisibility = () => {
+      const active = activeRoomHandoff.current
+      if (!active) return
+      const nextState = roomHandoffVisibilityTransition(active.state, document.visibilityState)
+      if (nextState === active.state) return
+      const updated = { ...active, state: nextState }
+      activeRoomHandoff.current = updated
+      storeRoomHandoffSession(roomHandoffKey, updated)
+      if (nextState !== 'returned') return
+      setShowRoomRecovery(true)
       try {
         if (window.sessionStorage.getItem(feedbackKey)) return
       } catch {
@@ -159,7 +252,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
-  }, [feedbackKey, providerActivated])
+  }, [feedbackKey, roomHandoffKey])
 
   function finishFeedback(answer: 'yes' | 'no') {
     try {
@@ -205,62 +298,143 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
   if (status === 'mismatch' && criteria) {
     return (
       <div className="mt-4">
+        <RoomInventoryTruth
+          hotelName={hotelName}
+          city={deal.city}
+          datesIncomplete={datesIncomplete}
+          checkInDisplay={deal.checkInDisplay}
+          checkOutDisplay={deal.checkOutDisplay}
+          nights={deal.nights}
+        />
         {disruptionNotice}
         <div className="mt-4" role="status">
           <p className="text-sm font-medium text-[color:var(--text-1)]">Provider link unavailable</p>
-          <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Review the search mismatch below before inspecting room options.</p>
+          <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Review the search mismatch before checking rooms.</p>
         </div>
       </div>
     )
   }
 
   const eligibleLinks = eligibleHotelProviderLinks(links)
-  const hasLinks = Object.values(eligibleLinks).some(Boolean)
+  const hasLinks = !providerLinkUnavailable && Object.values(eligibleLinks).some(Boolean)
+  const restorable = status === 'matched' && Boolean(criteria)
+  const resultsHref = restorable ? context.backHref : '/deals'
+  const resultsLabel = restorable ? 'Back to matching hotels' : 'Search current hotel deals'
   return (
     <div className="mt-4">
+      <RoomInventoryTruth
+        hotelName={hotelName}
+        city={deal.city}
+        datesIncomplete={datesIncomplete}
+        checkInDisplay={deal.checkInDisplay}
+        checkOutDisplay={deal.checkOutDisplay}
+        nights={deal.nights}
+      />
       {hasLinks ? (
         <>
-          <p className="text-sm leading-6 text-[color:var(--text-2)]">
-            The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.
-            {!criteria || datesIncomplete ? ' Choose or confirm your dates there before comparing room options.' : null}
-          </p>
           {disruptionNotice}
           <div className="mt-4">
-          <CompareRow
-            links={eligibleLinks}
-            size="primary"
-            hotelName={hotelName}
-            handoffContext={{
-              dealId: deal.id,
-              contextStatus: status,
-              criteriaVersion: criteria?.criteriaVersion,
-              destinationPresent: criteria?.destination.state === 'selected',
-              dateState: criteria?.dates.semantic ?? 'missing',
-            }}
-            onProviderOpen={(provider) => {
-              setProviderActivated(true)
-              if (!handoffReached) return
-              const analytics = hotelDisruptionAnalyticsContext(disruptionEvidence)
-              track('hotel_disruption_handoff_clicked', {
-                surface: 'handoff',
-                ...analytics,
-                viewport_band: window.innerWidth <= 480 ? 'mobile_375' : window.innerWidth >= 1024 ? 'desktop_1280' : 'other',
-                provider,
-              })
-            }}
-          />
+            <CompareRow
+              links={eligibleLinks}
+              size="primary"
+              hotelName={hotelName}
+              handoffContext={{
+                dealId: deal.id,
+                contextStatus: status,
+                criteriaVersion: criteria?.criteriaVersion,
+                destinationPresent: criteria?.destination.state === 'selected',
+                dateState: criteria?.dates.semantic ?? 'missing',
+              }}
+              onProviderOpen={(provider) => {
+                const href = eligibleLinks[provider]
+                if (href) beginRoomHandoff(provider, href)
+                if (!handoffReached) return
+                const analytics = hotelDisruptionAnalyticsContext(disruptionEvidence)
+                track('hotel_disruption_handoff_clicked', {
+                  surface: 'handoff',
+                  ...analytics,
+                  viewport_band: window.innerWidth <= 480 ? 'mobile_375' : window.innerWidth >= 1024 ? 'desktop_1280' : 'other',
+                  provider,
+                })
+              }}
+            />
           </div>
+          {showRoomRecovery && activeRoomHandoff.current ? (
+            <div className="mt-5 rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--bg-base)] p-4 sm:p-5">
+              <div role="status" aria-live="polite" aria-atomic="true">
+                <h3 className="text-sm font-medium leading-6 text-[color:var(--text-1)]">Couldn&apos;t find a room that worked?</h3>
+                <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">
+                  {restorable
+                    ? 'expaify did not check what happened on the provider site. You can check this hotel again or return to hotels matching your saved stay.'
+                    : 'expaify did not check what happened on the provider site. You can check this hotel again or start a current hotel search.'}
+                </p>
+                {!restorable ? <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">Your previous hotel search could not be restored. This hotel and any known dates are still shown above.</p> : null}
+              </div>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <a
+                  href={activeRoomHandoff.current.href}
+                  target="_blank"
+                  rel="noopener noreferrer sponsored"
+                  aria-label={`Check rooms again. Opens in a new tab. Room availability has not been checked by expaify.`}
+                  onClick={(event) => {
+                    const active = activeRoomHandoff.current
+                    if (!active || !isAttributedHotelProviderUrl(active.provider, active.href)) {
+                      event.preventDefault()
+                      setProviderLinkUnavailable(true)
+                      return
+                    }
+                    beginRoomHandoff(active.provider, active.href)
+                  }}
+                  className="btn btn-primary inline-flex min-h-11 w-full items-center justify-center text-center sm:w-auto"
+                >
+                  Check rooms again
+                </a>
+                <a href={resultsHref} className="btn btn-outline inline-flex min-h-11 w-full items-center justify-center text-center sm:w-auto">{resultsLabel}</a>
+              </div>
+            </div>
+          ) : null}
         </>
       ) : (
         <div>
           {disruptionNotice}
           <div className="mt-4" role="status">
             <p className="text-sm font-medium text-[color:var(--text-1)]">Provider link unavailable</p>
-            <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">You can review this hotel here, but expaify does not have a valid provider link for room inspection.</p>
-            <a href="/deals" className="btn btn-outline mt-4 inline-flex min-h-11 w-full items-center justify-center text-center">Search current deals</a>
+            <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">You can review this hotel here, but expaify does not have a valid provider link for checking rooms.</p>
+            <a href={resultsHref} className="btn btn-outline mt-4 inline-flex min-h-11 w-full items-center justify-center text-center sm:w-auto">{resultsLabel}</a>
           </div>
         </div>
       )}
     </div>
+  )
+}
+
+function RoomInventoryTruth({ hotelName, city, datesIncomplete, checkInDisplay, checkOutDisplay, nights }: {
+  hotelName?: string
+  city: string
+  datesIncomplete?: boolean
+  checkInDisplay?: string | null
+  checkOutDisplay?: string | null
+  nights?: number | null
+}) {
+  const completeDates = !datesIncomplete && checkInDisplay && checkOutDisplay && nights != null && nights > 0
+  return (
+    <>
+      <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">
+        <p className="text-sm font-medium leading-6 text-[color:var(--text-1)]">Room availability not checked by expaify</p>
+        <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">
+          {completeDates
+            ? 'The provider will show current rooms and prices for your stay.'
+            : 'The provider will ask you to choose or confirm dates, guests, and rooms before showing current options.'}
+        </p>
+      </div>
+      <div className="mt-4 border-t border-[color:var(--border)] pt-4">
+        <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Your stay</p>
+        <p className="mt-1 break-words text-sm font-medium leading-6 text-[color:var(--text-1)]">{hotelName ?? 'This hotel'} · {city}</p>
+        <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">
+          {completeDates ? `${checkInDisplay} – ${checkOutDisplay} · ${nights} ${nights === 1 ? 'night' : 'nights'}` : 'Stay dates: confirm with provider'}
+        </p>
+        <p className="mt-1 text-sm font-medium leading-6 text-[color:var(--text-1)]">Guests and rooms: choose with provider</p>
+      </div>
+    </>
   )
 }
