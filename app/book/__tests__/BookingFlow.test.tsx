@@ -546,23 +546,19 @@ describe('BookingFlow fare context review', () => {
     const backLink = anchors.find(element => element.props.href === '/' && typeof element.props.onClick === 'function');
 
     expect(trackMock).toHaveBeenCalledWith('hotel_handoff_viewed', {
+      handoffAttemptId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      priceDisclosureState: 'incomplete',
+      stayCostState: 'nightly_only',
+      taxState: 'not_returned',
+      mandatoryChargeState: 'not_returned',
       source: 'hotellook',
-      partnerHost: 'tp.media',
-      currency: 'USD',
-      priceCents: 18900,
-      priceBasis: 'per_night_before_taxes_fees',
-      locationPrecision: 'area',
-      policyState: 'not_returned',
-      obligationTypes: 'unknown',
     });
 
     (backLink?.props.onClick as (() => void))();
-    expect(trackMock).toHaveBeenCalledWith('hotel_handoff_back_clicked', {
-      source: 'hotellook',
-      partnerHost: 'tp.media',
-      policyState: 'not_returned',
-      obligationTypes: 'unknown',
-    });
+    expect(trackMock).toHaveBeenCalledWith('hotel_handoff_back_clicked', expect.objectContaining({
+      handoffAttemptId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      priceDisclosureState: 'incomplete',
+    }));
   });
 
   it('emits continue and one bucketed return after a hidden-visible cycle', () => {
@@ -595,8 +591,8 @@ describe('BookingFlow fare context review', () => {
       (outbound?.props.onClick as (() => void))();
       expect(trackMock).toHaveBeenCalledWith('hotel_handoff_continue_clicked', expect.objectContaining({
         source: 'hotellook',
-        partnerHost: 'www.booking.com',
         partnerNamed: true,
+        priceDisclosureState: 'incomplete',
       }));
 
       visibilityState = 'hidden';
@@ -605,14 +601,16 @@ describe('BookingFlow fare context review', () => {
       visibilityListener?.();
       visibilityListener?.();
 
-      expect(trackMock).toHaveBeenCalledWith('hotel_handoff_returned', {
-        source: 'hotellook',
-        partnerHost: 'www.booking.com',
+      expect(trackMock).toHaveBeenCalledWith('hotel_handoff_returned', expect.objectContaining({
+        handoffAttemptId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        priceDisclosureState: 'incomplete',
         awayDurationBucket: '5–30s',
-        policyState: 'not_returned',
-        obligationTypes: 'unknown',
-      });
+      }));
       expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_handoff_returned')).toHaveLength(1);
+      const lifecycleAttemptIds = trackMock.mock.calls
+        .filter(([event]) => ['hotel_handoff_viewed', 'hotel_handoff_continue_clicked', 'hotel_handoff_returned'].includes(event))
+        .map(([, props]) => (props as { handoffAttemptId: string }).handoffAttemptId);
+      expect(new Set(lifecycleAttemptIds).size).toBe(1);
 
       (backLink?.props.onClick as (() => void))();
       expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_handoff_back_clicked')).toHaveLength(0);

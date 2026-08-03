@@ -32,6 +32,7 @@ import {
   HotelAdmissionPolicyCardBlock,
 } from './HotelAdmissionPolicy'
 import { deriveAdmissionPolicyPresentation } from '@/lib/hotels/admissionPolicy'
+import { buildHotelPriceComposition } from '@/lib/hotels/priceDisclosure'
 import { useHotelAdmissionPolicyViewed } from './hotelAdmissionPolicyAnalytics'
 import { HotelPetPolicyDetails, HotelPetPolicyScan } from './HotelPetPolicy'
 import type { HotelPetPolicyPresentation } from './HotelPetPolicy'
@@ -808,6 +809,15 @@ export default function HotelCard({
     ? `${providerName} confirms the final total before you pay.`
     : 'The booking partner confirms the final total before you pay.'
   const reviewDisclosure = providerConfirmationCopy
+  const priceComposition = buildHotelPriceComposition({
+    offerId: hotel.id,
+    supplier: hotel.source,
+    stayCostState: 'nightly_only',
+    priceUnavailable: !hasValidPrice,
+    taxEvidence: hotel.taxEvidence,
+    mandatoryPropertyChargeEvidence: hotel.mandatoryPropertyChargeEvidence,
+    capabilities: hotel.requiredChargeCapabilities,
+  })
   const resolvedFundsPolicy = fundsPolicy ?? hotel.fundsPolicy
   const resolvedTransportEvidence = transportEvidence ?? hotel.transportEvidence
   const selectedHotel = {
@@ -838,7 +848,7 @@ export default function HotelCard({
     surface: 'results',
   })
   const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(resolvedFundsPolicy, fundsPolicyLoadState, providerName)
-  const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} per night. ${getHotelPriceCompositionAccessibleSummary()} Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy} ${policyAriaSuffix}`
+  const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} per night. ${getHotelPriceCompositionAccessibleSummary(priceComposition)} Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy} ${policyAriaSuffix}`
   const unavailableAriaLabel = hasValidPrice
     ? `Provider link unavailable for ${hotel.name}. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
     : `Hotel price unavailable. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
@@ -983,7 +993,7 @@ export default function HotelCard({
           )}
         </div>
 
-        <HotelPriceCompositionScan />
+        <HotelPriceCompositionScan composition={priceComposition} />
 
         <HotelCardEligibilityLine eligibility={rateEligibility} />
         <HotelAdmissionCardChip presentation={admissionPolicy} />
@@ -1161,6 +1171,7 @@ export default function HotelCard({
                 headingId={`hotel-price-composition-${hotel.id}`}
                 headingLevel="h4"
                 stayCostState="nightly_only"
+                composition={priceComposition}
                 variant="price_scope"
               />
               <p className="mt-2 font-medium text-[color:var(--text-1)]">Rate check</p>
