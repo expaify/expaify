@@ -47,6 +47,7 @@ import {
   getHotelPriceCompositionAccessibleSummary,
   HotelPriceComposition,
 } from '@/app/components/HotelPriceComposition'
+import { HotelSustainabilityCredentialEvidence } from '@/app/components/HotelSustainabilityCredentialEvidence'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -407,6 +408,7 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
           </div>
         </dl>
         <HotelAdmissionPolicySection presentation={admissionPolicy} providerName={hasProviderName(hotelContext.provider) ? rateSource : ''} />
+        <HotelSustainabilityCredentialEvidence />
       </section>
     </>
   )
