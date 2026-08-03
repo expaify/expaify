@@ -21,6 +21,7 @@ import type {
   HotelRateEligibilityEvidence,
   HotelRateFamilyEvidence,
   HotelRatingEvidence,
+  HotelReviewEvidence,
   HotelSmokingDimension,
   HotelSmokingPolicy,
   HotelTransportAction,
@@ -89,6 +90,7 @@ export type BookingHotelContext = {
   priceCheckedAt?: string;
   hotelClass?: HotelRatingEvidence;
   guestRating?: HotelRatingEvidence;
+  reviewEvidence?: HotelReviewEvidence;
   smokingPolicy?: HotelSmokingPolicy;
   transportEvidence?: HotelTransportEvidence;
   rateEligibility?: HotelRateEligibilityEvidence;
@@ -953,6 +955,9 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const priceCheckedAt = cleanOptional(input.priceCheckedAt);
   const hotelClass = validateHotelRatingEvidence(input.hotelClass);
   const guestRating = validateHotelRatingEvidence(input.guestRating);
+  const reviewEvidence = input.reviewEvidence && typeof input.reviewEvidence === 'object' && !Array.isArray(input.reviewEvidence)
+    ? input.reviewEvidence as HotelReviewEvidence
+    : undefined;
   const dealScore = validateHotelDealScore(input.dealScore, currency);
   const smokingPolicy = input.smokingPolicy === undefined
     ? unavailableHotelSmokingPolicy()
@@ -1008,6 +1013,7 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     ...(priceCheckedAt !== undefined ? { priceCheckedAt } : {}),
     ...(hotelClass !== undefined ? { hotelClass } : {}),
     ...(guestRating !== undefined ? { guestRating } : {}),
+    ...(reviewEvidence !== undefined ? { reviewEvidence } : {}),
     smokingPolicy,
     ...(rateEligibility !== undefined ? { rateEligibility } : {}),
     ...(rateEligibilityCapability !== undefined ? { rateEligibilityCapability } : {}),
@@ -1124,6 +1130,7 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     dealScore: parseJsonQueryParam(firstParam(params.dealScore)),
     hotelClass: parseJsonQueryParam(firstParam(params.hotelClass)),
     guestRating: parseJsonQueryParam(firstParam(params.guestRating)),
+    reviewEvidence: parseJsonQueryParam(firstParam(params.reviewEvidence)),
     smokingPolicy: parseSmokingPolicyParams(params),
     rateEligibility: parseJsonQueryParam(firstParam(params.rateEligibility)),
     rateEligibilityCapability: parseJsonQueryParam(firstParam(params.rateEligibilityCapability)),
@@ -1200,7 +1207,7 @@ export function buildBookingHref(fare: NormalizedFare): string {
 
 export type BookingHotelContinuity = Partial<Pick<
   BookingHotelContext,
-  'entrySource' | 'returnUrl' | 'checkIn' | 'checkOut' | 'nightCount' | 'dealScore' | 'priceCheckedAt' | 'hotelClass' | 'guestRating'
+  'entrySource' | 'returnUrl' | 'checkIn' | 'checkOut' | 'nightCount' | 'dealScore' | 'priceCheckedAt' | 'hotelClass' | 'guestRating' | 'reviewEvidence'
 >>;
 
 export function buildBookingHotelContext(hotel: HotelOffer, continuity?: BookingHotelContinuity): BookingHotelContext {
@@ -1235,6 +1242,8 @@ export function buildBookingHotelContext(hotel: HotelOffer, continuity?: Booking
     ...(continuity?.priceCheckedAt !== undefined ? { priceCheckedAt: continuity.priceCheckedAt } : {}),
     ...(continuity?.hotelClass !== undefined ? { hotelClass: continuity.hotelClass } : {}),
     ...(continuity?.guestRating !== undefined ? { guestRating: continuity.guestRating } : {}),
+    ...(hotel.reviewEvidence !== undefined ? { reviewEvidence: hotel.reviewEvidence } : {}),
+    ...(continuity?.reviewEvidence !== undefined ? { reviewEvidence: continuity.reviewEvidence } : {}),
   };
 }
 
@@ -1288,6 +1297,7 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
   if (context.dealScore) params.set('dealScore', JSON.stringify(context.dealScore));
   if (context.hotelClass) params.set('hotelClass', JSON.stringify(context.hotelClass));
   if (context.guestRating) params.set('guestRating', JSON.stringify(context.guestRating));
+  if (context.reviewEvidence) params.set('reviewEvidence', JSON.stringify(context.reviewEvidence));
   if (context.rateEligibility) params.set('rateEligibility', JSON.stringify(context.rateEligibility));
   if (context.rateEligibilityCapability) params.set('rateEligibilityCapability', JSON.stringify(context.rateEligibilityCapability));
   if (context.admissionPolicy) params.set('admissionPolicy', JSON.stringify(context.admissionPolicy));

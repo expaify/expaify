@@ -42,6 +42,7 @@ import {
   HotelTransportSection,
 } from '@/app/components/HotelTransport'
 import HotelCancellationChoicesUnavailable from '@/app/components/HotelCancellationChoicesUnavailable'
+import GuestReviewEvidence from '@/app/components/GuestReviewEvidence'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -392,17 +393,15 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
 
       <section aria-labelledby="hotel-fit-title" className={`${panelCls} p-4 sm:p-6`}>
         <h2 id="hotel-fit-title" className="text-xl font-medium leading-tight text-[color:var(--text-1)] sm:text-2xl">Hotel fit</h2>
-        <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <dl className="mt-4 grid grid-cols-1 gap-4">
           <div className={`p-3.5 ${insetPanelCls}`}>
             <dt className={factLabelCls}>Hotel class</dt>
-            <dd className={factValueCls}>Hotel class not provided</dd>
-          </div>
-          <div className={`p-3.5 ${insetPanelCls}`}>
-            <dt className={factLabelCls}>Guest rating</dt>
-            <dd className={factValueCls}>Guest rating not provided</dd>
-            <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
+            <dd className={factValueCls}>{hotelContext.hotelClass?.value && hotelContext.hotelClass.scaleMax ? `${hotelContext.hotelClass.value}/${hotelContext.hotelClass.scaleMax} hotel class from ${hotelContext.hotelClass.sourceLabel ?? 'provider'}` : 'Hotel class not provided'}</dd>
           </div>
         </dl>
+        <div className="mt-4">
+          <GuestReviewEvidence evidence={hotelContext.reviewEvidence} expectedProviderId={hotelContext.provider} expectedPropertyId={hotelContext.offerId} />
+        </div>
         <HotelAdmissionPolicySection presentation={admissionPolicy} providerName={hasProviderName(hotelContext.provider) ? rateSource : ''} />
       </section>
     </>

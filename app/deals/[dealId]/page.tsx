@@ -19,6 +19,7 @@ import DealScorePanel from '@/app/components/DealScorePanel'
 import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
 import { notProvidedHotelDocumentReadiness } from '@/lib/providers/hotelDocumentReadiness'
 import HotelCancellationChoicesUnavailable from '@/app/components/HotelCancellationChoicesUnavailable'
+import GuestReviewEvidence from '@/app/components/GuestReviewEvidence'
 import {
   NO_QUIET_STAY_EVIDENCE,
   QuietStayEvidenceLedger,
@@ -415,17 +416,15 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
 
           <section aria-labelledby="saved-hotel-fit-title" data-hotel-decision-section="hotel_fit" data-hotel-decision-position="3" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="saved-hotel-fit-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Hotel fit</h2>
-            <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <dl className="mt-4 grid grid-cols-1 gap-4">
               <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
                 <dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Hotel class</dt>
                 <dd className="mt-1 text-sm font-medium text-[color:var(--text-1)]">{deal.stars != null ? `${deal.stars}-star hotel class from a booking partner` : 'Hotel class not provided'}</dd>
               </div>
-              <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-3.5">
-                <dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Guest rating</dt>
-                <dd className="mt-1 text-sm font-medium text-[color:var(--text-1)]">Guest rating not provided</dd>
-                <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
-              </div>
             </dl>
+            <div className="mt-4">
+              <GuestReviewEvidence />
+            </div>
             <HotelDisruptionEvidenceLedger
               evidence={disruptionEvidence}
               analyticsKey={deal.id}

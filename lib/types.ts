@@ -117,6 +117,71 @@ export interface HotelRatingEvidence {
   confidence: HotelQualityConfidence;
 }
 
+export type HotelReviewLoadState =
+  | 'loading'
+  | 'ready'
+  | 'not_provided'
+  | 'error'
+  | 'invalid'
+  | 'stale';
+
+export type HotelReviewProvenance =
+  | 'verified_guest'
+  | 'provider_only'
+  | 'inferred'
+  | 'unavailable';
+
+export type ReviewMonth = `${number}-${number}`;
+
+export type HotelReviewCoverage =
+  | {
+      kind: 'provider_declared_aggregate';
+      startMonth?: ReviewMonth;
+      endMonth: ReviewMonth;
+    }
+  | {
+      kind: 'returned_sample';
+      latestStayMonth?: ReviewMonth;
+      latestSubmittedAt?: string;
+      sampleSize?: number;
+    }
+  | { kind: 'none' }
+  | { kind: 'invalid' };
+
+export type HotelReviewContextCue = {
+  licensedForDisplay: true;
+  travelerSegment?: 'family' | 'business' | 'solo' | 'couple' | 'friends';
+  topic: string;
+  pattern: string;
+  sourceLabel: string;
+  scope: 'property' | 'returned_sample';
+  windowStartMonth?: ReviewMonth;
+  windowEndMonth?: ReviewMonth;
+  supportingReviewCount?: number;
+};
+
+export type HotelReviewEvidence = {
+  schemaVersion: 1;
+  state: HotelReviewLoadState;
+  providerPropertyId: string;
+  providerId: string;
+  provenance: HotelReviewProvenance;
+  score?: { value: number; scaleMax: number };
+  sourceLabel?: string;
+  overallReviewCount?: number;
+  coverage: HotelReviewCoverage;
+  contextCue?: HotelReviewContextCue;
+  ratingObservedAt?: string;
+  invalidReason?:
+    | 'malformed_score'
+    | 'malformed_date'
+    | 'malformed_count'
+    | 'unsupported_scope'
+    | 'property_mismatch'
+    | 'provider_mismatch'
+    | 'stale_cache';
+};
+
 export type HotelEvidenceStatus =
   | 'confirmed'
   | 'unavailable'
@@ -699,6 +764,7 @@ export interface HotelOffer {
   documentReadiness: HotelDocumentReadiness;
   hotelClass?: HotelRatingEvidence;
   guestRating?: HotelRatingEvidence;
+  reviewEvidence?: HotelReviewEvidence;
   amenityEvidence?: HotelAmenityEvidence[];
   accessEvidenceState?: HotelAccessEvidenceState;
   transportEvidence?: HotelTransportEvidence;
