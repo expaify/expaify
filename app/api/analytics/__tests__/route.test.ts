@@ -221,4 +221,96 @@ describe('POST /api/analytics', () => {
     expect(response.status).toBe(400)
     expect(mockQuery).not.toHaveBeenCalled()
   })
+
+  it.each([
+    ['hotel_handoff_viewed', {
+      handoffAttemptId: '3eb5df1f-e028-40a8-a755-679e63579723',
+      priceDisclosureState: 'incomplete',
+      stayCostState: 'nightly_only',
+      taxState: 'not_returned',
+      mandatoryChargeState: 'not_returned',
+      source: 'hotellook',
+    }],
+    ['hotel_handoff_continue_clicked', {
+      handoffAttemptId: '3eb5df1f-e028-40a8-a755-679e63579723',
+      priceDisclosureState: 'fully_itemized',
+      source: 'other',
+      partnerNamed: true,
+    }],
+    ['hotel_handoff_returned', {
+      handoffAttemptId: '3eb5df1f-e028-40a8-a755-679e63579723',
+      priceDisclosureState: 'partially_itemized',
+      awayDurationBucket: '30–120s',
+    }],
+    ['hotel_handoff_back_clicked', {
+      handoffAttemptId: '3eb5df1f-e028-40a8-a755-679e63579723',
+      priceDisclosureState: 'provider_total_breakdown_unknown',
+    }],
+    ['hotel_handoff_return_reason_selected', {
+      handoffAttemptId: '3eb5df1f-e028-40a8-a755-679e63579723',
+      priceDisclosureState: 'unavailable',
+      reason: 'pay_at_property_amount_unexpected',
+    }],
+  ])('accepts the exact attempt-level contract for %s', async (event, props) => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event,
+      occurredAt: new Date().toISOString(),
+      path: '/book',
+      props,
+    }))
+    expect(response.status).toBe(202)
+  })
+
+  it('rejects a lifecycle event with a missing attempt id or legacy extra property', async () => {
+    const base = {
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_handoff_back_clicked',
+      occurredAt: new Date().toISOString(),
+      path: '/book',
+    }
+    const missing = await POST(request({ ...base, props: { priceDisclosureState: 'incomplete' } }))
+    const legacyExtra = await POST(request({
+      ...base,
+      props: {
+        handoffAttemptId: '3eb5df1f-e028-40a8-a755-679e63579723',
+        priceDisclosureState: 'incomplete',
+        partnerHost: 'example.com',
+      },
+    }))
+    expect(missing.status).toBe(400)
+    expect(legacyExtra.status).toBe(400)
+  })
+
+  it.each([
+    ['hotel_funds_policy_summary_viewed', {
+      policyState: 'not_returned', obligationTypes: 'unknown', scope: 'not_returned',
+      provider: 'hotellook', surface: 'book_handoff',
+    }],
+    ['hotel_invoice_need_changed', { needed: true, source: 'hotellook', partnerNamed: false }],
+    ['hotel_invoice_retry_clicked', { priorCheckState: 'error', source: 'other', scope: 'rate' }],
+    ['hotel_invoice_readiness_viewed', {
+      status: 'confirmed', documentTypes: 'invoice,receipt', invoiceIssuerRole: 'booking_provider',
+      receiptIssuerRole: 'property', billingDetailsStep: 'during_partner_booking', source: 'hotellook', scope: 'rate',
+    }],
+    ['hotel_booking_help_opened', {
+      source: 'hotellook', partnerHost: 'example.com', partnerNamed: true, locationPrecision: 'exact',
+    }],
+    ['hotel_loyalty_disclosure_opened', {
+      source: 'other', partnerHost: 'external-provider', partnerNamed: false,
+      handoffSessionId: '3eb5df1f-e028-40a8-a755-679e63579723',
+    }],
+  ])('accepts reconciled hotel evidence event %s', async (event, props) => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event,
+      occurredAt: new Date().toISOString(),
+      path: '/book',
+      props,
+    }))
+    expect(response.status).toBe(202)
+  })
 })

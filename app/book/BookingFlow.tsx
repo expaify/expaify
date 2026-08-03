@@ -47,12 +47,16 @@ import {
   getHotelPriceCompositionAccessibleSummary,
   HotelPriceComposition,
 } from '@/app/components/HotelPriceComposition'
+import { buildHotelPriceComposition } from '@/lib/hotels/priceDisclosure'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
 type HotelReturnReason =
   | 'smoking_policy_or_room_mismatch'
-  | 'price_or_fees_mismatch'
+  | 'tax_amount_changed_or_appeared'
+  | 'mandatory_property_charge_changed_or_appeared'
+  | 'displayed_total_other_mismatch'
+  | 'pay_at_property_amount_unexpected'
   | 'room_availability_mismatch'
   | 'other_hotel_details_mismatch'
   | 'loyalty_or_points_uncertainty'
@@ -60,7 +64,10 @@ type HotelReturnReason =
 
 const HOTEL_RETURN_REASONS: ReadonlyArray<{ value: HotelReturnReason; label: string }> = [
   { value: 'smoking_policy_or_room_mismatch', label: 'Smoking policy or room did not match' },
-  { value: 'price_or_fees_mismatch', label: 'Price or fees did not match' },
+  { value: 'tax_amount_changed_or_appeared', label: 'Tax amount changed or appeared' },
+  { value: 'mandatory_property_charge_changed_or_appeared', label: 'Mandatory property charge changed or appeared' },
+  { value: 'displayed_total_other_mismatch', label: 'Displayed total did not match for another reason' },
+  { value: 'pay_at_property_amount_unexpected', label: 'Pay-at-property amount was unexpected' },
   { value: 'room_availability_mismatch', label: 'Room availability did not match' },
   { value: 'other_hotel_details_mismatch', label: 'Other hotel details did not match' },
   { value: 'loyalty_or_points_uncertainty', label: 'Not sure this stay earns points or status' },
@@ -177,6 +184,15 @@ function emitAnalytics(event: string, props: Record<string, string | number | bo
   } catch {
     // Analytics must never block or alter the booking handoff.
   }
+}
+
+function createHandoffAttemptId(): string {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID()
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, character => {
+    const random = Math.floor(Math.random() * 16)
+    const value = character === 'x' ? random : (random & 0x3) | 0x8
+    return value.toString(16)
+  })
 }
 
 function hotelInvoiceAnalyticsSource(source: string): 'hotellook' | 'other' {
@@ -755,6 +771,20 @@ function HotelHandoffReview({
     provider: hotelContext.provider,
     surface: 'book_handoff',
   })
+  const priceComposition = useMemo(() => buildHotelPriceComposition({
+    offerId: hotelContext.offerId,
+    supplier: hotelContext.provider,
+    stayCostState: 'nightly_only',
+    taxEvidence: hotelContext.taxEvidence,
+    mandatoryPropertyChargeEvidence: hotelContext.mandatoryPropertyChargeEvidence,
+    capabilities: hotelContext.requiredChargeCapabilities,
+  }), [
+    hotelContext.mandatoryPropertyChargeEvidence,
+    hotelContext.offerId,
+    hotelContext.provider,
+    hotelContext.requiredChargeCapabilities,
+    hotelContext.taxEvidence,
+  ])
   const analyticsProps = useMemo(() => ({
     source: hotelContext.provider,
     partnerHost: partner.host,
@@ -765,6 +795,8 @@ function HotelHandoffReview({
     policyState: policyDimensions.policyState,
     obligationTypes: policyDimensions.obligationTypes,
   }), [hotelContext.currency, hotelContext.priceBasis, hotelContext.priceCents, hotelContext.provider, location.precision, partner.host, policyDimensions.obligationTypes, policyDimensions.policyState])
+  const handoffAttemptId = useMemo(createHandoffAttemptId, [])
+  const handoffViewedRef = useRef(false)
   const didContinueRef = useRef(false)
   const guidanceBlockRef = useRef<HTMLElement>(null)
   const documentDisclosureRef = useRef<HTMLDivElement>(null)
@@ -786,8 +818,17 @@ function HotelHandoffReview({
   const [documentCheckState, setDocumentCheckState] = useState<HotelDocumentCheckState>('idle')
 
   useEffect(() => {
-    emitAnalytics('hotel_handoff_viewed', analyticsProps)
-  }, [analyticsProps])
+    if (handoffViewedRef.current) return
+    handoffViewedRef.current = true
+    emitAnalytics('hotel_handoff_viewed', {
+      handoffAttemptId,
+      priceDisclosureState: priceComposition.priceDisclosureState,
+      stayCostState: priceComposition.stayCostState,
+      taxState: priceComposition.taxes.state,
+      mandatoryChargeState: priceComposition.mandatoryPropertyCharges.state,
+      source: hotelInvoiceAnalyticsSource(hotelContext.provider),
+    })
+  }, [handoffAttemptId, hotelContext.provider, priceComposition])
 
   const runDocumentReadinessCheck = async (onStarted?: () => void) => {
     if (!beginHotelDocumentReadinessCheck(documentCheckPendingRef, onStarted)) return
@@ -887,7 +928,6 @@ function HotelHandoffReview({
     provider: hotelContext.provider,
     surface: 'book_handoff',
   })
-  const handoffSessionIdRef = useRef<string | undefined>(undefined)
   const feedbackTriggerRef = useRef<HTMLButtonElement>(null)
   const [showReturnPrompt, setShowReturnPrompt] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
@@ -951,11 +991,9 @@ function HotelHandoffReview({
       const startedAt = continueStartedAtRef.current
       const durationMs = startedAt === undefined ? 0 : Math.max(0, performance.now() - startedAt)
       emitAnalytics('hotel_handoff_returned', {
-        source: hotelContext.provider,
-        partnerHost: partner.host,
+        handoffAttemptId,
+        priceDisclosureState: priceComposition.priceDisclosureState,
         awayDurationBucket: getAwayDurationBucket(durationMs),
-        policyState: policyDimensions.policyState,
-        obligationTypes: policyDimensions.obligationTypes,
       })
       setShowReturnPrompt(true)
       returnArmedRef.current = false
@@ -965,23 +1003,18 @@ function HotelHandoffReview({
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [hotelContext.provider, partner.host, policyDimensions.obligationTypes, policyDimensions.policyState])
+  }, [handoffAttemptId, priceComposition.priceDisclosureState])
 
   const handleContinue = () => {
     didContinueRef.current = true
     returnArmedRef.current = true
     hiddenAfterContinueRef.current = false
     continueStartedAtRef.current = performance.now()
-    handoffSessionIdRef.current = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `handoff-${Date.now()}`
     emitAnalytics('hotel_handoff_continue_clicked', {
-      ...analyticsProps,
+      handoffAttemptId,
+      priceDisclosureState: priceComposition.priceDisclosureState,
+      source: hotelInvoiceAnalyticsSource(hotelContext.provider),
       partnerNamed: partner.named,
-      invoiceNeeded,
-      invoiceReadinessStatus: documentReadiness.status,
-      helpViewed: helpViewedRef.current,
-      loyaltyDisclosureViewed: loyaltyViewedRef.current,
     })
     trackHotelHandoffWithAdmissionRestriction({
       presentation: admissionPolicy,
@@ -1002,13 +1035,11 @@ function HotelHandoffReview({
 
   const handleReturnFeedback = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!selectedReturnReason || !handoffSessionIdRef.current) return
+    if (!selectedReturnReason) return
     emitAnalytics('hotel_handoff_return_reason_selected', {
+      handoffAttemptId,
+      priceDisclosureState: priceComposition.priceDisclosureState,
       reason: selectedReturnReason,
-      offerId: hotelContext.offerId,
-      provider: hotelContext.provider,
-      partnerHost: partner.host,
-      handoffSessionId: handoffSessionIdRef.current,
     })
     setFeedbackSent(true)
     setFeedbackOpen(false)
@@ -1017,7 +1048,7 @@ function HotelHandoffReview({
   const handleBookingOwnershipOpen = () => {
     helpViewedRef.current = true
     emitAnalytics('hotel_booking_help_opened', {
-      source: analyticsProps.source,
+      source: hotelInvoiceAnalyticsSource(hotelContext.provider),
       partnerHost: analyticsProps.partnerHost,
       partnerNamed: partner.named,
       locationPrecision: analyticsProps.locationPrecision,
@@ -1027,16 +1058,16 @@ function HotelHandoffReview({
   const handleLoyaltyDisclosureOpen = () => {
     loyaltyViewedRef.current = true
     emitAnalytics('hotel_loyalty_disclosure_opened', {
-      source: analyticsProps.source,
+      source: hotelInvoiceAnalyticsSource(hotelContext.provider),
       partnerHost: analyticsProps.partnerHost,
       partnerNamed: partner.named,
-      ...(handoffSessionIdRef.current !== undefined ? { handoffSessionId: handoffSessionIdRef.current } : {}),
+      handoffSessionId: handoffAttemptId,
     })
   }
 
   const handleBookingOwnershipContactClick = (owner: 'partner' | 'expaify', destinationType: 'help_center' | 'mailto') => {
     emitAnalytics('hotel_booking_help_contact_clicked', {
-      source: analyticsProps.source,
+      source: hotelInvoiceAnalyticsSource(hotelContext.provider),
       partnerHost: analyticsProps.partnerHost,
       partnerNamed: partner.named,
       locationPrecision: analyticsProps.locationPrecision,
@@ -1060,10 +1091,8 @@ function HotelHandoffReview({
   const handleBack = () => {
     if (didContinueRef.current) return
     emitAnalytics('hotel_handoff_back_clicked', {
-      source: hotelContext.provider,
-      partnerHost: partner.host,
-      policyState: policyDimensions.policyState,
-      obligationTypes: policyDimensions.obligationTypes,
+      handoffAttemptId,
+      priceDisclosureState: priceComposition.priceDisclosureState,
     })
   }
 
@@ -1076,7 +1105,7 @@ function HotelHandoffReview({
     ? `${partner.label} confirms the final total before you pay.`
     : 'The booking partner confirms the final total before you pay.'
   const transportGuidance = getHotelTransportHandoffGuidance(hotelContext.transportEvidence)
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary()} ${finalTotalBoundary} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary(priceComposition)} ${finalTotalBoundary} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
 
   return (
     <ReviewShell
@@ -1093,13 +1122,13 @@ function HotelHandoffReview({
           {showReturnPrompt ? (
             <section className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4" aria-labelledby="hotel-return-feedback-title">
               <h3 id="hotel-return-feedback-title" className="text-sm font-medium text-[color:var(--text-1)]">Did the partner details match?</h3>
-              <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Optional: tell us what changed so we can improve hotel evidence.</p>
+              <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Optional: tell us the main mismatch so we can improve hotel price details.</p>
               {feedbackSent ? (
                 <p className="mt-3 text-sm font-medium text-[color:var(--brand)]" role="status">Thanks. Your feedback was recorded.</p>
               ) : feedbackOpen ? (
                 <form className="mt-3" onSubmit={handleReturnFeedback}>
                   <fieldset>
-                    <legend className="text-sm font-medium text-[color:var(--text-1)]">What did not match?</legend>
+                    <legend className="text-sm font-medium text-[color:var(--text-1)]">What was the main mismatch?</legend>
                     <div className="mt-2 space-y-1">
                       {HOTEL_RETURN_REASONS.map(reason => (
                         <label key={reason.value} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-[var(--radius-control)] px-2 text-sm text-[color:var(--text-2)] focus-within:shadow-[var(--focus-ring)]">
@@ -1160,6 +1189,7 @@ function HotelHandoffReview({
         <HotelPriceComposition
           headingId="hotel-handoff-price-composition"
           stayCostState="nightly_only"
+          composition={priceComposition}
           variant="handoff"
           boundaryCopy={finalTotalBoundary}
         />

@@ -655,6 +655,70 @@ export interface HotelAdmissionPolicyCapability {
   occupancy_admission: boolean;
 }
 
+export type HotelStayCostState =
+  | 'provider_total'
+  | 'partial_total'
+  | 'expaify_estimate'
+  | 'nightly_only';
+
+export type HotelRequiredChargeState =
+  | 'itemized'
+  | 'included_unitemized'
+  | 'applies_amount_unknown'
+  | 'explicit_none'
+  | 'not_returned'
+  | 'conflicting';
+
+export type HotelChargeTotalRelationship = 'included' | 'excluded' | 'unknown';
+export type HotelChargeCollection = 'online' | 'property' | 'split' | 'unknown';
+export type HotelRequiredChargeScope = 'stay' | 'rate' | 'room' | 'property' | 'not_returned';
+
+export type HotelPriceDisclosureState =
+  | 'fully_itemized'
+  | 'provider_total_breakdown_unknown'
+  | 'partially_itemized'
+  | 'incomplete'
+  | 'unavailable';
+
+/** Provider-named, required charge. Optional/conditional charges and holds do not belong here. */
+export interface HotelRequiredChargeRecord {
+  id?: string;
+  name: string;
+  /** Literal guard: only unavoidable charges enter total-price evidence. */
+  required: true;
+  sourceLabel?: string;
+  amount?: Money;
+  basis?: string;
+  collection?: HotelChargeCollection;
+  totalRelationship?: HotelChargeTotalRelationship;
+}
+
+/** Offer-bound evidence for exactly one category: taxes OR mandatory property charges. */
+export interface HotelRequiredChargeEvidence {
+  offerId: string;
+  supplier: string;
+  sourceLabel?: string;
+  scope: HotelRequiredChargeScope;
+  fetchedAt?: string;
+  state: HotelRequiredChargeState;
+  totalRelationship: HotelChargeTotalRelationship;
+  collection: HotelChargeCollection;
+  categoryTotal?: Money;
+  records: HotelRequiredChargeRecord[];
+  /** Provider freshness adapters set this; stale facts normalize to not_returned. */
+  isStale?: boolean;
+}
+
+export interface HotelRequiredChargeCapability {
+  supportedScopes: Exclude<HotelRequiredChargeScope, 'not_returned'>[];
+  supportsExplicitNone: boolean;
+}
+
+export interface HotelRequiredChargeCapabilities {
+  taxes: HotelRequiredChargeCapability;
+  mandatoryPropertyCharges: HotelRequiredChargeCapability;
+}
+
 export type HotelAdmissionRowState = 'restricted' | 'no_rule_reported' | 'unavailable' | 'conflicting';
 
 export interface HotelAdmissionRow {
@@ -708,6 +772,9 @@ export interface HotelOffer {
   rateEligibilityCapability?: HotelRateEligibilityCapability;
   admissionPolicy?: HotelAdmissionPolicyEvidence;
   admissionPolicyCapability?: HotelAdmissionPolicyCapability;
+  taxEvidence?: HotelRequiredChargeEvidence;
+  mandatoryPropertyChargeEvidence?: HotelRequiredChargeEvidence;
+  requiredChargeCapabilities?: HotelRequiredChargeCapabilities;
 }
 
 export type NormalizedHotelOffer = HotelOffer;
