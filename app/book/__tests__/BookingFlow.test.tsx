@@ -221,8 +221,8 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('We’ll show what the provider supplied before you continue.');
     expect(text).not.toContain('Hotellook did not provide invoice or receipt information for this rate.');
     expect(text).toContain('What you may need');
-    expect(text).toContain('Have the lead guest’s full name, a confirmation email, and a reachable phone number ready. The booking partner will show exactly what is required.');
-    expect(text).toContain('Booking for someone else? Use the name of the person checking in as the lead guest. The booking partner will tell you whose email and phone it needs.');
+    expect(text).toContain('Have the lead guest’s full name, a confirmation email, and a reachable phone number ready. The booking partner will show what it needs to create the booking.');
+    expect(text).toContain('Booking for someone else? Use the name of the person checking in as the lead guest. This does not confirm whose ID or payment card the property will accept; review the ID and cardholder rules before paying.');
     expect(text).toContain('Special requests');
     expect(text).toContain('Deposits and card holds');
     expect(text).toContain('Policy not provided');
@@ -246,7 +246,7 @@ describe('BookingFlow fare context review', () => {
     const outbound = findElements(tree, element => element.type === 'a' && typeof element.props['aria-label'] === 'string' && element.props['aria-label'].startsWith('Check rooms at'))[0];
     expect(outbound.props.href).toBe(hotelContext.providerUrl);
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
-    expect(outbound.props['aria-label']).toBe("Check rooms at provider for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. Mandatory property fees are not confirmed. Check the final total and any amount due at the property on Hotellook. Airport-transfer details were not confirmed. Check directly with the property before arrival. Confirm the room's smoking status and the property's current smoking rules on the booking partner.");
+    expect(outbound.props['aria-label']).toBe("Check rooms at provider for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. Mandatory property fees are not confirmed. Check the final total and any amount due at the property on Hotellook. Airport-transfer details were not confirmed. Check directly with the property before arrival. Confirm the room's smoking status and the property's current smoking rules on the booking partner. ID and cardholder rules were not provided; check them before paying.");
   });
 
   it('uses booking-partner fee copy only when the normalized offer provider is missing', () => {
@@ -307,7 +307,7 @@ describe('BookingFlow fare context review', () => {
     expect(text).not.toContain('Mandatory property fees are not confirmed. On Booking.com');
     expect(text).toContain('Opens Booking.com in a new tab. Your expaify search stays open here.');
     expect(text).toContain('Add your request on Booking.com while booking. Nothing is selected or sent by expaify.');
-    expect(text).toContain('The booking partner will show exactly what is required.');
+    expect(text).toContain('The booking partner will show what it needs to create the booking.');
     expect(text).not.toContain('Booking.com requires');
     expect(text).not.toContain('What you’ll need');
     expect(outbound.props.href).toBe(providerUrl);
