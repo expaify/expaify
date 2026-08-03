@@ -45,6 +45,7 @@ import {
   createHotelDisruptionFixture,
   parseHotelDisruptionFixture,
 } from '@/app/components/research/hotelDisruptionFixtures'
+import { HotelSustainabilityCredentialEvidence } from '@/app/components/HotelSustainabilityCredentialEvidence'
 
 type PageProps = {
   params: Promise<{ dealId: string }>
@@ -432,6 +433,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
               fixture={disruptionFixtureId !== null}
             />
             <QuietStayEvidenceLedger evidence={NO_QUIET_STAY_EVIDENCE} />
+            <HotelSustainabilityCredentialEvidence />
           </section>
 
           <section aria-labelledby="saved-provider-title" data-hotel-decision-section="provider_handoff" data-hotel-decision-position="4" className="rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
