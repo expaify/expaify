@@ -43,6 +43,11 @@ import {
   HotelTransportSummary,
 } from './HotelTransport'
 import HotelCancellationChoicesUnavailable from './HotelCancellationChoicesUnavailable'
+import {
+  deriveGuestIdentityPresentation,
+  HotelGuestIdentityCardChip,
+  presentGuestIdentityEvidence,
+} from './HotelGuestIdentityRules'
 
 type Props = {
   hotel: HotelOffer
@@ -826,6 +831,9 @@ export default function HotelCard({
     evidence: hotel.admissionPolicy,
     capability: hotel.admissionPolicyCapability,
   })
+  const guestIdentity = hotel.guestIdentity
+    ? presentGuestIdentityEvidence(hotel.guestIdentity, hasHotelProviderName ? providerName : '')
+    : deriveGuestIdentityPresentation(admissionPolicy, hasHotelProviderName ? providerName : '')
   useHotelAdmissionPolicyViewed({
     presentation: admissionPolicy,
     hotelId: hotel.id,
@@ -983,7 +991,8 @@ export default function HotelCard({
         </p>
 
         <HotelCardEligibilityLine eligibility={rateEligibility} />
-        <HotelAdmissionCardChip presentation={admissionPolicy} />
+        <HotelAdmissionCardChip presentation={admissionPolicy} excludeIdentity />
+        <HotelGuestIdentityCardChip presentation={guestIdentity} />
 
         <ParkingSummary
           evidence={parkingEvidence}
@@ -1054,6 +1063,7 @@ export default function HotelCard({
           type="button"
           aria-expanded={isExpanded}
           aria-controls={detailsId}
+          aria-label={`${isExpanded ? 'Hide details' : 'Details'} for ${hotel.name}: ID and cardholder rules`}
           onClick={handleDetailsToggle}
           className="mt-3 flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] text-sm font-medium text-[color:var(--text-1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
         >
@@ -1112,6 +1122,7 @@ export default function HotelCard({
               presentation={admissionPolicy}
               providerName={hasHotelProviderName ? providerName : ''}
               identityHeadingId={`${detailsId}-guest-identity-title`}
+              identityPresentation={guestIdentity}
             />
 
             <ParkingSection

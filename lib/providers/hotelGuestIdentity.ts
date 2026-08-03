@@ -4,7 +4,7 @@ import type {
   HotelGuestIdentityDimensionState,
   HotelGuestIdentityEvidence,
   HotelGuestIdentityScope,
-  SupplierAdmissionStatement,
+  HotelGuestIdentityStatement,
 } from '../types';
 
 const DIMENSION_STATES = new Set<HotelGuestIdentityDimensionState>([
@@ -39,10 +39,14 @@ function validDate(value: unknown): string | undefined {
   return date && Number.isFinite(Date.parse(date)) ? date : undefined;
 }
 
-function statements(value: unknown): SupplierAdmissionStatement[] {
-  if (!Array.isArray(value)) return [];
+function statements(value: unknown): {
+  statements: HotelGuestIdentityStatement[];
+  omittedStatementCount: number;
+  conflictSidesVisible: boolean;
+} {
+  if (!Array.isArray(value)) return { statements: [], omittedStatementCount: 0, conflictSidesVisible: true };
   const seen = new Set<string>();
-  const normalized: SupplierAdmissionStatement[] = [];
+  const normalized: HotelGuestIdentityStatement[] = [];
   for (const item of value) {
     const input = record(item);
     if (!input) continue;
@@ -52,9 +56,35 @@ function statements(value: unknown): SupplierAdmissionStatement[] {
     if (!id || seen.has(id) || !sourceLabel || !sourceText) continue;
     seen.add(id);
     const observedAt = validDate(input.observedAt);
-    normalized.push({ id, sourceLabel, sourceText, ...(observedAt ? { observedAt } : {}) });
+    const conflictSide = input.conflictSide === 'affirmative' || input.conflictSide === 'negative'
+      ? input.conflictSide
+      : undefined;
+    normalized.push({ id, sourceLabel, sourceText, ...(observedAt ? { observedAt } : {}), ...(conflictSide ? { conflictSide } : {}) });
   }
-  return normalized.slice(0, 3);
+  if (normalized.length <= 3) {
+    return { statements: normalized, omittedStatementCount: 0, conflictSidesVisible: true };
+  }
+
+  const affirmative = normalized.find(statement => statement.conflictSide === 'affirmative');
+  const negative = normalized.find(statement => statement.conflictSide === 'negative');
+  if (!affirmative || !negative) {
+    return {
+      statements: normalized.slice(0, 3),
+      omittedStatementCount: normalized.length - 3,
+      conflictSidesVisible: false,
+    };
+  }
+
+  const requiredIds = new Set([affirmative.id, negative.id]);
+  const visible = normalized.filter(statement => requiredIds.has(statement.id));
+  const third = normalized.find(statement => !requiredIds.has(statement.id));
+  if (third) visible.push(third);
+  const visibleIds = new Set(visible.map(statement => statement.id));
+  return {
+    statements: normalized.filter(statement => visibleIds.has(statement.id)),
+    omittedStatementCount: normalized.length - visibleIds.size,
+    conflictSidesVisible: true,
+  };
 }
 
 function capabilityAllows(
@@ -87,6 +117,7 @@ export function notEstablishedHotelGuestIdentity(input: {
     identityDocument: { state: 'not_established' },
     paymentNameMatch: { state: 'not_established' },
     statements: [],
+    omittedStatementCount: 0,
   };
 }
 
@@ -126,12 +157,26 @@ export function normalizeHotelGuestIdentity(
     ? payment.state as HotelGuestIdentityDimensionState : 'not_established';
 
   const normalizedStatements = statements(input.statements);
+  const upstreamOmittedStatementCount = typeof input.omittedStatementCount === 'number'
+    && Number.isInteger(input.omittedStatementCount)
+    && input.omittedStatementCount >= 0
+    && input.omittedStatementCount <= 10_000
+    ? input.omittedStatementCount
+    : 0;
+  const omittedStatementCount = upstreamOmittedStatementCount + normalizedStatements.omittedStatementCount;
+  const hasConflictingDimension = partyState === 'conflicting'
+    || identityState === 'conflicting'
+    || paymentState === 'conflicting';
+  const retainedConflictSides = normalizedStatements.statements.some(statement => statement.conflictSide === 'affirmative')
+    && normalizedStatements.statements.some(statement => statement.conflictSide === 'negative');
+  const conflictIsDisplaySafe = !hasConflictingDimension
+    || (omittedStatementCount === 0 ? normalizedStatements.conflictSidesVisible : retainedConflictSides);
   const concreteParty = partyValue === 'lead_guest' || partyValue === 'cardholder' || partyValue === 'all_occupants' || partyValue === 'other';
   const normalizedPartyState = capability.affectedParty && (
     (partyState === 'confirmed' || partyState === 'conditional') ? concreteParty : partyState === 'conflicting'
-  ) ? partyState : 'not_established';
+  ) && (partyState !== 'conflicting' || conflictIsDisplaySafe) ? partyState : 'not_established';
   const normalizedPartyValue = normalizedPartyState === 'not_established'
-    ? partyValue === 'unspecified' && normalizedStatements.length > 0 ? 'unspecified' : 'not_established'
+    ? partyValue === 'unspecified' && normalizedStatements.statements.length > 0 ? 'unspecified' : 'not_established'
     : partyState === 'conflicting' ? 'not_established' : partyValue;
   const otherLabel = normalizedPartyValue === 'other' ? bounded(party.otherLabel, 80) : undefined;
   const safePartyValue = normalizedPartyValue === 'other' && !otherLabel ? 'not_established' : normalizedPartyValue;
@@ -148,8 +193,9 @@ export function normalizeHotelGuestIdentity(
       state: safePartyValue === 'not_established' ? 'not_established' : normalizedPartyState,
       ...(otherLabel && safePartyValue === 'other' ? { otherLabel } : {}),
     },
-    identityDocument: { state: capabilityAllows(identityState, capability.identityDocument) ? identityState : 'not_established' },
-    paymentNameMatch: { state: capabilityAllows(paymentState, capability.paymentNameMatch) ? paymentState : 'not_established' },
-    statements: normalizedStatements,
+    identityDocument: { state: capabilityAllows(identityState, capability.identityDocument) && (identityState !== 'conflicting' || conflictIsDisplaySafe) ? identityState : 'not_established' },
+    paymentNameMatch: { state: capabilityAllows(paymentState, capability.paymentNameMatch) && (paymentState !== 'conflicting' || conflictIsDisplaySafe) ? paymentState : 'not_established' },
+    statements: normalizedStatements.statements,
+    omittedStatementCount,
   };
 }

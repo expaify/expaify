@@ -605,6 +605,7 @@ function ReviewShell({
         <div className="mt-4 space-y-4 sm:mt-6">
           <HotelDecisionSummary hotelContext={hotelContext} />
           {status}
+          {hotelSupplement}
           {children}
         </div>
       </main>
@@ -1251,9 +1252,9 @@ function HotelHandoffReview({
       hotelContext={hotelContext}
       duffelSandbox={duffelSandbox}
       onBackClick={handleBack}
-      hotelSupplement={policy ? (
+      hotelSupplement={policy || showReturnPrompt ? (
         <div className="space-y-3">
-          <TrackedSmokingPolicyPanel offerId={hotelContext.offerId} provider={hotelContext.provider} policy={policy} surface="review" />
+          {policy ? <TrackedSmokingPolicyPanel offerId={hotelContext.offerId} provider={hotelContext.provider} policy={policy} surface="review" /> : null}
           {showReturnPrompt ? (
             <section className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4" aria-labelledby="hotel-return-feedback-title">
               <h3 id="hotel-return-feedback-title" className="text-sm font-medium text-[color:var(--text-1)]">What happened on the booking partner?</h3>
@@ -1342,7 +1343,7 @@ function HotelHandoffReview({
         <HotelGuestIdentityRules
           presentation={guestIdentity}
           headingId="hotel-handoff-guest-identity-title"
-          retryAvailable={guestIdentity.state === 'error'}
+          retryAvailable={guestIdentity.state === 'error' || identityRetryPending}
           retryPending={identityRetryPending}
           onRetry={() => void runIdentityCheck()}
           statusRegionRef={identityDisclosureRef}

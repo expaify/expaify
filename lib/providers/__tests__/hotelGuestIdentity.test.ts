@@ -56,4 +56,50 @@ describe('hotel guest identity provider normalization', () => {
     const normalized = normalizeHotelGuestIdentity(base, HOTEL_GUEST_IDENTITY_UNSUPPORTED, expected);
     expect(normalized.identityDocument.state).toBe('not_established');
   });
+
+  it('retains the omitted count when valid statements exceed the display cap', () => {
+    const normalized = normalizeHotelGuestIdentity({
+      ...base,
+      statements: [1, 2, 3, 4, 5].map(index => ({
+        id: `statement-${index}`,
+        sourceLabel: 'Supplier',
+        sourceText: `Statement ${index}`,
+      })),
+    }, capability, expected);
+
+    expect(normalized.statements.map(statement => statement.id)).toEqual(['statement-1', 'statement-2', 'statement-3']);
+    expect(normalized.omittedStatementCount).toBe(2);
+  });
+
+  it('keeps both structured conflict sides visible when other statements are omitted', () => {
+    const normalized = normalizeHotelGuestIdentity({
+      ...base,
+      identityDocument: { state: 'conflicting' },
+      statements: [
+        { id: 'context-1', sourceLabel: 'Supplier', sourceText: 'Context one.' },
+        { id: 'context-2', sourceLabel: 'Supplier', sourceText: 'Context two.' },
+        { id: 'required', sourceLabel: 'Rate terms', sourceText: 'Identification is required.', conflictSide: 'affirmative' },
+        { id: 'not-required', sourceLabel: 'Property terms', sourceText: 'Identification is not required.', conflictSide: 'negative' },
+      ],
+    }, capability, expected);
+
+    expect(normalized.identityDocument.state).toBe('conflicting');
+    expect(normalized.statements.map(statement => statement.id)).toEqual(['context-1', 'required', 'not-required']);
+    expect(normalized.omittedStatementCount).toBe(1);
+  });
+
+  it('degrades an omitted conflict when structured metadata cannot prove both sides remain visible', () => {
+    const normalized = normalizeHotelGuestIdentity({
+      ...base,
+      identityDocument: { state: 'conflicting' },
+      statements: [1, 2, 3, 4].map(index => ({
+        id: `statement-${index}`,
+        sourceLabel: 'Supplier',
+        sourceText: `Statement ${index}`,
+      })),
+    }, capability, expected);
+
+    expect(normalized.identityDocument.state).toBe('not_established');
+    expect(normalized.omittedStatementCount).toBe(1);
+  });
 });

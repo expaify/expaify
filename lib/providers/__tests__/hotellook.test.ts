@@ -191,6 +191,7 @@ describe('HotellookProvider.searchHotels', () => {
           identityDocument: { state: 'not_established' },
           paymentNameMatch: { state: 'not_established' },
           statements: [],
+          omittedStatementCount: 0,
         },
         guestIdentityCapability: {
           affectedParty: false,

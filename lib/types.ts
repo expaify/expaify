@@ -686,6 +686,11 @@ export interface HotelGuestIdentityCapability {
   maxAgeSeconds: number;
 }
 
+export interface HotelGuestIdentityStatement extends SupplierAdmissionStatement {
+  /** Structured provider metadata used only to keep both sides of a conflict visible. */
+  conflictSide?: 'affirmative' | 'negative';
+}
+
 export interface HotelGuestIdentityEvidence {
   state: HotelAdmissionLoadState;
   scope: HotelGuestIdentityScope;
@@ -702,7 +707,9 @@ export interface HotelGuestIdentityEvidence {
   };
   identityDocument: { state: HotelGuestIdentityDimensionState };
   paymentNameMatch: { state: HotelGuestIdentityDimensionState };
-  statements: SupplierAdmissionStatement[];
+  statements: HotelGuestIdentityStatement[];
+  /** Count of otherwise valid statements omitted by the three-statement display cap. */
+  omittedStatementCount: number;
 }
 
 export type HotelAdmissionRowState = 'restricted' | 'no_rule_reported' | 'unavailable' | 'conflicting';

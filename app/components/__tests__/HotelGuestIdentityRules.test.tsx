@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import {
   deriveGuestIdentityPresentation,
+  getGuestIdentityCardChip,
   HotelGuestIdentityRules,
   type GuestIdentityPresentation,
 } from '../HotelGuestIdentityRules'
@@ -48,6 +49,19 @@ describe('HotelGuestIdentityRules', () => {
     expect(html).toContain('Make sure the lead guest can meet these rules at check-in.')
   })
 
+  it('derives a collapsed chip from the same structured facts shown in expanded detail', () => {
+    expect(getGuestIdentityCardChip(base)).toEqual({
+      text: 'Lead guest: ID at check-in',
+      ariaLabel: 'Check-in rule: the lead guest must present identification at check-in. Open hotel details for provider wording.',
+    })
+    expect(getGuestIdentityCardChip({
+      ...base,
+      affectedParty: { value: 'not_established', state: 'not_established' },
+      identityDocument: { state: 'not_established' },
+      statements: [],
+    })).toBeNull()
+  })
+
   it('does not infer a role or normalized requirement from prose-only evidence', () => {
     const presentation = deriveGuestIdentityPresentation({
       state: 'reported',
@@ -69,6 +83,10 @@ describe('HotelGuestIdentityRules', () => {
     expect(html).toContain('Not established by the provider.')
     expect(html).not.toContain('<dd class="mt-1 break-words text-sm font-medium leading-6 text-[color:var(--text-1)]">Lead guest</dd>')
     expect(html).not.toContain('Must match the lead guest’s name.')
+    expect(getGuestIdentityCardChip(presentation)).toEqual({
+      text: 'Check-in ID/card rule—details',
+      ariaLabel: 'The provider reported an identification or cardholder rule but did not specify who it applies to in structured data. Open hotel details for provider wording.',
+    })
   })
 
   it('uses conditional copy and preserves attributed provider wording', () => {
@@ -148,6 +166,22 @@ describe('HotelGuestIdentityRules', () => {
     expect(withPrior).toContain('Updated rules could not be checked')
     expect(withPrior).toContain('Required at check-in')
     expect(withPrior).toContain('previously reported details remain below')
+  })
+
+  it('keeps retry mounted and disabled with a Checking label while retry is pending', () => {
+    const html = renderToStaticMarkup(
+      <HotelGuestIdentityRules
+        presentation={{ ...base, state: 'loading' }}
+        retryAvailable
+        retryPending
+        onRetry={jest.fn()}
+      />,
+    )
+
+    expect(html).toContain('<button')
+    expect(html).toContain('disabled=""')
+    expect(html).toContain('Checking…</button>')
+    expect(html).not.toContain('Try again</button>')
   })
 
   it('uses a one-column mobile grid and wraps bounded long wording without truncation', () => {

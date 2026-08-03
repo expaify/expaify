@@ -400,6 +400,35 @@ describe('HotelCard access evidence', () => {
     expect(collectElements(accessSection(expandedCard)).some(node => node.props.tabIndex !== undefined)).toBe(false)
   })
 
+  it('uses structured guest identity for the collapsed chip, expanded facts, and details name', () => {
+    const identityHotel = {
+      ...hotel,
+      guestIdentity: {
+        state: 'ready' as const,
+        scope: 'property' as const,
+        propertyId: hotel.id,
+        supplier: hotel.source,
+        locale: 'en-US',
+        affectedParty: { value: 'lead_guest' as const, state: 'confirmed' as const },
+        identityDocument: { state: 'confirmed' as const },
+        paymentNameMatch: { state: 'not_established' as const },
+        statements: [{ id: 'identity-1', sourceLabel: 'Supplier', sourceText: 'Identification is required.' }],
+        omittedStatementCount: 0,
+      },
+    }
+    const collapsedCard = HotelCard({ hotel: identityHotel })
+    const details = collectElements(collapsedCard).find(node => node.type === 'button' && collectText(node) === 'Details')
+
+    expect(collectText(collapsedCard)).toContain('Lead guest: ID at check-in')
+    expect(details?.props['aria-label']).toBe('Details for Access Test Hotel: ID and cardholder rules')
+
+    expanded = true
+    const expandedText = collectText(HotelCard({ hotel: identityHotel }))
+    expect(expandedText).toContain('ID and cardholder rules')
+    expect(expandedText).toContain('Who this applies toLead guest')
+    expect(expandedText).toContain('IdentificationRequired at check-in')
+  })
+
   it('preserves known evidence and announces background refresh', () => {
     expanded = true
     const section = accessSection(HotelCard({
