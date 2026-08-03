@@ -16,7 +16,7 @@ function render(id: Parameters<typeof createHotelSustainabilityCredentialFixture
 
 describe('HotelSustainabilityCredentialEvidence', () => {
   it('provides every research-only state fixture without changing the production default', () => {
-    expect(HOTEL_SUSTAINABILITY_CREDENTIAL_FIXTURE_IDS).toHaveLength(11)
+    expect(HOTEL_SUSTAINABILITY_CREDENTIAL_FIXTURE_IDS).toHaveLength(16)
     expect(NOT_CHECKED_HOTEL_CREDENTIAL_EVIDENCE).toEqual(expect.objectContaining({ state: 'not_checked', records: [] }))
   })
 
@@ -52,6 +52,49 @@ describe('HotelSustainabilityCredentialEvidence', () => {
     expect(refreshing).not.toContain('Green Key')
     expect(refreshing).toContain('aria-busy="true"')
     expect(refreshing).not.toContain('animate-pulse')
+  })
+
+  it('suppresses impossible calendar dates and converts otherwise-positive evidence to incomplete', () => {
+    const malformed = render('cred-malformed-date')
+    expect(malformed).toContain('We could not verify this credential record.')
+    expect(malformed).toContain('Missing evidence: validity.')
+    expect(malformed).not.toContain('March 2, 2026')
+    expect(getPrototypeHotelCredentialResultCue(createHotelSustainabilityCredentialFixture('cred-malformed-date'))).toBeNull()
+  })
+
+  it('allows evidence links only for display-permitted HTTPS URLs on the application allowlist', () => {
+    const safe = render('cred-issuer-current')
+    const unsafe = render('cred-unsafe-url')
+    expect(safe).toContain('href="https://credentials.expaify.test/research/green-key"')
+    expect(unsafe).not.toContain('View Green Key credential evidence')
+    expect(unsafe).not.toContain('unapproved.example')
+  })
+
+  it.each([
+    ['cred-property-mismatch', 'Missing evidence: property match.'],
+    ['cred-malformed-date', 'Missing evidence: validity.'],
+    ['cred-unsafe-url', 'Current credential evidence was found for this property.'],
+    ['cred-long-strings', 'International Accommodation Credential for Measurable Property-Level Environmental Practice'],
+    ['cred-cue-removed-pair', 'Sustainability credential evidence has not been checked for this property.'],
+  ] as const)('covers the required prototype fixture %s', (id, expected) => {
+    expect(render(id)).toContain(expected)
+  })
+
+  it('keeps result cues silent when credential gate mutations fail', () => {
+    const baseline = createHotelSustainabilityCredentialFixture('cred-issuer-current')
+    const mutations = [
+      { propertyMatch: undefined },
+      { schemeName: undefined },
+      { scope: undefined },
+      { sourceClass: 'provider_reported' as const },
+      { statusLabel: undefined },
+      { freshnessPolicyPassed: false },
+      { displayRightsConfirmed: false },
+      { validThrough: '2026-02-30' },
+    ]
+    for (const mutation of mutations) {
+      expect(getPrototypeHotelCredentialResultCue({ ...baseline, records: [{ ...baseline.records[0], ...mutation }] })).toBeNull()
+    }
   })
 
   it('exposes retry as a native controlled button without gating the provider flow', () => {
