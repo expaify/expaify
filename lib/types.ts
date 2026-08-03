@@ -655,6 +655,56 @@ export interface HotelAdmissionPolicyCapability {
   occupancy_admission: boolean;
 }
 
+export type HotelGuestIdentityScope = 'property' | 'rate' | 'selected_stay';
+export type HotelGuestIdentityDimensionState =
+  | 'confirmed'
+  | 'conditional'
+  | 'not_required'
+  | 'not_established'
+  | 'conflicting';
+export type HotelGuestIdentityAffectedParty =
+  | 'lead_guest'
+  | 'cardholder'
+  | 'all_occupants'
+  | 'other'
+  | 'unspecified'
+  | 'not_established';
+
+export interface HotelGuestIdentityCapabilityDimension {
+  confirmed: boolean;
+  conditional: boolean;
+  explicitNegative: boolean;
+  conflicting: boolean;
+}
+
+/** Structured supplier capability only. Supplier prose never establishes these flags. */
+export interface HotelGuestIdentityCapability {
+  affectedParty: boolean;
+  identityDocument: HotelGuestIdentityCapabilityDimension;
+  paymentNameMatch: HotelGuestIdentityCapabilityDimension;
+  /** Maximum age at which evidence may be presented as current. */
+  maxAgeSeconds: number;
+}
+
+export interface HotelGuestIdentityEvidence {
+  state: HotelAdmissionLoadState;
+  scope: HotelGuestIdentityScope;
+  propertyId: string;
+  /** Required and exact-match checked for rate and selected-stay evidence. */
+  offerId?: string;
+  supplier: string;
+  locale: string;
+  fetchedAt?: string;
+  affectedParty: {
+    value: HotelGuestIdentityAffectedParty;
+    state: HotelGuestIdentityDimensionState;
+    otherLabel?: string;
+  };
+  identityDocument: { state: HotelGuestIdentityDimensionState };
+  paymentNameMatch: { state: HotelGuestIdentityDimensionState };
+  statements: SupplierAdmissionStatement[];
+}
+
 export type HotelAdmissionRowState = 'restricted' | 'no_rule_reported' | 'unavailable' | 'conflicting';
 
 export interface HotelAdmissionRow {
@@ -708,6 +758,8 @@ export interface HotelOffer {
   rateEligibilityCapability?: HotelRateEligibilityCapability;
   admissionPolicy?: HotelAdmissionPolicyEvidence;
   admissionPolicyCapability?: HotelAdmissionPolicyCapability;
+  guestIdentity?: HotelGuestIdentityEvidence;
+  guestIdentityCapability?: HotelGuestIdentityCapability;
 }
 
 export type NormalizedHotelOffer = HotelOffer;
@@ -754,6 +806,10 @@ export interface HotelProvider {
   checkDocumentReadiness(
     offer: Pick<HotelOffer, 'id' | 'source' | 'deeplink' | 'documentReadiness'>
   ): Promise<Result<HotelDocumentReadiness>>;
+  checkGuestIdentityRequirements(
+    offer: Pick<HotelOffer, 'id' | 'source' | 'guestIdentity' | 'guestIdentityCapability'>,
+    locale: string,
+  ): Promise<Result<HotelGuestIdentityEvidence>>;
 }
 
 export type Result<T> = { ok: true; data: T } | { ok: false; reason: string };

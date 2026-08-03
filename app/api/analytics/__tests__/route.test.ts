@@ -221,4 +221,30 @@ describe('POST /api/analytics', () => {
     expect(response.status).toBe(400)
     expect(mockQuery).not.toHaveBeenCalled()
   })
+
+  const identityState = {
+    surface: 'handoff', evidence_state: 'not_established', affected_party_state: 'not_established',
+    identity_document_state: 'not_established', payment_name_match_state: 'not_established',
+    viewport_group: 'desktop_1280', source_class: 'current_provider',
+  }
+
+  it.each([
+    ['hotel_identity_disclosure_exposed', identityState],
+    ['hotel_identity_informed_exit', { ...identityState, exit_action: 'back_to_results' }],
+    ['hotel_identity_handoff_continued', { ...identityState, partner_named: true }],
+    ['hotel_identity_handoff_returned', { ...identityState, away_duration_bucket: '30s_to_2m' }],
+    ['hotel_identity_return_reason_selected', {
+      affected_party_state: 'not_established', identity_document_state: 'not_established',
+      payment_name_match_state: 'not_established', reason: 'prefer_not_to_say',
+    }],
+  ])('accepts exact privacy-safe identity event %s', async (event, props) => {
+    const response = await POST(request({ eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3', sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1', event, occurredAt: new Date().toISOString(), path: '/book', props }))
+    expect(response.status).toBe(202)
+  })
+
+  it.each(['name', 'card_number', 'document_number', 'provider_wording', 'property_id', 'url', 'free_text'])('rejects forbidden identity analytics property %s', async (key) => {
+    const response = await POST(request({ eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3', sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1', event: 'hotel_identity_disclosure_exposed', occurredAt: new Date().toISOString(), path: '/book', props: { ...identityState, [key]: 'sensitive' } }))
+    expect(response.status).toBe(400)
+    expect(mockQuery).not.toHaveBeenCalled()
+  })
 })

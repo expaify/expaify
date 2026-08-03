@@ -9,6 +9,7 @@ import { notProvidedHotelSmokingPolicy } from '../hotels/smokingPolicy';
 import { HOTEL_RATE_ELIGIBILITY_UNSUPPORTED } from '../hotels/rateEligibility';
 import { HOTEL_ADMISSION_POLICY_UNSUPPORTED } from '../hotels/admissionPolicy';
 import { AIRPORTS } from '../airports/data';
+import { notEstablishedHotelGuestIdentity } from './hotelGuestIdentity';
 
 // Hotelbeds is a wholesale B2B hotel API (not an affiliate network like the
 // defunct Hotellook integration it replaces). It has no public per-hotel
@@ -301,6 +302,10 @@ export class HotelbedsProvider implements HotelProvider {
     // Hotelbeds' search response has no rate/stay-scoped document fields.
     // Preserve that supplier omission instead of inferring availability.
     return { ok: true, data: notProvidedHotelDocumentReadiness('Hotelbeds') };
+  }
+
+  async checkGuestIdentityRequirements(offer: Pick<HotelOffer, 'id' | 'source'>, locale: string) {
+    return { ok: true as const, data: notEstablishedHotelGuestIdentity({ propertyId: offer.id, supplier: offer.source, locale }) };
   }
 }
 

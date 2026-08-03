@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 import { query } from '@/lib/db/client'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
+import {
+  HOTEL_IDENTITY_EVENT_PROPERTIES,
+  isHotelIdentityEvent,
+  validateHotelIdentityAnalytics,
+} from '@/lib/hotels/guestIdentityAnalytics'
 
 export const runtime = 'nodejs'
 
@@ -11,6 +16,7 @@ const OPAQUE_VALUE = /^[A-Za-z0-9_-]{1,100}$/
 
 const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries(
   Object.entries({
+    ...HOTEL_IDENTITY_EVENT_PROPERTIES,
     hotel_criteria_summary_viewed: ['surface', 'criteria_version', 'destination_present', 'date_state', 'occupancy_state', 'room_state', 'criteria_source'],
     hotel_criteria_edit_started: ['surface', 'criteria_version', 'entry_point'],
     hotel_criteria_edit_cancelled: ['surface', 'criteria_version', 'entry_point', 'draft_changed'],
@@ -57,6 +63,7 @@ type Primitive = string | number | boolean
 // criteria context resolved) and are intentionally left out here.
 const REQUIRED_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries(
   Object.entries({
+    ...HOTEL_IDENTITY_EVENT_PROPERTIES,
     hotel_criteria_summary_viewed: ['surface', 'criteria_version', 'destination_present', 'date_state', 'occupancy_state', 'room_state', 'criteria_source'],
     hotel_criteria_edit_started: ['surface', 'criteria_version', 'entry_point'],
     hotel_criteria_edit_cancelled: ['surface', 'criteria_version', 'entry_point', 'draft_changed'],
@@ -124,6 +131,10 @@ function validFilterState(value: Primitive): boolean {
 }
 
 function validPropertyValue(event: string, key: string, value: Primitive): boolean {
+  if (isHotelIdentityEvent(event)) {
+    const allowed = HOTEL_IDENTITY_EVENT_PROPERTIES[event] as readonly string[]
+    return allowed.includes(key)
+  }
   if (key === 'criteria_version' || key === 'previous_version' || key === 'deal_id' || key === 'dealId' ||
     key === 'eventId' || key === 'hotel_id') {
     return typeof value === 'string' && OPAQUE_VALUE.test(value)
@@ -249,6 +260,11 @@ function parseBody(value: unknown): {
   const requiredProperties = REQUIRED_PROPERTIES[body.event]
   if (requiredProperties && [...requiredProperties].some(key => !receivedKeys.has(key))) return null
   if (entries.length > 30) return null
+  if (isHotelIdentityEvent(body.event)) {
+    const validated = validateHotelIdentityAnalytics(body.event, body.props)
+    if (!validated) return null
+    return { eventId: body.eventId, sessionId: body.sessionId, event: body.event, occurredAt, path: body.path, props: validated }
+  }
   const props: Record<string, Primitive> = {}
   for (const [key, item] of entries) {
     if (!/^[A-Za-z][A-Za-z0-9_]{0,49}$/.test(key)) return null

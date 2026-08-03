@@ -1,3 +1,5 @@
+import { isHotelIdentityEvent, validateHotelIdentityAnalytics } from './hotels/guestIdentityAnalytics'
+
 type AnalyticsProps = Record<string, string | number | boolean>
 
 const SESSION_KEY = 'expaify.analytics.session.v1'
@@ -60,6 +62,9 @@ function sendToExternalSink(event: string, props?: AnalyticsProps): void {
 }
 
 export function track(event: string, props?: AnalyticsProps): void {
+  if (event.startsWith('hotel_identity_')) {
+    if (!isHotelIdentityEvent(event) || !validateHotelIdentityAnalytics(event, props ?? {})) return
+  }
   if (process.env.NODE_ENV === 'development') {
     console.debug('[analytics]', event, props ?? {})
     return
@@ -76,5 +81,30 @@ export function track(event: string, props?: AnalyticsProps): void {
     sendToExternalSink(event, props)
   } catch {
     // Measurement must never block a search, edit, or provider handoff.
+  }
+}
+
+/** Use only when UI copy must confirm that the validated server accepted an event. */
+export async function trackAccepted(event: string, props: AnalyticsProps): Promise<boolean> {
+  if (typeof window === 'undefined' || !isHotelIdentityEvent(event)) return false
+  const validated = validateHotelIdentityAnalytics(event, props)
+  if (!validated) return false
+  try {
+    const response = await fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        eventId: crypto.randomUUID(),
+        sessionId: sessionId(),
+        event,
+        occurredAt: new Date().toISOString(),
+        path: window.location.pathname,
+        props: validated,
+      }),
+      credentials: 'same-origin',
+    })
+    return response.ok
+  } catch {
+    return false
   }
 }

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEventHa
 import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext, type BookingHotelContext } from '@/lib/booking/config'
 import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
 import DealScorePanel from '@/app/components/DealScorePanel'
-import { track } from '@/lib/analytics'
+import { track, trackAccepted } from '@/lib/analytics'
 import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import type {
   HotelDocumentCheckState,
@@ -18,6 +18,15 @@ import { HotelRateRestrictionsSection } from '@/app/components/HotelRateRestrict
 import { deriveRateEligibilityPresentation } from '@/lib/hotels/rateEligibility'
 import { HotelAdmissionPolicySection } from '@/app/components/HotelAdmissionPolicy'
 import { deriveAdmissionPolicyPresentation } from '@/lib/hotels/admissionPolicy'
+import {
+  deriveGuestIdentityPresentation,
+  getGuestIdentityAccessibleAction,
+  HotelGuestIdentityRules,
+  presentGuestIdentityEvidence,
+  type GuestIdentityPresentation,
+} from '@/app/components/HotelGuestIdentityRules'
+import { normalizeHotelGuestIdentity } from '@/lib/providers/hotelGuestIdentity'
+import { HOTEL_IDENTITY_RETURN_REASONS } from '@/lib/hotels/guestIdentityAnalytics'
 import {
   trackHotelHandoffWithAdmissionRestriction,
   useHotelAdmissionPolicyViewed,
@@ -47,19 +56,15 @@ import { HotelBookingModificationCue } from '@/app/components/HotelBookingModifi
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
 type HotelReturnReason =
-  | 'smoking_policy_or_room_mismatch'
-  | 'price_or_fees_mismatch'
-  | 'room_availability_mismatch'
-  | 'other_hotel_details_mismatch'
-  | 'loyalty_or_points_uncertainty'
-  | 'prefer_not_to_say'
+  typeof HOTEL_IDENTITY_RETURN_REASONS[number]
 
 const HOTEL_RETURN_REASONS: ReadonlyArray<{ value: HotelReturnReason; label: string }> = [
-  { value: 'smoking_policy_or_room_mismatch', label: 'Smoking policy or room did not match' },
-  { value: 'price_or_fees_mismatch', label: 'Price or fees did not match' },
-  { value: 'room_availability_mismatch', label: 'Room availability did not match' },
-  { value: 'other_hotel_details_mismatch', label: 'Other hotel details did not match' },
-  { value: 'loyalty_or_points_uncertainty', label: 'Not sure this stay earns points or status' },
+  { value: 'lead_guest_id_requirement', label: 'The lead guest’s ID requirement did not work for this booking' },
+  { value: 'cardholder_presence_or_name_match', label: 'The cardholder had to be present or the names had to match' },
+  { value: 'all_occupants_id_requirement', label: 'ID was required for all occupants' },
+  { value: 'identity_requirement_unclear', label: 'The identity or cardholder requirement was unclear' },
+  { value: 'different_hotel_detail', label: 'A different hotel detail changed' },
+  { value: 'booking_completed', label: 'I completed the booking' },
   { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ]
 
@@ -74,6 +79,22 @@ export function beginHotelDocumentReadinessCheck(
 }
 
 export function focusHotelDocumentRetryStatus(
+  focusPendingRef: { current: boolean },
+  statusRegion: Pick<HTMLElement, 'focus'> | null,
+): boolean {
+  if (!focusPendingRef.current || !statusRegion) return false
+  focusPendingRef.current = false
+  statusRegion.focus()
+  return true
+}
+
+export function beginHotelGuestIdentityCheck(pendingRef: { current: boolean }): boolean {
+  if (pendingRef.current) return false
+  pendingRef.current = true
+  return true
+}
+
+export function focusHotelGuestIdentityRetryStatus(
   focusPendingRef: { current: boolean },
   statusRegion: Pick<HTMLElement, 'focus'> | null,
 ): boolean {
@@ -167,6 +188,37 @@ function getAwayDurationBucket(durationMs: number) {
   return '120s+'
 }
 
+function getIdentityAwayDurationBucket(durationMs: number) {
+  if (durationMs < 30_000) return 'under_30s'
+  if (durationMs < 120_000) return '30s_to_2m'
+  if (durationMs < 600_000) return '2m_to_10m'
+  return 'over_10m'
+}
+
+function identityAnalyticsDimensions(presentation: GuestIdentityPresentation, provider: string) {
+  const dimensionStates = [presentation.affectedParty.state, presentation.identityDocument.state, presentation.paymentNameMatch.state]
+  let evidence_state: 'confirmed' | 'conditional' | 'explicit_negative' | 'not_established' | 'error' | 'conflicting' | 'mixed'
+  if (presentation.state === 'error') evidence_state = 'error'
+  else if (dimensionStates.includes('conflicting')) evidence_state = 'conflicting'
+  else if (dimensionStates.every(state => state === 'not_established')) evidence_state = 'not_established'
+  else if (dimensionStates.filter(state => state !== 'not_established').every(state => state === 'conditional') && !dimensionStates.includes('not_established')) evidence_state = 'conditional'
+  else if (dimensionStates.filter(state => state !== 'not_established').every(state => state === 'not_required')) evidence_state = 'explicit_negative'
+  else if (dimensionStates.filter(state => state !== 'not_established').every(state => state === 'confirmed') && !dimensionStates.includes('not_established')) evidence_state = 'confirmed'
+  else evidence_state = 'mixed'
+  const viewport_group = typeof window === 'undefined' ? 'other' : window.innerWidth <= 425 ? 'mobile_375' : window.innerWidth >= 1000 ? 'desktop_1280' : 'other'
+  const normalizedProvider = provider.trim().toLowerCase()
+  const normalizedSource = presentation.sourceLabel.trim().toLowerCase()
+  return {
+    surface: 'handoff' as const,
+    evidence_state,
+    affected_party_state: presentation.affectedParty.state === 'conflicting' ? 'conflicting' as const : presentation.affectedParty.value,
+    identity_document_state: presentation.identityDocument.state,
+    payment_name_match_state: presentation.paymentNameMatch.state,
+    viewport_group,
+    source_class: !normalizedSource ? 'unnamed_provider' as const : normalizedSource === normalizedProvider || normalizedSource === providerDisplayName(provider).toLowerCase() ? 'current_provider' as const : 'other_provider' as const,
+  }
+}
+
 function emitAnalytics(event: string, props: Record<string, string | number | boolean>) {
   try {
     track(event, props)
@@ -174,6 +226,8 @@ function emitAnalytics(event: string, props: Record<string, string | number | bo
     // Analytics must never block or alter the booking handoff.
   }
 }
+
+const emitIdentityAnalytics = emitAnalytics
 
 function hotelInvoiceAnalyticsSource(source: string): 'hotellook' | 'other' {
   return source.trim().toLowerCase() === 'hotellook' ? 'hotellook' : 'other'
@@ -407,7 +461,11 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
             <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
           </div>
         </dl>
-        <HotelAdmissionPolicySection presentation={admissionPolicy} providerName={hasProviderName(hotelContext.provider) ? rateSource : ''} />
+        <HotelAdmissionPolicySection
+          presentation={admissionPolicy}
+          providerName={hasProviderName(hotelContext.provider) ? rateSource : ''}
+          includeIdentityRules={false}
+        />
       </section>
     </>
   )
@@ -749,6 +807,10 @@ function HotelHandoffReview({
     evidence: hotelContext.admissionPolicy,
     capability: hotelContext.admissionPolicyCapability,
   })
+  const guestIdentitySource = hasProviderName(hotelContext.provider) ? providerDisplayName(hotelContext.provider) : ''
+  const initialGuestIdentity = hotelContext.guestIdentity
+    ? presentGuestIdentityEvidence(hotelContext.guestIdentity, guestIdentitySource)
+    : deriveGuestIdentityPresentation(admissionPolicy, guestIdentitySource)
   const resolvedFundsPolicy = fundsPolicy ?? hotelContext.fundsPolicy
   const policyDimensions = getHotelFundsAnalyticsDimensions({
     evidence: resolvedFundsPolicy,
@@ -774,6 +836,10 @@ function HotelHandoffReview({
   const documentCheckRequestRef = useRef(0)
   const documentCheckPendingRef = useRef(false)
   const documentRetryFocusPendingRef = useRef(false)
+  const identityDisclosureRef = useRef<HTMLElement>(null)
+  const identityCheckPendingRef = useRef(false)
+  const identityRetryFocusPendingRef = useRef(false)
+  const identityExposedRef = useRef(false)
   const invoiceNeededRef = useRef(false)
   const guidanceViewedRef = useRef(false)
   const helpOpenRef = useRef(false)
@@ -785,10 +851,78 @@ function HotelHandoffReview({
   const [invoiceNeeded, setInvoiceNeeded] = useState(false)
   const [documentReadiness, setDocumentReadiness] = useState(hotelContext.documentReadiness)
   const [documentCheckState, setDocumentCheckState] = useState<HotelDocumentCheckState>('idle')
+  const [guestIdentity, setGuestIdentity] = useState<GuestIdentityPresentation>(initialGuestIdentity)
+  const [identityRetryPending, setIdentityRetryPending] = useState(false)
+
+  const identityDimensions = identityAnalyticsDimensions(guestIdentity, hotelContext.provider)
+
+  const runIdentityCheck = async () => {
+    if (!beginHotelGuestIdentityCheck(identityCheckPendingRef)) return
+    identityRetryFocusPendingRef.current = true
+    setIdentityRetryPending(true)
+    setGuestIdentity(current => ({ ...current, state: 'loading' }))
+    try {
+      const response = await fetch('/api/hotels/guest-identity', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ hotelContext, locale: 'en-US' }),
+      })
+      const payload = await response.json() as { ok?: unknown; data?: unknown }
+      if (!response.ok || payload.ok !== true) throw new Error('identity check failed')
+      const normalized = normalizeHotelGuestIdentity(payload.data, hotelContext.guestIdentityCapability, {
+        propertyId: hotelContext.offerId,
+        offerId: hotelContext.offerId,
+        supplier: hotelContext.provider,
+        locale: 'en-US',
+      })
+      setGuestIdentity(presentGuestIdentityEvidence(normalized, guestIdentitySource))
+    } catch {
+      setGuestIdentity(current => ({ ...current, state: 'error', refreshFailed: current.affectedParty.state !== 'not_established' || current.identityDocument.state !== 'not_established' || current.paymentNameMatch.state !== 'not_established' || current.statements.length > 0 }))
+    } finally {
+      identityCheckPendingRef.current = false
+      setIdentityRetryPending(false)
+      window.setTimeout(() => {
+        focusHotelGuestIdentityRetryStatus(identityRetryFocusPendingRef, identityDisclosureRef.current)
+      }, 0)
+    }
+  }
 
   useEffect(() => {
     emitAnalytics('hotel_handoff_viewed', analyticsProps)
   }, [analyticsProps])
+
+  useEffect(() => {
+    const disclosure = identityDisclosureRef.current
+    if (!disclosure || typeof document === 'undefined' || typeof IntersectionObserver === 'undefined') return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let sufficientlyVisible = false
+    const clearTimer = () => {
+      if (timer !== undefined) clearTimeout(timer)
+      timer = undefined
+    }
+    const qualify = () => {
+      clearTimer()
+      if (!sufficientlyVisible || document.visibilityState !== 'visible' || identityExposedRef.current) return
+      timer = setTimeout(() => {
+        timer = undefined
+        if (!sufficientlyVisible || document.visibilityState !== 'visible' || identityExposedRef.current) return
+        identityExposedRef.current = true
+        emitIdentityAnalytics('hotel_identity_disclosure_exposed', identityDimensions)
+      }, 1_000)
+    }
+    const observer = new IntersectionObserver((entries) => {
+      sufficientlyVisible = entries.some(entry => entry.target === disclosure && entry.isIntersecting && entry.intersectionRatio >= 0.5)
+      qualify()
+    }, { threshold: [0, 0.5] })
+    const visibility = () => qualify()
+    observer.observe(disclosure)
+    document.addEventListener('visibilitychange', visibility)
+    return () => {
+      clearTimer()
+      observer.disconnect()
+      document.removeEventListener('visibilitychange', visibility)
+    }
+  }, [identityDimensions.affected_party_state, identityDimensions.evidence_state, identityDimensions.identity_document_state, identityDimensions.payment_name_match_state, identityDimensions.source_class, identityDimensions.viewport_group])
 
   const runDocumentReadinessCheck = async (onStarted?: () => void) => {
     if (!beginHotelDocumentReadinessCheck(documentCheckPendingRef, onStarted)) return
@@ -888,12 +1022,15 @@ function HotelHandoffReview({
     provider: hotelContext.provider,
     surface: 'book_handoff',
   })
-  const handoffSessionIdRef = useRef<string | undefined>(undefined)
+  const handoffAttemptIdRef = useRef<string | undefined>(undefined)
+  const handoffAttemptExpiryRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const feedbackTriggerRef = useRef<HTMLButtonElement>(null)
+  const firstFeedbackRadioRef = useRef<HTMLInputElement>(null)
   const [showReturnPrompt, setShowReturnPrompt] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [selectedReturnReason, setSelectedReturnReason] = useState<HotelReturnReason | ''>('')
   const [feedbackSent, setFeedbackSent] = useState(false)
+  const [feedbackFailed, setFeedbackFailed] = useState(false)
   const policy = hotelSmokingPolicy ?? hotelContext.smokingPolicy
 
   useEffect(() => {
@@ -958,6 +1095,10 @@ function HotelHandoffReview({
         policyState: policyDimensions.policyState,
         obligationTypes: policyDimensions.obligationTypes,
       })
+      emitIdentityAnalytics('hotel_identity_handoff_returned', {
+        ...identityDimensions,
+        away_duration_bucket: getIdentityAwayDurationBucket(durationMs),
+      })
       setShowReturnPrompt(true)
       returnArmedRef.current = false
       hiddenAfterContinueRef.current = false
@@ -966,16 +1107,23 @@ function HotelHandoffReview({
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [hotelContext.provider, partner.host, policyDimensions.obligationTypes, policyDimensions.policyState])
+  }, [hotelContext.provider, identityDimensions.affected_party_state, identityDimensions.evidence_state, identityDimensions.identity_document_state, identityDimensions.payment_name_match_state, identityDimensions.source_class, identityDimensions.viewport_group, partner.host, policyDimensions.obligationTypes, policyDimensions.policyState])
 
   const handleContinue = () => {
     didContinueRef.current = true
     returnArmedRef.current = true
     hiddenAfterContinueRef.current = false
     continueStartedAtRef.current = performance.now()
-    handoffSessionIdRef.current = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    handoffAttemptIdRef.current = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
-      : `handoff-${Date.now()}`
+      : undefined
+    if (handoffAttemptExpiryRef.current !== undefined) clearTimeout(handoffAttemptExpiryRef.current)
+    handoffAttemptExpiryRef.current = setTimeout(() => {
+      handoffAttemptIdRef.current = undefined
+      handoffAttemptExpiryRef.current = undefined
+    }, 30 * 60 * 1_000)
+    if (typeof handoffAttemptExpiryRef.current === 'object' && 'unref' in handoffAttemptExpiryRef.current) handoffAttemptExpiryRef.current.unref()
+    emitIdentityAnalytics('hotel_identity_handoff_continued', { ...identityDimensions, partner_named: partner.named })
     emitAnalytics('hotel_handoff_continue_clicked', {
       ...analyticsProps,
       partnerNamed: partner.named,
@@ -1001,18 +1149,25 @@ function HotelHandoffReview({
     }
   }
 
-  const handleReturnFeedback = (event: FormEvent<HTMLFormElement>) => {
+  const handleReturnFeedback = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!selectedReturnReason || !handoffSessionIdRef.current) return
-    emitAnalytics('hotel_handoff_return_reason_selected', {
+    if (!selectedReturnReason || !handoffAttemptIdRef.current) return
+    setFeedbackFailed(false)
+    const accepted = await trackAccepted('hotel_identity_return_reason_selected', {
+      affected_party_state: identityDimensions.affected_party_state,
+      identity_document_state: identityDimensions.identity_document_state,
+      payment_name_match_state: identityDimensions.payment_name_match_state,
       reason: selectedReturnReason,
-      offerId: hotelContext.offerId,
-      provider: hotelContext.provider,
-      partnerHost: partner.host,
-      handoffSessionId: handoffSessionIdRef.current,
     })
+    if (!accepted) {
+      setFeedbackFailed(true)
+      return
+    }
     setFeedbackSent(true)
     setFeedbackOpen(false)
+    handoffAttemptIdRef.current = undefined
+    if (handoffAttemptExpiryRef.current !== undefined) clearTimeout(handoffAttemptExpiryRef.current)
+    handoffAttemptExpiryRef.current = undefined
   }
 
   const handleBookingOwnershipOpen = () => {
@@ -1031,7 +1186,6 @@ function HotelHandoffReview({
       source: analyticsProps.source,
       partnerHost: analyticsProps.partnerHost,
       partnerNamed: partner.named,
-      ...(handoffSessionIdRef.current !== undefined ? { handoffSessionId: handoffSessionIdRef.current } : {}),
     })
   }
 
@@ -1060,6 +1214,9 @@ function HotelHandoffReview({
 
   const handleBack = () => {
     if (didContinueRef.current) return
+    if (identityExposedRef.current) {
+      emitIdentityAnalytics('hotel_identity_informed_exit', { ...identityDimensions, exit_action: 'back_to_results' })
+    }
     emitAnalytics('hotel_handoff_back_clicked', {
       source: hotelContext.provider,
       partnerHost: partner.host,
@@ -1083,7 +1240,7 @@ function HotelHandoffReview({
     ? `Mandatory property fees are not confirmed. Check the final total and any amount due at the property on ${feeProviderName}.`
     : "Mandatory property fees are not confirmed. Check the final total and any amount due at the property on the booking partner's site."
   const transportGuidance = getHotelTransportHandoffGuidance(hotelContext.transportEvidence)
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. ${feeAccessibleClause} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. ${feeAccessibleClause} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner. ${getGuestIdentityAccessibleAction(guestIdentity)}`
 
   return (
     <ReviewShell
@@ -1099,18 +1256,19 @@ function HotelHandoffReview({
           <TrackedSmokingPolicyPanel offerId={hotelContext.offerId} provider={hotelContext.provider} policy={policy} surface="review" />
           {showReturnPrompt ? (
             <section className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4" aria-labelledby="hotel-return-feedback-title">
-              <h3 id="hotel-return-feedback-title" className="text-sm font-medium text-[color:var(--text-1)]">Did the partner details match?</h3>
-              <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Optional: tell us what changed so we can improve hotel evidence.</p>
+              <h3 id="hotel-return-feedback-title" className="text-sm font-medium text-[color:var(--text-1)]">What happened on the booking partner?</h3>
+              <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Optional. Choose one answer. Do not include names, card details, or document information.</p>
               {feedbackSent ? (
-                <p className="mt-3 text-sm font-medium text-[color:var(--brand)]" role="status">Thanks. Your feedback was recorded.</p>
+                <p className="mt-3 text-sm font-medium text-[color:var(--brand)]" role="status">Thanks. Your response was recorded.</p>
               ) : feedbackOpen ? (
                 <form className="mt-3" onSubmit={handleReturnFeedback}>
                   <fieldset>
-                    <legend className="text-sm font-medium text-[color:var(--text-1)]">What did not match?</legend>
+                    <legend className="text-sm font-medium text-[color:var(--text-1)]">Choose the closest answer</legend>
                     <div className="mt-2 space-y-1">
                       {HOTEL_RETURN_REASONS.map(reason => (
                         <label key={reason.value} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-[var(--radius-control)] px-2 text-sm text-[color:var(--text-2)] focus-within:shadow-[var(--focus-ring)]">
                           <input
+                            ref={reason.value === HOTEL_RETURN_REASONS[0].value ? firstFeedbackRadioRef : undefined}
                             type="radio"
                             name="hotel-return-reason"
                             value={reason.value}
@@ -1122,6 +1280,7 @@ function HotelHandoffReview({
                       ))}
                     </div>
                   </fieldset>
+                  {feedbackFailed ? <p role="status" className="mt-2 text-sm text-[color:var(--error-text)]">We couldn’t record that response. You can try again.</p> : null}
                   <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                     <button type="submit" disabled={!selectedReturnReason} className="btn-primary min-h-11 rounded-[var(--radius-control)] px-4 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">Send feedback</button>
                     <button
@@ -1130,14 +1289,21 @@ function HotelHandoffReview({
                       onClick={() => {
                         setFeedbackOpen(false)
                         setSelectedReturnReason('')
+                        setFeedbackFailed(false)
+                        handoffAttemptIdRef.current = undefined
+                        if (handoffAttemptExpiryRef.current !== undefined) clearTimeout(handoffAttemptExpiryRef.current)
+                        handoffAttemptExpiryRef.current = undefined
                         window.setTimeout(() => feedbackTriggerRef.current?.focus(), 0)
                       }}
                     >Cancel</button>
                   </div>
                 </form>
               ) : (
-                <button ref={feedbackTriggerRef} type="button" onClick={() => setFeedbackOpen(true)} className="mt-3 inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-[color:var(--border)] px-4 text-sm font-medium text-[color:var(--text-1)] focus-visible:shadow-[var(--focus-ring)]">
-                  Report a mismatch
+                <button ref={feedbackTriggerRef} type="button" onClick={() => {
+                  setFeedbackOpen(true)
+                  window.setTimeout(() => firstFeedbackRadioRef.current?.focus(), 0)
+                }} className="mt-3 inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-[color:var(--border)] px-4 text-sm font-medium text-[color:var(--text-1)] focus-visible:shadow-[var(--focus-ring)]">
+                  Report what happened
                 </button>
               )}
             </section>
@@ -1173,6 +1339,15 @@ function HotelHandoffReview({
         <div className="mt-3">
           <HotelBookingModificationCue partner={verifiedModificationPartner} />
         </div>
+        <HotelGuestIdentityRules
+          presentation={guestIdentity}
+          headingId="hotel-handoff-guest-identity-title"
+          retryAvailable={guestIdentity.state === 'error'}
+          retryPending={identityRetryPending}
+          onRetry={() => void runIdentityCheck()}
+          statusRegionRef={identityDisclosureRef}
+          statusRegionFocusable
+        />
         <div className="mt-3 flex flex-col gap-3">
           <a
             href={hotelContext.providerUrl}
@@ -1227,10 +1402,10 @@ function HotelHandoffReview({
             What you may need
           </h3>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            Have the lead guest’s full name, a confirmation email, and a reachable phone number ready. The booking partner will show exactly what is required.
+            Have the lead guest’s full name, a confirmation email, and a reachable phone number ready. The booking partner will show what it needs to create the booking.
           </p>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            Booking for someone else? Use the name of the person checking in as the lead guest. The booking partner will tell you whose email and phone it needs.
+            Booking for someone else? Use the name of the person checking in as the lead guest. This does not confirm whose ID or payment card the property will accept; review the ID and cardholder rules before paying.
           </p>
         </section>
         <HotelDocumentIntentControl checked={invoiceNeeded} onChange={handleInvoiceNeedChange} />

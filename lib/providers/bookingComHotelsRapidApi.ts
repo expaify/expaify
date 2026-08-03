@@ -8,6 +8,7 @@ import { createNotReturnedHotelFundsPolicy } from '../hotels/fundsPolicy';
 import { notProvidedHotelSmokingPolicy } from '../hotels/smokingPolicy';
 import { HOTEL_RATE_ELIGIBILITY_UNSUPPORTED } from '../hotels/rateEligibility';
 import { HOTEL_ADMISSION_POLICY_UNSUPPORTED } from '../hotels/admissionPolicy';
+import { notEstablishedHotelGuestIdentity } from './hotelGuestIdentity';
 
 // Real, live Booking.com inventory via RapidAPI. Unlike Hotelbeds (a wholesale
 // B2B API with no public consumer booking page), this aggregator has no
@@ -212,6 +213,10 @@ export class BookingComHotelsRapidApiProvider implements HotelProvider {
     _offer: Pick<HotelOffer, 'id' | 'source' | 'deeplink' | 'documentReadiness'>,
   ): Promise<Result<HotelOffer['documentReadiness']>> {
     return { ok: true, data: notProvidedHotelDocumentReadiness('Booking.com') };
+  }
+
+  async checkGuestIdentityRequirements(offer: Pick<HotelOffer, 'id' | 'source'>, locale: string) {
+    return { ok: true as const, data: notEstablishedHotelGuestIdentity({ propertyId: offer.id, supplier: offer.source, locale }) };
   }
 }
 

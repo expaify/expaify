@@ -181,6 +181,23 @@ describe('HotellookProvider.searchHotels', () => {
         },
         rateEligibilityCapability: { membership: false, residency: false, age: false, refundability: false },
         admissionPolicyCapability: { checkin_age: false, checkin_identity: false, local_guest_restriction: false, occupancy_admission: false },
+        guestIdentity: {
+          state: 'ready',
+          scope: 'property',
+          propertyId: '12345',
+          supplier: 'hotellook',
+          locale: 'en-US',
+          affectedParty: { value: 'not_established', state: 'not_established' },
+          identityDocument: { state: 'not_established' },
+          paymentNameMatch: { state: 'not_established' },
+          statements: [],
+        },
+        guestIdentityCapability: {
+          affectedParty: false,
+          identityDocument: { confirmed: false, conditional: false, explicitNegative: false, conflicting: false },
+          paymentNameMatch: { confirmed: false, conditional: false, explicitNegative: false, conflicting: false },
+          maxAgeSeconds: 0,
+        },
       },
     ]);
   });
@@ -817,6 +834,20 @@ describe('HotellookProvider.searchHotels', () => {
       ]),
       21600
     );
+  });
+
+  it('returns a successful explicit unknown Result for unsupported guest identity evidence', async () => {
+    await expect(new HotellookProvider().checkGuestIdentityRequirements({
+      id: '12345', source: 'hotellook',
+    }, 'en-US')).resolves.toEqual({
+      ok: true,
+      data: expect.objectContaining({
+        propertyId: '12345', supplier: 'hotellook', locale: 'en-US',
+        affectedParty: { value: 'not_established', state: 'not_established' },
+        identityDocument: { state: 'not_established' },
+        paymentNameMatch: { state: 'not_established' },
+      }),
+    });
   });
 });
 

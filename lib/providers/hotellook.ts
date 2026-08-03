@@ -14,6 +14,7 @@ import {
 } from '../hotels/smokingPolicy';
 import { HOTEL_RATE_ELIGIBILITY_UNSUPPORTED } from '../hotels/rateEligibility';
 import { HOTEL_ADMISSION_POLICY_UNSUPPORTED } from '../hotels/admissionPolicy';
+import { HOTEL_GUEST_IDENTITY_UNSUPPORTED, notEstablishedHotelGuestIdentity } from './hotelGuestIdentity';
 
 const ENGINE_BASE = 'https://engine.hotellook.com/api/v2/cache.json';
 const CACHE_TTL = 21600; // 6 hours
@@ -408,6 +409,8 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     smokingPolicy,
     rateEligibilityCapability: HOTEL_RATE_ELIGIBILITY_UNSUPPORTED,
     admissionPolicyCapability: HOTEL_ADMISSION_POLICY_UNSUPPORTED,
+    guestIdentity: notEstablishedHotelGuestIdentity({ propertyId: value.id, supplier: value.source, locale: 'en-US' }),
+    guestIdentityCapability: HOTEL_GUEST_IDENTITY_UNSUPPORTED,
   };
 }
 
@@ -539,6 +542,8 @@ export class HotellookProvider implements HotelProvider {
           smokingPolicy: notProvidedHotelSmokingPolicy(),
           rateEligibilityCapability: HOTEL_RATE_ELIGIBILITY_UNSUPPORTED,
           admissionPolicyCapability: HOTEL_ADMISSION_POLICY_UNSUPPORTED,
+          guestIdentity: notEstablishedHotelGuestIdentity({ propertyId: String(entry.hotelId), supplier: 'hotellook', locale: 'en-US' }),
+          guestIdentityCapability: HOTEL_GUEST_IDENTITY_UNSUPPORTED,
         };
       });
 
@@ -561,6 +566,15 @@ export class HotellookProvider implements HotelProvider {
     // Hotellook's cache feed has no rate/stay-scoped document fields or detail
     // endpoint. Preserve that supplier omission instead of inferring availability.
     return { ok: true, data: notProvidedHotelDocumentReadiness('Hotellook') };
+  }
+
+  async checkGuestIdentityRequirements(
+    offer: Pick<HotelOffer, 'id' | 'source' | 'guestIdentity' | 'guestIdentityCapability'>,
+    locale: string,
+  ): Promise<Result<NonNullable<HotelOffer['guestIdentity']>>> {
+    // The production Hotellook contract exposes no structured party, ID, or
+    // payment-name-match dimensions. Prose is never parsed to manufacture them.
+    return { ok: true, data: notEstablishedHotelGuestIdentity({ propertyId: offer.id, supplier: offer.source, locale }) };
   }
 }
 
