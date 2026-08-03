@@ -266,8 +266,71 @@ export function presentGuestIdentityEvidence(
     sourceLabel,
     locale: evidence.locale,
     fetchedAt: evidence.fetchedAt,
+    omittedStatementCount: evidence.omittedStatementCount ?? 0,
     ...(options?.refreshFailed ? { refreshFailed: true } : {}),
   }
+}
+
+export function getGuestIdentityCardChip(presentation: GuestIdentityPresentation): {
+  text: string
+  ariaLabel: string
+} | null {
+  if (presentation.state !== 'ready') return null
+  const identityConfirmed = presentation.identityDocument.state === 'confirmed'
+  const paymentConfirmed = presentation.paymentNameMatch.state === 'confirmed'
+  const conditional = presentation.identityDocument.state === 'conditional'
+    || presentation.paymentNameMatch.state === 'conditional'
+  const party = presentation.affectedParty.value
+  const structuredParty = party === 'lead_guest' || party === 'cardholder' || party === 'all_occupants'
+
+  if (paymentConfirmed) {
+    return {
+      text: 'Cardholder name must match',
+      ariaLabel: 'Check-in rule: the cardholder name must match the lead guest’s name. Open hotel details for provider wording.',
+    }
+  }
+  if (identityConfirmed && structuredParty) {
+    const labels = {
+      lead_guest: { visible: 'Lead guest', spoken: 'the lead guest' },
+      cardholder: { visible: 'Cardholder', spoken: 'the cardholder' },
+      all_occupants: { visible: 'All occupants', spoken: 'all occupants' },
+    } as const
+    return {
+      text: `${labels[party].visible}: ID at check-in`,
+      ariaLabel: `Check-in rule: ${labels[party].spoken} must present identification at check-in. Open hotel details for provider wording.`,
+    }
+  }
+  if (conditional && structuredParty) {
+    const labels = {
+      lead_guest: { visible: 'Lead guest', spoken: 'the lead guest' },
+      cardholder: { visible: 'Cardholder', spoken: 'the cardholder' },
+      all_occupants: { visible: 'All occupants', spoken: 'all occupants' },
+    } as const
+    return {
+      text: `${labels[party].visible}: ID/card rule—details`,
+      ariaLabel: `A conditional identification or cardholder rule is reported for ${labels[party].spoken}. Open hotel details for the condition and provider wording.`,
+    }
+  }
+  if ((identityConfirmed || conditional) && presentation.affectedParty.value === 'unspecified') {
+    return {
+      text: 'Check-in ID/card rule—details',
+      ariaLabel: 'The provider reported an identification or cardholder rule but did not specify who it applies to in structured data. Open hotel details for provider wording.',
+    }
+  }
+  return null
+}
+
+export function HotelGuestIdentityCardChip({ presentation }: { presentation: GuestIdentityPresentation }) {
+  const chip = getGuestIdentityCardChip(presentation)
+  if (!chip) return null
+  return (
+    <span
+      aria-label={chip.ariaLabel}
+      className="mt-1.5 inline-flex min-h-7 max-w-full items-center rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--warning-soft)] px-2 py-1 text-xs font-medium leading-4 text-[color:var(--warning)]"
+    >
+      <span className="break-words whitespace-normal">{chip.text}</span>
+    </span>
+  )
 }
 
 export function HotelGuestIdentityRules({

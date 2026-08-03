@@ -104,6 +104,15 @@ export function focusHotelGuestIdentityRetryStatus(
   return true
 }
 
+export function shouldRenderHotelSupplement(
+  smokingPolicy: HotelSmokingPolicyView | null | undefined,
+  showReturnPrompt: boolean,
+): boolean {
+  return smokingPolicy !== null && smokingPolicy !== undefined
+    ? true
+    : showReturnPrompt
+}
+
 const labelCls = 'mb-1.5 block text-xs font-medium uppercase tracking-wide text-[color:var(--text-2)]'
 const inputCls = 'field-input !px-4'
 const factLabelCls = 'text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]'
@@ -1266,9 +1275,9 @@ function HotelHandoffReview({
       hotelContext={hotelContext}
       duffelSandbox={duffelSandbox}
       onBackClick={handleBack}
-      hotelSupplement={policy ? (
+      hotelSupplement={shouldRenderHotelSupplement(policy, showReturnPrompt) ? (
         <div className="space-y-3">
-          <TrackedSmokingPolicyPanel offerId={hotelContext.offerId} provider={hotelContext.provider} policy={policy} surface="review" />
+          {policy ? <TrackedSmokingPolicyPanel offerId={hotelContext.offerId} provider={hotelContext.provider} policy={policy} surface="review" /> : null}
           {showReturnPrompt ? (
             <section className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4" aria-labelledby="hotel-return-feedback-title">
               <h3 id="hotel-return-feedback-title" className="text-sm font-medium text-[color:var(--text-1)]">What happened on the booking partner?</h3>

@@ -179,4 +179,9 @@ describe('HotelGuestIdentityRules', () => {
     expect(html).toContain('whitespace-pre-wrap')
     expect(html).not.toMatch(/truncate|line-clamp/)
   })
+
+  it('renders the normalized omitted-statement count', () => {
+    const html = render({ ...base, omittedStatementCount: 2 })
+    expect(html).toContain('Acme Hotels returned 2 more statements for this rule.')
+  })
 })

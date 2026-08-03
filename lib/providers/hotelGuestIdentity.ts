@@ -39,8 +39,8 @@ function validDate(value: unknown): string | undefined {
   return date && Number.isFinite(Date.parse(date)) ? date : undefined;
 }
 
-function statements(value: unknown): SupplierAdmissionStatement[] {
-  if (!Array.isArray(value)) return [];
+function statements(value: unknown): { visible: SupplierAdmissionStatement[]; omittedCount: number } {
+  if (!Array.isArray(value)) return { visible: [], omittedCount: 0 };
   const seen = new Set<string>();
   const normalized: SupplierAdmissionStatement[] = [];
   for (const item of value) {
@@ -54,7 +54,10 @@ function statements(value: unknown): SupplierAdmissionStatement[] {
     const observedAt = validDate(input.observedAt);
     normalized.push({ id, sourceLabel, sourceText, ...(observedAt ? { observedAt } : {}) });
   }
-  return normalized.slice(0, 3);
+  return {
+    visible: normalized.slice(0, 3),
+    omittedCount: Math.max(0, normalized.length - 3),
+  };
 }
 
 function capabilityAllows(
@@ -126,12 +129,16 @@ export function normalizeHotelGuestIdentity(
     ? payment.state as HotelGuestIdentityDimensionState : 'not_established';
 
   const normalizedStatements = statements(input.statements);
+  // Without contracted side metadata, truncating a conflict could hide the
+  // opposing statement. Degrade only conflicting dimensions when all credible
+  // statements cannot fit inside the three-item display contract.
+  const conflictStatementsSafe = normalizedStatements.omittedCount === 0;
   const concreteParty = partyValue === 'lead_guest' || partyValue === 'cardholder' || partyValue === 'all_occupants' || partyValue === 'other';
   const normalizedPartyState = capability.affectedParty && (
     (partyState === 'confirmed' || partyState === 'conditional') ? concreteParty : partyState === 'conflicting'
-  ) ? partyState : 'not_established';
+  ) && (partyState !== 'conflicting' || conflictStatementsSafe) ? partyState : 'not_established';
   const normalizedPartyValue = normalizedPartyState === 'not_established'
-    ? partyValue === 'unspecified' && normalizedStatements.length > 0 ? 'unspecified' : 'not_established'
+    ? partyValue === 'unspecified' && normalizedStatements.visible.length > 0 ? 'unspecified' : 'not_established'
     : partyState === 'conflicting' ? 'not_established' : partyValue;
   const otherLabel = normalizedPartyValue === 'other' ? bounded(party.otherLabel, 80) : undefined;
   const safePartyValue = normalizedPartyValue === 'other' && !otherLabel ? 'not_established' : normalizedPartyValue;
@@ -148,8 +155,21 @@ export function normalizeHotelGuestIdentity(
       state: safePartyValue === 'not_established' ? 'not_established' : normalizedPartyState,
       ...(otherLabel && safePartyValue === 'other' ? { otherLabel } : {}),
     },
-    identityDocument: { state: capabilityAllows(identityState, capability.identityDocument) ? identityState : 'not_established' },
-    paymentNameMatch: { state: capabilityAllows(paymentState, capability.paymentNameMatch) ? paymentState : 'not_established' },
-    statements: normalizedStatements,
+    identityDocument: {
+      state: capabilityAllows(identityState, capability.identityDocument)
+        && (identityState !== 'conflicting' || conflictStatementsSafe)
+        ? identityState
+        : 'not_established',
+    },
+    paymentNameMatch: {
+      state: capabilityAllows(paymentState, capability.paymentNameMatch)
+        && (paymentState !== 'conflicting' || conflictStatementsSafe)
+        ? paymentState
+        : 'not_established',
+    },
+    statements: normalizedStatements.visible,
+    ...(normalizedStatements.omittedCount > 0
+      ? { omittedStatementCount: normalizedStatements.omittedCount }
+      : {}),
   };
 }

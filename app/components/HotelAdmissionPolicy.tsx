@@ -3,6 +3,7 @@ import type { HotelAdmissionPresentation, HotelAdmissionRow } from '@/lib/types'
 import {
   deriveGuestIdentityPresentation,
   HotelGuestIdentityRules,
+  type GuestIdentityPresentation,
 } from './HotelGuestIdentityRules'
 
 const MAX_PROVIDER_NAME_LENGTH = 80
@@ -66,6 +67,7 @@ function Body({
   HeadingTag,
   includeIdentityRules,
   identityHeadingId,
+  identityPresentation,
 }: {
   presentation: HotelAdmissionPresentation
   providerName: string
@@ -73,6 +75,7 @@ function Body({
   HeadingTag: 'h4' | 'p'
   includeIdentityRules: boolean
   identityHeadingId?: string
+  identityPresentation?: GuestIdentityPresentation
 }) {
   const { Provider, provider } = resolveProvider(providerName)
   const bodyPrimaryCls = variant === 'review'
@@ -123,7 +126,7 @@ function Body({
         ))}
         {includeIdentityRules ? (
           <HotelGuestIdentityRules
-            presentation={deriveGuestIdentityPresentation(presentation, providerName)}
+            presentation={identityPresentation ?? deriveGuestIdentityPresentation(presentation, providerName)}
             variant="card"
             headingId={identityHeadingId}
           />
@@ -223,10 +226,12 @@ export function HotelAdmissionPolicyCardBlock({
   presentation,
   providerName,
   identityHeadingId,
+  identityPresentation,
 }: {
   presentation: HotelAdmissionPresentation
   providerName: string
   identityHeadingId?: string
+  identityPresentation?: GuestIdentityPresentation
 }) {
   const restricted = isRestricted(presentation)
   const live = isLive(presentation)
@@ -242,11 +247,19 @@ export function HotelAdmissionPolicyCardBlock({
       aria-atomic={live ? 'true' : undefined}
     >
       <p className="font-medium text-[color:var(--text-1)]">Check-in eligibility</p>
-      <Body presentation={presentation} providerName={providerName} variant="card" HeadingTag="p" includeIdentityRules identityHeadingId={identityHeadingId} />
+      <Body
+        presentation={presentation}
+        providerName={providerName}
+        variant="card"
+        HeadingTag="p"
+        includeIdentityRules
+        identityHeadingId={identityHeadingId}
+        identityPresentation={identityPresentation}
+      />
       {presentation.state !== 'reported' ? (
         <div className="mt-3">
           <HotelGuestIdentityRules
-            presentation={deriveGuestIdentityPresentation(presentation, providerName)}
+            presentation={identityPresentation ?? deriveGuestIdentityPresentation(presentation, providerName)}
             variant="card"
             headingId={identityHeadingId}
           />
@@ -305,11 +318,15 @@ function chipCopyForRestrictedRows(restrictedRows: readonly HotelAdmissionRow[])
 
 export function HotelAdmissionCardChip({
   presentation,
+  includeIdentityRules = true,
 }: {
   presentation: HotelAdmissionPresentation
+  includeIdentityRules?: boolean
 }) {
   if (presentation.state !== 'reported' || !presentation.hasRestriction) return null
-  const restrictedRows = presentation.rows.filter(row => row.rowState === 'restricted')
+  const restrictedRows = presentation.rows.filter(row => (
+    row.rowState === 'restricted' && (includeIdentityRules || row.family !== 'checkin_identity')
+  ))
   if (restrictedRows.length === 0) return null
 
   const { text, ariaLabel } = chipCopyForRestrictedRows(restrictedRows)

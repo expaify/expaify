@@ -703,6 +703,8 @@ export interface HotelGuestIdentityEvidence {
   identityDocument: { state: HotelGuestIdentityDimensionState };
   paymentNameMatch: { state: HotelGuestIdentityDimensionState };
   statements: SupplierAdmissionStatement[];
+  /** Count of additional valid, unique statements omitted by the three-item display cap. */
+  omittedStatementCount?: number;
 }
 
 export type HotelAdmissionRowState = 'restricted' | 'no_rule_reported' | 'unavailable' | 'conflicting';

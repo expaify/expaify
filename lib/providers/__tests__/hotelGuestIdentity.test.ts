@@ -56,4 +56,39 @@ describe('hotel guest identity provider normalization', () => {
     const normalized = normalizeHotelGuestIdentity(base, HOTEL_GUEST_IDENTITY_UNSUPPORTED, expected);
     expect(normalized.identityDocument.state).toBe('not_established');
   });
+
+  it('preserves the valid omitted-statement count without parsing statement text', () => {
+    const normalized = normalizeHotelGuestIdentity({
+      ...base,
+      statements: [1, 2, 3, 4, 5].map(index => ({
+        id: `statement-${index}`,
+        sourceLabel: 'Supplier',
+        sourceText: `Display-only supplier wording ${index}.`,
+      })),
+    }, capability, expected);
+
+    expect(normalized.statements).toHaveLength(3);
+    expect(normalized.omittedStatementCount).toBe(2);
+    expect(normalized.affectedParty.value).toBe('lead_guest');
+    expect(normalized.identityDocument.state).toBe('confirmed');
+  });
+
+  it('degrades only conflicting dimensions when truncation could hide an opposing statement', () => {
+    const normalized = normalizeHotelGuestIdentity({
+      ...base,
+      affectedParty: { value: 'not_established', state: 'conflicting' },
+      identityDocument: { state: 'conflicting' },
+      paymentNameMatch: { state: 'confirmed' },
+      statements: [1, 2, 3, 4].map(index => ({
+        id: `conflict-${index}`,
+        sourceLabel: 'Supplier',
+        sourceText: `Bounded statement ${index}.`,
+      })),
+    }, capability, expected);
+
+    expect(normalized.affectedParty).toEqual({ value: 'not_established', state: 'not_established' });
+    expect(normalized.identityDocument.state).toBe('not_established');
+    expect(normalized.paymentNameMatch.state).toBe('confirmed');
+    expect(normalized.omittedStatementCount).toBe(1);
+  });
 });

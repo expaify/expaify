@@ -33,6 +33,12 @@ import {
 } from './HotelAdmissionPolicy'
 import { deriveAdmissionPolicyPresentation } from '@/lib/hotels/admissionPolicy'
 import { useHotelAdmissionPolicyViewed } from './hotelAdmissionPolicyAnalytics'
+import {
+  deriveGuestIdentityPresentation,
+  HotelGuestIdentityCardChip,
+  presentGuestIdentityEvidence,
+} from './HotelGuestIdentityRules'
+import { normalizeHotelGuestIdentity } from '@/lib/providers/hotelGuestIdentity'
 import { HotelPetPolicyDetails, HotelPetPolicyScan } from './HotelPetPolicy'
 import type { HotelPetPolicyPresentation } from './HotelPetPolicy'
 import { getCollapsedSmokingPolicy, type HotelSmokingPolicyView } from './SmokingPolicyPanel'
@@ -826,6 +832,13 @@ export default function HotelCard({
     evidence: hotel.admissionPolicy,
     capability: hotel.admissionPolicyCapability,
   })
+  const guestIdentity = hotel.guestIdentity
+    ? presentGuestIdentityEvidence(normalizeHotelGuestIdentity(
+        hotel.guestIdentity,
+        hotel.guestIdentityCapability,
+        { propertyId: hotel.id, offerId: hotel.id, supplier: hotel.source, locale: 'en-US' },
+      ), providerName)
+    : deriveGuestIdentityPresentation(admissionPolicy, providerName)
   useHotelAdmissionPolicyViewed({
     presentation: admissionPolicy,
     hotelId: hotel.id,
@@ -983,7 +996,8 @@ export default function HotelCard({
         </p>
 
         <HotelCardEligibilityLine eligibility={rateEligibility} />
-        <HotelAdmissionCardChip presentation={admissionPolicy} />
+        <HotelAdmissionCardChip presentation={admissionPolicy} includeIdentityRules={false} />
+        <HotelGuestIdentityCardChip presentation={guestIdentity} />
 
         <ParkingSummary
           evidence={parkingEvidence}
@@ -1052,6 +1066,7 @@ export default function HotelCard({
 
         <button
           type="button"
+          aria-label={`${isExpanded ? 'Hide' : 'Open'} details for ${hotel.name}, including ID and cardholder rules`}
           aria-expanded={isExpanded}
           aria-controls={detailsId}
           onClick={handleDetailsToggle}
@@ -1112,6 +1127,7 @@ export default function HotelCard({
               presentation={admissionPolicy}
               providerName={hasHotelProviderName ? providerName : ''}
               identityHeadingId={`${detailsId}-guest-identity-title`}
+              identityPresentation={guestIdentity}
             />
 
             <ParkingSection

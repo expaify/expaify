@@ -388,6 +388,7 @@ describe('HotelCard access evidence', () => {
 
     expect(toggle?.props['aria-expanded']).toBe(false)
     expect(toggle?.props['aria-controls']).toBe('hotel-details-access-hotel')
+    expect(toggle?.props['aria-label']).toBe('Open details for Access Test Hotel, including ID and cardholder rules')
 
     expanded = true
     const expandedCard = HotelCard({ hotel, amenityEvidence: [evidence()] })
@@ -397,7 +398,67 @@ describe('HotelCard access evidence', () => {
     expect(String(list?.props.className)).toContain('grid-cols-1')
     expect(String(list?.props.className)).toContain('sm:grid-cols-2')
     expect(expandedToggle?.props['aria-expanded']).toBe(true)
+    expect(expandedToggle?.props['aria-label']).toBe('Hide details for Access Test Hotel, including ID and cardholder rules')
     expect(collectElements(accessSection(expandedCard)).some(node => node.props.tabIndex !== undefined)).toBe(false)
+  })
+
+  it('uses the same structured identity facts for the collapsed chip and expanded details', () => {
+    const identityHotel: HotelOffer = {
+      ...hotel,
+      source: 'supplier',
+      guestIdentityCapability: {
+        affectedParty: true,
+        identityDocument: { confirmed: true, conditional: true, explicitNegative: true, conflicting: true },
+        paymentNameMatch: { confirmed: true, conditional: true, explicitNegative: true, conflicting: true },
+        maxAgeSeconds: 21_600,
+      },
+      guestIdentity: {
+        state: 'ready',
+        scope: 'property',
+        propertyId: hotel.id,
+        supplier: 'supplier',
+        locale: 'en-US',
+        fetchedAt: new Date().toISOString(),
+        affectedParty: { value: 'lead_guest', state: 'confirmed' },
+        identityDocument: { state: 'confirmed' },
+        paymentNameMatch: { state: 'not_established' },
+        statements: [{ id: 'identity-1', sourceLabel: 'Supplier', sourceText: 'Identification is required.' }],
+      },
+    }
+
+    expanded = false
+    const collapsed = HotelCard({ hotel: identityHotel })
+    expect(collectText(collapsed)).toContain('Lead guest: ID at check-in')
+
+    expanded = true
+    const expandedCard = HotelCard({ hotel: identityHotel })
+    const text = collectText(expandedCard)
+    expect(text).toContain('Who this applies toLead guest')
+    expect(text).toContain('IdentificationRequired at check-in')
+    expect(text).toContain('Whether it must match the lead guest’s name is not established.')
+    expect(text).toContain('Identification is required.')
+  })
+
+  it('does not render a collapsed identity chip for not-established-only evidence', () => {
+    const unknownHotel: HotelOffer = {
+      ...hotel,
+      guestIdentity: {
+        state: 'ready', scope: 'property', propertyId: hotel.id, supplier: hotel.source, locale: 'en-US',
+        affectedParty: { value: 'not_established', state: 'not_established' },
+        identityDocument: { state: 'not_established' }, paymentNameMatch: { state: 'not_established' },
+        statements: [],
+      },
+      guestIdentityCapability: {
+        affectedParty: false,
+        identityDocument: { confirmed: false, conditional: false, explicitNegative: false, conflicting: false },
+        paymentNameMatch: { confirmed: false, conditional: false, explicitNegative: false, conflicting: false },
+        maxAgeSeconds: 0,
+      },
+    }
+
+    expanded = false
+    expect(collectText(HotelCard({ hotel: unknownHotel }))).not.toContain('ID/card rule—details')
+    expect(collectText(HotelCard({ hotel: unknownHotel }))).not.toContain('ID at check-in')
   })
 
   it('preserves known evidence and announces background refresh', () => {

@@ -26,6 +26,7 @@ const {
   beginHotelGuestIdentityCheck,
   focusHotelDocumentRetryStatus,
   focusHotelGuestIdentityRetryStatus,
+  shouldRenderHotelSupplement,
 } = jest.requireActual('../BookingFlow') as typeof import('../BookingFlow');
 
 function childrenOf(node: TestElement): unknown[] {
@@ -140,6 +141,12 @@ describe('BookingFlow fare context review', () => {
     expect(focusHotelGuestIdentityRetryStatus(focusPendingRef, statusRegion)).toBe(true);
     expect(focusHotelGuestIdentityRetryStatus(focusPendingRef, statusRegion)).toBe(false);
     expect(statusRegion.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the identity return prompt surface available without smoking-policy evidence', () => {
+    expect(shouldRenderHotelSupplement(undefined, true)).toBe(true);
+    expect(shouldRenderHotelSupplement(null, true)).toBe(true);
+    expect(shouldRenderHotelSupplement(undefined, false)).toBe(false);
   });
 
   it('blocks review when selected fare context is missing', () => {
