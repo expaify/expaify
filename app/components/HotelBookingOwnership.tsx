@@ -38,7 +38,7 @@ export function HotelBookingOwnershipDisclosure({
 }: HotelBookingOwnershipDisclosureProps) {
   const [open, setOpen] = useState(false)
   const hasOpenedRef = useRef(false)
-  const named = partner.named && !!partner.label
+  const named = partner.named && partner.label.trim().length > 0
   const partnerLabel = named ? partner.label : 'your booking partner'
 
   const handleToggle = () => {
@@ -81,11 +81,33 @@ export function HotelBookingOwnershipDisclosure({
               {named ? `${partnerLabel} manages your reservation` : 'Your booking partner manages your reservation'}
             </h4>
             <p className={`mt-2 text-sm leading-6 text-[color:var(--text-2)] ${partnerLabelWrapCls}`}>
-              After checkout, {partnerLabel} provides your confirmation and is your first contact for reservation status, changes, cancellations, refunds, payment questions, or a missing confirmation. Use the contact details in your confirmation or on the site where you complete the booking.
+              {named
+                ? `After checkout, use your ${partnerLabel} confirmation first. It should contain your booking reference and the change or support instructions for your reservation.`
+                : 'After checkout, use your booking partner’s confirmation first. It should contain your booking reference and the change or support instructions for your reservation.'}
             </p>
+            <dl className="mt-3 space-y-3 border-t border-[color:var(--border)] pt-3">
+              <div className="min-w-0">
+                <dt className="text-sm font-medium leading-5 text-[color:var(--text-1)]">Dates</dt>
+                <dd className="mt-1 break-words text-sm leading-6 text-[color:var(--text-2)] [overflow-wrap:anywhere]">
+                  New dates can depend on availability and the current price, taxes, fees, and rate terms. Cancellation and rebooking may be required.
+                </dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-sm font-medium leading-5 text-[color:var(--text-1)]">Guest details</dt>
+                <dd className="mt-1 break-words text-sm leading-6 text-[color:var(--text-2)] [overflow-wrap:anywhere]">
+                  Correcting a spelling or contact detail is different from replacing the lead guest or changing occupancy. Check what the booking partner supports.
+                </dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-sm font-medium leading-5 text-[color:var(--text-1)]">Room and rate</dt>
+                <dd className="mt-1 break-words text-sm leading-6 text-[color:var(--text-2)] [overflow-wrap:anywhere]">
+                  Changing the booked room or rate is different from asking the property for a bed, view, or floor preference.
+                </dd>
+              </div>
+            </dl>
             {!named ? (
-              <p className="mt-2 text-sm leading-6 text-[color:var(--text-3)]">
-                Not sure which company that is? Check the confirmation you receive, your card statement, or your browser history after checkout.
+              <p className="mt-3 border-t border-[color:var(--border)] pt-3 text-sm leading-6 text-[color:var(--text-3)]">
+                If the confirmation gives no usable route, use the official support for the site where checkout was completed or for the company that issued the confirmation.
               </p>
             ) : null}
           </div>
@@ -95,7 +117,7 @@ export function HotelBookingOwnershipDisclosure({
             {expaifyIssueRoute === null ? (
               <>
                 <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-                  expaify can help only with what it shows here: the hotel, the price, or the booking link on this page. expaify cannot access, change, cancel, or refund a reservation completed with the booking partner.
+                  expaify can help only with what it shows here: the hotel, observed price, or booking link on this page. It cannot access, change, cancel, or refund a reservation completed with the booking partner.
                 </p>
                 <p className="mt-2 text-sm leading-6 text-[color:var(--text-3)]">
                   If something on this page looks wrong, note the offer reference under &ldquo;Show offer details&rdquo; before you continue.
