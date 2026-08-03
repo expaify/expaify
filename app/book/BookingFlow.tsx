@@ -42,6 +42,7 @@ import {
   HotelTransportSection,
 } from '@/app/components/HotelTransport'
 import HotelCancellationChoicesUnavailable from '@/app/components/HotelCancellationChoicesUnavailable'
+import { HotelBookingModificationCue } from '@/app/components/HotelBookingModificationCue'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -101,6 +102,7 @@ type HotelPartnerIdentity = {
   host: string
   label: string
   named: boolean
+  allowlistVerified: boolean
 }
 
 const knownHotelPartners: Record<string, string> = {
@@ -116,7 +118,7 @@ const commonRoutingSubdomains = new Set(['www', 'm', 'go', 'redirect', 'click'])
 const compoundPublicSuffixes = new Set(['co.uk', 'com.au', 'com.br', 'com.mx', 'co.nz', 'co.jp', 'co.in'])
 
 function getHotelPartnerIdentity(providerUrl: string): HotelPartnerIdentity {
-  const unresolved = (host = ''): HotelPartnerIdentity => ({ host, label: 'booking partner', named: false })
+  const unresolved = (host = ''): HotelPartnerIdentity => ({ host, label: 'booking partner', named: false, allowlistVerified: false })
 
   try {
     const parsed = new URL(providerUrl)
@@ -132,7 +134,9 @@ function getHotelPartnerIdentity(providerUrl: string): HotelPartnerIdentity {
     }
 
     for (const [domain, label] of Object.entries(knownHotelPartners)) {
-      if (matchingHost === domain || matchingHost.endsWith(`.${domain}`)) return { host, label, named: true }
+      if (matchingHost === domain || matchingHost.endsWith(`.${domain}`)) {
+        return { host, label, named: true, allowlistVerified: true }
+      }
     }
 
     const labels = matchingHost.split('.').filter(Boolean)
@@ -150,7 +154,7 @@ function getHotelPartnerIdentity(providerUrl: string): HotelPartnerIdentity {
     const label = `${brand.charAt(0).toUpperCase()}${brand.slice(1)}.${suffix}`
     if (label.length > 40) return unresolved(host)
 
-    return { host, label, named: true }
+    return { host, label, named: true, allowlistVerified: false }
   } catch {
     return unresolved()
   }
@@ -732,6 +736,11 @@ function HotelHandoffReview({
   hotelSmokingPolicy?: HotelSmokingPolicyView
 }) {
   const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
+  const verifiedModificationPartner = useMemo(() => (
+    partner.allowlistVerified
+      ? { label: partner.label, named: true }
+      : { label: 'booking partner', named: false }
+  ), [partner.allowlistVerified, partner.label])
   const location = getHotelLocationDisplay(hotelContext)
   const admissionPolicy = deriveAdmissionPolicyPresentation({
     propertyId: hotelContext.offerId,
@@ -1145,7 +1154,7 @@ function HotelHandoffReview({
           {transportGuidance}
         </p>
         <HotelBookingOwnershipDisclosure
-          partner={partner}
+          partner={verifiedModificationPartner}
           expaifyIssueRoute={null}
           onOpen={handleBookingOwnershipOpen}
           onContactClick={handleBookingOwnershipContactClick}
@@ -1160,6 +1169,9 @@ function HotelHandoffReview({
         </p>
         <div className="mt-3">
           <HotelCancellationChoicesUnavailable />
+        </div>
+        <div className="mt-3">
+          <HotelBookingModificationCue partner={verifiedModificationPartner} />
         </div>
         <div className="mt-3 flex flex-col gap-3">
           <a
@@ -1255,7 +1267,7 @@ function HotelHandoffReview({
               : 'Add your request on the booking partner’s site while booking. Nothing is selected or sent by expaify.'}
           </p>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            Requests depend on availability and are not guaranteed. After booking, use your confirmation or itinerary to contact the property and ask it to confirm what it can provide.
+            A request is a preference, not a change to your booked room or rate. Requests depend on availability and are not guaranteed. After booking, follow your confirmation’s instructions for contacting the property about fulfillment.
           </p>
           <details onToggle={handleHelpToggle} className="mt-3 border-t border-[color:var(--border)] pt-3">
             <summary className="min-h-11 cursor-pointer select-none py-2 text-sm font-medium leading-6 text-[color:var(--brand)]">
