@@ -352,12 +352,81 @@ export interface HotelDocumentIssuer {
   displayName?: string;
 }
 
+export type HotelBusinessDocumentEligibilityState =
+  | 'supported'
+  | 'unsupported'
+  | 'conditional'
+  | 'conflicting'
+  | 'not_provided';
+
+export type HotelDocumentEntryStep =
+  | 'during_partner_booking'
+  | 'after_booking_contact_provider'
+  | 'after_booking_contact_property'
+  | 'at_checkout'
+  | 'not_provided';
+
+export type HotelDocumentCorrectionBoundary =
+  | { rule: 'allowed_until'; boundaryLabel: string }
+  | { rule: 'not_allowed_after'; boundaryLabel: string }
+  | { rule: 'not_provided' };
+
+export interface HotelEligibilitySource {
+  label: string;
+  scope: HotelDocumentScope;
+  policyId?: string;
+  observedAt?: string;
+}
+
+export interface HotelEligibilityVerificationTarget {
+  role: 'booking_provider' | 'property';
+  url?: string;
+}
+
+export interface HotelEligibilityConflictStatement {
+  sourceLabel: string;
+  statement: string;
+}
+
+export interface HotelTaxIdentifierEligibility {
+  state: HotelBusinessDocumentEligibilityState;
+  identifierLabel?: string;
+  condition?: string;
+  entryStep: HotelDocumentEntryStep;
+  correction: HotelDocumentCorrectionBoundary;
+  source: HotelEligibilitySource;
+  conflictStatements?: HotelEligibilityConflictStatement[];
+  verificationTarget?: HotelEligibilityVerificationTarget;
+}
+
+export type HotelNameRelationship = 'same_required' | 'different_allowed' | 'not_provided';
+export type HotelDocumentAddresseeType = 'individual' | 'legal_entity';
+
+export interface HotelDocumentNameEligibility {
+  state: HotelBusinessDocumentEligibilityState;
+  allowedAddresseeTypes: HotelDocumentAddresseeType[];
+  unsupportedAddresseeTypes?: HotelDocumentAddresseeType[];
+  condition?: string;
+  relationships: {
+    guest: HotelNameRelationship;
+    booker: HotelNameRelationship;
+    cardholder: HotelNameRelationship;
+  };
+  entryStep: HotelDocumentEntryStep;
+  correction: HotelDocumentCorrectionBoundary;
+  source: HotelEligibilitySource;
+  conflictStatements?: HotelEligibilityConflictStatement[];
+  verificationTarget?: HotelEligibilityVerificationTarget;
+}
+
 export interface HotelDocumentReadiness {
   status: HotelDocumentStatus;
   scope: HotelDocumentScope;
   documentTypes: HotelDocumentType[];
   issuerByDocument: Partial<Record<HotelDocumentType, HotelDocumentIssuer>>;
   billingDetailsStep: HotelBillingDetailsStep;
+  taxIdentifierEligibility: HotelTaxIdentifierEligibility;
+  documentNameEligibility: HotelDocumentNameEligibility;
   condition?: string;
   source: {
     label: string;

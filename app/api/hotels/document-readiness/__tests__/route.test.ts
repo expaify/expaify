@@ -12,6 +12,15 @@ const documentReadiness = {
   documentTypes: [],
   issuerByDocument: {},
   billingDetailsStep: 'unknown' as const,
+  taxIdentifierEligibility: {
+    state: 'not_provided' as const, entryStep: 'not_provided' as const, correction: { rule: 'not_provided' as const },
+    source: { label: 'Hotellook', scope: 'rate' as const },
+  },
+  documentNameEligibility: {
+    state: 'not_provided' as const, allowedAddresseeTypes: [],
+    relationships: { guest: 'not_provided' as const, booker: 'not_provided' as const, cardholder: 'not_provided' as const },
+    entryStep: 'not_provided' as const, correction: { rule: 'not_provided' as const }, source: { label: 'Hotellook', scope: 'rate' as const },
+  },
   source: { label: 'Hotellook' },
 };
 const hotelContext = {

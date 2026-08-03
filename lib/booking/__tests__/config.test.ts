@@ -74,7 +74,10 @@ const hotel: HotelOffer = {
   source: 'hotellook',
   documentReadiness: {
     status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
-    billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
+    billingDetailsStep: 'unknown',
+    taxIdentifierEligibility: { state: 'not_provided', entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Hotellook', scope: 'rate' } },
+    documentNameEligibility: { state: 'not_provided', allowedAddresseeTypes: [], relationships: { guest: 'not_provided', booker: 'not_provided', cardholder: 'not_provided' }, entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Hotellook', scope: 'rate' } },
+    source: { label: 'Hotellook' },
   },
   fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
 };
@@ -225,6 +228,18 @@ describe('booking hotel context continuity', () => {
         documentTypes: ['invoice'],
         issuerByDocument: { invoice: { role: 'property', displayName: 'The Example Hotel Billing Desk' } },
         billingDetailsStep: 'after_booking_contact_property',
+        taxIdentifierEligibility: {
+          state: 'supported', identifierLabel: 'VAT number', entryStep: 'during_partner_booking',
+          correction: { rule: 'allowed_until', boundaryLabel: 'payment' },
+          source: { label: 'Tax rate terms', scope: 'rate', policyId: 'tax-7', observedAt: '2026-07-22T12:00:00.000Z' },
+          verificationTarget: { role: 'booking_provider', url: verificationUrl },
+        },
+        documentNameEligibility: {
+          state: 'conditional', allowedAddresseeTypes: ['legal_entity'], condition: 'property approval',
+          relationships: { guest: 'different_allowed', booker: 'not_provided', cardholder: 'not_provided' },
+          entryStep: 'after_booking_contact_property', correction: { rule: 'not_provided' },
+          source: { label: 'Name stay terms', scope: 'selected_stay' }, verificationTarget: { role: 'property', url: verificationUrl },
+        },
         condition: 'billing details being approved by the property',
         source: { label: 'Supplier rate terms', policyId: 'rate-policy-7', observedAt: '2026-07-22T12:00:00.000Z' },
         verificationTarget: { role: 'property', url: verificationUrl },
@@ -303,6 +318,13 @@ describe('booking hotel context continuity', () => {
         documentTypes: [],
         issuerByDocument: {},
         billingDetailsStep: 'unknown',
+        taxIdentifierEligibility: {
+          state: 'not_provided', entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Hotellook', scope: 'rate' },
+        },
+        documentNameEligibility: {
+          state: 'not_provided', allowedAddresseeTypes: [], relationships: { guest: 'not_provided', booker: 'not_provided', cardholder: 'not_provided' },
+          entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Hotellook', scope: 'rate' },
+        },
         source: { label: 'Hotellook' },
       },
       fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'hotellook', scope: 'not_returned' },

@@ -27,7 +27,10 @@ const hotel: HotelOffer = {
   source: 'Example Provider',
   documentReadiness: {
     status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
-    billingDetailsStep: 'unknown', source: { label: 'Example Provider' },
+    billingDetailsStep: 'unknown',
+    taxIdentifierEligibility: { state: 'not_provided', entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Example Provider', scope: 'rate' } },
+    documentNameEligibility: { state: 'not_provided', allowedAddresseeTypes: [], relationships: { guest: 'not_provided', booker: 'not_provided', cardholder: 'not_provided' }, entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Example Provider', scope: 'rate' } },
+    source: { label: 'Example Provider' },
   },
   fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Example Provider', scope: 'not_returned' },
 }

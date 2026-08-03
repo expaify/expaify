@@ -18,6 +18,15 @@ const baseReadiness: HotelDocumentReadiness = {
     invoice: { role: 'booking_provider', displayName: 'Booking.com' },
   },
   billingDetailsStep: 'during_partner_booking',
+  taxIdentifierEligibility: {
+    state: 'not_provided', entryStep: 'not_provided', correction: { rule: 'not_provided' },
+    source: { label: 'Supplier feed', scope: 'rate' },
+  },
+  documentNameEligibility: {
+    state: 'not_provided', allowedAddresseeTypes: [],
+    relationships: { guest: 'not_provided', booker: 'not_provided', cardholder: 'not_provided' },
+    entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Supplier feed', scope: 'rate' },
+  },
   source: { label: 'Supplier feed' },
 }
 
@@ -58,11 +67,21 @@ describe('HotelDocumentReadiness UI', () => {
       documentTypes: [],
       issuerByDocument: {},
       billingDetailsStep: 'unknown',
+      taxIdentifierEligibility: {
+        state: 'not_provided', entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Hotellook', scope: 'rate' },
+      },
+      documentNameEligibility: {
+        state: 'not_provided', allowedAddresseeTypes: [], relationships: { guest: 'not_provided', booker: 'not_provided', cardholder: 'not_provided' },
+        entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Hotellook', scope: 'rate' },
+      },
       source: { label: 'Hotellook' },
     })
     expect(html).toContain('Hotellook did not provide invoice or receipt information for this rate.')
     expect(html).toContain('Availability, issuer, and billing-detail timing are unknown.')
-    expect(html).not.toContain('<dl')
+    expect(html).toContain('Business or tax ID')
+    expect(html).toContain('Name on document')
+    expect(html).toContain('The provider did not say whether a business or tax ID can be added.')
+    expect(html).toContain('The provider did not say whose name can appear on the document.')
     expect(html).not.toContain('not available')
   })
 
@@ -191,5 +210,64 @@ describe('HotelDocumentReadiness UI', () => {
     expect(html).toContain('grid-cols-1')
     expect(html).toContain('break-words')
     expect(html).not.toContain('javascript:')
+  })
+
+  it('renders supported dimensions independently with timing, relationships, and per-row provenance', () => {
+    const html = renderDisclosure({
+      ...baseReadiness,
+      taxIdentifierEligibility: {
+        state: 'supported', identifierLabel: 'VAT number', entryStep: 'during_partner_booking',
+        correction: { rule: 'not_provided' }, source: { label: 'Source Alpha', scope: 'rate', policyId: 'alpha-1', observedAt: '2026-08-03T12:00:00Z' },
+      },
+      documentNameEligibility: {
+        state: 'supported', allowedAddresseeTypes: ['legal_entity'],
+        relationships: { guest: 'different_allowed', booker: 'not_provided', cardholder: 'not_provided' },
+        entryStep: 'during_partner_booking', correction: { rule: 'allowed_until', boundaryLabel: 'payment' },
+        source: { label: 'Source Alpha', scope: 'selected_stay' },
+      },
+    })
+
+    expect(html).toContain('Source Alpha says you can provide VAT number during booking.')
+    expect(html).toContain('Provide this during booking; the provider did not say whether it can be changed later.')
+    expect(html).toContain('Source Alpha says the document can name a legal entity during booking.')
+    expect(html).toContain('The document name may differ from the guest name.')
+    expect(html).toContain('booker or cardholder')
+    expect(html).toContain('Source: Source Alpha. Applies to the selected rate. Reference: alpha-1. Checked')
+    expect(html).toContain('Source: Source Alpha. Applies to the selected stay.')
+    expect(html).not.toMatch(/business ready|tax ready|expense ready/i)
+  })
+
+  it('keeps a tax conflict and explicit document-name negative textually separate', () => {
+    const html = renderDisclosure({
+      ...baseReadiness,
+      taxIdentifierEligibility: {
+        state: 'conflicting', entryStep: 'not_provided', correction: { rule: 'not_provided' },
+        source: { label: 'Source Epsilon', scope: 'rate' }, conflictStatements: [
+          { sourceLabel: 'Source Epsilon', statement: 'VAT number accepted' },
+          { sourceLabel: 'Source Zeta', statement: 'VAT number not accepted' },
+        ],
+      },
+      documentNameEligibility: {
+        state: 'unsupported', allowedAddresseeTypes: [], unsupportedAddresseeTypes: ['legal_entity'],
+        relationships: { guest: 'not_provided', booker: 'not_provided', cardholder: 'not_provided' },
+        entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Source Epsilon', scope: 'rate' },
+      },
+    })
+
+    expect(html).toContain('Supplied business or tax ID details conflict.')
+    expect(html).toContain('Source Zeta: VAT number not accepted.')
+    expect(html).toContain('Source Epsilon says a legal entity cannot be named for this selected rate.')
+    expect(html).toContain('Verify unanswered invoice details')
+  })
+
+  it('makes no eligibility claim during loading or an initial transport error', () => {
+    const loading = renderDisclosure(baseReadiness, 'loading')
+    const error = renderDisclosure(baseReadiness, 'error')
+
+    expect(loading).not.toContain('Business or tax ID</dt>')
+    expect(loading).not.toContain('Name on document</dt>')
+    expect(error).not.toContain('Business or tax ID</dt>')
+    expect(error).toContain('Document availability, business or tax ID support, and document-name eligibility remain unknown.')
+    expect(error).toContain('Ask the document issuer whether it can add your required business or tax ID')
   })
 })

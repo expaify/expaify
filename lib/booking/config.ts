@@ -132,6 +132,8 @@ type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
   documentConfirmationIssuerRole?: unknown;
   documentConfirmationIssuerName?: unknown;
   documentBillingDetailsStep?: unknown;
+  documentTaxIdentifierEligibility?: unknown;
+  documentNameEligibility?: unknown;
   documentCondition?: unknown;
   documentSourceLabel?: unknown;
   documentSourcePolicyId?: unknown;
@@ -287,6 +289,8 @@ function documentReadinessInput(input: HotelContextInput, provider: string): unk
     documentTypes: typeof input.documentTypes === 'string' ? input.documentTypes.split(',') : input.documentTypes,
     issuerByDocument,
     billingDetailsStep: input.documentBillingDetailsStep,
+    taxIdentifierEligibility: input.documentTaxIdentifierEligibility,
+    documentNameEligibility: input.documentNameEligibility,
     condition: input.documentCondition,
     source: {
       label: input.documentSourceLabel,
@@ -1096,6 +1100,8 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     documentConfirmationIssuerRole: firstParam(params.documentConfirmationIssuerRole),
     documentConfirmationIssuerName: firstParam(params.documentConfirmationIssuerName),
     documentBillingDetailsStep: firstParam(params.documentBillingDetailsStep),
+    documentTaxIdentifierEligibility: parseJsonQueryParam(firstParam(params.documentTaxIdentifierEligibility)),
+    documentNameEligibility: parseJsonQueryParam(firstParam(params.documentNameEligibility)),
     documentCondition: firstParam(params.documentCondition),
     documentSourceLabel: firstParam(params.documentSourceLabel),
     documentSourcePolicyId: firstParam(params.documentSourcePolicyId),
@@ -1255,6 +1261,8 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
     documentBillingDetailsStep: context.documentReadiness.billingDetailsStep,
     documentSourceLabel: context.documentReadiness.source.label,
   });
+  params.set('documentTaxIdentifierEligibility', JSON.stringify(context.documentReadiness.taxIdentifierEligibility));
+  params.set('documentNameEligibility', JSON.stringify(context.documentReadiness.documentNameEligibility));
 
   if (context.area) params.set('area', context.area);
   if (context.location?.precision) params.set('locationPrecision', context.location.precision);
