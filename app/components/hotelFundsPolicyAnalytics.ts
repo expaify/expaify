@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { track } from '@/lib/analytics'
 import { getHotelFundsAnalyticsDimensions } from '@/lib/hotels/fundsPolicy'
-import type { HotelFundsPolicyLoadState } from '@/lib/types'
+import type { HotelFundsPolicyCapability, HotelFundsPolicyLoadState } from '@/lib/types'
 
 const MAX_DEDUPE_KEYS = 1_000
 const MAX_KEY_INPUT_LENGTH = 2_048
@@ -44,6 +44,7 @@ function eventKey(offerId: string | undefined, provider: string, surface: string
 
 export function useHotelFundsPolicyExposure(input: {
   evidence: unknown
+  capability?: HotelFundsPolicyCapability
   loadState: HotelFundsPolicyLoadState
   offerId: string
   provider: string
@@ -77,13 +78,14 @@ export function useHotelFundsPolicyExposure(input: {
       clearTimer()
       observer.disconnect()
     }
-  }, [input.evidence, input.loadState, input.offerId, input.provider, input.surface])
+  }, [input.capability, input.evidence, input.loadState, input.offerId, input.provider, input.surface])
 
   return rootRef
 }
 
 export function trackHotelFundsPolicyDetailsOpened(input: {
   evidence: unknown
+  capability?: HotelFundsPolicyCapability
   loadState: HotelFundsPolicyLoadState
   offerId: string
   provider: string
@@ -96,6 +98,7 @@ export function trackHotelFundsPolicyDetailsOpened(input: {
 
 export function trackHotelFundsPolicyConfirmation(input: {
   evidence: unknown
+  capability?: HotelFundsPolicyCapability
   loadState: HotelFundsPolicyLoadState
   offerId?: string
   provider: string

@@ -302,6 +302,7 @@ export type HotelFundsAnalyticsDimensions = {
 
 export function getHotelFundsAnalyticsDimensions(input: {
   evidence: unknown;
+  capability?: unknown;
   loadState?: 'loading' | 'ready' | 'error';
   provider: string;
   surface: 'hotel_card' | 'book_handoff';
@@ -310,7 +311,14 @@ export function getHotelFundsAnalyticsDimensions(input: {
   if (input.loadState === 'error') {
     return { policyState: 'error', obligationTypes: 'unknown', scope: 'not_returned', provider, surface: input.surface };
   }
-  const evidence = normalizeHotelFundsPolicyEvidence(input.evidence, provider);
+  const evidence = input.capability === undefined
+    ? normalizeHotelFundsPolicyEvidence(input.evidence, provider)
+    : normalizeHotelFundsPolicyBridge({
+      provider: input.provider,
+      capability: input.capability,
+      evidence: input.evidence,
+      loadState: input.loadState,
+    }).evidence;
   const analyticsRecords = evidence.state === 'conflicting'
     ? evidence.conflictingRecords ?? []
     : evidence.obligations;

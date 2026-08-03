@@ -8,6 +8,7 @@ import {
   buildHotelBookingHref,
   hotelBookingHrefRequiresReference,
 } from '@/lib/booking/config'
+import { normalizeHotelFundsPolicyBridge } from '@/lib/hotels/fundsPolicy'
 import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
 import DealScorePanel from './DealScorePanel'
 import HotelFundsPolicyPanel, {
@@ -805,10 +806,16 @@ export default function HotelCard({
   const rateCheckCopy = `Rate from ${providerName}. Last-checked time unavailable.`
   const providerConfirmationCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
   const reviewDisclosure = providerConfirmationCopy
-  const resolvedFundsPolicy = fundsPolicy ?? hotel.fundsPolicy
+  const fundsPolicyBridge = normalizeHotelFundsPolicyBridge({
+    provider: hotel.source,
+    capability: fundsPolicyCapability ?? hotel.fundsPolicyCapability,
+    evidence: fundsPolicy ?? hotel.fundsPolicy,
+    loadState: fundsPolicyLoadState ?? hotel.fundsPolicyLoadState,
+  })
+  const resolvedFundsPolicy = fundsPolicyBridge.evidence
   const resolvedTransportEvidence = transportEvidence ?? hotel.transportEvidence
-  const resolvedFundsPolicyCapability = fundsPolicyCapability ?? hotel.fundsPolicyCapability
-  const resolvedFundsPolicyLoadState = fundsPolicyLoadState ?? hotel.fundsPolicyLoadState ?? 'ready'
+  const resolvedFundsPolicyCapability = fundsPolicyBridge.capability
+  const resolvedFundsPolicyLoadState = fundsPolicyBridge.loadState
   const selectedHotel = {
     ...hotel,
     fundsPolicy: resolvedFundsPolicy,
@@ -863,6 +870,7 @@ export default function HotelCard({
   const showTransportSummary = isAirportLinked || resolvedTransportEvidence !== undefined
   const fundsPolicyExposureRef = useHotelFundsPolicyExposure({
     evidence: resolvedFundsPolicy,
+    capability: resolvedFundsPolicyCapability,
     loadState: resolvedFundsPolicyLoadState,
     offerId: hotel.id,
     provider: hotel.source,
@@ -873,6 +881,7 @@ export default function HotelCard({
     if (!isExpanded && canBook) {
       trackHotelFundsPolicyDetailsOpened({
         evidence: resolvedFundsPolicy,
+        capability: resolvedFundsPolicyCapability,
         loadState: resolvedFundsPolicyLoadState,
         offerId: hotel.id,
         provider: hotel.source,

@@ -58,13 +58,54 @@ describe('hotel funds policy normalization', () => {
       capability: { policy: 'yes' },
       evidence: completeHold,
       loadState: 'stale',
-    })).toMatchObject({ capability: { policy: false }, loadState: 'ready' });
+    })).toEqual({
+      provider: 'Legacy provider',
+      capability: { policy: false },
+      evidence: createNotReturnedHotelFundsPolicy('Provider policy'),
+      loadState: 'ready',
+    });
     expect(createUnsupportedHotelFundsPolicyBridge('hotellook', 'Hotellook')).toEqual({
       provider: 'hotellook',
       capability: { policy: false },
       evidence: createNotReturnedHotelFundsPolicy('Hotellook'),
       loadState: 'ready',
     });
+  });
+
+  it.each(['complete', 'partial', 'conflicting', 'explicit_none'] as const)(
+    'degrades policy:false plus %s evidence before consumers receive the bridge',
+    state => {
+      const evidence = state === 'explicit_none'
+        ? { state, obligations: [], sourceLabel: 'Provider policy', scope: 'selected_stay' }
+        : state === 'conflicting'
+          ? {
+            state,
+            obligations: [],
+            sourceLabel: 'Provider policy',
+            scope: 'selected_stay',
+            conflictingRecords: [
+              completeHold.obligations[0],
+              { ...completeHold.obligations[0], amount: { kind: 'exact', money: { priceCents: 30_000, currency: 'USD' } } },
+            ],
+          }
+          : { ...completeHold, state };
+
+      expect(normalizeHotelFundsPolicyBridge({
+        provider: 'provider',
+        capability: { policy: false },
+        evidence,
+        loadState: 'ready',
+      }).evidence).toEqual(createNotReturnedHotelFundsPolicy('Provider policy'));
+    },
+  );
+
+  it('uses pair-aware normalization for analytics dimensions', () => {
+    expect(getHotelFundsAnalyticsDimensions({
+      evidence: completeHold,
+      capability: { policy: false },
+      provider: 'provider',
+      surface: 'hotel_card',
+    })).toMatchObject({ policyState: 'not_returned', obligationTypes: 'unknown' });
   });
 
   it('is semantically stable across serialized cache-style replay', () => {

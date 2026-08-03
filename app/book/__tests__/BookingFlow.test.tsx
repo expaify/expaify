@@ -385,11 +385,11 @@ describe('BookingFlow fare context review', () => {
     expect(providerIndex).toBeGreaterThanOrEqual(0);
     expect(supportingIndex).toBeGreaterThan(providerIndex);
     expect(providerText).toContain('Check rooms at provider');
-    expect(providerText).not.toContain('Deposits and card holds');
+    expect(providerText).not.toContain('Additional funds at the property');
     expect(providerText).toContain('Mandatory property fees are not confirmed.');
     expect(supportingText).toContain('I need an invoice or receipt for this stay');
     expect(supportingText).toContain('What you may need');
-    expect(supportingText).toContain('Deposits and card holds');
+    expect(supportingText).toContain('Additional funds at the property');
   });
 
   it('places static room-view confidence after disclosures and immediately before the provider action', () => {

@@ -424,7 +424,11 @@ describe('booking hotel context continuity', () => {
       scope: 'selected_stay' as const,
       fetchedAt: '2026-07-22T03:00:00.000Z',
     };
-    const href = buildHotelBookingHref({ ...hotel, fundsPolicy });
+    const href = buildHotelBookingHref({
+      ...hotel,
+      fundsPolicy,
+      fundsPolicyCapability: { policy: true },
+    });
     const url = new URL(href, 'https://expaify.test');
     const parsed = parseBookingHotelContext(Object.fromEntries(url.searchParams.entries()));
 
@@ -455,6 +459,7 @@ describe('booking hotel context continuity', () => {
     }));
     const href = buildHotelBookingHref({
       ...hotel,
+      fundsPolicyCapability: { policy: true },
       fundsPolicy: {
         state: 'complete',
         obligations,

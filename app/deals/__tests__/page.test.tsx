@@ -90,6 +90,10 @@ describe('/deals server reconstruction', () => {
       first_seen: null,
       expires_at: null,
       updated_at: null,
+      funds_policy_bridge: {
+        provider: 'capable-provider', capability: { policy: true }, loadState: 'ready',
+        evidence: { state: 'explicit_none', obligations: [], sourceLabel: 'Provider policy', scope: 'selected_stay' },
+      },
     })))
     const tree = await DealsPage({ searchParams: Promise.resolve({}) }) as ReactElement<Record<string, unknown>>
     const props = dealFeedProps(tree)
@@ -99,7 +103,7 @@ describe('/deals server reconstruction', () => {
     expect(props.initialDeals).toEqual(expect.arrayContaining([
       expect.objectContaining({
         fundsPolicy: expect.objectContaining({
-          provider: 'other', capability: { policy: false }, loadState: 'ready',
+          provider: 'capable-provider', capability: { policy: true }, loadState: 'ready',
         }),
       }),
     ]))

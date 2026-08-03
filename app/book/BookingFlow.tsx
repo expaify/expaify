@@ -31,7 +31,7 @@ import HotelFundsPolicyPanel, {
   type HotelFundsPolicyLoadState,
 } from '@/app/components/HotelFundsPolicyPanel'
 import { useHotelFundsPolicyExposure } from '@/app/components/hotelFundsPolicyAnalytics'
-import { getHotelFundsAnalyticsDimensions } from '@/lib/hotels/fundsPolicy'
+import { getHotelFundsAnalyticsDimensions, normalizeHotelFundsPolicyBridge } from '@/lib/hotels/fundsPolicy'
 import type { HotelSmokingPolicyView } from '@/app/components/SmokingPolicyPanel'
 import TrackedSmokingPolicyPanel from '@/app/components/TrackedSmokingPolicyPanel'
 import { HotelBookingOwnershipDisclosure } from '@/app/components/HotelBookingOwnership'
@@ -740,10 +740,17 @@ function HotelHandoffReview({
     evidence: hotelContext.admissionPolicy,
     capability: hotelContext.admissionPolicyCapability,
   })
-  const resolvedFundsPolicy = fundsPolicy ?? hotelContext.fundsPolicy
-  const resolvedFundsPolicyLoadState = fundsPolicyLoadState ?? hotelContext.fundsPolicyLoadState
+  const fundsPolicyBridge = normalizeHotelFundsPolicyBridge({
+    provider: hotelContext.provider,
+    capability: hotelContext.fundsPolicyCapability,
+    evidence: fundsPolicy ?? hotelContext.fundsPolicy,
+    loadState: fundsPolicyLoadState ?? hotelContext.fundsPolicyLoadState,
+  })
+  const resolvedFundsPolicy = fundsPolicyBridge.evidence
+  const resolvedFundsPolicyLoadState = fundsPolicyBridge.loadState
   const policyDimensions = getHotelFundsAnalyticsDimensions({
     evidence: resolvedFundsPolicy,
+    capability: fundsPolicyBridge.capability,
     loadState: resolvedFundsPolicyLoadState,
     provider: hotelContext.provider,
     surface: 'book_handoff',
@@ -875,6 +882,7 @@ function HotelHandoffReview({
   }, [documentReadiness, hotelContext.provider, invoiceNeeded])
   const fundsPolicyExposureRef = useHotelFundsPolicyExposure({
     evidence: resolvedFundsPolicy,
+    capability: fundsPolicyBridge.capability,
     loadState: resolvedFundsPolicyLoadState,
     offerId: hotelContext.offerId,
     provider: hotelContext.provider,

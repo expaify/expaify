@@ -75,14 +75,29 @@ describe('GET /api/deals sorting', () => {
       id: 'deal-cheapest',
       dealPriceCents: 9_999,
       locked: false,
-      fundsPolicy: {
-        provider: 'other',
-        capability: { policy: false },
-        evidence: { state: 'not_returned', obligations: [], sourceLabel: 'Hotel provider', scope: 'not_returned' },
-        loadState: 'ready',
-      },
     })
+    expect(body.deals[0]).not.toHaveProperty('fundsPolicy')
     expect(mockGetFreeUnlockedDealIds).not.toHaveBeenCalled()
+  })
+
+  it('carries a provider-normalized capable bridge through the unlocked API record', async () => {
+    mockGetPaywallContext.mockResolvedValue({
+      userId: 'premium-user', premium: true, freeUnlockedThisWeek: 0, freeUnlockLimit: 3,
+    })
+    const fundsPolicy = {
+      provider: 'capable-provider',
+      capability: { policy: true },
+      evidence: {
+        state: 'explicit_none', obligations: [], sourceLabel: 'Provider policy', scope: 'selected_stay',
+      },
+      loadState: 'ready',
+    }
+    mockGetActiveDeals.mockResolvedValue([{ ...row, funds_policy_bridge: fundsPolicy }])
+
+    const response = await GET(request())
+    const body = await response.json() as { deals: Array<Record<string, unknown>> }
+
+    expect(body.deals[0]).toMatchObject({ fundsPolicy })
   })
 
   it.each(['price', 'discount'])('forces newest for free requests asking for %s and masks only after retrieval', async requestedSort => {

@@ -18,7 +18,8 @@ type SnapshotRow = {
   latest_price_cents: number
   snapshot_count: number
   is_mock: boolean
-  funds_policy_bridge: unknown
+  /** Absent/null on legacy rows created before policy continuity was persisted. */
+  funds_policy_bridge?: unknown
 }
 
 type CopyCandidate = {
@@ -181,7 +182,8 @@ export type DealRow = {
   first_seen: string | null
   expires_at: string | null
   updated_at: string | null
-  funds_policy_bridge: unknown
+  /** Absent/null on legacy rows created before policy continuity was persisted. */
+  funds_policy_bridge?: unknown
 }
 
 export type PriceHistoryPoint = {

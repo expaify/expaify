@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDealById, getPriceHistory } from '@/lib/pipeline/dealDetection'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { query } from '@/lib/db/client'
+import { normalizePersistedDealFundsPolicyBridge } from '@/lib/hotels/dealFundsPolicy'
 
 export const runtime = 'nodejs'
 
@@ -16,6 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const deal = await getDealById(id).catch(() => null)
   if (!deal) return NextResponse.json({ error: 'not found' }, { status: 404 })
+  const { funds_policy_bridge: persistedFundsPolicy, ...publicDeal } = deal
 
   // Server-side paywall: deal IDs are visible in the feed response, so this
   // endpoint must apply the same weekly unlock set as the list — otherwise a
@@ -26,7 +28,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!unlockedIds.has(deal.id)) {
       return NextResponse.json({
         deal: {
-          ...deal,
+          ...publicDeal,
           hotel_name: 'Members-only deal',
           hotel_id: '',
           stars: null,
@@ -53,5 +55,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const history = await getPriceHistory(deal.hotel_id, marketId).catch(() => [])
 
-  return NextResponse.json({ deal, history, locked: false })
+  return NextResponse.json({
+    deal: {
+      ...publicDeal,
+      fundsPolicy: normalizePersistedDealFundsPolicyBridge(persistedFundsPolicy),
+    },
+    history,
+    locked: false,
+  })
 }

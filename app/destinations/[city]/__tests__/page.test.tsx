@@ -73,6 +73,10 @@ describe('destination criteria continuity', () => {
       discount_pct: 33, check_in_window: 'Aug 1–3', check_in_date: '2026-08-01', nights: 2,
       snapshot_count: 20, ota_links: {}, headline: null, description: null, is_mock: false,
       first_seen: null, expires_at: null, updated_at: null,
+      funds_policy_bridge: {
+        provider: 'capable-provider', capability: { policy: true }, loadState: 'ready',
+        evidence: { state: 'explicit_none', obligations: [], sourceLabel: 'Provider policy', scope: 'selected_stay' },
+      },
     }])
     mockGetFreeUnlockedDealIds.mockResolvedValue(new Set(['deal-1']))
 
@@ -83,8 +87,8 @@ describe('destination criteria continuity', () => {
       expect.objectContaining({
         id: 'deal-1',
         fundsPolicy: {
-          provider: 'other', capability: { policy: false },
-          evidence: { state: 'not_returned', obligations: [], sourceLabel: 'Hotel provider', scope: 'not_returned' },
+          provider: 'capable-provider', capability: { policy: true },
+          evidence: { state: 'explicit_none', obligations: [], sourceLabel: 'Provider policy', scope: 'selected_stay' },
           loadState: 'ready',
         },
       }),

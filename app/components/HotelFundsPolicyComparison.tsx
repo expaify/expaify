@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { track } from '@/lib/analytics'
-import { normalizeHotelFundsPolicyEvidence } from '@/lib/hotels/fundsPolicy'
+import {
+  normalizeHotelFundsPolicyBridge,
+  normalizeHotelFundsPolicyEvidence,
+} from '@/lib/hotels/fundsPolicy'
 import type {
   HotelFundsBasis,
   HotelFundsEvidenceRecord,
@@ -95,10 +98,11 @@ function validatedPolicy(policy: ApiDealFundsPolicy): {
   const evidence = normalizeHotelFundsPolicyEvidence(policy.evidence, provider)
   const supported = policy.capability?.policy === true
   const invalidPair = !supported && hasReturnedEvidence(evidence)
+  const bridge = normalizeHotelFundsPolicyBridge(policy)
   return {
-    supported: supported && !invalidPair,
+    supported: bridge.capability.policy,
     invalidPair,
-    evidence: invalidPair ? normalizeHotelFundsPolicyEvidence(undefined, provider) : evidence,
+    evidence: bridge.evidence,
   }
 }
 

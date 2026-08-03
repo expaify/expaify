@@ -71,6 +71,37 @@ describe('opaque hotel booking context store', () => {
     await expect(resolveBookingHotelContext(persisted.data.reference)).resolves.toEqual({ ok: true, data: context });
   });
 
+  it('degrades contradictory capability and evidence before persistence and after cache replay', async () => {
+    const contradictory = buildBookingHotelContext({
+      ...hotel,
+      fundsPolicyCapability: { policy: false },
+    });
+
+    expect(contradictory.fundsPolicy).toEqual({
+      state: 'not_returned',
+      obligations: [],
+      sourceLabel: 'Provider policy',
+      scope: 'not_returned',
+    });
+
+    const persisted = await persistBookingHotelContext(contradictory);
+    expect(persisted.ok).toBe(true);
+    expect(cacheSet).toHaveBeenCalledWith(
+      expect.stringMatching(/^booking:hotel-context:/),
+      contradictory,
+      1_800,
+    );
+    cacheGet.mockResolvedValueOnce({
+      ...contradictory,
+      fundsPolicy: hotel.fundsPolicy,
+    });
+    if (!persisted.ok) throw new Error(persisted.reason);
+    await expect(resolveBookingHotelContext(persisted.data.reference)).resolves.toEqual({
+      ok: true,
+      data: contradictory,
+    });
+  });
+
   it('returns Result failures for malformed, missing, and cache-failed contexts', async () => {
     await expect(persistBookingHotelContext({ kind: 'hotel' })).resolves.toEqual({
       ok: false,

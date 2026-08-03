@@ -83,7 +83,7 @@ describe('HotelFundsPolicyPanel', () => {
     const tree = panel(completeHold)
     const text = collectText(tree)
 
-    expect(text).toContain('Deposits and card holds')
+    expect(text).toContain('Additional funds at the property')
     expect(text).toContain('Temporary card hold')
     expect(text).toContain('$150\u00a0USD per stay')
     expect(text).toContain('temporary authorization, not part of the stay price')
@@ -212,7 +212,7 @@ describe('HotelFundsPolicyPanel', () => {
 
   it('distinguishes provider incapability from capable offer-level absence in full detail', () => {
     const incapable = HotelFundsPolicyPanel({
-      evidence: undefined,
+      evidence: completeHold,
       loadState: 'ready',
       surface: 'book_handoff',
       sourceLabel: 'Fixture provider',
@@ -221,7 +221,8 @@ describe('HotelFundsPolicyPanel', () => {
     })
     expect(collectText(incapable)).toContain('Deposit and hold details unavailable from this provider')
     expect(collectText(incapable)).toContain('This provider does not supply deposit or incidental-hold details.')
-    expect(collectText(incapable)).toContain('Source checked: Fixture provider · Scope not provided')
+    expect(collectText(incapable)).toContain('Source checked: Hotel partner · Scope not provided')
+    expect(collectText(incapable)).not.toContain('Temporary card hold')
 
     const capable = HotelFundsPolicyPanel({
       evidence: undefined,

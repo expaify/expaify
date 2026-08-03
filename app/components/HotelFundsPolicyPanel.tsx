@@ -10,7 +10,7 @@ import type {
   HotelFundsPolicyLoadState,
   Money,
 } from '@/lib/types'
-import { normalizeHotelFundsPolicyEvidence } from '@/lib/hotels/fundsPolicy'
+import { normalizeHotelFundsPolicyBridge, normalizeHotelFundsPolicyEvidence } from '@/lib/hotels/fundsPolicy'
 import { trackHotelFundsPolicyConfirmation } from './hotelFundsPolicyAnalytics'
 
 export type {
@@ -85,6 +85,24 @@ const missingFieldOrder: HotelFundsMissingField[] = [
 
 function resolvedEvidence(evidence: HotelFundsPolicyEvidence | null | undefined, sourceLabel: string) {
   return normalizeHotelFundsPolicyEvidence(evidence, sourceLabel)
+}
+
+function resolvedPolicyPair(
+  evidence: HotelFundsPolicyEvidence | null | undefined,
+  sourceLabel: string,
+  capability: HotelFundsPolicyCapability | undefined,
+  loadState: HotelFundsPolicyLoadState,
+) {
+  if (capability === undefined) {
+    return { evidence: resolvedEvidence(evidence, sourceLabel), loadState }
+  }
+  const bridge = normalizeHotelFundsPolicyBridge({
+    provider: sourceLabel,
+    capability,
+    evidence,
+    loadState,
+  })
+  return { evidence: bridge.evidence, loadState: bridge.loadState }
 }
 
 function formatPolicyMoney(money: Money): string {
@@ -251,7 +269,9 @@ export function getHotelFundsPolicyAccessibleSuffix(
   sourceLabel = 'Hotel provider',
   capability?: HotelFundsPolicyCapability,
 ): string {
-  const resolved = resolvedEvidence(evidence, sourceLabel)
+  const pair = resolvedPolicyPair(evidence, sourceLabel, capability, loadState)
+  const resolved = pair.evidence
+  loadState = pair.loadState
   if (capability?.policy === false) return 'Deposit and hold details are unavailable from this provider.'
   if (loadState === 'loading') return 'Deposit and hold policy is still being checked; confirm with the booking partner.'
   if (loadState === 'error') return 'Deposit and hold policy could not be checked.'
@@ -276,7 +296,9 @@ export default function HotelFundsPolicyPanel({
   rootRef,
   capability,
 }: Props) {
-  const resolved = resolvedEvidence(evidence, sourceLabel)
+  const pair = resolvedPolicyPair(evidence, sourceLabel, capability, loadState)
+  const resolved = pair.evidence
+  loadState = pair.loadState
   const providerIncapable = capability?.policy === false
   const displayedState = loadState === 'error' ? 'error' : loadState === 'loading' ? 'loading' : resolved.state
   const warningState = !providerIncapable && ['partial', 'not_returned', 'conflicting', 'error'].includes(displayedState)
@@ -336,7 +358,7 @@ export default function HotelFundsPolicyPanel({
       className={`rounded-[var(--radius-card)] border p-3.5 sm:p-5 ${panelTone}`}
     >
       <h3 id={headingId} className="text-base font-medium leading-6 text-[color:var(--text-1)] sm:text-lg">
-        Deposits and card holds
+        Additional funds at the property
       </h3>
 
       {providerIncapable ? (
@@ -421,6 +443,7 @@ export default function HotelFundsPolicyPanel({
           aria-label={`${confirmationLabel} for ${hotelName ?? 'this hotel'}. Opens ${confirmationDestination} in a new tab. Deposit or hold details may still require confirmation with the property.`}
           onClick={() => trackHotelFundsPolicyConfirmation({
             evidence: resolved,
+            capability,
             loadState,
             offerId,
             provider: provider ?? sourceLabel,
