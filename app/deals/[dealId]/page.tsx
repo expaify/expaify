@@ -45,6 +45,8 @@ import {
   createHotelDisruptionFixture,
   parseHotelDisruptionFixture,
 } from '@/app/components/research/hotelDisruptionFixtures'
+import { createHotelPoolFixture, parseHotelPoolFixture } from '@/app/components/research/hotelPoolFixtures'
+import { HotelPoolEvidenceLedger } from '@/app/components/ui/HotelPoolEvidenceLedger'
 
 type PageProps = {
   params: Promise<{ dealId: string }>
@@ -307,6 +309,12 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const disruptionEvidence = disruptionFixtureId
     ? createHotelDisruptionFixture(disruptionFixtureId)
     : NO_HOTEL_DISRUPTION_EVIDENCE
+  const poolFixtureId = process.env.NODE_ENV === 'production'
+    ? null
+    : parseHotelPoolFixture(researchParams.poolFixture)
+  const poolEvidence = poolFixtureId
+    ? createHotelPoolFixture(poolFixtureId, deal.check_in_date, checkOutIso?.slice(0, 10))
+    : null
 
   const priceFreshnessState: HotelDecisionPriceFreshnessState = isExpired
     ? 'expired'
@@ -426,6 +434,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
               </div>
             </dl>
+            {poolEvidence ? <HotelPoolEvidenceLedger evidence={poolEvidence} /> : null}
             <HotelDisruptionEvidenceLedger
               evidence={disruptionEvidence}
               analyticsKey={deal.id}
@@ -459,6 +468,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 datesIncomplete={datesIncomplete}
                 disruptionEvidence={disruptionEvidence}
                 disruptionFixture={disruptionFixtureId !== null}
+                poolEvidence={poolEvidence ?? undefined}
               />
             )}
           </section>

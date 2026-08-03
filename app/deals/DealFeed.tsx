@@ -37,6 +37,7 @@ import {
   type HotelResultMetadata,
 } from './hotelFilterRecovery'
 import { ResultCoverageBoundary, type CoverageState, type CoverageFilter } from './ResultCoverageBoundary'
+import { createHotelPoolFixtureForStay, type HotelPoolFixtureId } from '@/app/components/research/hotelPoolFixtures'
 
 const CITIES = [
   'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
@@ -463,9 +464,10 @@ type DealFeedProps = {
   initialView?: HotelResultsViewState
   initialError?: boolean
   initialCoverage?: ConfirmedCoverage | null
+  poolFixtureId?: HotelPoolFixtureId | null
 }
 
-export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization, initialCriteria, initialView, initialError = false, initialCoverage = null }: DealFeedProps = {}) {
+export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization, initialCriteria, initialView, initialError = false, initialCoverage = null, poolFixtureId = null }: DealFeedProps = {}) {
   const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
   const [confirmedCoverage, setConfirmedCoverage] = useState<ConfirmedCoverage | null>(initialCoverage)
@@ -1184,6 +1186,9 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const resultsUrl = defaultCity
     ? buildHotelDestinationUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort })
     : buildHotelResultsUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort })
+  const researchResultsUrl = poolFixtureId
+    ? `${resultsUrl}${resultsUrl.includes('?') ? '&' : '?'}poolFixture=${poolFixtureId}`
+    : resultsUrl
 
   const echoLinkClass = 'font-medium text-[color:var(--primary)] no-underline hover:underline'
 
@@ -1904,7 +1909,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                   ) : (
                     <DealCard
                       key={deal.id}
-                      href={deal.isMock ? undefined : buildHotelDetailUrl(deal.id, resultsUrl)}
+                      href={deal.isMock ? undefined : buildHotelDetailUrl(deal.id, researchResultsUrl)}
                       onOpen={deal.isMock ? undefined : () => trackCardOpen(index + 1)}
                       deal={{
                         id: deal.id,
@@ -1923,6 +1928,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                         firstSeen: deal.firstSeen ?? undefined,
                         updatedAt: deal.updatedAt,
                       }}
+                      poolEvidence={poolFixtureId ? createHotelPoolFixtureForStay(poolFixtureId, deal.checkInDate, deal.nights) : undefined}
                     />
                   )
                 )}
