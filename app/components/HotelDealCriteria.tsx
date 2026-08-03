@@ -35,6 +35,8 @@ import {
   HotelDisruptionHandoffNotice,
   NO_HOTEL_DISRUPTION_EVIDENCE,
 } from '@/app/components/ui/HotelDisruptionNotice'
+import type { HotelPoolEvidence } from '@/app/components/research/hotelPoolFixtures'
+import { HOTEL_POOL_HANDOFF_REMINDER, HotelPoolReturnFeedback } from '@/app/components/ui/HotelPoolEvidenceLedger'
 
 type ResolvedContext = {
   criteria?: HotelSearchCriteriaV1
@@ -174,7 +176,7 @@ export function HotelDealCriteriaSummary({ context, deal }: {
   )
 }
 
-export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, datesIncomplete, disruptionEvidence = NO_HOTEL_DISRUPTION_EVIDENCE, disruptionFixture = false }: {
+export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, datesIncomplete, disruptionEvidence = NO_HOTEL_DISRUPTION_EVIDENCE, disruptionFixture = false, poolEvidence }: {
   context: ResolvedContext
   deal: {
     id: string
@@ -189,6 +191,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
   datesIncomplete?: boolean
   disruptionEvidence?: HotelDisruptionEvidence
   disruptionFixture?: boolean
+  poolEvidence?: HotelPoolEvidence
 }) {
   const criteria = context.criteria
   const status = criteria ? hotelCriteriaContextStatus(criteria, deal) : context.status
@@ -200,6 +203,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
   const activeRoomHandoff = useRef<RoomHandoffSession | null>(null)
   const feedbackKey = `expaify.disruption.feedback.${deal.id}.${disruptionEvidence.evidenceRevision}`
   const roomHandoffKey = `${ROOM_HANDOFF_STORAGE_PREFIX}${deal.id}.${criteria?.criteriaVersion ?? status}`
+  const poolExposed = Boolean(poolEvidence && !['loading', 'not_returned', 'check_failed'].includes(poolEvidence.state))
 
   function beginRoomHandoff(provider: keyof CompareLinks, href: string): void {
     if (!isAttributedHotelProviderUrl(provider, href)) {
@@ -282,7 +286,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
         fixture={disruptionFixture}
         onReached={() => setHandoffReached(true)}
       />
-      {showReturnPrompt ? (
+      {showReturnPrompt && disruptionFixture ? (
         <div className="mt-3 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">
           <p className="text-sm font-medium leading-6 text-[color:var(--text-1)]">Did the provider show different renovation or closure details?</p>
           <div className="mt-3 flex flex-col gap-2 min-[480px]:flex-row">
@@ -292,6 +296,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
         </div>
       ) : null}
       {mismatchReported ? <p role="status" aria-live="polite" className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">Thanks. We’ll record that the provider details did not match this notice.</p> : null}
+      {showReturnPrompt && poolExposed ? <HotelPoolReturnFeedback /> : null}
     </>
   )
 
@@ -339,6 +344,12 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
       {hasLinks ? (
         <>
           {disruptionNotice}
+          {poolExposed ? (
+            <div className="mt-4 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-3 py-2.5">
+              <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--warning)]">Research fixture</p>
+              <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">{HOTEL_POOL_HANDOFF_REMINDER}</p>
+            </div>
+          ) : null}
           <div className="mt-4">
             <CompareRow
               links={eligibleLinks}
