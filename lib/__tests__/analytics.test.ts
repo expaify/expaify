@@ -66,4 +66,19 @@ describe('production analytics', () => {
       expect.objectContaining({ method: 'POST', keepalive: true, credentials: 'omit' }),
     );
   });
+
+  it('rejects identity analytics extras on the client before either sink', () => {
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', writable: true, configurable: true });
+    process.env.NEXT_PUBLIC_ANALYTICS_ENDPOINT = 'https://analytics.expaify.test/events';
+    const sendBeacon = jest.fn().mockReturnValue(true);
+    Object.defineProperty(globalThis, 'window', { value: { location: { pathname: '/book' } }, configurable: true });
+    Object.defineProperty(globalThis, 'navigator', { value: { sendBeacon }, configurable: true });
+    const { track } = require('../analytics') as typeof import('../analytics');
+    track('hotel_identity_disclosure_exposed', {
+      surface: 'handoff', evidence_state: 'not_established', affected_party_state: 'not_established',
+      identity_document_state: 'not_established', payment_name_match_state: 'not_established',
+      viewport_group: 'other', source_class: 'current_provider', provider_wording: 'must show a passport',
+    });
+    expect(sendBeacon).not.toHaveBeenCalled();
+  });
 });

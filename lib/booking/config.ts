@@ -14,6 +14,8 @@ import type {
   HotelDocumentReadiness,
   HotelDocumentStatus,
   HotelFundsPolicyEvidence,
+  HotelGuestIdentityCapability,
+  HotelGuestIdentityEvidence,
   HotelOffer,
   HotelQualityConfidence,
   HotelQualityKind,
@@ -49,6 +51,7 @@ import {
   hasVerifiedHotelLocationComparison,
 } from '../hotels/locationEvidence';
 import { normalizeHotelSmokingPolicy, unavailableHotelSmokingPolicy } from '../hotels/smokingPolicy';
+import { normalizeHotelGuestIdentity } from '../providers/hotelGuestIdentity';
 
 export type BookingFareContext = {
   offerId: string;
@@ -95,6 +98,8 @@ export type BookingHotelContext = {
   rateEligibilityCapability?: HotelRateEligibilityCapability;
   admissionPolicy?: HotelAdmissionPolicyEvidence;
   admissionPolicyCapability?: HotelAdmissionPolicyCapability;
+  guestIdentity?: HotelGuestIdentityEvidence;
+  guestIdentityCapability?: HotelGuestIdentityCapability;
 };
 
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
@@ -801,6 +806,21 @@ function validateHotelAdmissionPolicyCapability(value: unknown): HotelAdmissionP
   };
 }
 
+function validateHotelGuestIdentityCapability(value: unknown): HotelGuestIdentityCapability | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const input = value as Record<string, unknown>;
+  const dimension = (candidate: unknown) => {
+    if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) return undefined;
+    const item = candidate as Record<string, unknown>;
+    if (['confirmed', 'conditional', 'explicitNegative', 'conflicting'].some(key => typeof item[key] !== 'boolean')) return undefined;
+    return { confirmed: item.confirmed as boolean, conditional: item.conditional as boolean, explicitNegative: item.explicitNegative as boolean, conflicting: item.conflicting as boolean };
+  };
+  const identityDocument = dimension(input.identityDocument);
+  const paymentNameMatch = dimension(input.paymentNameMatch);
+  if (typeof input.affectedParty !== 'boolean' || !identityDocument || !paymentNameMatch || typeof input.maxAgeSeconds !== 'number' || !Number.isInteger(input.maxAgeSeconds) || input.maxAgeSeconds < 0 || input.maxAgeSeconds > 604_800) return undefined;
+  return { affectedParty: input.affectedParty, identityDocument, paymentNameMatch, maxAgeSeconds: input.maxAgeSeconds };
+}
+
 const TRANSPORT_SERVICE_KINDS = new Set<HotelTransportServiceKind>(['airport_shuttle', 'airport_transfer', 'other_documented']);
 const TRANSPORT_DIRECTIONS = new Set<HotelTransportDirection>(['to_property', 'from_property', 'round_trip', 'unknown']);
 const TRANSPORT_OPERATORS = new Set<HotelTransportOperator>(['property', 'third_party', 'unknown']);
@@ -963,6 +983,12 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const rateEligibilityCapability = validateHotelRateEligibilityCapability(input.rateEligibilityCapability) ?? undefined;
   const admissionPolicy = validateHotelAdmissionPolicyEvidence(input.admissionPolicy) ?? undefined;
   const admissionPolicyCapability = validateHotelAdmissionPolicyCapability(input.admissionPolicyCapability) ?? undefined;
+  const guestIdentityCapability = validateHotelGuestIdentityCapability(input.guestIdentityCapability);
+  const guestIdentity = input.guestIdentity === undefined ? undefined : normalizeHotelGuestIdentity(
+    input.guestIdentity,
+    guestIdentityCapability,
+    { propertyId: offerId, offerId, supplier: provider, locale: 'en-US' },
+  );
   const transportEvidence = validateHotelTransportEvidence(input.transportEvidence);
 
   if (
@@ -1013,6 +1039,8 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     ...(rateEligibilityCapability !== undefined ? { rateEligibilityCapability } : {}),
     ...(admissionPolicy !== undefined ? { admissionPolicy } : {}),
     ...(admissionPolicyCapability !== undefined ? { admissionPolicyCapability } : {}),
+    ...(guestIdentity !== undefined ? { guestIdentity } : {}),
+    ...(guestIdentityCapability !== undefined ? { guestIdentityCapability } : {}),
     ...(transportEvidence !== undefined ? { transportEvidence } : {}),
   };
 }
@@ -1129,6 +1157,8 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     rateEligibilityCapability: parseJsonQueryParam(firstParam(params.rateEligibilityCapability)),
     admissionPolicy: parseJsonQueryParam(firstParam(params.admissionPolicy)),
     admissionPolicyCapability: parseJsonQueryParam(firstParam(params.admissionPolicyCapability)),
+    guestIdentity: parseJsonQueryParam(firstParam(params.guestIdentity)),
+    guestIdentityCapability: parseJsonQueryParam(firstParam(params.guestIdentityCapability)),
     transportEvidence: parseJsonQueryParam(firstParam(params.transportEvidence)),
   });
 }
@@ -1225,6 +1255,8 @@ export function buildBookingHotelContext(hotel: HotelOffer, continuity?: Booking
     ...(hotel.rateEligibilityCapability !== undefined ? { rateEligibilityCapability: hotel.rateEligibilityCapability } : {}),
     ...(hotel.admissionPolicy !== undefined ? { admissionPolicy: hotel.admissionPolicy } : {}),
     ...(hotel.admissionPolicyCapability !== undefined ? { admissionPolicyCapability: hotel.admissionPolicyCapability } : {}),
+    ...(hotel.guestIdentity !== undefined ? { guestIdentity: hotel.guestIdentity } : {}),
+    ...(hotel.guestIdentityCapability !== undefined ? { guestIdentityCapability: hotel.guestIdentityCapability } : {}),
     ...(hotel.transportEvidence !== undefined ? { transportEvidence: hotel.transportEvidence } : {}),
     ...(continuity?.entrySource !== undefined ? { entrySource: continuity.entrySource } : {}),
     ...(continuity?.returnUrl !== undefined ? { returnUrl: continuity.returnUrl } : {}),
@@ -1292,6 +1324,8 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
   if (context.rateEligibilityCapability) params.set('rateEligibilityCapability', JSON.stringify(context.rateEligibilityCapability));
   if (context.admissionPolicy) params.set('admissionPolicy', JSON.stringify(context.admissionPolicy));
   if (context.admissionPolicyCapability) params.set('admissionPolicyCapability', JSON.stringify(context.admissionPolicyCapability));
+  if (context.guestIdentity) params.set('guestIdentity', JSON.stringify(context.guestIdentity));
+  if (context.guestIdentityCapability) params.set('guestIdentityCapability', JSON.stringify(context.guestIdentityCapability));
   if (context.transportEvidence) params.set('transportEvidence', JSON.stringify(context.transportEvidence));
   const issuerParams = [
     ['invoice', 'documentInvoiceIssuerRole', 'documentInvoiceIssuerName'],

@@ -1,5 +1,9 @@
 import { formatAbsoluteFreshness, validFreshnessDate } from '@/lib/providerFreshness'
 import type { HotelAdmissionPresentation, HotelAdmissionRow } from '@/lib/types'
+import {
+  deriveGuestIdentityPresentation,
+  HotelGuestIdentityRules,
+} from './HotelGuestIdentityRules'
 
 const MAX_PROVIDER_NAME_LENGTH = 80
 
@@ -60,11 +64,15 @@ function Body({
   providerName,
   variant,
   HeadingTag,
+  includeIdentityRules,
+  identityHeadingId,
 }: {
   presentation: HotelAdmissionPresentation
   providerName: string
   variant: Variant
   HeadingTag: 'h4' | 'p'
+  includeIdentityRules: boolean
+  identityHeadingId?: string
 }) {
   const { Provider, provider } = resolveProvider(providerName)
   const bodyPrimaryCls = variant === 'review'
@@ -79,7 +87,7 @@ function Body({
   const provenance = provenanceLine(presentation, Provider)
 
   if (presentation.state === 'loading') {
-    return <p className={bodyPrimaryCls}>Checking check-in eligibility…</p>
+    return <p className={bodyPrimaryCls}>Checking {includeIdentityRules ? 'check-in eligibility' : 'age, residency, and occupancy rules'}…</p>
   }
 
   if (presentation.state === 'error') {
@@ -87,7 +95,7 @@ function Body({
       <>
         <p className={bodyPrimaryCls}>Check-in eligibility could not be checked with {provider}.</p>
         <p className={bodySecondaryCls}>
-          This is not a statement that there are no rules. Confirm the check-in age, ID, and occupancy rules with the property before paying.
+          This is not a statement that there are no rules. Confirm the check-in age, {includeIdentityRules ? 'ID, and ' : ''}occupancy rules with the property before paying.
         </p>
         {provenance ? <p className={provenanceCls}>{provenance}</p> : null}
       </>
@@ -97,7 +105,7 @@ function Body({
   if (presentation.state === 'not_provided') {
     return (
       <>
-        <p className={bodyPrimaryCls}>{Provider} has not told us this property&rsquo;s check-in age, ID, or occupancy rules.</p>
+        <p className={bodyPrimaryCls}>{Provider} has not told us this property&rsquo;s check-in age, {includeIdentityRules ? 'ID, or ' : 'local-resident, or '}occupancy rules.</p>
         <p className={bodySecondaryCls}>
           This is not a statement that there are no rules. Confirm with the property or the booking partner before paying.
         </p>
@@ -109,11 +117,21 @@ function Body({
   // reported
   return (
     <>
-      <ul className="mt-3 space-y-3">
-        {presentation.rows.map(row => (
+      <div className="mt-3 space-y-3">
+        {presentation.rows.filter(row => row.family === 'checkin_age').map(row => (
           <RowRendered key={row.family} row={row} variant={variant} HeadingTag={HeadingTag} Provider={Provider} />
         ))}
-      </ul>
+        {includeIdentityRules ? (
+          <HotelGuestIdentityRules
+            presentation={deriveGuestIdentityPresentation(presentation, providerName)}
+            variant="card"
+            headingId={identityHeadingId}
+          />
+        ) : null}
+        {presentation.rows.filter(row => row.family !== 'checkin_age' && row.family !== 'checkin_identity').map(row => (
+          <RowRendered key={row.family} row={row} variant={variant} HeadingTag={HeadingTag} Provider={Provider} />
+        ))}
+      </div>
       {presentation.coverageIncomplete ? (
         <p className="mt-2 text-xs font-medium leading-5 text-[color:var(--warning)]">
           {Provider} did not report the other check-in eligibility rules.
@@ -142,7 +160,7 @@ function RowRendered({
 }) {
   const sentenceCls = row.rowState === 'conflicting' ? conflictingRowSentenceCls[variant] : rowSentenceCls[variant]
   return (
-    <li className="border-t border-[color:var(--border)] pt-3 first:border-t-0 first:pt-0">
+    <div className="border-t border-[color:var(--border)] pt-3 first:border-t-0 first:pt-0">
       <HeadingTag className={rowLabelCls[variant]}>{row.label}</HeadingTag>
       <p className={sentenceCls}>{row.sentence}</p>
       {row.statements.length > 0 ? (
@@ -159,7 +177,7 @@ function RowRendered({
           {omittedStatementLine(row.omittedStatementCount, Provider)}
         </p>
       ) : null}
-    </li>
+    </div>
   )
 }
 
@@ -174,9 +192,11 @@ function isLive(presentation: HotelAdmissionPresentation): boolean {
 export function HotelAdmissionPolicySection({
   presentation,
   providerName,
+  includeIdentityRules = true,
 }: {
   presentation: HotelAdmissionPresentation
   providerName: string
+  includeIdentityRules?: boolean
 }) {
   const restricted = isRestricted(presentation)
   const live = isLive(presentation)
@@ -194,7 +214,7 @@ export function HotelAdmissionPolicySection({
       <h3 id="hotel-admission-policy-title" className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">
         Check-in eligibility
       </h3>
-      <Body presentation={presentation} providerName={providerName} variant="review" HeadingTag="h4" />
+      <Body presentation={presentation} providerName={providerName} variant="review" HeadingTag="h4" includeIdentityRules={includeIdentityRules} />
     </section>
   )
 }
@@ -202,9 +222,11 @@ export function HotelAdmissionPolicySection({
 export function HotelAdmissionPolicyCardBlock({
   presentation,
   providerName,
+  identityHeadingId,
 }: {
   presentation: HotelAdmissionPresentation
   providerName: string
+  identityHeadingId?: string
 }) {
   const restricted = isRestricted(presentation)
   const live = isLive(presentation)
@@ -220,7 +242,16 @@ export function HotelAdmissionPolicyCardBlock({
       aria-atomic={live ? 'true' : undefined}
     >
       <p className="font-medium text-[color:var(--text-1)]">Check-in eligibility</p>
-      <Body presentation={presentation} providerName={providerName} variant="card" HeadingTag="p" />
+      <Body presentation={presentation} providerName={providerName} variant="card" HeadingTag="p" includeIdentityRules identityHeadingId={identityHeadingId} />
+      {presentation.state !== 'reported' ? (
+        <div className="mt-3">
+          <HotelGuestIdentityRules
+            presentation={deriveGuestIdentityPresentation(presentation, providerName)}
+            variant="card"
+            headingId={identityHeadingId}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -231,8 +262,8 @@ const CHIP_COPY: Record<string, { text: string; ariaLabel: string }> = {
     ariaLabel: 'Check-in eligibility: this property requires guests to be {N} or older at check-in.',
   },
   checkin_identity: {
-    text: 'Check-in: ID rules',
-    ariaLabel: 'Check-in eligibility: this property has reported identification or payment rules at check-in.',
+    text: 'Check-in ID/card rule—details',
+    ariaLabel: 'The provider reported an identification or cardholder rule but did not specify who it applies to in structured data. Open hotel details for provider wording.',
   },
   local_guest_restriction: {
     text: 'Check-in: resident rules',
@@ -286,9 +317,9 @@ export function HotelAdmissionCardChip({
   return (
     <span
       aria-label={ariaLabel}
-      className="mt-1.5 inline-flex max-w-full items-center rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--warning-soft)] px-2 py-1 text-xs font-medium leading-4 text-[color:var(--warning)]"
+      className="mt-1.5 inline-flex min-h-7 max-w-full items-center rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--warning-soft)] px-2 py-1 text-xs font-medium leading-4 text-[color:var(--warning)]"
     >
-      <span className="truncate">{text}</span>
+      <span className="break-words whitespace-normal">{text}</span>
     </span>
   )
 }
