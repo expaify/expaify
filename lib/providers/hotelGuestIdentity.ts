@@ -129,10 +129,17 @@ export function normalizeHotelGuestIdentity(
     ? payment.state as HotelGuestIdentityDimensionState : 'not_established';
 
   const normalizedStatements = statements(input.statements);
+  const upstreamOmittedStatementCount = typeof input.omittedStatementCount === 'number'
+    && Number.isInteger(input.omittedStatementCount)
+    && input.omittedStatementCount >= 0
+    && input.omittedStatementCount <= 10_000
+    ? input.omittedStatementCount
+    : 0;
+  const omittedStatementCount = upstreamOmittedStatementCount + normalizedStatements.omittedCount;
   // Without contracted side metadata, truncating a conflict could hide the
   // opposing statement. Degrade only conflicting dimensions when all credible
   // statements cannot fit inside the three-item display contract.
-  const conflictStatementsSafe = normalizedStatements.omittedCount === 0;
+  const conflictStatementsSafe = omittedStatementCount === 0;
   const concreteParty = partyValue === 'lead_guest' || partyValue === 'cardholder' || partyValue === 'all_occupants' || partyValue === 'other';
   const normalizedPartyState = capability.affectedParty && (
     (partyState === 'confirmed' || partyState === 'conditional') ? concreteParty : partyState === 'conflicting'
@@ -168,8 +175,8 @@ export function normalizeHotelGuestIdentity(
         : 'not_established',
     },
     statements: normalizedStatements.visible,
-    ...(normalizedStatements.omittedCount > 0
-      ? { omittedStatementCount: normalizedStatements.omittedCount }
+    ...(omittedStatementCount > 0
+      ? { omittedStatementCount }
       : {}),
   };
 }

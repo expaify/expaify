@@ -71,6 +71,10 @@ describe('hotel guest identity provider normalization', () => {
     expect(normalized.omittedStatementCount).toBe(2);
     expect(normalized.affectedParty.value).toBe('lead_guest');
     expect(normalized.identityDocument.state).toBe('confirmed');
+
+    const normalizedAgain = normalizeHotelGuestIdentity(normalized, capability, expected);
+    expect(normalizedAgain.statements).toHaveLength(3);
+    expect(normalizedAgain.omittedStatementCount).toBe(2);
   });
 
   it('degrades only conflicting dimensions when truncation could hide an opposing statement', () => {
