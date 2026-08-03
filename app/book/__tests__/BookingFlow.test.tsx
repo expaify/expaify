@@ -230,7 +230,10 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Confirm policy with booking partner');
     expect(text).toContain('Need a quiet room, high floor, preferred bed setup, or early check-in?');
     expect(text).toContain('Add your request on the booking partner’s site while booking. Nothing is selected or sent by expaify.');
-    expect(text).toContain('Requests depend on availability and are not guaranteed. After booking, use your confirmation or itinerary to contact the property and ask it to confirm what it can provide.');
+    expect(text).toContain('A request is a preference, not a change to your booked room or rate. Requests depend on availability and are not guaranteed. After booking, follow your confirmation’s instructions for contacting the property about fulfillment.');
+    expect(text).toContain('Changes after booking');
+    expect(text).toContain('Before payment, check the selected rate and room terms for date, guest, and room changes.');
+    expect(text).toContain('After booking, use your booking partner’s confirmation for the booking reference and change or support instructions. expaify cannot change the reservation.');
     expect(text).toContain('Opens the booking partner’s site in a new tab. Your expaify search stays open here.');
     expect(text).toContain('Mandatory property fees are not confirmed. On Hotellook, check the final total and any amount due at the property before you continue.');
     expect(text).not.toContain('Provider confirmation required');
@@ -388,6 +391,37 @@ describe('BookingFlow fare context review', () => {
     expect(supportingText).toContain('I need an invoice or receipt for this stay');
     expect(supportingText).toContain('What you may need');
     expect(supportingText).toContain('Deposits and card holds');
+  });
+
+  it('orders cancellation, Tier 1 modification guidance, and the unchanged outbound handoff', () => {
+    const providerUrl = 'https://www.booking.com/hotel/x?aid=123';
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext: { ...hotelContext, providerUrl },
+    });
+    const providerSection = findElements(tree, element => (
+      element.type === 'section'
+      && element.props['aria-labelledby'] === 'hotel-provider-title'
+    ))[0];
+    const children = childrenOf(providerSection).map(child => resolveFunctionElement(child as TestElement)) as TestElement[];
+    const cancellationIndex = children.findIndex(child => collectText(child).includes('Cancellation choices unavailable'));
+    const modificationIndex = children.findIndex(child => (
+      findElements(child, element => element.props['data-hotel-modification-policy'] === 'tier_1_unknown').length > 0
+    ));
+    const actionIndex = children.findIndex(child => (
+      findElements(child, element => element.type === 'a' && element.props.href === providerUrl).length > 0
+    ));
+
+    expect(cancellationIndex).toBeGreaterThan(-1);
+    expect(modificationIndex).toBeGreaterThan(cancellationIndex);
+    expect(actionIndex).toBeGreaterThan(modificationIndex);
+
+    const outbound = findElements(children[actionIndex], element => element.type === 'a')[0];
+    expect(outbound.props.href).toBe(providerUrl);
+    expect(outbound.props.target).toBe('_blank');
+    expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
   });
 
   it('places static room-view confidence after disclosures and immediately before the provider action', () => {
