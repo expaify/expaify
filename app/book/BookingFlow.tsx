@@ -1033,6 +1033,10 @@ function HotelHandoffReview({
   const [feedbackFailed, setFeedbackFailed] = useState(false)
   const policy = hotelSmokingPolicy ?? hotelContext.smokingPolicy
 
+  useEffect(() => () => {
+    if (handoffAttemptExpiryRef.current !== undefined) clearTimeout(handoffAttemptExpiryRef.current)
+  }, [])
+
   useEffect(() => {
     const guidanceBlock = guidanceBlockRef.current
     if (!guidanceBlock || typeof IntersectionObserver === 'undefined') return
@@ -1114,6 +1118,11 @@ function HotelHandoffReview({
     returnArmedRef.current = true
     hiddenAfterContinueRef.current = false
     continueStartedAtRef.current = performance.now()
+    setShowReturnPrompt(false)
+    setFeedbackOpen(false)
+    setSelectedReturnReason('')
+    setFeedbackSent(false)
+    setFeedbackFailed(false)
     handoffAttemptIdRef.current = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : undefined
@@ -1121,6 +1130,12 @@ function HotelHandoffReview({
     handoffAttemptExpiryRef.current = setTimeout(() => {
       handoffAttemptIdRef.current = undefined
       handoffAttemptExpiryRef.current = undefined
+      returnArmedRef.current = false
+      hiddenAfterContinueRef.current = false
+      continueStartedAtRef.current = undefined
+      setShowReturnPrompt(false)
+      setFeedbackOpen(false)
+      setSelectedReturnReason('')
     }, 30 * 60 * 1_000)
     if (typeof handoffAttemptExpiryRef.current === 'object' && 'unref' in handoffAttemptExpiryRef.current) handoffAttemptExpiryRef.current.unref()
     emitIdentityAnalytics('hotel_identity_handoff_continued', { ...identityDimensions, partner_named: partner.named })
@@ -1290,9 +1305,6 @@ function HotelHandoffReview({
                         setFeedbackOpen(false)
                         setSelectedReturnReason('')
                         setFeedbackFailed(false)
-                        handoffAttemptIdRef.current = undefined
-                        if (handoffAttemptExpiryRef.current !== undefined) clearTimeout(handoffAttemptExpiryRef.current)
-                        handoffAttemptExpiryRef.current = undefined
                         window.setTimeout(() => feedbackTriggerRef.current?.focus(), 0)
                       }}
                     >Cancel</button>
@@ -1342,7 +1354,7 @@ function HotelHandoffReview({
         <HotelGuestIdentityRules
           presentation={guestIdentity}
           headingId="hotel-handoff-guest-identity-title"
-          retryAvailable={guestIdentity.state === 'error'}
+          retryAvailable={guestIdentity.state === 'error' || identityRetryPending}
           retryPending={identityRetryPending}
           onRetry={() => void runIdentityCheck()}
           statusRegionRef={identityDisclosureRef}

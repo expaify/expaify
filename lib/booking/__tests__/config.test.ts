@@ -602,6 +602,49 @@ describe('booking hotel context continuity', () => {
     expect(validateBookingHotelContext(context)).toBeNull();
   });
 
+  it('keeps client-carried Hotellook identity capability and evidence not established', () => {
+    const context = validateBookingHotelContext({
+      kind: 'hotel',
+      offerId: 'hotel_123',
+      provider: 'hotellook',
+      name: 'The Example Hotel',
+      priceCents: 18900,
+      currency: 'USD',
+      priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://tp.media/r?marker=hotel-marker',
+      guestIdentityCapability: {
+        affectedParty: true,
+        identityDocument: { confirmed: true, conditional: true, explicitNegative: true, conflicting: true },
+        paymentNameMatch: { confirmed: true, conditional: true, explicitNegative: true, conflicting: true },
+        maxAgeSeconds: 21_600,
+      },
+      guestIdentity: {
+        state: 'ready',
+        scope: 'property',
+        propertyId: 'hotel_123',
+        supplier: 'hotellook',
+        locale: 'en-US',
+        fetchedAt: new Date().toISOString(),
+        affectedParty: { value: 'lead_guest', state: 'confirmed' },
+        identityDocument: { state: 'confirmed' },
+        paymentNameMatch: { state: 'confirmed' },
+        statements: [],
+      },
+    });
+
+    expect(context?.guestIdentityCapability).toEqual({
+      affectedParty: false,
+      identityDocument: { confirmed: false, conditional: false, explicitNegative: false, conflicting: false },
+      paymentNameMatch: { confirmed: false, conditional: false, explicitNegative: false, conflicting: false },
+      maxAgeSeconds: 0,
+    });
+    expect(context?.guestIdentity).toMatchObject({
+      affectedParty: { value: 'not_established', state: 'not_established' },
+      identityDocument: { state: 'not_established' },
+      paymentNameMatch: { state: 'not_established' },
+    });
+  });
+
   it('confines validated return destinations to /, /deals, and /destinations/*', () => {
     expect(validateHotelReturnUrl('/')).toBe('/');
     expect(validateHotelReturnUrl('/deals?city=Paris&min_discount=20')).toBe('/deals?city=Paris&min_discount=20');

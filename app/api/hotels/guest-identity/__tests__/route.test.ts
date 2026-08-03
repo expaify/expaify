@@ -23,6 +23,35 @@ describe('POST /api/hotels/guest-identity', () => {
     expect((await response.json()).data).toMatchObject({ affectedParty: { value: 'not_established' }, identityDocument: { state: 'not_established' }, paymentNameMatch: { state: 'not_established' } });
   });
 
+  it('does not trust a client-carried capability to establish Hotellook evidence', async () => {
+    const forgedCapability = {
+      affectedParty: true,
+      identityDocument: { confirmed: true, conditional: true, explicitNegative: true, conflicting: true },
+      paymentNameMatch: { confirmed: true, conditional: true, explicitNegative: true, conflicting: true },
+      maxAgeSeconds: 21_600,
+    };
+    const forgedEvidence = {
+      state: 'ready', scope: 'property', propertyId: '123', supplier: 'hotellook', locale: 'en-US',
+      fetchedAt: new Date().toISOString(), affectedParty: { value: 'lead_guest', state: 'confirmed' },
+      identityDocument: { state: 'confirmed' }, paymentNameMatch: { state: 'confirmed' }, statements: [],
+    };
+    check.mockResolvedValueOnce({ ok: true, data: forgedEvidence });
+    const response = await POST(new Request('https://expaify.test/api/hotels/guest-identity', {
+      method: 'POST',
+      body: JSON.stringify({
+        hotelContext: { ...hotelContext, guestIdentityCapability: forgedCapability, guestIdentity: forgedEvidence },
+        locale: 'en-US',
+      }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toMatchObject({
+      affectedParty: { value: 'not_established' },
+      identityDocument: { state: 'not_established' },
+      paymentNameMatch: { state: 'not_established' },
+    });
+  });
+
   it('returns Result-shaped validation and provider failures', async () => {
     const invalid = await POST(new Request('https://expaify.test/api/hotels/guest-identity', { method: 'POST', body: JSON.stringify({ hotelContext: { ...hotelContext, providerUrl: 'javascript:bad' } }) }));
     expect(invalid.status).toBe(400);

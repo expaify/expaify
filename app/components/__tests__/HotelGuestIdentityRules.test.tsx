@@ -150,6 +150,23 @@ describe('HotelGuestIdentityRules', () => {
     expect(withPrior).toContain('previously reported details remain below')
   })
 
+  it('keeps retry mounted and disabled while a user-initiated refresh is pending', () => {
+    const html = renderToStaticMarkup(
+      <HotelGuestIdentityRules
+        presentation={{ ...base, state: 'loading' }}
+        retryAvailable
+        retryPending
+        onRetry={jest.fn()}
+      />,
+    )
+
+    expect(html).toContain('Checking for updated ID and cardholder rules…')
+    expect(html).toContain('<button')
+    expect(html).toContain('disabled=""')
+    expect(html).toContain('Checking…')
+    expect(html).toContain('Required at check-in')
+  })
+
   it('uses a one-column mobile grid and wraps bounded long wording without truncation', () => {
     const html = render({
       ...base,

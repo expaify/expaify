@@ -35,7 +35,9 @@ export async function POST(request: Request) {
       ok: true,
       data: normalizeHotelGuestIdentity(
         result.data,
-        context.guestIdentityCapability ?? HOTEL_GUEST_IDENTITY_UNSUPPORTED,
+        // Capability is an adapter-owned contract, never client-carried evidence.
+        // Hotellook has no structured guest-identity capability in production.
+        HOTEL_GUEST_IDENTITY_UNSUPPORTED,
         { propertyId: context.offerId, offerId: context.offerId, supplier: context.provider, locale: 'en-US' },
       ),
     });

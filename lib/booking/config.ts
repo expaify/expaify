@@ -51,7 +51,10 @@ import {
   hasVerifiedHotelLocationComparison,
 } from '../hotels/locationEvidence';
 import { normalizeHotelSmokingPolicy, unavailableHotelSmokingPolicy } from '../hotels/smokingPolicy';
-import { normalizeHotelGuestIdentity } from '../providers/hotelGuestIdentity';
+import {
+  HOTEL_GUEST_IDENTITY_UNSUPPORTED,
+  normalizeHotelGuestIdentity,
+} from '../providers/hotelGuestIdentity';
 
 export type BookingFareContext = {
   offerId: string;
@@ -983,7 +986,11 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const rateEligibilityCapability = validateHotelRateEligibilityCapability(input.rateEligibilityCapability) ?? undefined;
   const admissionPolicy = validateHotelAdmissionPolicyEvidence(input.admissionPolicy) ?? undefined;
   const admissionPolicyCapability = validateHotelAdmissionPolicyCapability(input.admissionPolicyCapability) ?? undefined;
-  const guestIdentityCapability = validateHotelGuestIdentityCapability(input.guestIdentityCapability);
+  const suppliedGuestIdentityCapability = validateHotelGuestIdentityCapability(input.guestIdentityCapability);
+  const hasGuestIdentityContext = input.guestIdentity !== undefined || input.guestIdentityCapability !== undefined;
+  const guestIdentityCapability = provider === 'hotellook' && hasGuestIdentityContext
+    ? HOTEL_GUEST_IDENTITY_UNSUPPORTED
+    : suppliedGuestIdentityCapability;
   const guestIdentity = input.guestIdentity === undefined ? undefined : normalizeHotelGuestIdentity(
     input.guestIdentity,
     guestIdentityCapability,
