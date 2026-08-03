@@ -21,6 +21,9 @@ import type {
   HotelRateEligibilityEvidence,
   HotelRateFamilyEvidence,
   HotelRatingEvidence,
+  HotelPriceDisclosureState,
+  HotelRequiredChargeCapabilities,
+  HotelRequiredChargeEvidence,
   HotelSmokingDimension,
   HotelSmokingPolicy,
   HotelTransportAction,
@@ -49,6 +52,10 @@ import {
   hasVerifiedHotelLocationComparison,
 } from '../hotels/locationEvidence';
 import { normalizeHotelSmokingPolicy, unavailableHotelSmokingPolicy } from '../hotels/smokingPolicy';
+import {
+  buildHotelPriceComposition,
+  normalizeHotelRequiredChargeCapabilities,
+} from '../hotels/priceDisclosure';
 
 export type BookingFareContext = {
   offerId: string;
@@ -95,6 +102,10 @@ export type BookingHotelContext = {
   rateEligibilityCapability?: HotelRateEligibilityCapability;
   admissionPolicy?: HotelAdmissionPolicyEvidence;
   admissionPolicyCapability?: HotelAdmissionPolicyCapability;
+  taxEvidence?: HotelRequiredChargeEvidence;
+  mandatoryPropertyChargeEvidence?: HotelRequiredChargeEvidence;
+  requiredChargeCapabilities?: HotelRequiredChargeCapabilities;
+  priceDisclosureState?: HotelPriceDisclosureState;
 };
 
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
@@ -964,6 +975,15 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const admissionPolicy = validateHotelAdmissionPolicyEvidence(input.admissionPolicy) ?? undefined;
   const admissionPolicyCapability = validateHotelAdmissionPolicyCapability(input.admissionPolicyCapability) ?? undefined;
   const transportEvidence = validateHotelTransportEvidence(input.transportEvidence);
+  const requiredChargeCapabilities = normalizeHotelRequiredChargeCapabilities(input.requiredChargeCapabilities);
+  const priceComposition = buildHotelPriceComposition({
+    offerId,
+    supplier: provider,
+    stayCostState: 'nightly_only',
+    taxEvidence: input.taxEvidence,
+    mandatoryPropertyChargeEvidence: input.mandatoryPropertyChargeEvidence,
+    capabilities: requiredChargeCapabilities,
+  });
 
   if (
     kind !== 'hotel' ||
@@ -1014,6 +1034,10 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     ...(admissionPolicy !== undefined ? { admissionPolicy } : {}),
     ...(admissionPolicyCapability !== undefined ? { admissionPolicyCapability } : {}),
     ...(transportEvidence !== undefined ? { transportEvidence } : {}),
+    taxEvidence: priceComposition.taxes,
+    mandatoryPropertyChargeEvidence: priceComposition.mandatoryPropertyCharges,
+    requiredChargeCapabilities,
+    priceDisclosureState: priceComposition.priceDisclosureState,
   };
 }
 
@@ -1130,6 +1154,9 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     admissionPolicy: parseJsonQueryParam(firstParam(params.admissionPolicy)),
     admissionPolicyCapability: parseJsonQueryParam(firstParam(params.admissionPolicyCapability)),
     transportEvidence: parseJsonQueryParam(firstParam(params.transportEvidence)),
+    taxEvidence: parseJsonQueryParam(firstParam(params.taxEvidence)),
+    mandatoryPropertyChargeEvidence: parseJsonQueryParam(firstParam(params.mandatoryPropertyChargeEvidence)),
+    requiredChargeCapabilities: parseJsonQueryParam(firstParam(params.requiredChargeCapabilities)),
   });
 }
 
@@ -1205,6 +1232,15 @@ export type BookingHotelContinuity = Partial<Pick<
 
 export function buildBookingHotelContext(hotel: HotelOffer, continuity?: BookingHotelContinuity): BookingHotelContext {
   const documentReadiness = normalizeHotelDocumentReadiness(hotel.documentReadiness, providerEvidenceLabel(hotel.source));
+  const requiredChargeCapabilities = normalizeHotelRequiredChargeCapabilities(hotel.requiredChargeCapabilities);
+  const priceComposition = buildHotelPriceComposition({
+    offerId: hotel.id,
+    supplier: hotel.source,
+    stayCostState: 'nightly_only',
+    taxEvidence: hotel.taxEvidence,
+    mandatoryPropertyChargeEvidence: hotel.mandatoryPropertyChargeEvidence,
+    capabilities: requiredChargeCapabilities,
+  });
   return {
     kind: 'hotel',
     offerId: hotel.id,
@@ -1226,6 +1262,10 @@ export function buildBookingHotelContext(hotel: HotelOffer, continuity?: Booking
     ...(hotel.admissionPolicy !== undefined ? { admissionPolicy: hotel.admissionPolicy } : {}),
     ...(hotel.admissionPolicyCapability !== undefined ? { admissionPolicyCapability: hotel.admissionPolicyCapability } : {}),
     ...(hotel.transportEvidence !== undefined ? { transportEvidence: hotel.transportEvidence } : {}),
+    taxEvidence: priceComposition.taxes,
+    mandatoryPropertyChargeEvidence: priceComposition.mandatoryPropertyCharges,
+    requiredChargeCapabilities,
+    priceDisclosureState: priceComposition.priceDisclosureState,
     ...(continuity?.entrySource !== undefined ? { entrySource: continuity.entrySource } : {}),
     ...(continuity?.returnUrl !== undefined ? { returnUrl: continuity.returnUrl } : {}),
     ...(continuity?.checkIn !== undefined ? { checkIn: continuity.checkIn } : {}),
@@ -1293,6 +1333,9 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
   if (context.admissionPolicy) params.set('admissionPolicy', JSON.stringify(context.admissionPolicy));
   if (context.admissionPolicyCapability) params.set('admissionPolicyCapability', JSON.stringify(context.admissionPolicyCapability));
   if (context.transportEvidence) params.set('transportEvidence', JSON.stringify(context.transportEvidence));
+  if (context.taxEvidence) params.set('taxEvidence', JSON.stringify(context.taxEvidence));
+  if (context.mandatoryPropertyChargeEvidence) params.set('mandatoryPropertyChargeEvidence', JSON.stringify(context.mandatoryPropertyChargeEvidence));
+  if (context.requiredChargeCapabilities) params.set('requiredChargeCapabilities', JSON.stringify(context.requiredChargeCapabilities));
   const issuerParams = [
     ['invoice', 'documentInvoiceIssuerRole', 'documentInvoiceIssuerName'],
     ['receipt', 'documentReceiptIssuerRole', 'documentReceiptIssuerName'],

@@ -311,6 +311,19 @@ describe('booking hotel context continuity', () => {
         room: { state: 'unavailable', statements: [] },
         property: { state: 'unavailable', statements: [] },
       },
+      taxEvidence: {
+        offerId: 'hotel_123', supplier: 'hotellook', scope: 'not_returned', state: 'not_returned',
+        totalRelationship: 'unknown', collection: 'unknown', records: [],
+      },
+      mandatoryPropertyChargeEvidence: {
+        offerId: 'hotel_123', supplier: 'hotellook', scope: 'not_returned', state: 'not_returned',
+        totalRelationship: 'unknown', collection: 'unknown', records: [],
+      },
+      requiredChargeCapabilities: {
+        taxes: { supportedScopes: [], supportsExplicitNone: false },
+        mandatoryPropertyCharges: { supportedScopes: [], supportsExplicitNone: false },
+      },
+      priceDisclosureState: 'incomplete',
     });
   });
 

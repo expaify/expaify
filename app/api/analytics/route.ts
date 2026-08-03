@@ -34,10 +34,21 @@ const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries
     city_watch_saved: ['city'],
     city_watch_failed: ['city'],
     city_join_cta_clicked: ['city', 'tier'],
-    hotel_handoff_viewed: ['source', 'partnerHost', 'currency', 'priceCents', 'priceBasis', 'locationPrecision'],
-    hotel_handoff_continue_clicked: ['source', 'partnerHost', 'currency', 'priceCents', 'priceBasis', 'locationPrecision', 'partnerNamed'],
-    hotel_handoff_returned: ['source', 'partnerHost', 'awayDurationBucket'],
-    hotel_handoff_back_clicked: ['source', 'partnerHost'],
+    hotel_handoff_viewed: ['handoffAttemptId', 'priceDisclosureState', 'stayCostState', 'taxState', 'mandatoryChargeState', 'source'],
+    hotel_handoff_continue_clicked: ['handoffAttemptId', 'priceDisclosureState', 'source', 'partnerNamed'],
+    hotel_handoff_returned: ['handoffAttemptId', 'priceDisclosureState', 'awayDurationBucket'],
+    hotel_handoff_back_clicked: ['handoffAttemptId', 'priceDisclosureState'],
+    hotel_handoff_return_reason_selected: ['handoffAttemptId', 'priceDisclosureState', 'reason'],
+    hotel_funds_policy_summary_viewed: ['policyState', 'obligationTypes', 'scope', 'provider', 'surface'],
+    hotel_funds_policy_details_opened: ['policyState', 'obligationTypes', 'scope', 'provider', 'surface'],
+    hotel_funds_policy_confirm_clicked: ['policyState', 'obligationTypes', 'scope', 'provider', 'surface', 'partnerNamed'],
+    hotel_invoice_need_changed: ['needed', 'source', 'partnerNamed'],
+    hotel_invoice_retry_clicked: ['priorCheckState', 'source', 'scope'],
+    hotel_invoice_verification_clicked: ['status', 'documentTypes', 'invoiceIssuerRole', 'receiptIssuerRole', 'billingDetailsStep', 'source', 'scope', 'targetRole'],
+    hotel_invoice_readiness_viewed: ['status', 'documentTypes', 'invoiceIssuerRole', 'receiptIssuerRole', 'billingDetailsStep', 'source', 'scope'],
+    hotel_booking_help_opened: ['source', 'partnerHost', 'partnerNamed', 'locationPrecision'],
+    hotel_booking_help_contact_clicked: ['source', 'partnerHost', 'partnerNamed', 'locationPrecision', 'owner', 'destinationType'],
+    hotel_loyalty_disclosure_opened: ['source', 'partnerHost', 'partnerNamed', 'handoffSessionId'],
     hotel_request_guidance_viewed: ['source', 'partnerHost', 'capabilityState', 'eligibleRequestCount'],
     hotel_request_handoff_continued: ['source', 'partnerHost', 'capabilityState', 'eligibleRequestCount', 'selectedRequestCount', 'guidanceSeen'],
     hotel_request_help_opened: ['source', 'partnerHost', 'capabilityState'],
@@ -75,10 +86,21 @@ const REQUIRED_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntr
     city_watch_saved: ['city'],
     city_watch_failed: ['city'],
     city_join_cta_clicked: ['city', 'tier'],
-    hotel_handoff_viewed: ['source', 'partnerHost', 'currency', 'priceCents', 'priceBasis', 'locationPrecision'],
-    hotel_handoff_continue_clicked: ['source', 'partnerHost', 'currency', 'priceCents', 'priceBasis', 'locationPrecision', 'partnerNamed'],
-    hotel_handoff_returned: ['source', 'partnerHost', 'awayDurationBucket'],
-    hotel_handoff_back_clicked: ['source', 'partnerHost'],
+    hotel_handoff_viewed: ['handoffAttemptId', 'priceDisclosureState', 'stayCostState', 'taxState', 'mandatoryChargeState', 'source'],
+    hotel_handoff_continue_clicked: ['handoffAttemptId', 'priceDisclosureState', 'source', 'partnerNamed'],
+    hotel_handoff_returned: ['handoffAttemptId', 'priceDisclosureState', 'awayDurationBucket'],
+    hotel_handoff_back_clicked: ['handoffAttemptId', 'priceDisclosureState'],
+    hotel_handoff_return_reason_selected: ['handoffAttemptId', 'priceDisclosureState', 'reason'],
+    hotel_funds_policy_summary_viewed: ['policyState', 'obligationTypes', 'scope', 'provider', 'surface'],
+    hotel_funds_policy_details_opened: ['policyState', 'obligationTypes', 'scope', 'provider', 'surface'],
+    hotel_funds_policy_confirm_clicked: ['policyState', 'obligationTypes', 'scope', 'provider', 'surface', 'partnerNamed'],
+    hotel_invoice_need_changed: ['needed', 'source', 'partnerNamed'],
+    hotel_invoice_retry_clicked: ['priorCheckState', 'source', 'scope'],
+    hotel_invoice_verification_clicked: ['status', 'documentTypes', 'invoiceIssuerRole', 'receiptIssuerRole', 'billingDetailsStep', 'source', 'scope', 'targetRole'],
+    hotel_invoice_readiness_viewed: ['status', 'documentTypes', 'invoiceIssuerRole', 'receiptIssuerRole', 'billingDetailsStep', 'source', 'scope'],
+    hotel_booking_help_opened: ['source', 'partnerHost', 'partnerNamed', 'locationPrecision'],
+    hotel_booking_help_contact_clicked: ['source', 'partnerHost', 'partnerNamed', 'locationPrecision', 'owner', 'destinationType'],
+    hotel_loyalty_disclosure_opened: ['source', 'partnerHost', 'partnerNamed'],
     hotel_request_guidance_viewed: ['source', 'partnerHost', 'capabilityState', 'eligibleRequestCount'],
     hotel_request_handoff_continued: ['source', 'partnerHost', 'capabilityState', 'eligibleRequestCount', 'selectedRequestCount', 'guidanceSeen'],
     hotel_request_help_opened: ['source', 'partnerHost', 'capabilityState'],
@@ -124,15 +146,33 @@ function validFilterState(value: Primitive): boolean {
 }
 
 function validPropertyValue(event: string, key: string, value: Primitive): boolean {
+  if (key === 'handoffAttemptId' || key === 'handoffSessionId') return typeof value === 'string' && ID.test(value)
+  if (key === 'priceDisclosureState') return oneOf(value, ['fully_itemized', 'provider_total_breakdown_unknown', 'partially_itemized', 'incomplete', 'unavailable'])
+  if (key === 'stayCostState') return oneOf(value, ['provider_total', 'partial_total', 'expaify_estimate', 'nightly_only'])
+  if (key === 'taxState' || key === 'mandatoryChargeState') {
+    return oneOf(value, ['itemized', 'included_unitemized', 'applies_amount_unknown', 'explicit_none', 'not_returned', 'conflicting'])
+  }
+  if (key === 'reason') {
+    return oneOf(value, [
+      'tax_amount_changed_or_appeared', 'mandatory_property_charge_changed_or_appeared',
+      'displayed_total_other_mismatch', 'pay_at_property_amount_unexpected',
+      'smoking_policy_or_room_mismatch', 'room_availability_mismatch',
+      'other_hotel_details_mismatch', 'loyalty_or_points_uncertainty', 'prefer_not_to_say',
+    ])
+  }
   if (key === 'criteria_version' || key === 'previous_version' || key === 'deal_id' || key === 'dealId' ||
     key === 'eventId' || key === 'hotel_id') {
     return typeof value === 'string' && OPAQUE_VALUE.test(value)
   }
-  if (key === 'destination_present' || key === 'draft_changed' || key === 'premium_eligible' ||
+  if (key === 'destination_present' || key === 'draft_changed' || key === 'premium_eligible' || key === 'needed' ||
     key === 'partnerNamed' || key === 'guidanceSeen' || key === 'has_dates' || key === 'has_verified_guest_rating') {
     return typeof value === 'boolean'
   }
-  if (key === 'surface') return oneOf(value, ['results', 'detail', 'handoff'])
+  if (key === 'surface') {
+    return event.startsWith('hotel_funds_policy_')
+      ? oneOf(value, ['hotel_card', 'book_handoff'])
+      : oneOf(value, ['results', 'detail', 'handoff'])
+  }
   if (key === 'date_state') return oneOf(value, ['checkin_window', 'missing'])
   if (key === 'occupancy_state' || key === 'room_state') return oneOf(value, ['applied', 'not_captured'])
   if (key === 'criteria_source') return oneOf(value, ['deals_page', 'destination_page', 'edit', 'restored'])
@@ -141,7 +181,10 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
   if (key === 'result_count_bucket') return oneOf(value, ['0', '1_5', '6_20', '21_plus'])
   if (key === 'result_state') return oneOf(value, ['empty', 'populated', 'sample', 'locked'])
   if (key === 'context_status') return oneOf(value, ['matched', 'mismatch', 'missing', 'invalid'])
-  if (key === 'provider') return oneOf(value, ['expedia', 'booking', 'kiwi', 'trip'])
+  if (key === 'provider') {
+    if (event.startsWith('hotel_funds_policy_')) return typeof value === 'string' && /^[a-z0-9_-]{1,40}$/.test(value)
+    return oneOf(value, ['expedia', 'booking', 'kiwi', 'trip'])
+  }
   if (key === 'viewport_group' || key === 'viewport_band') return oneOf(value, ['mobile_375', 'desktop_1280', 'other'])
   if (key === 'score_state') return oneOf(value, ['loading', 'confirmed', 'unavailable', 'error'])
   if (key === 'price_freshness_state') return oneOf(value, ['fresh', 'aging', 'stale', 'expired', 'unavailable'])
@@ -184,6 +227,30 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
       (value === 'external-provider' || /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(value))
   }
   if (key === 'awayDurationBucket') return oneOf(value, ['<5s', '5–30s', '30–120s', '120s+'])
+  if (key === 'policyState') return oneOf(value, ['complete', 'partial', 'explicit_none', 'not_returned', 'conflicting', 'error'])
+  if (key === 'obligationTypes') {
+    if (typeof value !== 'string') return false
+    if (value === 'none' || value === 'unknown') return true
+    const types = value.split(',')
+    const order = ['authorization_hold', 'other_refundable_obligation', 'refundable_deposit']
+    return types.length <= 3 && new Set(types).size === types.length
+      && types.every(type => order.includes(type))
+      && types.every((type, index) => index === 0 || order.indexOf(type) > order.indexOf(types[index - 1]))
+  }
+  if (key === 'priorCheckState') return oneOf(value, ['idle', 'loading', 'ready', 'error'])
+  if (key === 'status') return oneOf(value, ['confirmed', 'conditional', 'unavailable', 'not_provided', 'conflicting'])
+  if (key === 'documentTypes') {
+    if (value === 'none') return true
+    if (typeof value !== 'string') return false
+    const values = value.split(',')
+    return values.length <= 3 && new Set(values).size === values.length
+      && values.every(item => ['invoice', 'receipt', 'booking_confirmation'].includes(item))
+  }
+  if (key === 'invoiceIssuerRole' || key === 'receiptIssuerRole') return oneOf(value, ['booking_provider', 'property', 'split', 'unknown'])
+  if (key === 'targetRole') return oneOf(value, ['booking_provider', 'property'])
+  if (key === 'billingDetailsStep') return oneOf(value, ['during_partner_booking', 'after_booking_contact_provider', 'after_booking_contact_property', 'at_checkout', 'not_required', 'unknown'])
+  if (key === 'owner') return oneOf(value, ['partner', 'expaify'])
+  if (key === 'destinationType') return oneOf(value, ['help_center', 'mailto'])
   if (key === 'capabilityState') return value === 'provider_directed_only'
   if (key === 'condition') {
     return oneOf(value, [
@@ -205,7 +272,8 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
   }
   if (key === 'scope') {
     if (typeof value !== 'string') return false
-    return value === 'none' || value.split(',').every(item => oneOf(item, ['property', 'room', 'rate', 'selected_stay']))
+    return value === 'none' || value === 'not_returned'
+      || value.split(',').every(item => oneOf(item, ['property', 'room', 'rate', 'selected_stay']))
   }
   if (key === 'entrySurface') return value === 'hotel_detail'
   if (key === 'evidence_state') return oneOf(value, ['loading', 'error', 'not_provided', 'reported'])
