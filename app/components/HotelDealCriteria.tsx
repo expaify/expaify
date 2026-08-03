@@ -36,7 +36,12 @@ import {
   NO_HOTEL_DISRUPTION_EVIDENCE,
 } from '@/app/components/ui/HotelDisruptionNotice'
 import type { HotelPoolEvidence } from '@/app/components/research/hotelPoolFixtures'
-import { HOTEL_POOL_HANDOFF_REMINDER, HotelPoolReturnFeedback } from '@/app/components/ui/HotelPoolEvidenceLedger'
+import {
+  HOTEL_POOL_HANDOFF_REMINDER,
+  HotelPoolReturnFeedback,
+  hotelPoolAnalyticsContext,
+  hotelPoolViewportGroup,
+} from '@/app/components/ui/HotelPoolEvidenceLedger'
 
 type ResolvedContext = {
   criteria?: HotelSearchCriteriaV1
@@ -197,6 +202,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
   const status = criteria ? hotelCriteriaContextStatus(criteria, deal) : context.status
   const [handoffReached, setHandoffReached] = useState(false)
   const [showReturnPrompt, setShowReturnPrompt] = useState(false)
+  const [showPoolReturnPrompt, setShowPoolReturnPrompt] = useState(false)
   const [showRoomRecovery, setShowRoomRecovery] = useState(false)
   const [providerLinkUnavailable, setProviderLinkUnavailable] = useState(false)
   const [mismatchReported, setMismatchReported] = useState(false)
@@ -204,6 +210,18 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
   const feedbackKey = `expaify.disruption.feedback.${deal.id}.${disruptionEvidence.evidenceRevision}`
   const roomHandoffKey = `${ROOM_HANDOFF_STORAGE_PREFIX}${deal.id}.${criteria?.criteriaVersion ?? status}`
   const poolExposed = Boolean(poolEvidence && !['loading', 'not_returned', 'check_failed'].includes(poolEvidence.state))
+  const poolAnalytics = poolEvidence ? hotelPoolAnalyticsContext(poolEvidence) : null
+  const poolFeedbackKey = `expaify.hotel-pool.feedback.${deal.id}.${poolAnalytics?.evidence_revision ?? 'unavailable'}`
+
+  function trackPoolHandoff(provider: keyof CompareLinks): void {
+    if (!poolExposed || !poolAnalytics) return
+    track('hotel_pool_provider_handoff_started', {
+      deal_id: deal.id,
+      ...poolAnalytics,
+      viewport_group: hotelPoolViewportGroup(window.innerWidth),
+      provider,
+    })
+  }
 
   function beginRoomHandoff(provider: keyof CompareLinks, href: string): void {
     if (!isAttributedHotelProviderUrl(provider, href)) {
@@ -248,15 +266,17 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
       if (nextState !== 'returned') return
       setShowRoomRecovery(true)
       try {
-        if (window.sessionStorage.getItem(feedbackKey)) return
+        if (!window.sessionStorage.getItem(feedbackKey)) setShowReturnPrompt(true)
+        if (poolExposed && !window.sessionStorage.getItem(poolFeedbackKey)) setShowPoolReturnPrompt(true)
       } catch {
         // Storage is optional; the one-time prompt remains scoped to this mount.
+        setShowReturnPrompt(true)
+        if (poolExposed) setShowPoolReturnPrompt(true)
       }
-      setShowReturnPrompt(true)
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
-  }, [feedbackKey, roomHandoffKey])
+  }, [feedbackKey, poolExposed, poolFeedbackKey, roomHandoffKey])
 
   function finishFeedback(answer: 'yes' | 'no') {
     try {
@@ -278,6 +298,31 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
     }
   }
 
+  function finishPoolFeedback(reason: 'different_schedule' | 'different_type' | 'different_heating' | 'temporary_closure' | 'other' | 'no_difference') {
+    if (!poolAnalytics) return
+    const context = {
+      ...poolAnalytics,
+      viewport_group: hotelPoolViewportGroup(window.innerWidth),
+      reason,
+    }
+    try {
+      window.sessionStorage.setItem(poolFeedbackKey, JSON.stringify(context))
+    } catch {
+      // Storage is optional; feedback remains scoped to this mounted view.
+    }
+    track('hotel_pool_provider_return_mismatch', { deal_id: deal.id, ...context })
+    setShowPoolReturnPrompt(false)
+  }
+
+  function dismissPoolFeedback() {
+    try {
+      window.sessionStorage.setItem(poolFeedbackKey, 'skipped')
+    } catch {
+      // Storage is optional; dismissal remains scoped to this mounted view.
+    }
+    setShowPoolReturnPrompt(false)
+  }
+
   const disruptionNotice = (
     <>
       <HotelDisruptionHandoffNotice
@@ -296,7 +341,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
         </div>
       ) : null}
       {mismatchReported ? <p role="status" aria-live="polite" className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">Thanks. We’ll record that the provider details did not match this notice.</p> : null}
-      {showReturnPrompt && poolExposed ? <HotelPoolReturnFeedback /> : null}
+      {showPoolReturnPrompt && poolExposed ? <HotelPoolReturnFeedback onComplete={finishPoolFeedback} onDismiss={dismissPoolFeedback} /> : null}
     </>
   )
 
@@ -365,6 +410,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
               onProviderOpen={(provider) => {
                 const href = eligibleLinks[provider]
                 if (href) beginRoomHandoff(provider, href)
+                trackPoolHandoff(provider)
                 if (!handoffReached) return
                 const analytics = hotelDisruptionAnalyticsContext(disruptionEvidence)
                 track('hotel_disruption_handoff_clicked', {
@@ -400,6 +446,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
                       return
                     }
                     beginRoomHandoff(active.provider, active.href)
+                    trackPoolHandoff(active.provider)
                   }}
                   className="btn btn-primary inline-flex min-h-11 w-full items-center justify-center text-center sm:w-auto"
                 >

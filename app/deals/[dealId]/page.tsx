@@ -260,7 +260,13 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const contextStatus: HotelCriteriaContextStatus = criteria
     ? hotelCriteriaContextStatus(criteria, { city: deal.city, checkInDate: deal.check_in_date })
     : criteriaResolution.status === 'invalid' || !resultsView ? 'invalid' : 'missing'
-  const backHref = criteria && resultsView ? buildHotelBackUrl(criteria, resultsView, researchParams) : '/deals'
+  const canonicalBackHref = criteria && resultsView ? buildHotelBackUrl(criteria, resultsView, researchParams) : '/deals'
+  const poolFixtureId = process.env.NODE_ENV === 'production'
+    ? null
+    : parseHotelPoolFixture(researchParams.poolFixture)
+  const backHref = poolFixtureId
+    ? `${canonicalBackHref}${canonicalBackHref.includes('?') ? '&' : '?'}poolFixture=${poolFixtureId}`
+    : canonicalBackHref
   const criteriaContext = { criteria, status: contextStatus, backHref }
 
   // Server-side paywall: render the locked state instead of the deal for
@@ -309,9 +315,6 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const disruptionEvidence = disruptionFixtureId
     ? createHotelDisruptionFixture(disruptionFixtureId)
     : NO_HOTEL_DISRUPTION_EVIDENCE
-  const poolFixtureId = process.env.NODE_ENV === 'production'
-    ? null
-    : parseHotelPoolFixture(researchParams.poolFixture)
   const poolEvidence = poolFixtureId
     ? createHotelPoolFixture(poolFixtureId, deal.check_in_date, checkOutIso?.slice(0, 10))
     : null
@@ -434,7 +437,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
               </div>
             </dl>
-            {poolEvidence ? <HotelPoolEvidenceLedger evidence={poolEvidence} /> : null}
+            {poolEvidence ? <HotelPoolEvidenceLedger evidence={poolEvidence} dealId={deal.id} /> : null}
             <HotelDisruptionEvidenceLedger
               evidence={disruptionEvidence}
               analyticsKey={deal.id}

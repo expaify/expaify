@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { track } from '@/lib/analytics'
 import type {
   HotelPoolEvidence,
   HotelPoolRecord,
@@ -124,6 +125,73 @@ export function hotelPoolViewportGroup(width: number): 'mobile_375' | 'desktop_1
   return width <= 480 ? 'mobile_375' : width >= 1024 ? 'desktop_1280' : 'other'
 }
 
+function useHotelPoolExposure({
+  dealId,
+  evidence,
+  surface,
+  enabled = true,
+}: {
+  dealId?: string
+  evidence: HotelPoolEvidence
+  surface: 'summary' | 'detail'
+  enabled?: boolean
+}) {
+  const ref = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const target = ref.current
+    const context = surface === 'detail'
+      ? hotelPoolDetailAnalyticsContext(evidence)
+      : hotelPoolAnalyticsContext(evidence)
+    if (!target || !dealId || !enabled || !context || typeof IntersectionObserver === 'undefined') return
+
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const clearTimer = () => {
+      if (timer !== undefined) clearTimeout(timer)
+      timer = undefined
+    }
+    const dedupeKey = `expaify.hotel-pool.${surface}.${dealId}.${context.evidence_revision}`
+    const observer = new IntersectionObserver(entries => {
+      const visible = entries.some(entry => entry.target === target && entry.isIntersecting && entry.intersectionRatio >= 0.5)
+      if (!visible) return clearTimer()
+      if (timer !== undefined) return
+      timer = setTimeout(() => {
+        timer = undefined
+        try {
+          if (window.sessionStorage.getItem(dedupeKey)) return
+          window.sessionStorage.setItem(dedupeKey, '1')
+        } catch {
+          // Exposure measurement is optional and never affects pool evidence.
+        }
+        track(surface === 'detail' ? 'hotel_pool_detail_viewed' : 'hotel_pool_summary_viewed', {
+          deal_id: dealId,
+          ...context,
+          viewport_group: hotelPoolViewportGroup(window.innerWidth),
+        })
+        observer.disconnect()
+      }, 1_000)
+    }, { threshold: [0, 0.5, 1] })
+    observer.observe(target)
+    return () => {
+      clearTimer()
+      observer.disconnect()
+    }
+  }, [dealId, enabled, evidence, surface])
+
+  return ref
+}
+
+export function HotelPoolCardCue({ dealId, evidence }: { dealId: string; evidence: HotelPoolEvidence }) {
+  const cue = getHotelPoolCardSummary(evidence)
+  const ref = useHotelPoolExposure({ dealId, evidence, surface: 'summary', enabled: Boolean(cue) })
+  if (!cue) return null
+  return (
+    <p ref={ref as React.RefObject<HTMLParagraphElement | null>} className={`mt-2 break-words text-caption font-medium leading-5 ${cue.warning ? 'text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
+      {cue.copy}
+    </p>
+  )
+}
+
 function scheduleCopy(pool: HotelPoolRecord, evidence: HotelPoolEvidence): string {
   if (pool.scheduleKind === 'conflicting') return 'Provider schedule details conflict. Confirm before booking.'
   const stay = formatStay(evidence.selectedStay)
@@ -181,10 +249,11 @@ function StateMessage({ evidence }: { evidence: HotelPoolEvidence }) {
   return <p className={`mt-3 rounded-[var(--radius-control)] px-3 py-2.5 text-sm leading-6 ${error ? 'bg-[color:var(--error-soft)] text-[color:var(--error-text)]' : evidence.state === 'stale' ? 'bg-[color:var(--warning-soft)] text-[color:var(--warning)]' : 'bg-[color:var(--bg-muted)] text-[color:var(--text-2)]'}`}>{copy}{evidence.state === 'check_failed' ? ' Confirm pool facilities and current conditions with the property or booking provider.' : ''}</p>
 }
 
-export function HotelPoolEvidenceLedger({ evidence }: { evidence: HotelPoolEvidence }) {
+export function HotelPoolEvidenceLedger({ evidence, dealId }: { evidence: HotelPoolEvidence; dealId?: string }) {
   const names = stableNames(evidence.pools)
+  const ref = useHotelPoolExposure({ dealId, evidence, surface: 'detail', enabled: evidence.state !== 'loading' })
   return (
-    <section aria-labelledby="hotel-pool-title" aria-busy={evidence.state === 'loading' ? 'true' : undefined} className="mt-6 min-w-0 border-t border-[color:var(--border)] pt-5">
+    <section ref={ref as React.RefObject<HTMLElement | null>} aria-labelledby="hotel-pool-title" aria-busy={evidence.state === 'loading' ? 'true' : undefined} className="mt-6 min-w-0 border-t border-[color:var(--border)] pt-5">
       <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--warning)]">Research fixture</p>
       <h3 id="hotel-pool-title" className="mt-1 text-h3 text-[color:var(--text-1)]">Pool details</h3>
       {evidence.revisionStatus === 'updated' ? <p role="status" aria-live="polite" className="mt-2 text-sm text-[color:var(--text-2)]">Pool details were updated after you saved this deal.</p> : null}
@@ -211,7 +280,7 @@ export const HOTEL_POOL_HANDOFF_REMINDER = 'Pool schedules are not live operatin
 
 type FeedbackReason = 'different_schedule' | 'different_type' | 'different_heating' | 'temporary_closure' | 'other'
 
-export function HotelPoolReturnFeedback({ onComplete, submission = 'success' }: { onComplete?: (reason: FeedbackReason | 'no_difference') => void; submission?: 'success' | 'failure' }) {
+export function HotelPoolReturnFeedback({ onComplete, onDismiss, submission = 'success' }: { onComplete?: (reason: FeedbackReason | 'no_difference') => void; onDismiss?: () => void; submission?: 'success' | 'failure' }) {
   const [step, setStep] = useState<'question' | 'reasons' | 'success' | 'failure' | 'dismissed'>('question')
   const [reason, setReason] = useState<FeedbackReason | ''>('')
   const yesRef = useRef<HTMLButtonElement>(null)
@@ -224,7 +293,7 @@ export function HotelPoolReturnFeedback({ onComplete, submission = 'success' }: 
   return (
     <div className="mt-3 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">
       <p className="text-sm font-medium leading-6 text-[color:var(--text-1)]">Did the provider show different pool details?</p>
-      {step === 'question' ? <div className="mt-3 flex flex-col gap-2 min-[480px]:flex-row"><button ref={yesRef} type="button" onClick={() => setStep('reasons')} className="btn btn-outline min-h-11 w-full px-4">Yes, details were different</button><button type="button" onClick={() => { onComplete?.('no_difference'); setStep('success') }} className="btn btn-outline min-h-11 w-full px-4">No difference</button><button type="button" onClick={() => setStep('dismissed')} className="btn btn-outline min-h-11 w-full px-4">Skip</button></div> : (
+      {step === 'question' ? <div className="mt-3 flex flex-col gap-2 min-[480px]:flex-row"><button ref={yesRef} type="button" onClick={() => setStep('reasons')} className="btn btn-outline min-h-11 w-full px-4">Yes, details were different</button><button type="button" onClick={() => { onComplete?.('no_difference'); setStep('success') }} className="btn btn-outline min-h-11 w-full px-4">No difference</button><button type="button" onClick={() => { onDismiss?.(); setStep('dismissed') }} className="btn btn-outline min-h-11 w-full px-4">Skip</button></div> : (
         <fieldset ref={groupRef} tabIndex={-1} className="mt-4 min-w-0"><legend className="text-sm font-medium text-[color:var(--text-1)]">What was different?</legend><div className="mt-3 grid gap-2">{([
           ['different_schedule', 'Operating schedule or dates'], ['different_type', 'Indoor or outdoor type'], ['different_heating', 'Heated status'], ['temporary_closure', 'Temporary closure'], ['other', 'Something else about the pool'],
         ] as const).map(([value, label]) => <label key={value} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border border-[color:var(--border)] px-3 py-2.5 has-[:focus-visible]:border-[color:var(--border-focus)]"><input type="radio" name="pool-feedback-reason" value={value} checked={reason === value} onChange={() => setReason(value)} /><span className="text-sm leading-6 text-[color:var(--text-2)]">{label}</span></label>)}</div><p id="pool-feedback-help" className="mt-2 text-xs text-[color:var(--text-3)]">Choose one reason to continue.</p><div className="mt-3 flex flex-col gap-2 min-[480px]:flex-row"><button type="button" disabled={!reason} aria-describedby="pool-feedback-help" className="btn btn-primary min-h-11 w-full px-4 min-[480px]:w-auto" onClick={() => { if (!reason) return; if (submission === 'failure') setStep('failure'); else { onComplete?.(reason); setStep('success') } }}>Send feedback</button><button type="button" className="btn btn-outline min-h-11 w-full px-4 min-[480px]:w-auto" onClick={() => { setReason(''); setStep('question'); requestAnimationFrame(() => yesRef.current?.focus()) }}>Cancel</button></div></fieldset>

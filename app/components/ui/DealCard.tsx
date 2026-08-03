@@ -16,7 +16,7 @@ import {
   HotelDisruptionResultCue,
 } from './HotelDisruptionNotice'
 import type { HotelPoolEvidence } from '@/app/components/research/hotelPoolFixtures'
-import { getHotelPoolCardSummary } from './HotelPoolEvidenceLedger'
+import { getHotelPoolCardSummary, HotelPoolCardCue } from './HotelPoolEvidenceLedger'
 
 type DealLinks = {
   expedia?: string
@@ -101,11 +101,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
               {quietEvidenceCue}
             </p>
           ) : null}
-          {poolCue ? (
-            <p className={`mt-2 break-words text-caption font-medium leading-5 ${poolCue.warning ? 'text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
-              {poolCue.copy}
-            </p>
-          ) : null}
+          {poolEvidence ? <HotelPoolCardCue dealId={deal.id} evidence={poolEvidence} /> : null}
         </div>
 
         <div className="space-y-2">
