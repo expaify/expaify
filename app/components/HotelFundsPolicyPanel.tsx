@@ -10,7 +10,7 @@ import type {
   HotelFundsPolicyLoadState,
   Money,
 } from '@/lib/types'
-import { normalizeHotelFundsPolicyBridge, normalizeHotelFundsPolicyEvidence } from '@/lib/hotels/fundsPolicy'
+import { normalizeHotelFundsPolicyBridge } from '@/lib/hotels/fundsPolicy'
 import { trackHotelFundsPolicyConfirmation } from './hotelFundsPolicyAnalytics'
 
 export type {
@@ -83,26 +83,23 @@ const missingFieldOrder: HotelFundsMissingField[] = [
   'source',
 ]
 
-function resolvedEvidence(evidence: HotelFundsPolicyEvidence | null | undefined, sourceLabel: string) {
-  return normalizeHotelFundsPolicyEvidence(evidence, sourceLabel)
-}
-
 function resolvedPolicyPair(
   evidence: HotelFundsPolicyEvidence | null | undefined,
   sourceLabel: string,
   capability: HotelFundsPolicyCapability | undefined,
   loadState: HotelFundsPolicyLoadState,
 ) {
-  if (capability === undefined) {
-    return { evidence: resolvedEvidence(evidence, sourceLabel), loadState }
-  }
   const bridge = normalizeHotelFundsPolicyBridge({
     provider: sourceLabel,
     capability,
     evidence,
     loadState,
   })
-  return { evidence: bridge.evidence, loadState: bridge.loadState }
+  return {
+    capability: bridge.capability,
+    evidence: bridge.evidence,
+    loadState: bridge.loadState,
+  }
 }
 
 function formatPolicyMoney(money: Money): string {
@@ -272,7 +269,7 @@ export function getHotelFundsPolicyAccessibleSuffix(
   const pair = resolvedPolicyPair(evidence, sourceLabel, capability, loadState)
   const resolved = pair.evidence
   loadState = pair.loadState
-  if (capability?.policy === false) return 'Deposit and hold details are unavailable from this provider.'
+  if (!pair.capability.policy) return 'Deposit and hold details are unavailable from this provider.'
   if (loadState === 'loading') return 'Deposit and hold policy is still being checked; confirm with the booking partner.'
   if (loadState === 'error') return 'Deposit and hold policy could not be checked.'
   if (resolved.state === 'complete') return 'Deposit or card-hold policy reported; review details before provider handoff.'
@@ -298,8 +295,9 @@ export default function HotelFundsPolicyPanel({
 }: Props) {
   const pair = resolvedPolicyPair(evidence, sourceLabel, capability, loadState)
   const resolved = pair.evidence
+  capability = pair.capability
   loadState = pair.loadState
-  const providerIncapable = capability?.policy === false
+  const providerIncapable = !capability.policy
   const displayedState = loadState === 'error' ? 'error' : loadState === 'loading' ? 'loading' : resolved.state
   const warningState = !providerIncapable && ['partial', 'not_returned', 'conflicting', 'error'].includes(displayedState)
   const summary = summaryCopy(resolved, loadState)
@@ -308,13 +306,10 @@ export default function HotelFundsPolicyPanel({
     : 'border-[color:var(--border)] bg-[color:var(--bg-raised)]'
 
   if (variant === 'summary') {
-    if (capability && (providerIncapable || loadState !== 'ready' || !['complete', 'partial', 'conflicting', 'explicit_none'].includes(resolved.state))) return null
+    if (providerIncapable || loadState !== 'ready' || !['complete', 'partial', 'conflicting', 'explicit_none'].includes(resolved.state)) return null
     return (
       <div
         ref={rootRef as Ref<HTMLDivElement>}
-        role={loadState === 'loading' || loadState === 'error' ? 'status' : undefined}
-        aria-live={loadState === 'loading' || loadState === 'error' ? 'polite' : undefined}
-        aria-busy={loadState === 'loading' ? 'true' : undefined}
         className={`mt-3 rounded-[var(--radius-control)] border px-3 py-2 text-xs font-medium leading-5 text-[color:var(--text-2)] ${summaryClasses}`}
       >
         <p>{summary}</p>

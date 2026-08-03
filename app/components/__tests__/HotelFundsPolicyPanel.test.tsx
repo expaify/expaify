@@ -75,6 +75,7 @@ function panel(evidence?: HotelFundsPolicyEvidence | null, loadState: 'loading' 
     hotelName: 'Example Hotel',
     sourceLabel: 'Hotellook',
     variant: 'full',
+    capability: { policy: true },
   })
 }
 
@@ -204,10 +205,11 @@ describe('HotelFundsPolicyPanel', () => {
   })
 
   it('provides state-only action suffixes, including loading and provider error', () => {
-    expect(getHotelFundsPolicyAccessibleSuffix(completeHold)).toBe('Deposit or card-hold policy reported; review details before provider handoff.')
-    expect(getHotelFundsPolicyAccessibleSuffix(undefined)).toBe('Deposit and hold policy was not provided.')
-    expect(getHotelFundsPolicyAccessibleSuffix(undefined, 'loading')).toContain('still being checked')
-    expect(getHotelFundsPolicyAccessibleSuffix(undefined, 'error')).toBe('Deposit and hold policy could not be checked.')
+    expect(getHotelFundsPolicyAccessibleSuffix(completeHold, 'ready', 'Hotel partner', { policy: true })).toBe('Deposit or card-hold policy reported; review details before provider handoff.')
+    expect(getHotelFundsPolicyAccessibleSuffix(undefined, 'ready', 'Hotel partner', { policy: true })).toBe('Deposit and hold policy was not provided.')
+    expect(getHotelFundsPolicyAccessibleSuffix(undefined, 'loading', 'Hotel partner', { policy: true })).toContain('still being checked')
+    expect(getHotelFundsPolicyAccessibleSuffix(undefined, 'error', 'Hotel partner', { policy: true })).toBe('Deposit and hold policy could not be checked.')
+    expect(getHotelFundsPolicyAccessibleSuffix(completeHold)).toBe('Deposit and hold details are unavailable from this provider.')
   })
 
   it('distinguishes provider incapability from capable offer-level absence in full detail', () => {

@@ -1291,7 +1291,7 @@ function HotelHandoffReview({
             offerId={hotelContext.offerId}
             provider={hotelContext.provider}
             rootRef={fundsPolicyExposureRef}
-            capability={hotelContext.fundsPolicyCapability}
+            capability={fundsPolicyBridge.capability}
           />
         </div>
           <details className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">

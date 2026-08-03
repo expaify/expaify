@@ -17,6 +17,16 @@ describe('persisted deal funds-policy bridge', () => {
     expect(normalizePersistedDealFundsPolicyBridge(undefined)).toBeUndefined();
     expect(normalizePersistedDealFundsPolicyBridge(null)).toBeUndefined();
     expect(normalizePersistedDealFundsPolicyBridge('legacy')).toBeUndefined();
+    expect(normalizePersistedDealFundsPolicyBridge({})).toBeUndefined();
+    expect(normalizePersistedDealFundsPolicyBridge({
+      provider: 'legacy-provider',
+      evidence: explicitNoneBridge.evidence,
+      loadState: 'ready',
+    })).toBeUndefined();
+    expect(normalizePersistedDealFundsPolicyBridge({
+      ...explicitNoneBridge,
+      capability: { policy: 'false' },
+    })).toBeUndefined();
   });
 
   it('preserves a provider-normalized capable bridge through JSON persistence', () => {

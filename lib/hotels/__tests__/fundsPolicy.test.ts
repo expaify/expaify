@@ -153,6 +153,7 @@ describe('hotel funds policy normalization', () => {
   it('bounds analytics to normalized enums and never includes policy wording or amounts', () => {
     expect(getHotelFundsAnalyticsDimensions({
       evidence: completeHold,
+      capability: { policy: true },
       provider: 'Provider.COM/raw path',
       surface: 'book_handoff',
     })).toEqual({
@@ -180,6 +181,7 @@ describe('hotel funds policy normalization', () => {
           },
         ],
       },
+      capability: { policy: true },
       provider: 'provider',
       surface: 'hotel_card',
     })).toMatchObject({
