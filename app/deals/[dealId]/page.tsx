@@ -45,6 +45,8 @@ import {
   createHotelDisruptionFixture,
   parseHotelDisruptionFixture,
 } from '@/app/components/research/hotelDisruptionFixtures'
+import { HotelClimateEvidenceLedger } from '@/app/components/HotelClimateEvidence'
+import { createUnsupportedHotelClimateEvidence } from '@/lib/hotels/climateEvidence'
 
 type PageProps = {
   params: Promise<{ dealId: string }>
@@ -380,7 +382,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             </dl>
             <p className="mt-4 text-sm leading-6 text-[color:var(--text-2)]">
               {checkInDisplay && checkOutDisplay && deal.nights != null
-                ? 'Rate shown for this stay context; the provider confirms room-level details.'
+                ? 'This observed rate is associated with these stay dates. Room options and room-level details are confirmed only where the evidence below says “For this room and rate.”'
                 : 'Stay dates are incomplete. Choose or confirm dates with the provider before comparing room options.'}
             </p>
           </section>
@@ -426,6 +428,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
               </div>
             </dl>
+            <HotelClimateEvidenceLedger evidence={createUnsupportedHotelClimateEvidence(deal.id, 'saved-deal-contract')} />
             <HotelDisruptionEvidenceLedger
               evidence={disruptionEvidence}
               analyticsKey={deal.id}

@@ -11,6 +11,7 @@ import type {
   HotelLocationAnchorSource,
   HotelLocationEvidenceSource,
   HotelLocationPrecision,
+  HotelClimateEvidence,
   HotelDocumentReadiness,
   HotelDocumentStatus,
   HotelFundsPolicyEvidence,
@@ -49,6 +50,7 @@ import {
   hasVerifiedHotelLocationComparison,
 } from '../hotels/locationEvidence';
 import { normalizeHotelSmokingPolicy, unavailableHotelSmokingPolicy } from '../hotels/smokingPolicy';
+import { createUnsupportedHotelClimateEvidence, validateHotelClimateEvidence } from '../hotels/climateEvidence';
 
 export type BookingFareContext = {
   offerId: string;
@@ -95,6 +97,7 @@ export type BookingHotelContext = {
   rateEligibilityCapability?: HotelRateEligibilityCapability;
   admissionPolicy?: HotelAdmissionPolicyEvidence;
   admissionPolicyCapability?: HotelAdmissionPolicyCapability;
+  climateEvidence?: HotelClimateEvidence;
 };
 
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
@@ -149,6 +152,7 @@ type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
   fundsPolicy?: unknown;
   smokingPolicy?: unknown;
   transportEvidence?: unknown;
+  climateEvidence?: unknown;
 };
 
 export function isBookingEnabled(): boolean {
@@ -964,6 +968,9 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const admissionPolicy = validateHotelAdmissionPolicyEvidence(input.admissionPolicy) ?? undefined;
   const admissionPolicyCapability = validateHotelAdmissionPolicyCapability(input.admissionPolicyCapability) ?? undefined;
   const transportEvidence = validateHotelTransportEvidence(input.transportEvidence);
+  const climateEvidence = input.climateEvidence === undefined
+    ? undefined
+    : validateHotelClimateEvidence(input.climateEvidence, { offerId });
 
   if (
     kind !== 'hotel' ||
@@ -1014,6 +1021,7 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     ...(admissionPolicy !== undefined ? { admissionPolicy } : {}),
     ...(admissionPolicyCapability !== undefined ? { admissionPolicyCapability } : {}),
     ...(transportEvidence !== undefined ? { transportEvidence } : {}),
+    ...(climateEvidence !== null && climateEvidence !== undefined ? { climateEvidence } : {}),
   };
 }
 
@@ -1130,6 +1138,7 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     admissionPolicy: parseJsonQueryParam(firstParam(params.admissionPolicy)),
     admissionPolicyCapability: parseJsonQueryParam(firstParam(params.admissionPolicyCapability)),
     transportEvidence: parseJsonQueryParam(firstParam(params.transportEvidence)),
+    climateEvidence: parseJsonQueryParam(firstParam(params.climateEvidence)),
   });
 }
 
@@ -1226,6 +1235,8 @@ export function buildBookingHotelContext(hotel: HotelOffer, continuity?: Booking
     ...(hotel.admissionPolicy !== undefined ? { admissionPolicy: hotel.admissionPolicy } : {}),
     ...(hotel.admissionPolicyCapability !== undefined ? { admissionPolicyCapability: hotel.admissionPolicyCapability } : {}),
     ...(hotel.transportEvidence !== undefined ? { transportEvidence: hotel.transportEvidence } : {}),
+    climateEvidence: validateHotelClimateEvidence(hotel.climateEvidence, { offerId: hotel.id })
+      ?? createUnsupportedHotelClimateEvidence(hotel.id, hotel.source),
     ...(continuity?.entrySource !== undefined ? { entrySource: continuity.entrySource } : {}),
     ...(continuity?.returnUrl !== undefined ? { returnUrl: continuity.returnUrl } : {}),
     ...(continuity?.checkIn !== undefined ? { checkIn: continuity.checkIn } : {}),
@@ -1293,6 +1304,7 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
   if (context.admissionPolicy) params.set('admissionPolicy', JSON.stringify(context.admissionPolicy));
   if (context.admissionPolicyCapability) params.set('admissionPolicyCapability', JSON.stringify(context.admissionPolicyCapability));
   if (context.transportEvidence) params.set('transportEvidence', JSON.stringify(context.transportEvidence));
+  if (context.climateEvidence) params.set('climateEvidence', JSON.stringify(context.climateEvidence));
   const issuerParams = [
     ['invoice', 'documentInvoiceIssuerRole', 'documentInvoiceIssuerName'],
     ['receipt', 'documentReceiptIssuerRole', 'documentReceiptIssuerName'],

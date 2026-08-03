@@ -1,7 +1,7 @@
 'use client'
 
 import { formatMoney } from '@/lib/money'
-import type { Money } from '@/lib/types'
+import type { HotelClimateEvidence, Money } from '@/lib/types'
 import type { HotelDisruptionEvidence } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
 import { CompareRow } from './CompareRow'
@@ -15,6 +15,7 @@ import {
   getHotelDisruptionResultCue,
   HotelDisruptionResultCue,
 } from './HotelDisruptionNotice'
+import { getHotelClimateResultCue } from '@/lib/hotels/climateEvidence'
 
 type DealLinks = {
   expedia?: string
@@ -48,6 +49,7 @@ type DealCardProps = {
   onOpen?: () => void
   quietStayEvidence?: QuietStayEvidence
   disruptionEvidence?: HotelDisruptionEvidence
+  climateEvidence?: HotelClimateEvidence
 }
 
 function starChars(stars: number): string {
@@ -68,12 +70,13 @@ function absoluteCheckedAt(iso: string | null | undefined): string | undefined {
   })
 }
 
-export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvidence }: DealCardProps) {
+export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvidence, climateEvidence }: DealCardProps) {
   const savings = deal.medianPrice.priceCents - deal.dealPrice.priceCents
   const showSavings = savings >= 2000
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
   const quietEvidenceCue = getQuietEvidenceResultCue(quietStayEvidence)
   const disruptionCue = getHotelDisruptionResultCue(disruptionEvidence)
+  const climateCue = getHotelClimateResultCue(climateEvidence)
 
   const content = (
     <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
@@ -95,6 +98,11 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
           {quietEvidenceCue ? (
             <p className="mt-2 break-words text-caption font-medium leading-5 text-[color:var(--text-2)]">
               {quietEvidenceCue}
+            </p>
+          ) : null}
+          {climateCue ? (
+            <p className="mt-2 break-words text-caption font-medium leading-5 text-[color:var(--text-2)]">
+              {climateCue}
             </p>
           ) : null}
         </div>
@@ -162,7 +170,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
         if ((event.target as Element).closest('a') === event.currentTarget) onOpen?.()
       }}
       className="block text-inherit no-underline"
-      aria-label={`View deal: ${deal.hotelName}.${disruptionCue ? ` Supplier notice: ${disruptionCue}.` : ''}${quietEvidenceCue ? ` ${quietEvidenceCue.replace(' · ', ': ')}.` : ''}`}
+      aria-label={`View deal: ${deal.hotelName}.${disruptionCue ? ` Supplier notice: ${disruptionCue}.` : ''}${quietEvidenceCue ? ` ${quietEvidenceCue.replace(' · ', ': ')}.` : ''}${climateCue ? ` Room climate: ${climateCue}.` : ''}`}
     >
       {content}
     </a>

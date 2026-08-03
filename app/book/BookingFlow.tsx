@@ -47,23 +47,25 @@ import {
   getHotelPriceCompositionAccessibleSummary,
   HotelPriceComposition,
 } from '@/app/components/HotelPriceComposition'
+import { HotelClimateEvidenceLedger, HotelClimateHandoffCheck } from '@/app/components/HotelClimateEvidence'
+import { getHotelClimateHandoffGuidance } from '@/lib/hotels/climateEvidence'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
 type HotelReturnReason =
-  | 'smoking_policy_or_room_mismatch'
-  | 'price_or_fees_mismatch'
-  | 'room_availability_mismatch'
-  | 'other_hotel_details_mismatch'
-  | 'loyalty_or_points_uncertainty'
+  | 'cooling_missing_or_mismatch'
+  | 'heating_missing_or_mismatch'
+  | 'guest_control_not_confirmed'
+  | 'climate_details_missing_provider'
+  | 'unrelated_mismatch'
   | 'prefer_not_to_say'
 
 const HOTEL_RETURN_REASONS: ReadonlyArray<{ value: HotelReturnReason; label: string }> = [
-  { value: 'smoking_policy_or_room_mismatch', label: 'Smoking policy or room did not match' },
-  { value: 'price_or_fees_mismatch', label: 'Price or fees did not match' },
-  { value: 'room_availability_mismatch', label: 'Room availability did not match' },
-  { value: 'other_hotel_details_mismatch', label: 'Other hotel details did not match' },
-  { value: 'loyalty_or_points_uncertainty', label: 'Not sure this stay earns points or status' },
+  { value: 'cooling_missing_or_mismatch', label: 'Cooling was missing or did not match' },
+  { value: 'heating_missing_or_mismatch', label: 'Heating was missing or did not match' },
+  { value: 'guest_control_not_confirmed', label: 'Room temperature adjustment was not confirmed' },
+  { value: 'climate_details_missing_provider', label: 'Climate details were missing on the provider' },
+  { value: 'unrelated_mismatch', label: 'Something unrelated did not match' },
   { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ]
 
@@ -407,6 +409,7 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
           </div>
         </dl>
         <HotelAdmissionPolicySection presentation={admissionPolicy} providerName={hasProviderName(hotelContext.provider) ? rateSource : ''} />
+        <HotelClimateEvidenceLedger evidence={hotelContext.climateEvidence} continuityFailed={hotelContext.climateEvidence === undefined} />
       </section>
     </>
   )
@@ -547,6 +550,7 @@ function ReviewShell({
           <HotelDecisionSummary hotelContext={hotelContext} />
           {status}
           {children}
+          {hotelSupplement ? <div className="space-y-3">{hotelSupplement}</div> : null}
         </div>
       </main>
     )
@@ -1076,13 +1080,14 @@ function HotelHandoffReview({
     ? `${partner.label} confirms the final total before you pay.`
     : 'The booking partner confirms the final total before you pay.'
   const transportGuidance = getHotelTransportHandoffGuidance(hotelContext.transportEvidence)
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary()} ${finalTotalBoundary} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
+  const climateGuidance = getHotelClimateHandoffGuidance(hotelContext.climateEvidence).join(' ')
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary()} ${finalTotalBoundary} ${transportGuidance} ${climateGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
 
   return (
     <ReviewShell
       eyebrow="Hotel review"
       title={hotelContext.name}
-      message="Review the property, observed nightly rate, hotel fit, and provider handoff."
+      message="Review the property, observed nightly rate, hotel fit, room climate evidence, and provider handoff."
       fareContext={null}
       hotelContext={hotelContext}
       duffelSandbox={duffelSandbox}
@@ -1092,14 +1097,14 @@ function HotelHandoffReview({
           <TrackedSmokingPolicyPanel offerId={hotelContext.offerId} provider={hotelContext.provider} policy={policy} surface="review" />
           {showReturnPrompt ? (
             <section className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4" aria-labelledby="hotel-return-feedback-title">
-              <h3 id="hotel-return-feedback-title" className="text-sm font-medium text-[color:var(--text-1)]">Did the partner details match?</h3>
-              <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Optional: tell us what changed so we can improve hotel evidence.</p>
+              <h3 id="hotel-return-feedback-title" className="text-sm font-medium text-[color:var(--text-1)]">Did the provider details match?</h3>
+              <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Optional: choose one reason. Do not include health or temperature details.</p>
               {feedbackSent ? (
                 <p className="mt-3 text-sm font-medium text-[color:var(--brand)]" role="status">Thanks. Your feedback was recorded.</p>
               ) : feedbackOpen ? (
                 <form className="mt-3" onSubmit={handleReturnFeedback}>
                   <fieldset>
-                    <legend className="text-sm font-medium text-[color:var(--text-1)]">What did not match?</legend>
+                    <legend className="text-sm font-medium text-[color:var(--text-1)]">What was missing or different?</legend>
                     <div className="mt-2 space-y-1">
                       {HOTEL_RETURN_REASONS.map(reason => (
                         <label key={reason.value} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-[var(--radius-control)] px-2 text-sm text-[color:var(--text-2)] focus-within:shadow-[var(--focus-ring)]">
@@ -1146,6 +1151,7 @@ function HotelHandoffReview({
         <p className="mt-3 break-words text-sm font-medium leading-6 text-[color:var(--text-2)]">
           {transportGuidance}
         </p>
+        <HotelClimateHandoffCheck evidence={hotelContext.climateEvidence} />
         <HotelBookingOwnershipDisclosure
           partner={verifiedModificationPartner}
           expaifyIssueRoute={null}

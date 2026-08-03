@@ -37,6 +37,7 @@ import {
   type HotelResultMetadata,
 } from './hotelFilterRecovery'
 import { ResultCoverageBoundary, type CoverageState, type CoverageFilter } from './ResultCoverageBoundary'
+import { createUnsupportedHotelClimateEvidence } from '@/lib/hotels/climateEvidence'
 
 const CITIES = [
   'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
@@ -1795,7 +1796,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 {deals.map(deal => deal.locked ? (
                   <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars ?? 4} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
-                  <DealCard key={deal.id} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars ?? 3, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
+                  <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars ?? 3, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
               </div>
             </>
@@ -1812,7 +1813,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 {deals.map(deal => deal.locked ? (
                   <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars ?? 4} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
-                  <DealCard key={deal.id} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars ?? 3, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
+                  <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars ?? 3, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
               </div>
             </>
@@ -1904,6 +1905,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                   ) : (
                     <DealCard
                       key={deal.id}
+                      climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')}
                       href={deal.isMock ? undefined : buildHotelDetailUrl(deal.id, resultsUrl)}
                       onOpen={deal.isMock ? undefined : () => trackCardOpen(index + 1)}
                       deal={{
