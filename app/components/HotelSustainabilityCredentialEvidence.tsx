@@ -25,6 +25,9 @@ export type HotelCredentialRecord = {
   observedAt?: string
   evidenceUrl?: string
   evidenceUrlDisplayPermitted?: boolean
+  propertyMatch?: 'stable_id' | 'approved_crosswalk' | 'strict_composite'
+  displayRightsConfirmed?: boolean
+  freshnessPolicyPassed?: boolean
   missingFields?: HotelCredentialMissingField[]
   conflictDimension?: HotelCredentialConflictDimension
 }
@@ -55,6 +58,9 @@ const missingLabels: Record<HotelCredentialMissingField, string> = {
   source: 'evidence source',
 }
 const missingOrder: HotelCredentialMissingField[] = ['property_match', 'scheme', 'issuer', 'scope', 'status', 'validity', 'source']
+// Credential links are not general web links. Production normalization must add
+// approved issuer/provider hosts here before exposing their records.
+const evidenceUrlAllowedHosts = new Set(['credentials.expaify.test'])
 
 function cleanText(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
@@ -63,9 +69,25 @@ function cleanText(value: unknown): string | undefined {
 }
 
 function parseDate(value: unknown): Date | undefined {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(value)) return undefined
+  if (typeof value !== 'string') return undefined
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T.+)?$/.exec(value)
+  if (!match) return undefined
+  const [, yearValue, monthValue, dayValue] = match
+  const year = Number(yearValue)
+  const month = Number(monthValue)
+  const day = Number(dayValue)
+  const calendarDate = new Date(Date.UTC(year, month - 1, day))
+  if (calendarDate.getUTCFullYear() !== year || calendarDate.getUTCMonth() !== month - 1 || calendarDate.getUTCDate() !== day) return undefined
   const date = new Date(value)
   return Number.isFinite(date.getTime()) ? date : undefined
+}
+
+function hasUnsafeDate(record: HotelCredentialRecord): boolean {
+  const dates = [record.validFrom, record.validThrough, record.observedAt]
+  if (dates.some(value => value !== undefined && !parseDate(value))) return true
+  const validFrom = parseDate(record.validFrom)
+  const validThrough = parseDate(record.validThrough)
+  return Boolean(validFrom && validThrough && validFrom > validThrough)
 }
 
 function formatDate(value: unknown, compact = false): string | undefined {
@@ -86,7 +108,7 @@ function safeEvidenceUrl(record: HotelCredentialRecord): string | undefined {
   if (!record.evidenceUrlDisplayPermitted || !record.evidenceUrl) return undefined
   try {
     const url = new URL(record.evidenceUrl)
-    return url.protocol === 'https:' ? url.toString() : undefined
+    return url.protocol === 'https:' && evidenceUrlAllowedHosts.has(url.hostname) ? url.toString() : undefined
   } catch {
     return undefined
   }
@@ -101,7 +123,7 @@ function Fact({ label, value, full = false }: { label: string; value: string; fu
   )
 }
 
-function RecordCard({ record, state }: { record: HotelCredentialRecord; state: HotelCredentialState }) {
+function RecordCard({ record, state, invalidValidity = false }: { record: HotelCredentialRecord; state: HotelCredentialState; invalidValidity?: boolean }) {
   const scheme = cleanText(record.schemeName)
   const issuer = cleanText(record.issuerName)
   const source = cleanText(record.sourceLabel)
@@ -112,7 +134,7 @@ function RecordCard({ record, state }: { record: HotelCredentialRecord; state: H
   const observedAt = formatDate(record.observedAt)
   const evidenceUrl = safeEvidenceUrl(record)
   const conflict = state === 'conflicting' ? record.conflictDimension : undefined
-  const missing = missingOrder.filter(field => record.missingFields?.includes(field)).map(field => missingLabels[field])
+  const missing = missingOrder.filter(field => record.missingFields?.includes(field) || (invalidValidity && field === 'validity')).map(field => missingLabels[field])
   const sourceValue = source
     ? record.sourceClass === 'issuer_linked'
       ? `Issuer-linked record from ${source}`
@@ -180,9 +202,14 @@ export function HotelSustainabilityCredentialEvidence({
   titleId?: string
 }) {
   const current = evidence ?? NOT_CHECKED_HOTEL_CREDENTIAL_EVIDENCE
+  const invalidValidity = current.records.some(hasUnsafeDate)
+  const effectiveState: HotelCredentialState = invalidValidity && ['current_issuer_linked', 'current_provider_reported', 'expired'].includes(current.state)
+    ? 'incomplete'
+    : current.state
+  const effectiveEvidence = effectiveState === current.state ? current : { ...current, state: effectiveState }
   const loading = current.loadState === 'loading' || current.loadState === 'refreshing'
-  const copy = stateCopy(current)
-  const returnedRecords = loading || ['not_checked', 'not_returned', 'check_failed'].includes(current.state)
+  const copy = stateCopy(effectiveEvidence)
+  const returnedRecords = loading || ['not_checked', 'not_returned', 'check_failed'].includes(effectiveState)
     ? []
     : [...current.records].sort((a, b) => (cleanText(a.schemeName) ?? '').localeCompare(cleanText(b.schemeName) ?? '', 'en-US'))
 
@@ -202,7 +229,7 @@ export function HotelSustainabilityCredentialEvidence({
       </div>
       {returnedRecords.length ? (
         <ul role="list" className="mt-4 grid list-none gap-3 p-0">
-          {returnedRecords.map(record => <RecordCard key={record.id} record={record} state={current.state} />)}
+          {returnedRecords.map(record => <RecordCard key={record.id} record={record} state={effectiveState} invalidValidity={invalidValidity} />)}
         </ul>
       ) : null}
       {returnedRecords.length ? <p className="mt-4 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)] px-3.5 py-3 text-sm leading-6 text-[color:var(--text-2)]">{LIMITATION}</p> : null}
