@@ -66,9 +66,27 @@ describe('Hotel room inventory confidence', () => {
     )
 
     expect(html).toContain('Provider link unavailable')
+    expect(html).toContain('Your previous hotel search could not be restored. This hotel and any known dates are still shown above.')
     expect(html).toContain('Search current hotel deals')
     expect(html).toContain('href="/deals"')
     expect(html).not.toContain('Sold out')
+  })
+
+  it('discloses unrestorable criteria before an otherwise eligible provider handoff', () => {
+    const html = renderToStaticMarkup(
+      <HotelDealCriteriaHandoff
+        context={{ status: 'invalid', backHref: '/deals' }}
+        deal={deal}
+        links={links}
+        hotelName="Hotel Lumiere"
+        datesIncomplete
+      />,
+    )
+
+    const noticeIndex = html.indexOf('Your previous hotel search could not be restored.')
+    const actionIndex = html.indexOf('Check rooms at Expedia')
+    expect(noticeIndex).toBeGreaterThan(-1)
+    expect(actionIndex).toBeGreaterThan(noticeIndex)
   })
 
   it('preserves the criteria-aware results URL when the saved context matches', () => {

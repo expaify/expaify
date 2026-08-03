@@ -320,6 +320,11 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
   const restorable = status === 'matched' && Boolean(criteria)
   const resultsHref = restorable ? context.backHref : '/deals'
   const resultsLabel = restorable ? 'Back to matching hotels' : 'Search current hotel deals'
+  const unrestorableContextNotice = !restorable ? (
+    <p className="mt-4 text-sm leading-6 text-[color:var(--text-2)]">
+      Your previous hotel search could not be restored. This hotel and any known dates are still shown above.
+    </p>
+  ) : null
   return (
     <div className="mt-4">
       <RoomInventoryTruth
@@ -330,6 +335,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
         checkOutDisplay={deal.checkOutDisplay}
         nights={deal.nights}
       />
+      {unrestorableContextNotice}
       {hasLinks ? (
         <>
           {disruptionNotice}
@@ -368,7 +374,6 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
                     ? 'expaify did not check what happened on the provider site. You can check this hotel again or return to hotels matching your saved stay.'
                     : 'expaify did not check what happened on the provider site. You can check this hotel again or start a current hotel search.'}
                 </p>
-                {!restorable ? <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">Your previous hotel search could not be restored. This hotel and any known dates are still shown above.</p> : null}
               </div>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <a
