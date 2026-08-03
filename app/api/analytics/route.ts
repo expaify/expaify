@@ -35,9 +35,12 @@ const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries
     city_watch_failed: ['city'],
     city_join_cta_clicked: ['city', 'tier'],
     hotel_handoff_viewed: ['source', 'partnerHost', 'currency', 'priceCents', 'priceBasis', 'locationPrecision'],
-    hotel_handoff_continue_clicked: ['source', 'partnerHost', 'currency', 'priceCents', 'priceBasis', 'locationPrecision', 'partnerNamed'],
+    hotel_handoff_continue_clicked: ['source', 'partnerHost', 'currency', 'priceCents', 'priceBasis', 'locationPrecision', 'partnerNamed', 'invoiceNeeded', 'invoiceReadinessStatus', 'taxIdState', 'documentNameState'],
     hotel_handoff_returned: ['source', 'partnerHost', 'awayDurationBucket'],
     hotel_handoff_back_clicked: ['source', 'partnerHost'],
+    hotel_handoff_return_reason_selected: ['reason', 'offerId', 'provider', 'partnerHost', 'handoffSessionId'],
+    hotel_invoice_readiness_viewed: ['status', 'documentTypes', 'invoiceIssuerRole', 'receiptIssuerRole', 'billingDetailsStep', 'source', 'scope', 'taxIdState', 'documentNameState', 'taxIdSourceClass', 'documentNameSourceClass'],
+    hotel_invoice_verification_clicked: ['status', 'documentTypes', 'invoiceIssuerRole', 'receiptIssuerRole', 'billingDetailsStep', 'source', 'scope', 'targetRole', 'dimension', 'dimensionState', 'sourceClass'],
     hotel_request_guidance_viewed: ['source', 'partnerHost', 'capabilityState', 'eligibleRequestCount'],
     hotel_request_handoff_continued: ['source', 'partnerHost', 'capabilityState', 'eligibleRequestCount', 'selectedRequestCount', 'guidanceSeen'],
     hotel_request_help_opened: ['source', 'partnerHost', 'capabilityState'],
@@ -76,9 +79,12 @@ const REQUIRED_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntr
     city_watch_failed: ['city'],
     city_join_cta_clicked: ['city', 'tier'],
     hotel_handoff_viewed: ['source', 'partnerHost', 'currency', 'priceCents', 'priceBasis', 'locationPrecision'],
-    hotel_handoff_continue_clicked: ['source', 'partnerHost', 'currency', 'priceCents', 'priceBasis', 'locationPrecision', 'partnerNamed'],
+    hotel_handoff_continue_clicked: ['source', 'partnerHost', 'currency', 'priceCents', 'priceBasis', 'locationPrecision', 'partnerNamed', 'invoiceNeeded', 'invoiceReadinessStatus'],
     hotel_handoff_returned: ['source', 'partnerHost', 'awayDurationBucket'],
     hotel_handoff_back_clicked: ['source', 'partnerHost'],
+    hotel_handoff_return_reason_selected: ['reason', 'offerId', 'provider', 'partnerHost', 'handoffSessionId'],
+    hotel_invoice_readiness_viewed: ['status', 'documentTypes', 'invoiceIssuerRole', 'receiptIssuerRole', 'billingDetailsStep', 'source', 'scope'],
+    hotel_invoice_verification_clicked: ['status', 'documentTypes', 'invoiceIssuerRole', 'receiptIssuerRole', 'billingDetailsStep', 'source', 'scope', 'targetRole'],
     hotel_request_guidance_viewed: ['source', 'partnerHost', 'capabilityState', 'eligibleRequestCount'],
     hotel_request_handoff_continued: ['source', 'partnerHost', 'capabilityState', 'eligibleRequestCount', 'selectedRequestCount', 'guidanceSeen'],
     hotel_request_help_opened: ['source', 'partnerHost', 'capabilityState'],
@@ -141,7 +147,12 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
   if (key === 'result_count_bucket') return oneOf(value, ['0', '1_5', '6_20', '21_plus'])
   if (key === 'result_state') return oneOf(value, ['empty', 'populated', 'sample', 'locked'])
   if (key === 'context_status') return oneOf(value, ['matched', 'mismatch', 'missing', 'invalid'])
-  if (key === 'provider') return oneOf(value, ['expedia', 'booking', 'kiwi', 'trip'])
+  if (key === 'provider') {
+    if (event === 'hotel_handoff_return_reason_selected') {
+      return oneOf(value, ['hotellook', 'duffel', 'amadeus', 'kiwi', 'travelpayouts', 'other'])
+    }
+    return oneOf(value, ['expedia', 'booking', 'kiwi', 'trip'])
+  }
   if (key === 'viewport_group' || key === 'viewport_band') return oneOf(value, ['mobile_375', 'desktop_1280', 'other'])
   if (key === 'score_state') return oneOf(value, ['loading', 'confirmed', 'unavailable', 'error'])
   if (key === 'price_freshness_state') return oneOf(value, ['fresh', 'aging', 'stale', 'expired', 'unavailable'])
@@ -191,7 +202,50 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
       'context-loading', 'property-loading', 'context-error', 'resolved', 'no-overlap',
     ])
   }
-  if (key === 'sourceClass') return oneOf(value, ['property', 'provider', 'auditor', 'authority'])
+  if (key === 'sourceClass') {
+    if (event === 'hotel_invoice_readiness_viewed' || event === 'hotel_invoice_verification_clicked') {
+      return oneOf(value, ['booking_provider', 'property', 'other'])
+    }
+    return oneOf(value, ['property', 'provider', 'auditor', 'authority'])
+  }
+  if (key === 'taxIdSourceClass' || key === 'documentNameSourceClass') return oneOf(value, ['booking_provider', 'property', 'other'])
+  if (key === 'targetRole') return oneOf(value, ['booking_provider', 'property'])
+  if (key === 'dimension') return oneOf(value, ['tax_id', 'document_name', 'multiple'])
+  if (key === 'taxIdState' || key === 'documentNameState' || key === 'dimensionState') {
+    return oneOf(value, ['supported', 'unsupported', 'conditional', 'conflicting', 'not_provided'])
+  }
+  if (key === 'invoiceReadinessStatus' || key === 'status') {
+    return oneOf(value, ['confirmed', 'conditional', 'unavailable', 'not_provided', 'conflicting'])
+  }
+  if (key === 'invoiceIssuerRole' || key === 'receiptIssuerRole') {
+    return oneOf(value, ['booking_provider', 'property', 'split', 'unknown'])
+  }
+  if (key === 'billingDetailsStep') {
+    return oneOf(value, [
+      'during_partner_booking', 'after_booking_contact_provider', 'after_booking_contact_property',
+      'at_checkout', 'not_required', 'unknown',
+    ])
+  }
+  if (key === 'documentTypes') {
+    if (typeof value !== 'string') return false
+    if (value === 'none') return true
+    const types = value.split(',')
+    const order = ['invoice', 'receipt', 'booking_confirmation']
+    return types.length > 0 && types.length <= 3 && new Set(types).size === types.length &&
+      types.every(type => order.includes(type))
+  }
+  if (key === 'invoiceNeeded') return typeof value === 'boolean'
+  if (key === 'reason') {
+    return oneOf(value, [
+      'smoking_policy_or_room_mismatch', 'price_or_fees_mismatch', 'room_availability_mismatch',
+      'other_hotel_details_mismatch', 'loyalty_or_points_uncertainty', 'prefer_not_to_say',
+      'tax_id_unclear', 'document_name_unclear',
+    ])
+  }
+  if (key === 'offerId') return typeof value === 'string' && OPAQUE_VALUE.test(value)
+  if (key === 'handoffSessionId') {
+    return typeof value === 'string' && (ID.test(value) || /^handoff-\d{1,20}$/.test(value))
+  }
   if (key === 'viewport') return oneOf(value, ['375', '1280'])
   if (key === 'evidenceState') return oneOf(value, ['loading', 'missing', 'partial', 'confirmed', 'stale', 'conflict', 'error'])
   if (key === 'signalType') {
