@@ -15,6 +15,12 @@ import {
   getHotelDisruptionResultCue,
   HotelDisruptionResultCue,
 } from './HotelDisruptionNotice'
+import {
+  getHotelEvChargingResultCopy,
+  HotelEvChargingResultSignal,
+  PRODUCTION_EV_CHARGING_UNKNOWN,
+  type HotelEvChargingEvidence,
+} from '../HotelEvCharging'
 
 type DealLinks = {
   expedia?: string
@@ -48,6 +54,7 @@ type DealCardProps = {
   onOpen?: () => void
   quietStayEvidence?: QuietStayEvidence
   disruptionEvidence?: HotelDisruptionEvidence
+  evChargingEvidence?: HotelEvChargingEvidence
 }
 
 function starChars(stars: number): string {
@@ -68,12 +75,13 @@ function absoluteCheckedAt(iso: string | null | undefined): string | undefined {
   })
 }
 
-export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvidence }: DealCardProps) {
+export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvidence, evChargingEvidence = PRODUCTION_EV_CHARGING_UNKNOWN }: DealCardProps) {
   const savings = deal.medianPrice.priceCents - deal.dealPrice.priceCents
   const showSavings = savings >= 2000
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
   const quietEvidenceCue = getQuietEvidenceResultCue(quietStayEvidence)
   const disruptionCue = getHotelDisruptionResultCue(disruptionEvidence)
+  const evChargingCue = getHotelEvChargingResultCopy(evChargingEvidence)
 
   const content = (
     <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
@@ -97,6 +105,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
               {quietEvidenceCue}
             </p>
           ) : null}
+          <HotelEvChargingResultSignal evidence={evChargingEvidence} offerId={deal.id} />
         </div>
 
         <div className="space-y-2">
@@ -162,7 +171,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
         if ((event.target as Element).closest('a') === event.currentTarget) onOpen?.()
       }}
       className="block text-inherit no-underline"
-      aria-label={`View deal: ${deal.hotelName}.${disruptionCue ? ` Supplier notice: ${disruptionCue}.` : ''}${quietEvidenceCue ? ` ${quietEvidenceCue.replace(' · ', ': ')}.` : ''}`}
+      aria-label={`View deal: ${deal.hotelName}.${disruptionCue ? ` Supplier notice: ${disruptionCue}.` : ''}${quietEvidenceCue ? ` ${quietEvidenceCue.replace(' · ', ': ')}.` : ''} ${evChargingCue.accessible}`}
     >
       {content}
     </a>

@@ -252,7 +252,7 @@ describe('BookingFlow fare context review', () => {
     const outbound = findElements(tree, element => element.type === 'a' && typeof element.props['aria-label'] === 'string' && element.props['aria-label'].startsWith('Check rooms at'))[0];
     expect(outbound.props.href).toBe(hotelContext.providerUrl);
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
-    expect(outbound.props['aria-label']).toBe("Check rooms at provider for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00 per night. Taxes: not confirmed. Mandatory property charges: not confirmed. The booking partner confirms the final total before you pay. Airport-transfer details were not confirmed. Check directly with the property before arrival. Confirm the room's smoking status and the property's current smoking rules on the booking partner.");
+    expect(outbound.props['aria-label']).toBe("Check rooms at provider for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00 per night. Taxes: not confirmed. Mandatory property charges: not confirmed. The booking partner confirms the final total before you pay. Airport-transfer details were not confirmed. Check directly with the property before arrival. Confirm the room's smoking status and the property's current smoking rules on the booking partner. On-property charging is not confirmed.");
   });
 
   it('uses booking-partner fee copy only when the normalized offer provider is missing', () => {

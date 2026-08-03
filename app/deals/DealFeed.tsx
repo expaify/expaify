@@ -521,6 +521,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const failedCriteriaVersionRef = useRef<string | null>(null)
   const retryCriteriaRef = useRef<HTMLButtonElement>(null)
   const viewedCriteriaVersionsRef = useRef(new Set<string>())
+  const evChargingImpressionsRef = useRef(new Set<string>())
   const gridRef = useRef<HTMLDivElement>(null)
   const resultStatusRef = useRef<HTMLDivElement>(null)
   const sortControlRef = useRef<HTMLElement>(null)
@@ -539,6 +540,38 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const failedContinuationOffsetRef = useRef<number | null>(null)
   const continuationOriginRef = useRef<'manual' | 'automatic'>('manual')
   const continuationPendingRef = useRef(false)
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return
+    const timers = new Map<Element, ReturnType<typeof setTimeout>>()
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        const node = entry.target as HTMLElement
+        const key = `${node.dataset.evChargingOffer}.${node.dataset.evChargingRevision}`
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.5) {
+          const timer = timers.get(node)
+          if (timer) clearTimeout(timer)
+          timers.delete(node)
+          continue
+        }
+        if (timers.has(node) || evChargingImpressionsRef.current.has(key)) continue
+        timers.set(node, setTimeout(() => {
+          timers.delete(node)
+          if (evChargingImpressionsRef.current.has(key)) return
+          evChargingImpressionsRef.current.add(key)
+          track('hotel_ev_charging_state_impression', {
+            offer_id: node.dataset.evChargingOffer ?? 'unknown', provider: 'unknown', surface: 'result',
+            state: node.dataset.evChargingState ?? 'unknown', completeness_bucket: 'none', limitation_categories: '',
+            evidence_revision: node.dataset.evChargingRevision ?? 'unknown',
+            viewport_group: window.innerWidth <= 480 ? 'mobile_375' : window.innerWidth >= 1024 ? 'desktop_1280' : 'other',
+          })
+          observer.unobserve(node)
+        }, 500))
+      }
+    }, { threshold: 0.5 })
+    document.querySelectorAll('[data-ev-charging-signal="true"]').forEach(node => observer.observe(node))
+    return () => { timers.forEach(timer => clearTimeout(timer)); observer.disconnect() }
+  }, [deals])
 
   // Server-prefetched feeds skip the initial API request, so the entitlement
   // supplied by the Server Component must remain the source of truth on

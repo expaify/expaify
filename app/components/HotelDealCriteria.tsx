@@ -35,6 +35,12 @@ import {
   HotelDisruptionHandoffNotice,
   NO_HOTEL_DISRUPTION_EVIDENCE,
 } from '@/app/components/ui/HotelDisruptionNotice'
+import {
+  HotelEvChargingHandoffNotice,
+  PRODUCTION_EV_CHARGING_UNKNOWN,
+  hotelEvChargingActionBoundary,
+  trackHotelEvChargingHandoff,
+} from '@/app/components/HotelEvCharging'
 
 type ResolvedContext = {
   criteria?: HotelSearchCriteriaV1
@@ -340,10 +346,14 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
         <>
           {disruptionNotice}
           <div className="mt-4">
+            <HotelEvChargingHandoffNotice evidence={PRODUCTION_EV_CHARGING_UNKNOWN} offerId={deal.id} />
+          </div>
+          <div className="mt-4">
             <CompareRow
               links={eligibleLinks}
               size="primary"
               hotelName={hotelName}
+              actionBoundary={hotelEvChargingActionBoundary(PRODUCTION_EV_CHARGING_UNKNOWN)}
               handoffContext={{
                 dealId: deal.id,
                 contextStatus: status,
@@ -354,6 +364,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
               onProviderOpen={(provider) => {
                 const href = eligibleLinks[provider]
                 if (href) beginRoomHandoff(provider, href)
+                trackHotelEvChargingHandoff(deal.id, PRODUCTION_EV_CHARGING_UNKNOWN, provider)
                 if (!handoffReached) return
                 const analytics = hotelDisruptionAnalyticsContext(disruptionEvidence)
                 track('hotel_disruption_handoff_clicked', {

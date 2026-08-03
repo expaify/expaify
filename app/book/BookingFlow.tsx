@@ -47,6 +47,13 @@ import {
   getHotelPriceCompositionAccessibleSummary,
   HotelPriceComposition,
 } from '@/app/components/HotelPriceComposition'
+import {
+  HotelEvChargingHandoffNotice,
+  HotelEvChargingSection,
+  PRODUCTION_EV_CHARGING_UNKNOWN,
+  hotelEvChargingActionBoundary,
+  trackHotelEvChargingHandoff,
+} from '@/app/components/HotelEvCharging'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -406,6 +413,7 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
             <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
           </div>
         </dl>
+        <HotelEvChargingSection evidence={PRODUCTION_EV_CHARGING_UNKNOWN} offerId={hotelContext.offerId} />
         <HotelAdmissionPolicySection presentation={admissionPolicy} providerName={hasProviderName(hotelContext.provider) ? rateSource : ''} />
       </section>
     </>
@@ -969,6 +977,7 @@ function HotelHandoffReview({
 
   const handleContinue = () => {
     didContinueRef.current = true
+    trackHotelEvChargingHandoff(hotelContext.offerId, PRODUCTION_EV_CHARGING_UNKNOWN, hotelContext.provider)
     returnArmedRef.current = true
     hiddenAfterContinueRef.current = false
     continueStartedAtRef.current = performance.now()
@@ -1076,7 +1085,7 @@ function HotelHandoffReview({
     ? `${partner.label} confirms the final total before you pay.`
     : 'The booking partner confirms the final total before you pay.'
   const transportGuidance = getHotelTransportHandoffGuidance(hotelContext.transportEvidence)
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary()} ${finalTotalBoundary} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary()} ${finalTotalBoundary} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner. ${hotelEvChargingActionBoundary(PRODUCTION_EV_CHARGING_UNKNOWN)}`
 
   return (
     <ReviewShell
@@ -1168,6 +1177,9 @@ function HotelHandoffReview({
         </div>
         <div className="mt-3">
           <HotelBookingModificationCue partner={verifiedModificationPartner} />
+        </div>
+        <div className="mt-3">
+          <HotelEvChargingHandoffNotice evidence={PRODUCTION_EV_CHARGING_UNKNOWN} offerId={hotelContext.offerId} />
         </div>
         <div className="mt-3 flex flex-col gap-3">
           <a

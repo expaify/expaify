@@ -27,6 +27,7 @@ import {
   HotelDisruptionEvidenceLedger,
   NO_HOTEL_DISRUPTION_EVIDENCE,
 } from '@/app/components/ui/HotelDisruptionNotice'
+import { HotelEvChargingSection, PRODUCTION_EV_CHARGING_UNKNOWN } from '@/app/components/HotelEvCharging'
 import { scoreDeal } from '@/lib/scoring/scoreDeal'
 import type { DealScore, HotelOffer } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
@@ -426,6 +427,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
               </div>
             </dl>
+            <HotelEvChargingSection evidence={PRODUCTION_EV_CHARGING_UNKNOWN} offerId={deal.id} />
             <HotelDisruptionEvidenceLedger
               evidence={disruptionEvidence}
               analyticsKey={deal.id}

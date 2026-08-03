@@ -8,6 +8,9 @@ jest.mock('react', () => {
 
   return {
     ...actual,
+    useEffect: jest.fn(),
+    useMemo: jest.fn((factory: () => unknown) => factory()),
+    useRef: jest.fn((initialValue: unknown) => ({ current: initialValue })),
     useState: jest.fn((initialValue: unknown) => [initialValue, jest.fn()]),
   }
 })
