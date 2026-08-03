@@ -14,6 +14,7 @@ const PARTIES = new Set<HotelGuestIdentityAffectedParty>([
   'lead_guest', 'cardholder', 'all_occupants', 'other', 'unspecified', 'not_established',
 ]);
 const SCOPES = new Set<HotelGuestIdentityScope>(['property', 'rate', 'selected_stay']);
+const MAX_CAPABILITY_AGE_SECONDS = 604_800;
 
 export const HOTEL_GUEST_IDENTITY_UNSUPPORTED: HotelGuestIdentityCapability = {
   affectedParty: false,
@@ -37,6 +38,43 @@ function bounded(value: unknown, max: number): string | undefined {
 function validDate(value: unknown): string | undefined {
   const date = bounded(value, 64);
   return date && Number.isFinite(Date.parse(date)) ? date : undefined;
+}
+
+function validCapabilityDimension(
+  value: unknown,
+): HotelGuestIdentityCapability['identityDocument'] | undefined {
+  const input = record(value);
+  if (!input) return undefined;
+  if (['confirmed', 'conditional', 'explicitNegative', 'conflicting'].some(key => typeof input[key] !== 'boolean')) {
+    return undefined;
+  }
+  return {
+    confirmed: input.confirmed as boolean,
+    conditional: input.conditional as boolean,
+    explicitNegative: input.explicitNegative as boolean,
+    conflicting: input.conflicting as boolean,
+  };
+}
+
+function validCapability(value: unknown): HotelGuestIdentityCapability | undefined {
+  const input = record(value);
+  if (!input || typeof input.affectedParty !== 'boolean') return undefined;
+  const identityDocument = validCapabilityDimension(input.identityDocument);
+  const paymentNameMatch = validCapabilityDimension(input.paymentNameMatch);
+  if (
+    !identityDocument
+    || !paymentNameMatch
+    || typeof input.maxAgeSeconds !== 'number'
+    || !Number.isInteger(input.maxAgeSeconds)
+    || input.maxAgeSeconds < 0
+    || input.maxAgeSeconds > MAX_CAPABILITY_AGE_SECONDS
+  ) return undefined;
+  return {
+    affectedParty: input.affectedParty,
+    identityDocument,
+    paymentNameMatch,
+    maxAgeSeconds: input.maxAgeSeconds,
+  };
 }
 
 function statements(value: unknown): { visible: SupplierAdmissionStatement[]; omittedCount: number } {
@@ -104,7 +142,8 @@ export function normalizeHotelGuestIdentity(
 ): HotelGuestIdentityEvidence {
   const fallback = notEstablishedHotelGuestIdentity(expected);
   const input = record(value);
-  if (!input || !capability) return fallback;
+  const contractedCapability = validCapability(capability);
+  if (!input || !contractedCapability) return fallback;
   const scope = SCOPES.has(input.scope as HotelGuestIdentityScope) ? input.scope as HotelGuestIdentityScope : undefined;
   const propertyId = bounded(input.propertyId, 200);
   const offerId = bounded(input.offerId, 200);
@@ -113,7 +152,8 @@ export function normalizeHotelGuestIdentity(
   const fetchedAt = validDate(input.fetchedAt);
   if (!scope || propertyId !== expected.propertyId || supplier !== expected.supplier || locale !== expected.locale) return fallback;
   if ((scope === 'rate' || scope === 'selected_stay') && offerId !== expected.offerId) return fallback;
-  if (!fetchedAt || capability.maxAgeSeconds <= 0 || (expected.now ?? Date.now()) - Date.parse(fetchedAt) > capability.maxAgeSeconds * 1000) return fallback;
+  const ageMs = (expected.now ?? Date.now()) - Date.parse(fetchedAt ?? '');
+  if (!fetchedAt || contractedCapability.maxAgeSeconds <= 0 || ageMs < 0 || ageMs > contractedCapability.maxAgeSeconds * 1000) return fallback;
   if (input.state !== 'ready' && input.state !== 'loading' && input.state !== 'error') return fallback;
 
   const party = record(input.affectedParty) ?? {};
@@ -141,7 +181,7 @@ export function normalizeHotelGuestIdentity(
   // statements cannot fit inside the three-item display contract.
   const conflictStatementsSafe = omittedStatementCount === 0;
   const concreteParty = partyValue === 'lead_guest' || partyValue === 'cardholder' || partyValue === 'all_occupants' || partyValue === 'other';
-  const normalizedPartyState = capability.affectedParty && (
+  const normalizedPartyState = contractedCapability.affectedParty && (
     (partyState === 'confirmed' || partyState === 'conditional') ? concreteParty : partyState === 'conflicting'
   ) && (partyState !== 'conflicting' || conflictStatementsSafe) ? partyState : 'not_established';
   const normalizedPartyValue = normalizedPartyState === 'not_established'
@@ -163,13 +203,13 @@ export function normalizeHotelGuestIdentity(
       ...(otherLabel && safePartyValue === 'other' ? { otherLabel } : {}),
     },
     identityDocument: {
-      state: capabilityAllows(identityState, capability.identityDocument)
+      state: capabilityAllows(identityState, contractedCapability.identityDocument)
         && (identityState !== 'conflicting' || conflictStatementsSafe)
         ? identityState
         : 'not_established',
     },
     paymentNameMatch: {
-      state: capabilityAllows(paymentState, capability.paymentNameMatch)
+      state: capabilityAllows(paymentState, contractedCapability.paymentNameMatch)
         && (paymentState !== 'conflicting' || conflictStatementsSafe)
         ? paymentState
         : 'not_established',

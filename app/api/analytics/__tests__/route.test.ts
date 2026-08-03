@@ -247,4 +247,21 @@ describe('POST /api/analytics', () => {
     expect(response.status).toBe(400)
     expect(mockQuery).not.toHaveBeenCalled()
   })
+
+  it.each(['name', 'card_number', 'document_number', 'provider_wording', 'property_id', 'offer_id', 'url', 'free_text', 'handoff_attempt_id'])(
+    'rejects forbidden identity analytics envelope field %s',
+    async (key) => {
+      const response = await POST(request({
+        eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+        sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+        event: 'hotel_identity_disclosure_exposed',
+        occurredAt: new Date().toISOString(),
+        path: '/book',
+        props: identityState,
+        [key]: 'sensitive',
+      }))
+      expect(response.status).toBe(400)
+      expect(mockQuery).not.toHaveBeenCalled()
+    },
+  )
 })

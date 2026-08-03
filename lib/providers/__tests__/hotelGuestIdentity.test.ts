@@ -57,6 +57,34 @@ describe('hotel guest identity provider normalization', () => {
     expect(normalized.identityDocument.state).toBe('not_established');
   });
 
+  it.each([
+    ['missing dimension capability', { ...capability, identityDocument: undefined }],
+    ['non-boolean dimension capability', { ...capability, identityDocument: { ...capability.identityDocument, confirmed: 'yes' } }],
+    ['non-integer freshness contract', { ...capability, maxAgeSeconds: 1.5 }],
+    ['unbounded freshness contract', { ...capability, maxAgeSeconds: 604_801 }],
+  ])('safely rejects a malformed %s without throwing', (_case, malformedCapability) => {
+    expect(() => normalizeHotelGuestIdentity(
+      base,
+      malformedCapability as unknown as HotelGuestIdentityCapability,
+      expected,
+    )).not.toThrow();
+    expect(normalizeHotelGuestIdentity(
+      base,
+      malformedCapability as unknown as HotelGuestIdentityCapability,
+      expected,
+    ).identityDocument.state).toBe('not_established');
+  });
+
+  it('does not present future-dated evidence as current', () => {
+    const normalized = normalizeHotelGuestIdentity(
+      { ...base, fetchedAt: '2026-08-03T02:00:01Z' },
+      capability,
+      expected,
+    );
+    expect(normalized.affectedParty.value).toBe('not_established');
+    expect(normalized.identityDocument.state).toBe('not_established');
+  });
+
   it('preserves the valid omitted-statement count without parsing statement text', () => {
     const normalized = normalizeHotelGuestIdentity({
       ...base,

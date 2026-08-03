@@ -13,6 +13,9 @@ const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 const EVENT = /^[a-z][a-z0-9_]{1,79}$/
 const PATH = /^\/[A-Za-z0-9_\-./]{0,299}$/
 const OPAQUE_VALUE = /^[A-Za-z0-9_-]{1,100}$/
+const IDENTITY_ANALYTICS_ENVELOPE = new Set([
+  'eventId', 'sessionId', 'event', 'occurredAt', 'path', 'props',
+])
 
 const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries(
   Object.entries({
@@ -243,6 +246,11 @@ function parseBody(value: unknown): {
 } | null {
   if (!value || typeof value !== 'object') return null
   const body = value as Record<string, unknown>
+  if (
+    typeof body.event === 'string'
+    && isHotelIdentityEvent(body.event)
+    && Object.keys(body).some(key => !IDENTITY_ANALYTICS_ENVELOPE.has(key))
+  ) return null
   if (
     typeof body.eventId !== 'string' || !ID.test(body.eventId) ||
     typeof body.sessionId !== 'string' || !ID.test(body.sessionId) ||
