@@ -43,6 +43,11 @@ import {
   HotelTransportSummary,
 } from './HotelTransport'
 import HotelCancellationChoicesUnavailable from './HotelCancellationChoicesUnavailable'
+import {
+  getHotelPriceCompositionAccessibleSummary,
+  HotelPriceComposition,
+  HotelPriceCompositionScan,
+} from './HotelPriceComposition'
 
 type Props = {
   hotel: HotelOffer
@@ -370,7 +375,7 @@ function Price({ price, providerName, className = '' }: { price: HotelOffer['pri
         {formatMoney(price)}
       </p>
       <div className="mt-1 space-y-0.5 text-xs font-medium leading-4">
-        <p className="text-[color:var(--text-3)]">per night before taxes and fees</p>
+        <p className="text-[color:var(--text-3)]">per night</p>
         <p className="text-[color:var(--text-2)]">Rate from {providerName}</p>
         <p className="text-[color:var(--warning)]">Last-checked time unavailable</p>
       </div>
@@ -798,10 +803,10 @@ export default function HotelCard({
   const formattedPrice = hasValidPrice ? formatMoney(hotel.pricePerNight) : ''
   const providerName = providerDisplayName(hotel.source)
   const hasHotelProviderName = hasProviderName(hotel.source)
-  const feeProviderName = hasHotelProviderName ? providerName : 'the booking partner'
-  const feeScanCopy = `Mandatory property fees: not confirmed by ${feeProviderName}.`
   const rateCheckCopy = `Rate from ${providerName}. Last-checked time unavailable.`
-  const providerConfirmationCopy = 'Provider confirms final total, taxes, fees, room availability, cancellation policy, and terms.'
+  const providerConfirmationCopy = hasHotelProviderName
+    ? `${providerName} confirms the final total before you pay.`
+    : 'The booking partner confirms the final total before you pay.'
   const reviewDisclosure = providerConfirmationCopy
   const resolvedFundsPolicy = fundsPolicy ?? hotel.fundsPolicy
   const resolvedTransportEvidence = transportEvidence ?? hotel.transportEvidence
@@ -833,7 +838,7 @@ export default function HotelCard({
     surface: 'results',
   })
   const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(resolvedFundsPolicy, fundsPolicyLoadState, providerName)
-  const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} before taxes and fees. ${feeScanCopy} Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy} ${policyAriaSuffix}`
+  const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} per night. ${getHotelPriceCompositionAccessibleSummary()} Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy} ${policyAriaSuffix}`
   const unavailableAriaLabel = hasValidPrice
     ? `Provider link unavailable for ${hotel.name}. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
     : `Hotel price unavailable. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
@@ -978,9 +983,7 @@ export default function HotelCard({
           )}
         </div>
 
-        <p className="mt-2 break-words text-xs font-medium leading-5 text-[color:var(--text-2)] [overflow-wrap:anywhere]">
-          {feeScanCopy}
-        </p>
+        <HotelPriceCompositionScan />
 
         <HotelCardEligibilityLine eligibility={rateEligibility} />
         <HotelAdmissionCardChip presentation={admissionPolicy} />
@@ -1139,13 +1142,27 @@ export default function HotelCard({
 
             <div className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3.5 py-3 text-xs font-medium leading-5 text-[color:var(--text-2)]">
               <p className="font-medium text-[color:var(--text-1)]">Price scope</p>
-              <p>per night before taxes and fees</p>
-              <p className="mt-2 break-words font-medium text-[color:var(--text-1)] [overflow-wrap:anywhere]">
-                {feeScanCopy}
-              </p>
-              <p className="mt-1 break-words text-[color:var(--text-2)] [overflow-wrap:anywhere]">
-                Check the provider&apos;s total and any amount due at the property.
-              </p>
+              {hasValidPrice ? (
+                <>
+                  <p className="mt-1 break-words [overflow-wrap:anywhere]">
+                    Nightly rate {formattedPrice} per night. Stay length is unavailable, so no stay cost is shown.
+                  </p>
+                  {hasHotelProviderName ? (
+                    <p className="mt-1 break-words text-[color:var(--text-3)] [overflow-wrap:anywhere]">
+                      Source checked: {providerName} · Scope not provided
+                    </p>
+                  ) : null}
+                  <p className="mt-1 break-words [overflow-wrap:anywhere]">
+                    expaify does not know how many guests this rate covers. Confirm it applies to your party on the provider&apos;s site.
+                  </p>
+                </>
+              ) : null}
+              <HotelPriceComposition
+                headingId={`hotel-price-composition-${hotel.id}`}
+                headingLevel="h4"
+                stayCostState="nightly_only"
+                variant="price_scope"
+              />
               <p className="mt-2 font-medium text-[color:var(--text-1)]">Rate check</p>
               <p>{rateCheckCopy}</p>
               {!hasValidPrice || !hasBookingUrl ? <p className="mt-2">{unavailableReason}</p> : null}

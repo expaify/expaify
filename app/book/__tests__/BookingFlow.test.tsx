@@ -200,13 +200,13 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Observed nightly rate');
     expect(text).toContain('Hotellook');
     expect(text).toContain('$189.00');
-    expect(text).toContain('per night before taxes and fees');
+    expect(text).toContain('$189.00per night');
     expect(text).toContain('Last-checked time not provided.');
     expect(text).toContain('Deal Score unavailable');
     expect(text).toContain('Hotel fit');
     expect(text).toContain('Check rooms with provider');
     expect(text).toContain('Check rooms at provider');
-    expect(text).toContain('The provider shows room options, live availability, final total, taxes and fees, cancellation policy, and terms. Choose or confirm your dates there before comparing rooms.');
+    expect(text).toContain('The provider shows room options, live availability, its final price, cancellation policy, and terms. Compare its tax and mandatory-charge details with the expaify summary before you continue.');
     expect(text).toContain('Room view');
     expect(text).toContain('View not confirmed');
     expect(text).toContain('View not confirmed for the room you choose. Photos may show the property or other room categories. Confirm the room’s view with the provider before booking.');
@@ -235,7 +235,10 @@ describe('BookingFlow fare context review', () => {
     expect(text).toContain('Before payment, check the selected rate and room terms for date, guest, and room changes.');
     expect(text).toContain('After booking, use your booking partner’s confirmation for the booking reference and change or support instructions. expaify cannot change the reservation.');
     expect(text).toContain('Opens the booking partner’s site in a new tab. Your expaify search stays open here.');
-    expect(text).toContain('Mandatory property fees are not confirmed. On Hotellook, check the final total and any amount due at the property before you continue.');
+    expect(text).toContain('Taxes and mandatory charges');
+    expect(text).toContain('TaxesNot confirmed for this selected offer.No provider total is available to confirm inclusion.Payment timing not confirmed.');
+    expect(text).toContain('Mandatory property chargesNot confirmed for this selected offer.No provider total is available to confirm inclusion.Payment timing not confirmed.');
+    expect(text).toContain('The booking partner confirms the final total before you pay.');
     expect(text).not.toContain('Provider confirmation required');
     expect(text).not.toContain('Before you continue');
     expect(text).not.toContain('tp.media takes payment');
@@ -249,7 +252,7 @@ describe('BookingFlow fare context review', () => {
     const outbound = findElements(tree, element => element.type === 'a' && typeof element.props['aria-label'] === 'string' && element.props['aria-label'].startsWith('Check rooms at'))[0];
     expect(outbound.props.href).toBe(hotelContext.providerUrl);
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
-    expect(outbound.props['aria-label']).toBe("Check rooms at provider for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00, per night before taxes and fees. Mandatory property fees are not confirmed. Check the final total and any amount due at the property on Hotellook. Airport-transfer details were not confirmed. Check directly with the property before arrival. Confirm the room's smoking status and the property's current smoking rules on the booking partner.");
+    expect(outbound.props['aria-label']).toBe("Check rooms at provider for The Example Hotel. Opens the booking partner’s site in a new tab. The selected nightly rate is $189.00 per night. Taxes: not confirmed. Mandatory property charges: not confirmed. The booking partner confirms the final total before you pay. Airport-transfer details were not confirmed. Check directly with the property before arrival. Confirm the room's smoking status and the property's current smoking rules on the booking partner.");
   });
 
   it('uses booking-partner fee copy only when the normalized offer provider is missing', () => {
@@ -262,8 +265,9 @@ describe('BookingFlow fare context review', () => {
     const text = collectText(tree);
     const outbound = findElements(tree, element => element.type === 'a' && typeof element.props['aria-label'] === 'string' && element.props['aria-label'].startsWith('Check rooms at'))[0];
 
-    expect(text).toContain("Mandatory property fees are not confirmed. On the booking partner's site, check the final total and any amount due at the property before you continue.");
-    expect(outbound.props['aria-label']).toContain("Mandatory property fees are not confirmed. Check the final total and any amount due at the property on the booking partner's site.");
+    expect(text).toContain('Taxes and mandatory charges');
+    expect(text).toContain('The booking partner confirms the final total before you pay.');
+    expect(outbound.props['aria-label']).toContain('Taxes: not confirmed. Mandatory property charges: not confirmed. The booking partner confirms the final total before you pay.');
     expect(outbound.props['aria-label']).not.toContain('Provider unavailable');
   });
 
@@ -306,8 +310,8 @@ describe('BookingFlow fare context review', () => {
     const outbound = findElements(tree, element => element.type === 'a' && typeof element.props['aria-label'] === 'string' && element.props['aria-label'].startsWith('Check rooms at'))[0];
 
     expect(text).toContain('Check rooms at Booking.com');
-    expect(text).toContain('Mandatory property fees are not confirmed. On Hotellook, check the final total and any amount due at the property before you continue.');
-    expect(text).not.toContain('Mandatory property fees are not confirmed. On Booking.com');
+    expect(text).toContain('Taxes and mandatory charges');
+    expect(text).toContain('Booking.com confirms the final total before you pay.');
     expect(text).toContain('Opens Booking.com in a new tab. Your expaify search stays open here.');
     expect(text).toContain('Add your request on Booking.com while booking. Nothing is selected or sent by expaify.');
     expect(text).toContain('The booking partner will show exactly what is required.');
@@ -316,7 +320,7 @@ describe('BookingFlow fare context review', () => {
     expect(outbound.props.href).toBe(providerUrl);
     expect(outbound.props.target).toBe('_blank');
     expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
-    expect(outbound.props['aria-label']).toContain('Mandatory property fees are not confirmed. Check the final total and any amount due at the property on Hotellook.');
+    expect(outbound.props['aria-label']).toContain('Taxes: not confirmed. Mandatory property charges: not confirmed. Booking.com confirms the final total before you pay.');
     expect(outbound.props['aria-label']).not.toContain('amount due at the property on Booking.com');
   });
 
@@ -387,7 +391,8 @@ describe('BookingFlow fare context review', () => {
     expect(supportingIndex).toBeGreaterThan(providerIndex);
     expect(providerText).toContain('Check rooms at provider');
     expect(providerText).not.toContain('Deposits and card holds');
-    expect(providerText).toContain('Mandatory property fees are not confirmed.');
+    expect(providerText).toContain('Taxes and mandatory charges');
+    expect(providerText).toContain('Mandatory property chargesNot confirmed for this selected offer.');
     expect(supportingText).toContain('I need an invoice or receipt for this stay');
     expect(supportingText).toContain('What you may need');
     expect(supportingText).toContain('Deposits and card holds');

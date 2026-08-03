@@ -43,6 +43,10 @@ import {
 } from '@/app/components/HotelTransport'
 import HotelCancellationChoicesUnavailable from '@/app/components/HotelCancellationChoicesUnavailable'
 import { HotelBookingModificationCue } from '@/app/components/HotelBookingModificationCue'
+import {
+  getHotelPriceCompositionAccessibleSummary,
+  HotelPriceComposition,
+} from '@/app/components/HotelPriceComposition'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -254,11 +258,6 @@ function getPriceBasisLabel(fareContext: BookingFareContext) {
     : 'per person'
 }
 
-function getHotelPriceBasisLabel(priceBasis: BookingHotelContext['priceBasis']) {
-  if (priceBasis === 'per_night_before_taxes_fees') return 'per night before taxes and fees'
-  return 'price basis requires provider confirmation'
-}
-
 function isChangedFareReason(reason: string) {
   return /\b(price|currency|passenger|passenger-count|passenger count|fare changed)\b/i.test(reason)
 }
@@ -380,7 +379,7 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
             <p className="mt-2 break-words font-display text-3xl font-bold leading-none tabular-nums text-[color:var(--text-1)] sm:text-4xl">
               {formatMoney(hotelContext.priceCents, hotelContext.currency)}
             </p>
-            <p className="mt-2 text-xs font-medium text-[color:var(--text-2)]">{getHotelPriceBasisLabel(hotelContext.priceBasis)}</p>
+            <p className="mt-2 text-xs font-medium text-[color:var(--text-2)]">per night</p>
             <p className={`mt-2 text-xs font-medium leading-5 text-[color:var(--text-2)] ${partnerLabelWrapCls}`}>Rate observed from {rateSource}.</p>
             <p className="mt-2 text-xs font-medium leading-5 text-[color:var(--warning)]">Last-checked time not provided.</p>
           </div>
@@ -1073,17 +1072,11 @@ function HotelHandoffReview({
     ? `Opens ${partner.label} in a new tab. Your expaify search stays open here.`
     : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
   const accessiblePartner = partner.named ? partner.label : 'the booking partner’s site'
-  const feeProviderName = hasProviderName(hotelContext.provider)
-    ? providerDisplayName(hotelContext.provider)
-    : null
-  const feeHandoffCopy = feeProviderName
-    ? `Mandatory property fees are not confirmed. On ${feeProviderName}, check the final total and any amount due at the property before you continue.`
-    : "Mandatory property fees are not confirmed. On the booking partner's site, check the final total and any amount due at the property before you continue."
-  const feeAccessibleClause = feeProviderName
-    ? `Mandatory property fees are not confirmed. Check the final total and any amount due at the property on ${feeProviderName}.`
-    : "Mandatory property fees are not confirmed. Check the final total and any amount due at the property on the booking partner's site."
+  const finalTotalBoundary = partner.named
+    ? `${partner.label} confirms the final total before you pay.`
+    : 'The booking partner confirms the final total before you pay.'
   const transportGuidance = getHotelTransportHandoffGuidance(hotelContext.transportEvidence)
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)}, ${getHotelPriceBasisLabel(hotelContext.priceBasis)}. ${feeAccessibleClause} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary()} ${finalTotalBoundary} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
 
   return (
     <ReviewShell
@@ -1148,7 +1141,7 @@ function HotelHandoffReview({
       <section aria-labelledby="hotel-provider-title" className={`${panelCls} border-[color:var(--border-strong)] p-4 sm:p-6`}>
         <h2 id="hotel-provider-title" className="text-xl font-medium leading-tight text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
         <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
-          The provider shows room options, live availability, final total, taxes and fees, cancellation policy, and terms. Choose or confirm your dates there before comparing rooms.
+          The provider shows room options, live availability, its final price, cancellation policy, and terms. Compare its tax and mandatory-charge details with the expaify summary before you continue.
         </p>
         <p className="mt-3 break-words text-sm font-medium leading-6 text-[color:var(--text-2)]">
           {transportGuidance}
@@ -1164,9 +1157,12 @@ function HotelHandoffReview({
           onOpen={handleLoyaltyDisclosureOpen}
         />
         <HotelRoomViewConfidence />
-        <p className="mt-4 break-words rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-2 text-sm font-medium leading-6 text-[color:var(--text-1)] [overflow-wrap:anywhere]">
-          {feeHandoffCopy}
-        </p>
+        <HotelPriceComposition
+          headingId="hotel-handoff-price-composition"
+          stayCostState="nightly_only"
+          variant="handoff"
+          boundaryCopy={finalTotalBoundary}
+        />
         <div className="mt-3">
           <HotelCancellationChoicesUnavailable />
         </div>

@@ -112,20 +112,22 @@ describe('HotelCard access evidence', () => {
     const reviewLink = collectElements(collapsedCard).find(node => node.type === 'a' && collectText(node).includes('Review hotel'))
 
     expect(collapsedText).toContain('Deposit and hold policy not provided. Additional available funds may still be required.')
-    expect(collapsedText).toContain('Mandatory property fees: not confirmed by Hotellook.')
-    expect(collapsedText.indexOf('Rate from Hotellook')).toBeLessThan(collapsedText.indexOf('Mandatory property fees: not confirmed by Hotellook.'))
-    expect(collapsedText.indexOf('Mandatory property fees: not confirmed by Hotellook.')).toBeLessThan(collapsedText.indexOf('Restrictions not provided'))
+    expect(collapsedText).toContain('Taxes: not confirmed · Mandatory property charges: not confirmed')
+    expect(collapsedText.indexOf('Rate from Hotellook')).toBeLessThan(collapsedText.indexOf('Taxes: not confirmed'))
+    expect(collapsedText.indexOf('Mandatory property charges: not confirmed')).toBeLessThan(collapsedText.indexOf('Restrictions not provided'))
     expect(collapsedText.indexOf('Deposit and hold policy not provided')).toBeLessThan(collapsedText.indexOf('Review hotel'))
-    expect(reviewLink?.props['aria-label']).toContain('Nightly rate $179 USD before taxes and fees. Mandatory property fees: not confirmed by Hotellook. Rate from Hotellook.')
+    expect(reviewLink?.props['aria-label']).toContain('Nightly rate $179 USD per night. Taxes: not confirmed. Mandatory property charges: not confirmed. Rate from Hotellook.')
     expect(reviewLink?.props['aria-label']).toContain('Deposit and hold policy was not provided.')
 
     expanded = true
     const expandedText = collectText(HotelCard({ hotel }))
     expect(expandedText).toContain('Deposits and card holds')
-    expect(expandedText).toContain("Check the provider's total and any amount due at the property.")
+    expect(expandedText).toContain('Taxes and mandatory charges')
+    expect(expandedText).toContain('TaxesNot confirmed for this selected offer.No provider total is available to confirm inclusion.Payment timing not confirmed.')
+    expect(expandedText).toContain('Mandatory property chargesNot confirmed for this selected offer.No provider total is available to confirm inclusion.Payment timing not confirmed.')
     expect(expandedText).toContain('Source checked: Hotellook · Scope not provided')
-    expect(expandedText.indexOf('per night before taxes and feesMandatory property fees')).toBeGreaterThanOrEqual(0)
-    expect(expandedText.indexOf("Check the provider's total")).toBeLessThan(expandedText.indexOf('Rate check'))
+    expect(expandedText.indexOf('Price scope')).toBeLessThan(expandedText.indexOf('Taxes and mandatory charges'))
+    expect(expandedText.indexOf('Mandatory property charges')).toBeLessThan(expandedText.indexOf('Rate check'))
     expect(expandedText.indexOf('Price scope')).toBeLessThan(expandedText.indexOf('Deposits and card holds'))
     expect(expandedText.indexOf('Deposits and card holds')).toBeLessThan(expandedText.indexOf('Provider handoff'))
   })
@@ -141,9 +143,9 @@ describe('HotelCard access evidence', () => {
     })
     const text = collectText(card)
 
-    expect(text).toContain('Mandatory property fees: not confirmed by the booking partner.')
-    expect(text).not.toContain('Mandatory property fees: not confirmed by Provider unavailable.')
-    expect(text.indexOf('Mandatory property fees')).toBeLessThan(text.indexOf('Booking unavailable'))
+    expect(text).toContain('Taxes: not confirmed · Mandatory property charges: not confirmed')
+    expect(text).not.toContain('Provider unavailable')
+    expect(text.indexOf('Mandatory property charges')).toBeLessThan(text.indexOf('Booking unavailable'))
   })
 
   it('shows only the highest-priority guaranteed property chip when collapsed', () => {
