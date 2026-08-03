@@ -118,7 +118,7 @@ export function CompareRow({ links, size = "compact", handoffContext, hotelName,
                   rel="noopener noreferrer sponsored"
                   data-hotel-provider={key}
                   aria-label={primary && hotelName
-                    ? `Check rooms at ${label} for ${hotelName}. Opens in a new tab. The provider confirms room details, live availability, final total, taxes and fees, cancellation policy, and terms.`
+                    ? `Check rooms at ${label} for ${hotelName}. Opens in a new tab. Room availability has not been checked by expaify; the provider will show current rooms and prices.`
                     : `Check this deal on ${label}`}
                   onClick={() => {
                     onProviderOpen?.(key)
