@@ -57,7 +57,11 @@ type HotelReturnReason =
   | 'heating_missing_or_mismatch'
   | 'guest_control_not_confirmed'
   | 'climate_details_missing_provider'
-  | 'unrelated_mismatch'
+  | 'smoking_policy_or_room_mismatch'
+  | 'price_or_fees_mismatch'
+  | 'room_availability_mismatch'
+  | 'other_hotel_details_mismatch'
+  | 'loyalty_or_points_uncertainty'
   | 'prefer_not_to_say'
 
 const HOTEL_RETURN_REASONS: ReadonlyArray<{ value: HotelReturnReason; label: string }> = [
@@ -65,7 +69,11 @@ const HOTEL_RETURN_REASONS: ReadonlyArray<{ value: HotelReturnReason; label: str
   { value: 'heating_missing_or_mismatch', label: 'Heating was missing or did not match' },
   { value: 'guest_control_not_confirmed', label: 'Room temperature adjustment was not confirmed' },
   { value: 'climate_details_missing_provider', label: 'Climate details were missing on the provider' },
-  { value: 'unrelated_mismatch', label: 'Something unrelated did not match' },
+  { value: 'smoking_policy_or_room_mismatch', label: 'Smoking policy or room did not match' },
+  { value: 'price_or_fees_mismatch', label: 'Price or fees did not match' },
+  { value: 'room_availability_mismatch', label: 'Room availability did not match' },
+  { value: 'other_hotel_details_mismatch', label: 'Other hotel details did not match' },
+  { value: 'loyalty_or_points_uncertainty', label: 'Not sure this stay earns points or status' },
   { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ]
 

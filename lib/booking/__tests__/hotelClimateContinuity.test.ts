@@ -42,8 +42,8 @@ describe('hotel climate booking continuity', () => {
   it('fails malformed evidence closed without blocking the affiliate handoff context', () => {
     const context = buildBookingHotelContext(hotel) as unknown as Record<string, unknown>
     const evidence = structuredClone(context.climateEvidence) as ReturnType<typeof createHotelClimateFixture>
-    evidence.rows.reverse()
-    context.climateEvidence = evidence
+    const reversedRows = [...evidence.rows].reverse() as unknown as typeof evidence.rows
+    context.climateEvidence = { ...evidence, rows: reversedRows }
     const validated = validateStructuredBookingHotelContext(context)
 
     expect(validated).not.toBeNull()
