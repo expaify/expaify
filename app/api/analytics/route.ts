@@ -18,7 +18,11 @@ const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries
     hotel_results_viewed: ['criteria_version', 'result_state', 'destination_present', 'date_state', 'occupancy_state', 'room_state'],
     hotel_detail_viewed: ['criteria_version', 'context_status', 'deal_id', 'hotel_id', 'entry_source', 'viewport_group', 'has_dates', 'has_verified_guest_rating', 'score_state', 'price_freshness_state'],
     hotel_decision_section_reached: ['hotel_id', 'entry_source', 'section', 'position', 'viewport_group'],
-    hotel_room_handoff_started: ['hotel_id', 'entry_source', 'provider'],
+    hotel_room_handoff_started: ['handoff_session_id', 'provider', 'deal_id', 'criteria_version', 'context_status', 'destination_present', 'date_state', 'occupancy_state', 'room_state', 'inventory_evidence_state', 'alternative_state'],
+    hotel_room_handoff_returned: ['handoff_session_id', 'provider', 'deal_id', 'away_duration_bucket', 'inventory_evidence_state', 'alternative_state'],
+    hotel_room_recovery_viewed: ['handoff_session_id', 'deal_id', 'context_restoration_status', 'inventory_evidence_state', 'alternative_state'],
+    hotel_room_recovery_action: ['handoff_session_id', 'deal_id', 'action', 'context_restoration_status', 'inventory_evidence_state', 'alternative_state'],
+    hotel_room_handoff_restarted: ['prior_handoff_session_id', 'handoff_session_id', 'provider', 'deal_id', 'recovery_action', 'context_restoration_status', 'inventory_evidence_state', 'alternative_state'],
     hotel_detail_back_to_results: ['hotel_id', 'entry_source'],
     hotel_provider_handoff_clicked: ['provider', 'deal_id', 'criteria_version', 'context_status', 'destination_present', 'date_state', 'occupancy_state', 'room_state'],
     feed_empty_filtered_viewed: [],
@@ -63,6 +67,11 @@ const REQUIRED_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntr
     hotel_criteria_edit_applied: ['changed_fields', 'previous_version', 'criteria_version', 'result_count_bucket'],
     hotel_results_viewed: ['criteria_version', 'result_state', 'destination_present', 'date_state', 'occupancy_state', 'room_state'],
     hotel_detail_viewed: ['context_status', 'deal_id'],
+    hotel_room_handoff_started: ['handoff_session_id', 'provider', 'deal_id', 'context_status', 'destination_present', 'date_state', 'occupancy_state', 'room_state', 'inventory_evidence_state', 'alternative_state'],
+    hotel_room_handoff_returned: ['handoff_session_id', 'provider', 'deal_id', 'away_duration_bucket', 'inventory_evidence_state', 'alternative_state'],
+    hotel_room_recovery_viewed: ['handoff_session_id', 'deal_id', 'context_restoration_status', 'inventory_evidence_state', 'alternative_state'],
+    hotel_room_recovery_action: ['handoff_session_id', 'deal_id', 'action', 'context_restoration_status', 'inventory_evidence_state', 'alternative_state'],
+    hotel_room_handoff_restarted: ['prior_handoff_session_id', 'handoff_session_id', 'provider', 'deal_id', 'recovery_action', 'context_restoration_status', 'inventory_evidence_state', 'alternative_state'],
     hotel_provider_handoff_clicked: ['provider', 'deal_id', 'context_status', 'destination_present', 'date_state', 'occupancy_state', 'room_state'],
     feed_filter_chip_removed: ['filter', 'source'],
     hotel_result_card_opened: ['current_sort', 'previous_sort', 'sort_transition', 'premium_eligible', 'loaded_result_count', 'viewport_band', 'filter_state', 'card_position'],
@@ -124,6 +133,9 @@ function validFilterState(value: Primitive): boolean {
 }
 
 function validPropertyValue(event: string, key: string, value: Primitive): boolean {
+  if (key === 'handoff_session_id' || key === 'prior_handoff_session_id') {
+    return typeof value === 'string' && ID.test(value)
+  }
   if (key === 'criteria_version' || key === 'previous_version' || key === 'deal_id' || key === 'dealId' ||
     key === 'eventId' || key === 'hotel_id') {
     return typeof value === 'string' && OPAQUE_VALUE.test(value)
@@ -145,6 +157,11 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
   if (key === 'viewport_group' || key === 'viewport_band') return oneOf(value, ['mobile_375', 'desktop_1280', 'other'])
   if (key === 'score_state') return oneOf(value, ['loading', 'confirmed', 'unavailable', 'error'])
   if (key === 'price_freshness_state') return oneOf(value, ['fresh', 'aging', 'stale', 'expired', 'unavailable'])
+  if (key === 'context_restoration_status') return oneOf(value, ['restorable', 'missing', 'invalid', 'mismatch'])
+  if (key === 'inventory_evidence_state' || key === 'alternative_state') return value === 'not_checked'
+  if (key === 'action') return oneOf(value, ['recheck_same_hotel', 'back_to_matching_hotels', 'edit_stay', 'feedback'])
+  if (key === 'recovery_action') return value === 'recheck_same_hotel'
+  if (key === 'away_duration_bucket') return oneOf(value, ['under_10s', '10s_59s', '1m_4m', '5m_29m', '30m_plus', 'unknown'])
   if (key === 'section') return boundedInteger(value, 5)
   if (key === 'position') return boundedInteger(value, 5)
   if (key === 'changed_fields') {

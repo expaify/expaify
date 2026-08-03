@@ -169,7 +169,7 @@ describe('HotelDecisionAnalytics', () => {
     expect(trackMock.mock.calls.filter(([event]) => event === 'hotel_decision_section_reached')).toHaveLength(1);
   });
 
-  it('emits hotel_room_handoff_started and hotel_detail_back_to_results from delegated clicks', () => {
+  it('leaves sessionized handoff starts to the provider component and emits back-to-results clicks', () => {
     HotelDecisionAnalytics({
       hotelId: 'hotel-1',
       entrySource: 'search',
@@ -180,11 +180,7 @@ describe('HotelDecisionAnalytics', () => {
     });
 
     clickHandler?.(makeClickTarget('data-hotel-provider', 'booking'));
-    expect(trackMock).toHaveBeenCalledWith('hotel_room_handoff_started', {
-      hotel_id: 'hotel-1',
-      entry_source: 'search',
-      provider: 'booking',
-    });
+    expect(trackMock).not.toHaveBeenCalledWith('hotel_room_handoff_started', expect.anything());
 
     clickHandler?.(makeClickTarget('data-hotel-back', ''));
     expect(trackMock).toHaveBeenCalledWith('hotel_detail_back_to_results', {

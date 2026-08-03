@@ -120,16 +120,6 @@ export function HotelDecisionAnalytics({
       const target = event.target as { closest?: (selector: string) => HTMLElement | null } | null
       if (!target || typeof target.closest !== 'function') return
 
-      const providerEl = target.closest('[data-hotel-provider]')
-      if (providerEl) {
-        track('hotel_room_handoff_started', {
-          hotel_id: hotelId,
-          entry_source: entrySource,
-          provider: providerEl.getAttribute('data-hotel-provider') ?? 'unknown',
-        })
-        return
-      }
-
       const backEl = target.closest('[data-hotel-back]')
       if (backEl) {
         track('hotel_detail_back_to_results', {
