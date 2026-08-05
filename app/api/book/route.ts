@@ -71,20 +71,34 @@ async function createDuffelOrder(offerId: string, selectedFare: BookingFareConte
     'Content-Type': 'application/json',
   };
 
-  // Step 2: Fetch offer details to get the passenger id
-  const offerRes = await fetch(`${BASE_URL}/air/offers/${offerId}`, {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Duffel-Version': 'v2',
-    },
-  });
+  // Step 2: Fetch offer details to get the passenger id. This happens BEFORE
+  // any order is attempted, so any failure here -- including a thrown network
+  // error, not just a non-ok response -- is safe to return as a normal,
+  // cacheable 'done' result. Only a failure reaching Duffel's order-creation
+  // call itself (below) is genuinely ambiguous.
+  let offerRes: Response;
+  try {
+    offerRes = await fetch(`${BASE_URL}/air/offers/${offerId}`, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Duffel-Version': 'v2',
+      },
+    });
+  } catch {
+    return result(502, { ok: false, reason: 'Failed to reach the provider. Try again.' });
+  }
 
   if (!offerRes.ok) {
     const text = await offerRes.text().catch(() => '');
     return result(502, { ok: false, reason: `Failed to fetch offer: ${text.slice(0, 200)}` });
   }
 
-  const offerJson = (await offerRes.json()) as DuffelOfferResponse;
+  let offerJson: DuffelOfferResponse;
+  try {
+    offerJson = (await offerRes.json()) as DuffelOfferResponse;
+  } catch {
+    return result(502, { ok: false, reason: 'Provider returned an unreadable offer response. Try again.' });
+  }
   const offerPassengers = offerJson.data.passengers;
   const passengerId = offerPassengers[0]?.id;
   const offerPriceCents = decimalStringToCents(offerJson.data.total_amount);

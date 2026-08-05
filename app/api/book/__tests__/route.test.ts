@@ -274,6 +274,23 @@ describe('POST /api/book booking gate', () => {
       expect(global.fetch).not.toHaveBeenCalled();
     });
 
+    it('treats a network failure fetching the OFFER (before any order attempt) as a normal, retryable done result -- not ambiguous', async () => {
+      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('socket hang up'));
+
+      const response = await POST(validBookRequest());
+      const body = await response.json() as { ok: boolean; ambiguous?: boolean; reason: string };
+
+      expect(response.status).toBe(502);
+      expect(body.ok).toBe(false);
+      expect(body.ambiguous).toBeUndefined();
+      expect(body.reason).toMatch(/failed to reach the provider/i);
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.any(String),
+        { status: 'done', httpStatus: 502, body },
+        expect.any(Number)
+      );
+    });
+
     it('marks the record ambiguous — not done — when the order call itself throws (network failure)', async () => {
       (global.fetch as jest.Mock)
         .mockResolvedValueOnce({
