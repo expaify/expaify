@@ -11,46 +11,16 @@ export type PaywallContext = {
 
 const FREE_WEEKLY_LIMIT = 3
 
-// TEMPORARY: writes one row per call to debug a paywall bug where an active
-// subscriber still sees the free-tier paywall. Never throws — must not affect
-// the real paywall decision. Remove this and the _debug_paywall_log table
-// once the bug is found (see DEV-PAYWALL-PREMIUM-NOT-DETECTED-01).
-async function logPaywallDebug(row: {
-  hadSession: boolean
-  userId: string | null
-  subFound: boolean
-  subStatus: string | null
-  subError: string | null
-  premiumResult: boolean
-}): Promise<void> {
-  try {
-    await query(
-      `INSERT INTO _debug_paywall_log (had_session, user_id, sub_found, sub_status, sub_error, premium_result)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [row.hadSession, row.userId, row.subFound, row.subStatus, row.subError, row.premiumResult]
-    )
-  } catch {
-    // best-effort only
-  }
-}
-
 export async function getPaywallContext(): Promise<PaywallContext> {
   const session = await auth()
   if (!session?.user?.id) {
-    void logPaywallDebug({ hadSession: false, userId: null, subFound: false, subStatus: null, subError: null, premiumResult: false })
     return { userId: null, premium: false, freeUnlockedThisWeek: 0, freeUnlockLimit: FREE_WEEKLY_LIMIT }
   }
 
-  let subError: string | null = null
-  const sub = await getSubscription(session.user.id).catch((err) => {
-    subError = err instanceof Error ? err.message : String(err)
-    return null
-  })
+  const sub = await getSubscription(session.user.id).catch(() => null)
   if (sub && isPremium(sub.status)) {
-    void logPaywallDebug({ hadSession: true, userId: session.user.id, subFound: true, subStatus: sub.status, subError, premiumResult: true })
     return { userId: session.user.id, premium: true, freeUnlockedThisWeek: 0, freeUnlockLimit: FREE_WEEKLY_LIMIT }
   }
-  void logPaywallDebug({ hadSession: true, userId: session.user.id, subFound: !!sub, subStatus: sub?.status ?? null, subError, premiumResult: false })
 
   // Count how many free unlocks already used this week (tracked client-side cookie for MVP,
   // can be server-tracked in a future sprint — free plan paywall is enforced by not returning

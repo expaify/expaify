@@ -86,7 +86,7 @@ describe('POST /api/stripe/checkout', () => {
         trial_period_days: 7,
         metadata: { user_id: 'user_123', plan: 'annual' },
       },
-      success_url: 'https://expaify.com/account?checkout=success',
+      success_url: 'https://expaify.com/account?checkout=success&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://expaify.com/account',
       metadata: { user_id: 'user_123', plan: 'annual' },
       customer_email: 'traveler@example.com',
