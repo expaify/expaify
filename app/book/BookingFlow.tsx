@@ -31,6 +31,10 @@ import HotelFundsPolicyPanel, {
   type HotelFundsPolicyLoadState,
 } from '@/app/components/HotelFundsPolicyPanel'
 import { useHotelFundsPolicyExposure } from '@/app/components/hotelFundsPolicyAnalytics'
+import {
+  buildAllNotConfirmedHotelPaymentAcceptancePresentation,
+  HotelPaymentAcceptanceSection,
+} from '@/app/components/HotelPaymentAcceptance'
 import { getHotelFundsAnalyticsDimensions } from '@/lib/hotels/fundsPolicy'
 import type { HotelSmokingPolicyView } from '@/app/components/SmokingPolicyPanel'
 import TrackedSmokingPolicyPanel from '@/app/components/TrackedSmokingPolicyPanel'
@@ -767,6 +771,13 @@ function HotelHandoffReview({
     capability: hotelContext.admissionPolicyCapability,
   })
   const resolvedFundsPolicy = fundsPolicy ?? hotelContext.fundsPolicy
+  // No reachable provider (Hotellook, Booking.com RapidAPI, Hotelbeds) supplies payment-acceptance
+  // evidence today — see docs/pipeline/hotel-payment-method/02-research.md §1.3. DEV's normalizer in
+  // lib/hotels/paymentAcceptance.ts replaces this call with an evidence+capability-driven deriver once
+  // hotelContext.paymentAcceptance / paymentAcceptanceCapability exist.
+  const paymentAcceptancePresentation = buildAllNotConfirmedHotelPaymentAcceptancePresentation(
+    hasProviderName(hotelContext.provider) ? providerDisplayName(hotelContext.provider) : ''
+  )
   const policyDimensions = getHotelFundsAnalyticsDimensions({
     evidence: resolvedFundsPolicy,
     loadState: fundsPolicyLoadState,
@@ -1324,6 +1335,7 @@ function HotelHandoffReview({
             rootRef={fundsPolicyExposureRef}
           />
         </div>
+        <HotelPaymentAcceptanceSection presentation={paymentAcceptancePresentation} />
           <details className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
             <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[color:var(--brand)]">Show offer details</summary>
             <dl className="border-t border-[color:var(--border)] py-3 text-xs">
