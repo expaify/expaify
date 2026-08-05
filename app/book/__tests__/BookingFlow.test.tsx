@@ -969,6 +969,25 @@ describe('BookingFlow hotel return-state wiring (D5 recognized-on-mount)', () =>
     expect(text).not.toContain('Book this again');
   });
 
+  it('attaches a ref to the handoff CTA so focus can be redirected there after "I didn\'t book" (S3)', () => {
+    // React 19 no longer surfaces `ref` on a separate `element.ref` field —
+    // it is a regular prop. This guards the mechanism the design spec
+    // requires: after the return-state panel unmounts on "I didn't book",
+    // focus must land on the restored handoff CTA, never on <body>.
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext,
+    });
+    const outbound = findElements(tree, element => (
+      element.type === 'a' && element.props.target === '_blank' && element.props.href === hotelContext.providerUrl
+    ))[0];
+
+    expect(outbound.props.ref).toBeDefined();
+    expect('current' in (outbound.props.ref as { current: unknown })).toBe(true);
+  });
+
   it('recognises a prior handoff on mount, demotes the CTA to "Book this again", and warns about a second reservation', () => {
     getStayStubSnapshotMock.mockReturnValue({
       v: 1,

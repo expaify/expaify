@@ -1300,6 +1300,19 @@ function HotelHandoffReview({
   const [storageAvailable, setStorageAvailable] = useState(true)
   const awayDurationBucketRef = useRef<AwayDurationBucket>('<5s')
   const returnHeadingRef = useRef<HTMLHeadingElement>(null)
+  // S3: "I didn't book" unmounts the return-state panel (and the heading it
+  // held focus). Left alone, the browser drops focus to <body>. This ref
+  // flag, checked in an effect keyed on `sessionOutcome`, redirects focus to
+  // the now-restored primary handoff CTA instead — mirrors the existing
+  // `documentRetryFocusPendingRef` pattern above for the same reason: a ref
+  // read inside an effect body, never during render.
+  const handoffCtaRef = useRef<HTMLAnchorElement>(null)
+  const focusHandoffCtaPendingRef = useRef(false)
+  useEffect(() => {
+    if (!focusHandoffCtaPendingRef.current) return
+    focusHandoffCtaPendingRef.current = false
+    handoffCtaRef.current?.focus()
+  }, [sessionOutcome])
   const returnStateViewedRef = useRef(false)
   const recognizedAnnouncedRef = useRef(false)
   const rebookedAnnouncedRef = useRef(false)
@@ -1504,6 +1517,7 @@ function HotelHandoffReview({
 
   const handleDeclareNotBooked = () => {
     setMismatchAvailable(true)
+    focusHandoffCtaPendingRef.current = true
     setSessionOutcome('none')
     emitAnalytics('hotel_return_outcome_declared', {
       handoffAttemptId,
@@ -1678,6 +1692,7 @@ function HotelHandoffReview({
             </p>
           ) : null}
           <a
+            ref={handoffCtaRef}
             href={hotelContext.providerUrl}
             target="_blank"
             rel="noopener noreferrer sponsored"
