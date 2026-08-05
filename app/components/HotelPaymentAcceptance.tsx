@@ -1,129 +1,19 @@
 import type { Ref } from 'react'
+import type {
+  HotelPaymentAcceptancePresentation,
+  HotelPaymentAcceptanceRow,
+} from '@/lib/types'
+import { HOTEL_PAYMENT_ACCEPTANCE_INSTRUMENT_ORDER } from '@/lib/hotels/paymentAcceptance'
 
-// Presentation-layer types. DEV's normalizer (lib/hotels/paymentAcceptance.ts) targets this shape;
-// see docs/pipeline/hotel-payment-method/03-design.md §4.2 for the authoritative contract.
-
-export type HotelPaymentAcceptanceRowId =
-  | 'card_required_at_property'
-  | 'credit_card'
-  | 'debit_card'
-  | 'prepaid_card'
-  | 'cash'
-  | 'booking_gate_divergence'
-
-export type HotelPaymentAcceptanceRowTone = 'confirmed_positive' | 'confirmed_negative' | 'not_confirmed' | 'conflicting'
-
-export interface HotelPaymentAcceptanceRow {
-  id: HotelPaymentAcceptanceRowId
-  label: string
-  tone: HotelPaymentAcceptanceRowTone
-  sentence: string
-}
-
-export type HotelPaymentAcceptancePresentation =
-  | { state: 'loading' }
-  | { state: 'error' }
-  | {
-      state: 'ready'
-      statusLine: string
-      cardRequiredWarning: boolean
-      rows: readonly HotelPaymentAcceptanceRow[]
-      provenance: string
-    }
-
-export const HOTEL_PAYMENT_ACCEPTANCE_ROW_ORDER: readonly HotelPaymentAcceptanceRowId[] = [
-  'card_required_at_property',
-  'credit_card',
-  'debit_card',
-  'prepaid_card',
-  'cash',
-  'booking_gate_divergence',
-]
-
-const ROW_LABELS: Record<HotelPaymentAcceptanceRowId, string> = {
-  card_required_at_property: 'Credit card required at the property',
-  credit_card: 'Credit cards',
-  debit_card: 'Debit cards',
-  prepaid_card: 'Prepaid cards',
-  cash: 'Cash',
-  booking_gate_divergence: 'Same as what you needed to book?',
-}
-
-/** Row ids that render under the "Accepted at the property" sub-heading, in fixed order. */
-export const HOTEL_PAYMENT_ACCEPTANCE_INSTRUMENT_ROWS: readonly HotelPaymentAcceptanceRowId[] = [
-  'credit_card',
-  'debit_card',
-  'prepaid_card',
-  'cash',
-]
-
-export function hotelPaymentAcceptanceRowLabel(id: HotelPaymentAcceptanceRowId): string {
-  return ROW_LABELS[id]
-}
-
-const MAX_PROVIDER_NAME_LENGTH = 80
-
-function resolveProvider(providerName: string): string {
-  const trimmed = providerName.trim()
-  return trimmed && trimmed.length <= MAX_PROVIDER_NAME_LENGTH ? trimmed : 'The booking provider'
-}
-
-/**
- * Builds the presentation for today's universal supply state: every reachable provider declares
- * HOTEL_PAYMENT_ACCEPTANCE_UNSUPPORTED (see docs/pipeline/hotel-payment-method/02-research.md §1.3), so
- * every offer renders all six facts as not_confirmed. DEV's normalizer in lib/hotels/paymentAcceptance.ts
- * replaces this call site with a real evidence+capability-driven deriver once any adapter can answer a
- * fact; the copy here is the exact §6.1 final copy from the design spec, not a placeholder.
- */
-export function buildAllNotConfirmedHotelPaymentAcceptancePresentation(providerName: string): HotelPaymentAcceptancePresentation {
-  const provider = resolveProvider(providerName)
-  const rows: HotelPaymentAcceptanceRow[] = [
-    {
-      id: 'card_required_at_property',
-      label: ROW_LABELS.card_required_at_property,
-      tone: 'not_confirmed',
-      sentence: `${provider} has not confirmed whether this property requires a credit card at check-in.`,
-    },
-    {
-      id: 'credit_card',
-      label: ROW_LABELS.credit_card,
-      tone: 'not_confirmed',
-      sentence: `${provider} has not confirmed whether credit cards are accepted at this property.`,
-    },
-    {
-      id: 'debit_card',
-      label: ROW_LABELS.debit_card,
-      tone: 'not_confirmed',
-      sentence: `${provider} has not confirmed whether debit cards are accepted at this property.`,
-    },
-    {
-      id: 'prepaid_card',
-      label: ROW_LABELS.prepaid_card,
-      tone: 'not_confirmed',
-      sentence: `${provider} has not confirmed whether prepaid cards are accepted at this property.`,
-    },
-    {
-      id: 'cash',
-      label: ROW_LABELS.cash,
-      tone: 'not_confirmed',
-      sentence: `${provider} has not confirmed whether cash is accepted at this property.`,
-    },
-    {
-      id: 'booking_gate_divergence',
-      label: ROW_LABELS.booking_gate_divergence,
-      tone: 'not_confirmed',
-      sentence: `${provider} has not confirmed whether the property accepts the same payment methods you used to book.`,
-    },
-  ]
-
-  return {
-    state: 'ready',
-    statusLine: `${provider} has not confirmed payment acceptance at the property for this stay. None of the facts below come from a provider yet — confirm with the property before you travel.`,
-    cardRequiredWarning: false,
-    rows,
-    provenance: `Source: ${provider} · Scope not confirmed`,
-  }
-}
+export type {
+  HotelPaymentAcceptanceCapability,
+  HotelPaymentAcceptanceConflict,
+  HotelPaymentAcceptanceEvidence,
+  HotelPaymentAcceptancePresentation,
+  HotelPaymentAcceptanceRow,
+  HotelPaymentAcceptanceRowId,
+  HotelPaymentAcceptanceRowTone,
+} from '@/lib/types'
 
 type Props = {
   presentation: HotelPaymentAcceptancePresentation
@@ -213,7 +103,7 @@ export function HotelPaymentAcceptanceSection({ presentation, rootRef }: Props) 
 
           <p className="mt-4 text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">Accepted at the property</p>
           <ul className="mt-3 space-y-3">
-            {HOTEL_PAYMENT_ACCEPTANCE_INSTRUMENT_ROWS.map(id => {
+            {HOTEL_PAYMENT_ACCEPTANCE_INSTRUMENT_ORDER.map(id => {
               const row = presentation.rows.find(candidate => candidate.id === id)
               return row ? <Row key={row.id} row={row} /> : null
             })}

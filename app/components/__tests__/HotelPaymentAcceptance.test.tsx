@@ -1,9 +1,19 @@
 import type { ReactElement } from 'react'
 import {
-  buildAllNotConfirmedHotelPaymentAcceptancePresentation,
   HotelPaymentAcceptanceSection,
   type HotelPaymentAcceptancePresentation,
 } from '../HotelPaymentAcceptance'
+import { deriveHotelPaymentAcceptancePresentation } from '@/lib/hotels/paymentAcceptance'
+
+function allNotConfirmed(providerName: string): HotelPaymentAcceptancePresentation {
+  return deriveHotelPaymentAcceptancePresentation({
+    propertyId: 'hotel-1',
+    supplier: 'hotellook',
+    providerName,
+    evidence: undefined,
+    capability: undefined,
+  })
+}
 
 type TestElement = ReactElement<Record<string, unknown>>
 
@@ -51,7 +61,7 @@ function section(presentation: HotelPaymentAcceptancePresentation) {
 
 describe('HotelPaymentAcceptanceSection', () => {
   it('renders all six facts as not_confirmed under todays universal zero-supply state', () => {
-    const presentation = buildAllNotConfirmedHotelPaymentAcceptancePresentation('Hotellook')
+    const presentation = allNotConfirmed('Hotellook')
     const text = collectText(section(presentation))
 
     expect(text).toContain('Payment accepted at the property')
@@ -68,13 +78,13 @@ describe('HotelPaymentAcceptanceSection', () => {
   })
 
   it('falls back to a generic provider name when none is available', () => {
-    const presentation = buildAllNotConfirmedHotelPaymentAcceptancePresentation('')
+    const presentation = allNotConfirmed('')
     const text = collectText(section(presentation))
     expect(text).toContain('The booking provider has not confirmed')
   })
 
   it('never asserts acceptance language in any not_confirmed row', () => {
-    const presentation = buildAllNotConfirmedHotelPaymentAcceptancePresentation('Hotelbeds')
+    const presentation = allNotConfirmed('Hotelbeds')
     const text = collectText(section(presentation))
     expect(text).not.toMatch(/\bguaranteed\b/i)
     expect(text).not.toMatch(/\bsafe\b/i)
@@ -142,7 +152,7 @@ describe('HotelPaymentAcceptanceSection', () => {
   })
 
   it('never mentions accepted/accepts inside a not_confirmed row sentence in a way that asserts acceptance', () => {
-    const presentation = buildAllNotConfirmedHotelPaymentAcceptancePresentation('Booking.com')
+    const presentation = allNotConfirmed('Booking.com')
     if (presentation.state !== 'ready') throw new Error('expected ready state')
     for (const row of presentation.rows) {
       expect(row.tone).toBe('not_confirmed')

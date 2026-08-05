@@ -31,10 +31,12 @@ import HotelFundsPolicyPanel, {
   type HotelFundsPolicyLoadState,
 } from '@/app/components/HotelFundsPolicyPanel'
 import { useHotelFundsPolicyExposure } from '@/app/components/hotelFundsPolicyAnalytics'
+import { HotelPaymentAcceptanceSection } from '@/app/components/HotelPaymentAcceptance'
+import { deriveHotelPaymentAcceptancePresentation } from '@/lib/hotels/paymentAcceptance'
 import {
-  buildAllNotConfirmedHotelPaymentAcceptancePresentation,
-  HotelPaymentAcceptanceSection,
-} from '@/app/components/HotelPaymentAcceptance'
+  trackHotelHandoffWithPaymentUnconfirmed,
+  useHotelPaymentAcceptanceViewed,
+} from '@/app/components/hotelPaymentAcceptanceAnalytics'
 import { getHotelFundsAnalyticsDimensions } from '@/lib/hotels/fundsPolicy'
 import type { HotelSmokingPolicyView } from '@/app/components/SmokingPolicyPanel'
 import TrackedSmokingPolicyPanel from '@/app/components/TrackedSmokingPolicyPanel'
@@ -62,6 +64,7 @@ type HotelReturnReason =
   | 'mandatory_property_charge_changed_or_appeared'
   | 'displayed_total_other_mismatch'
   | 'pay_at_property_amount_unexpected'
+  | 'pay_at_property_method_not_accepted'
   | 'room_availability_mismatch'
   | 'other_hotel_details_mismatch'
   | 'loyalty_or_points_uncertainty'
@@ -73,6 +76,7 @@ const HOTEL_RETURN_REASONS: ReadonlyArray<{ value: HotelReturnReason; label: str
   { value: 'mandatory_property_charge_changed_or_appeared', label: 'Mandatory property charge changed or appeared' },
   { value: 'displayed_total_other_mismatch', label: 'Displayed total did not match for another reason' },
   { value: 'pay_at_property_amount_unexpected', label: 'Pay-at-property amount was unexpected' },
+  { value: 'pay_at_property_method_not_accepted', label: 'My card or payment method was not accepted at the property' },
   { value: 'room_availability_mismatch', label: 'Room availability did not match' },
   { value: 'other_hotel_details_mismatch', label: 'Other hotel details did not match' },
   { value: 'loyalty_or_points_uncertainty', label: 'Not sure this stay earns points or status' },
@@ -772,12 +776,21 @@ function HotelHandoffReview({
   })
   const resolvedFundsPolicy = fundsPolicy ?? hotelContext.fundsPolicy
   // No reachable provider (Hotellook, Booking.com RapidAPI, Hotelbeds) supplies payment-acceptance
-  // evidence today — see docs/pipeline/hotel-payment-method/02-research.md §1.3. DEV's normalizer in
-  // lib/hotels/paymentAcceptance.ts replaces this call with an evidence+capability-driven deriver once
-  // hotelContext.paymentAcceptance / paymentAcceptanceCapability exist.
-  const paymentAcceptancePresentation = buildAllNotConfirmedHotelPaymentAcceptancePresentation(
-    hasProviderName(hotelContext.provider) ? providerDisplayName(hotelContext.provider) : ''
-  )
+  // evidence today — see docs/pipeline/hotel-payment-method/02-research.md §1.3. All three declare
+  // HOTEL_PAYMENT_ACCEPTANCE_UNSUPPORTED, so this always resolves to all-not_confirmed rows until a
+  // future adapter can answer a fact.
+  const paymentAcceptancePresentation = deriveHotelPaymentAcceptancePresentation({
+    propertyId: hotelContext.offerId,
+    supplier: hotelContext.provider,
+    providerName: hasProviderName(hotelContext.provider) ? providerDisplayName(hotelContext.provider) : '',
+    evidence: hotelContext.paymentAcceptance,
+    capability: hotelContext.paymentAcceptanceCapability,
+  })
+  useHotelPaymentAcceptanceViewed({
+    presentation: paymentAcceptancePresentation,
+    hotelId: hotelContext.offerId,
+    source: hotelContext.provider,
+  })
   const policyDimensions = getHotelFundsAnalyticsDimensions({
     evidence: resolvedFundsPolicy,
     loadState: fundsPolicyLoadState,
@@ -1031,6 +1044,11 @@ function HotelHandoffReview({
     })
     trackHotelHandoffWithAdmissionRestriction({
       presentation: admissionPolicy,
+      hotelId: hotelContext.offerId,
+      source: hotelContext.provider,
+    })
+    trackHotelHandoffWithPaymentUnconfirmed({
+      presentation: paymentAcceptancePresentation,
       hotelId: hotelContext.offerId,
       source: hotelContext.provider,
     })

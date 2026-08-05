@@ -8,6 +8,7 @@ import { createNotReturnedHotelFundsPolicy } from '../hotels/fundsPolicy';
 import { notProvidedHotelSmokingPolicy } from '../hotels/smokingPolicy';
 import { HOTEL_RATE_ELIGIBILITY_UNSUPPORTED } from '../hotels/rateEligibility';
 import { HOTEL_ADMISSION_POLICY_UNSUPPORTED } from '../hotels/admissionPolicy';
+import { HOTEL_PAYMENT_ACCEPTANCE_UNSUPPORTED } from '../hotels/paymentAcceptance';
 import { AIRPORTS } from '../airports/data';
 
 // Hotelbeds is a wholesale B2B hotel API (not an affiliate network like the
@@ -277,6 +278,7 @@ export class HotelbedsProvider implements HotelProvider {
           smokingPolicy: notProvidedHotelSmokingPolicy(),
           rateEligibilityCapability: HOTEL_RATE_ELIGIBILITY_UNSUPPORTED,
           admissionPolicyCapability: HOTEL_ADMISSION_POLICY_UNSUPPORTED,
+          paymentAcceptanceCapability: HOTEL_PAYMENT_ACCEPTANCE_UNSUPPORTED,
           photoUrl: photoByCode.get(entry.code),
         }];
       });
