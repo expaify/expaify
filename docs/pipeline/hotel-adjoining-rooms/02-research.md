@@ -142,6 +142,53 @@ Files read for this brief (verified, not assumed):
 
 ---
 
+## RESOLUTION (2026-08-05, following operator review)
+
+Decision: **this ticket proceeds as the missing integration ticket.** It does
+not build `HotelRoomAdjacencyEvidence` or any second type system. It surfaces
+the existing, shipped `room_pref_connecting` fact (`HotelAmenityEvidence`,
+`lib/providers/hotelAmenityEvidence.ts`, first rendered in the never-mounted
+`HotelCard.tsx`) on a surface a real user actually reaches.
+
+Scope, corrected: §4/§6/D1–D5 below and `03-design.md` as originally written
+are still invalidated and must not be implemented — see §2's finding. The
+replacement scope is narrower than either the original ticket or a from
+-scratch integration ticket would have been:
+
+- **Mount point:** `app/book/BookingFlow.tsx`'s `HotelHandoffReview`, the one
+  place in this app a real, per-offer `HotelOffer.amenityEvidence` array is
+  actually available at render time (via `hotelContext`, threaded through
+  `lib/booking/config.ts` the same way `DEV-HOTEL-PAYMENT-METHOD-01` threaded
+  `paymentAcceptance` earlier today). Neither `DealCard` (live search
+  results) nor the saved-deal detail page (`app/deals/[dealId]/page.tsx`)
+  receive a live `HotelOffer` — both read DB-snapshot shapes that were never
+  extended to carry `amenityEvidence` — so mounting there would have shipped
+  the same "component exists, nothing feeds it" defect this ticket exists to
+  fix, just relocated.
+- **Data model:** none. Reuses `HotelAmenityEvidence` / `resolveConnectingRoomsEvidence`
+  (`lib/hotels/connectingRoomsEvidence.ts`), a thin, single-fact resolver
+  that re-derives `HotelCard.tsx`'s own `normalizeAccessEvidence` precedence
+  and copy for `room_pref_connecting` only — verified line-by-line against
+  `HotelCard.tsx` during implementation (an earlier draft of this resolver
+  compared candidates by *raw* status before normalizing, which could
+  disagree with `HotelCard`'s own precedence when a `confirmed`-but-invalid
+  item and a `not_returned` item coexisted for the same fact; fixed to
+  normalize every candidate first, matching `HotelCard.tsx` exactly, before
+  picking the most conservative result).
+- **Copy:** reproduced verbatim from `HotelCard.tsx`'s `getConfirmedCopy` /
+  `getUnavailableCopy` for `room_pref_connecting`, not reinvented.
+- **Out of scope, confirmed still correct from the original brief:** party
+  -setup capture of room count/connection need (§2, D5) remains out of scope;
+  this ticket only surfaces what a provider already discloses, it does not
+  add a new request-intake flow.
+
+No `04-design.md`/`05-design.md` rewrite was produced — the mount-point and
+data-model decisions above supersede the relevant sections of `03-design.md`
+directly; that file is left in place, STOP-bannered, as a record of the
+invalidated first attempt.
+
+---
+
 ## 1. Discovery Claims: Verification Status
 
 Every structural claim in the discovery doc reproduces against current code.
