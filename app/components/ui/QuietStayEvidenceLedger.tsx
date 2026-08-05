@@ -125,6 +125,30 @@ const classLabels: Record<Exclude<QuietEvidenceScope, 'none'>, string> = {
   nearby_context: 'Nearby context',
 }
 
+// The one recognized normalizedId that earns confident soundproofing copy.
+// Any other room_type-scope attribute (blackout curtains, floor, aspect,
+// etc.) renders through the generic, non-fabricating branch instead.
+const INSULATION_NORMALIZED_ID = 'soundproofing_room'
+
+// Encodes which guest-reported patterns reveal something about the room's
+// own sound insulation (internal transmission) versus something about the
+// surroundings (external exposure). Not read by any render path yet — no
+// licensed review provider supplies theme-level noise data today (see
+// docs/pipeline/hotel-room-soundproofing/02-research.md). Exported so the
+// taxonomy is encoded once, correctly, instead of re-derived later by a
+// future pipeline that adds licensed theme data.
+export const patternAxis: Record<GuestNoisePattern['pattern'], 'insulation' | 'exposure'> = {
+  corridors: 'insulation',
+  lifts: 'insulation',
+  adjoining_rooms: 'insulation',
+  building_systems: 'insulation',
+  street_or_traffic: 'exposure',
+  nightlife: 'exposure',
+  aircraft: 'exposure',
+  rail_or_transport: 'exposure',
+  property_venues_or_events: 'exposure',
+}
+
 function validBoundedText(value: unknown, maxLength = MAX_BOUNDED_TEXT_LENGTH): value is string {
   return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= maxLength
 }
@@ -271,11 +295,28 @@ export function getStrongestQuietEvidenceClass(evidence?: QuietStayEvidence): Qu
   return 'none'
 }
 
+// Insulation-axis-only evidence strength. Unlike getStrongestQuietEvidenceClass,
+// this never considers nearbyContext or guestPatterns — a nearby-distance
+// measurement or a guest-reported pattern answers a different question than
+// "how well does this room's construction stop sound," and must never be
+// announced as satisfying it. See docs/pipeline/hotel-room-soundproofing/02-research.md.
+export function getInsulationEvidenceClass(
+  evidence?: QuietStayEvidence,
+): 'selected_stay' | 'room_type' | 'property' | 'none' {
+  if (!evidence || evidence.overallState !== 'evidence_available') return 'none'
+  const items = validItems(evidence)
+  const isInsulationFact = (fact: SelectedStayQuietFact) => fact.normalizedId === INSULATION_NORMALIZED_ID
+  if (items.selectedStayFacts.some(fact => fact.scope === 'selected_stay' && isInsulationFact(fact))) return 'selected_stay'
+  if (items.selectedStayFacts.some(fact => fact.scope === 'room_type' && isInsulationFact(fact))) return 'room_type'
+  if (items.propertyFacts.length > 0) return 'property'
+  return 'none'
+}
+
 export function getQuietEvidenceResultCue(evidence?: QuietStayEvidence): string | null {
-  const strongestClass = getStrongestQuietEvidenceClass(evidence)
-  return strongestClass === 'none'
+  const insulationClass = getInsulationEvidenceClass(evidence)
+  return insulationClass === 'none'
     ? null
-    : `Quiet-stay evidence available · ${classLabels[strongestClass]}`
+    : `Quiet-stay evidence available · ${classLabels[insulationClass]}`
 }
 
 function EvidenceItem({ children }: { children: ReactNode }) {
@@ -300,8 +341,11 @@ function SelectedStayItem({ fact }: { fact: SelectedStayQuietFact }) {
   } else if (fact.certainty === 'acknowledged') {
     claim = 'The property acknowledged your quieter-room request.'
     metadata = `Acknowledgment via ${fact.sourceLabel.trim()} · ${date}`
-  } else if (fact.scope === 'room_type') {
+  } else if (fact.scope === 'room_type' && fact.normalizedId === INSULATION_NORMALIZED_ID) {
     claim = `Provider lists soundproofing for ${fact.roomTypeLabel?.trim()}. Confirm this room type is selected before payment.`
+    metadata = `${fact.roomTypeLabel?.trim()} · Room information from ${fact.sourceLabel.trim()} · Updated ${date}`
+  } else if (fact.scope === 'room_type') {
+    claim = `Provider lists ${fact.attributeLabel.trim()} for ${fact.roomTypeLabel?.trim()}. Confirm this room type is selected before payment.`
     metadata = `${fact.roomTypeLabel?.trim()} · Room information from ${fact.sourceLabel.trim()} · Updated ${date}`
   } else {
     claim = `The provider confirms ${fact.attributeLabel.trim()} for this selected stay.`
@@ -471,24 +515,32 @@ export function QuietStayEvidenceLedger({ evidence }: { evidence: QuietStayEvide
       <h3 id="quiet-stay-title" className="text-h3 text-[color:var(--text-1)]">Quiet-stay evidence</h3>
       <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">{SCOPE_CAVEAT}</p>
       {hasConflict ? <p className={statusClass}>Sources differ. Review each source before deciding.</p> : null}
+      <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+        The sections below separate what is known about a room&apos;s own sound insulation from what is known about noise in the surroundings. Neither predicts the other.
+      </p>
 
       <div className="mt-5 divide-y divide-[color:var(--border)]">
-        <EvidenceGroup title="Selected room or stay">
-          {items.selectedStayFacts.length ? (
-            <ul className="mt-3 space-y-3">{items.selectedStayFacts.map(fact => <SelectedStayItem key={`${fact.normalizedId}:${fact.sourceLabel}`} fact={fact} />)}</ul>
-          ) : null}
-          {selectedMessage ? <ClassMessage>{selectedMessage}</ClassMessage> : items.selectedStayFacts.length ? null : (
-            <ClassMessage>No selected-room or selected-stay quiet-stay detail was provided.</ClassMessage>
-          )}
-        </EvidenceGroup>
-        <EvidenceGroup title="Property facts">
-          {items.propertyFacts.length ? (
-            <ul className="mt-3 space-y-3">{items.propertyFacts.map(fact => <PropertyFactItem key={`${fact.normalizedId}:${fact.sourceLabel}`} fact={fact} />)}</ul>
-          ) : null}
-          {propertyMessage ? <ClassMessage>{propertyMessage}</ClassMessage> : items.propertyFacts.length ? null : (
-            <ClassMessage>No property-level quiet-stay fact was provided.</ClassMessage>
-          )}
-        </EvidenceGroup>
+        <section className="py-4 first:pt-0 last:pb-0">
+          <h4 className="text-sm font-medium leading-5 text-[color:var(--text-1)]">Room sound insulation</h4>
+          <div className="mt-3 divide-y divide-[color:var(--border)]">
+            <EvidenceGroup title="Selected room or stay">
+              {items.selectedStayFacts.length ? (
+                <ul className="mt-3 space-y-3">{items.selectedStayFacts.map(fact => <SelectedStayItem key={`${fact.normalizedId}:${fact.sourceLabel}`} fact={fact} />)}</ul>
+              ) : null}
+              {selectedMessage ? <ClassMessage>{selectedMessage}</ClassMessage> : items.selectedStayFacts.length ? null : (
+                <ClassMessage>No selected-room or selected-stay quiet-stay detail was provided.</ClassMessage>
+              )}
+            </EvidenceGroup>
+            <EvidenceGroup title="Property facts">
+              {items.propertyFacts.length ? (
+                <ul className="mt-3 space-y-3">{items.propertyFacts.map(fact => <PropertyFactItem key={`${fact.normalizedId}:${fact.sourceLabel}`} fact={fact} />)}</ul>
+              ) : null}
+              {propertyMessage ? <ClassMessage>{propertyMessage}</ClassMessage> : items.propertyFacts.length ? null : (
+                <ClassMessage>No property-level quiet-stay fact was provided.</ClassMessage>
+              )}
+            </EvidenceGroup>
+          </div>
+        </section>
         <EvidenceGroup title="Guest-reported patterns">
           {items.guestPatterns.length ? (
             <ul className="mt-3 space-y-3">{items.guestPatterns.map(item => <GuestPatternItem key={`${item.pattern}:${item.sourceLabel}`} item={item} />)}</ul>
@@ -497,19 +549,24 @@ export function QuietStayEvidenceLedger({ evidence }: { evidence: QuietStayEvide
             <ClassMessage>No licensed guest noise pattern was provided.</ClassMessage>
           )}
         </EvidenceGroup>
-        <EvidenceGroup title="Nearby context">
-          {items.nearbyContext.length ? (
-            <ul className="mt-3 space-y-3">{items.nearbyContext.map(item => <NearbyContextEntry key={`${item.category}:${item.referencePoint}:${item.sourceLabel}`} item={item} />)}</ul>
-          ) : null}
-          {contextMessage || !items.contextEligible ? (
-            <ClassMessage>{contextMessage ?? 'Property-level proximity cannot be calculated from the area information provided.'}</ClassMessage>
-          ) : items.nearbyContext.length ? null : <ClassMessage>No usable nearby context was provided.</ClassMessage>}
-          {contextState === 'stale' && evidence.staleContext && validSourceLabel(evidence.staleContext.sourceLabel) && validDate(evidence.staleContext.sourceUpdatedAt) ? (
-            <p className="mt-2 break-words text-caption leading-5 text-[color:var(--text-3)]">
-              Last source update: {formatDate(evidence.staleContext.sourceUpdatedAt)} · {evidence.staleContext.sourceLabel.trim()}
-            </p>
-          ) : null}
-        </EvidenceGroup>
+        <section className="py-4 first:pt-0 last:pb-0">
+          <h4 className="text-sm font-medium leading-5 text-[color:var(--text-1)]">Noise in the surroundings</h4>
+          <div className="mt-3 divide-y divide-[color:var(--border)]">
+            <EvidenceGroup title="Nearby context">
+              {items.nearbyContext.length ? (
+                <ul className="mt-3 space-y-3">{items.nearbyContext.map(item => <NearbyContextEntry key={`${item.category}:${item.referencePoint}:${item.sourceLabel}`} item={item} />)}</ul>
+              ) : null}
+              {contextMessage || !items.contextEligible ? (
+                <ClassMessage>{contextMessage ?? 'Property-level proximity cannot be calculated from the area information provided.'}</ClassMessage>
+              ) : items.nearbyContext.length ? null : <ClassMessage>No usable nearby context was provided.</ClassMessage>}
+              {contextState === 'stale' && evidence.staleContext && validSourceLabel(evidence.staleContext.sourceLabel) && validDate(evidence.staleContext.sourceUpdatedAt) ? (
+                <p className="mt-2 break-words text-caption leading-5 text-[color:var(--text-3)]">
+                  Last source update: {formatDate(evidence.staleContext.sourceUpdatedAt)} · {evidence.staleContext.sourceLabel.trim()}
+                </p>
+              ) : null}
+            </EvidenceGroup>
+          </div>
+        </section>
       </div>
     </section>
   )
