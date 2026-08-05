@@ -1,11 +1,25 @@
 import type { ReactElement } from 'react';
 import type { BookingFareContext, BookingHotelContext } from '@/lib/booking/config';
+import type { HotelPartnerIdentity } from '../BookingFlow';
+import type { HotelStayStub } from '@/lib/booking/hotelStayStore';
 
 type TestElement = ReactElement<Record<string, unknown>>;
 const trackMock = jest.fn();
 
 jest.mock('@/lib/analytics', () => ({
   track: (...args: unknown[]) => trackMock(...args),
+}));
+
+const getStayStubSnapshotMock = jest.fn();
+const subscribeToStayStoreChangesMock = jest.fn().mockReturnValue(() => {});
+const writeStayStubMock = jest.fn();
+const isStayStorageAvailableMock = jest.fn();
+
+jest.mock('@/lib/booking/hotelStayStore', () => ({
+  getStayStubSnapshot: (...args: unknown[]) => getStayStubSnapshotMock(...args),
+  subscribeToStayStoreChanges: (...args: unknown[]) => subscribeToStayStoreChangesMock(...args),
+  writeStayStub: (...args: unknown[]) => writeStayStubMock(...args),
+  isStayStorageAvailable: (...args: unknown[]) => isStayStorageAvailableMock(...args),
 }));
 
 jest.mock('react', () => {
@@ -17,6 +31,10 @@ jest.mock('react', () => {
     useMemo: jest.fn((factory: () => unknown) => factory()),
     useRef: jest.fn((initialValue: unknown) => ({ current: initialValue === null ? { focus: jest.fn() } : initialValue })),
     useState: jest.fn((initialValue: unknown) => [initialValue, jest.fn()]),
+    // Mirrors real `useSyncExternalStore`'s first render: read the snapshot
+    // synchronously. `subscribe` is irrelevant in this call-the-function-
+    // once test harness (there is no real commit/subscribe phase).
+    useSyncExternalStore: jest.fn((_subscribe: unknown, getSnapshot: () => unknown) => getSnapshot()),
   };
 });
 
@@ -24,6 +42,7 @@ const {
   default: BookingFlow,
   beginHotelDocumentReadinessCheck,
   focusHotelDocumentRetryStatus,
+  HotelReturnStatePanel,
 } = jest.requireActual('../BookingFlow') as typeof import('../BookingFlow');
 
 function childrenOf(node: TestElement): unknown[] {
@@ -898,5 +917,472 @@ describe('BookingFlow fare context review', () => {
     expect(findElements(tree, element => element.type === 'details')).toHaveLength(0);
     expect(findElements(tree, element => element.type === 'a' && element.props.target === '_blank')).toHaveLength(0);
     expect(trackMock.mock.calls.some(([event]) => String(event).startsWith('hotel_request_'))).toBe(false);
+  });
+
+  it('relocates the offer-reference helper text so it can never be read as a reservation number', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext,
+    });
+    const text = collectText(tree);
+
+    expect(text).toContain('expaify offer reference');
+    expect(text).toContain('Save this with your confirmation. It tells expaify support exactly which rate you were shown — it is not your reservation number.');
+    expect(text).not.toContain('Use this reference if you contact expaify support.');
+  });
+
+  it('no longer renders the price-mismatch prompt as the first thing a returning traveler sees', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext,
+    });
+    const text = collectText(tree);
+
+    expect(text).not.toContain('Did the partner details match?');
+  });
+});
+
+describe('BookingFlow hotel return-state wiring (D5 recognized-on-mount)', () => {
+  beforeEach(() => {
+    trackMock.mockClear();
+    getStayStubSnapshotMock.mockReset().mockReturnValue(null);
+    writeStayStubMock.mockReset().mockReturnValue({ ok: true });
+    isStayStorageAvailableMock.mockReset().mockReturnValue(true);
+  });
+
+  it('renders the pre-handoff review unchanged when no stub exists for this offer', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext,
+    });
+    const text = collectText(tree);
+
+    expect(getStayStubSnapshotMock).toHaveBeenCalledWith(hotelContext.offerId);
+    expect(text).toContain('Check rooms at provider');
+    expect(text).not.toContain('You told us you booked this stay');
+    expect(text).not.toContain('Book this again');
+  });
+
+  it('recognises a prior handoff on mount, demotes the CTA to "Book this again", and warns about a second reservation', () => {
+    getStayStubSnapshotMock.mockReturnValue({
+      v: 1,
+      offerId: hotelContext.offerId,
+      provider: 'hotellook',
+      partnerHost: 'tp.media',
+      partnerLabel: '',
+      name: hotelContext.name,
+      areaLabel: 'Midtown',
+      priceCents: hotelContext.priceCents,
+      currency: hotelContext.currency,
+      priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: hotelContext.providerUrl,
+      declaredBookedAt: '2026-08-03T14:14:00.000Z',
+      handoffAttemptId: 'a1b2c3d4-e5f6-4789-a012-3456789abcde',
+    });
+
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext,
+    });
+    const text = collectText(tree);
+
+    expect(text).toContain('You told us you booked this stay');
+    expect(text).toContain('Book this again');
+    expect(text).toContain('Booking again creates a second reservation');
+    expect(text).not.toContain('Check rooms at provider');
+
+    expect(trackMock).toHaveBeenCalledWith('hotel_return_state_viewed', expect.objectContaining({ stubPresent: true }));
+    expect(trackMock).toHaveBeenCalledWith('hotel_repeat_offer_recognized', {
+      offerId: hotelContext.offerId,
+      entryPath: 'inline',
+      rebooked: false,
+    });
+  });
+
+  it('never re-recognises a stub belonging to a different offer', () => {
+    getStayStubSnapshotMock.mockImplementation((offerId: string) => (offerId === 'some-other-offer' ? { v: 1 } : null));
+
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: false,
+      fareContext: null,
+      hotelContext,
+    });
+
+    expect(collectText(tree)).not.toContain('You told us you booked this stay');
+  });
+});
+
+describe('HotelSelectionUnavailable / recovery (D5, S5)', () => {
+  beforeEach(() => {
+    trackMock.mockClear();
+    getStayStubSnapshotMock.mockReset().mockReturnValue(null);
+  });
+
+  it('falls back to InvalidHotelState, with the added recovery-guidance line, when no offer id is available to recover', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: true,
+      fareContext: null,
+      hotelContext: null,
+      invalidHotelSelection: true,
+    });
+    const text = collectText(tree);
+
+    expect(text).toContain("We can't identify this hotel");
+    expect(text).toContain('If you booked a hotel from this page, your reservation is with the booking partner. Check your email for its confirmation.');
+    expect(getStayStubSnapshotMock).not.toHaveBeenCalled();
+  });
+
+  it('falls back to InvalidHotelState with the added line when a recoveryOfferId is present but no stub matches it', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: true,
+      fareContext: null,
+      hotelContext: null,
+      invalidHotelSelection: true,
+      recoveryOfferId: 'expired-offer',
+    });
+    const text = collectText(tree);
+
+    expect(getStayStubSnapshotMock).toHaveBeenCalledWith('expired-offer');
+    expect(text).toContain("We can't identify this hotel");
+    expect(text).toContain('If you booked a hotel from this page, your reservation is with the booking partner.');
+  });
+
+  it('renders the stub-only recovery state instead of the dead end when a stub matches the expired reference', () => {
+    getStayStubSnapshotMock.mockReturnValue({
+      v: 1,
+      offerId: 'expired-offer',
+      provider: 'hotellook',
+      partnerHost: 'www.booking.com',
+      partnerLabel: 'Booking.com',
+      name: 'The Example Hotel',
+      areaLabel: 'Midtown',
+      priceCents: 18_900,
+      currency: 'USD',
+      priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: 'https://www.booking.com/hotel/x?aid=123',
+      declaredBookedAt: '2026-08-03T14:14:00.000Z',
+      handoffAttemptId: 'a1b2c3d4-e5f6-4789-a012-3456789abcde',
+    });
+
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: true,
+      fareContext: null,
+      hotelContext: null,
+      invalidHotelSelection: true,
+      recoveryOfferId: 'expired-offer',
+    });
+    const text = collectText(tree);
+
+    expect(text).not.toContain("We can't identify this hotel");
+    expect(text).toContain('You told us you booked this stay');
+    expect(text).toContain('The Example Hotel');
+    expect(text).toContain('expaify keeps offer pages for 30 minutes');
+    expect(text).toContain('expaify offer reference');
+    expect(text).toContain('expired-offer');
+
+    const outbound = findElements(tree, element => element.type === 'a' && element.props.target === '_blank')[0];
+    expect(outbound.props.href).toBe('https://www.booking.com/hotel/x?aid=123');
+    expect(outbound.props.rel).toBe('noopener noreferrer sponsored');
+
+    expect(trackMock).toHaveBeenCalledWith('hotel_repeat_offer_recognized', {
+      offerId: 'expired-offer',
+      entryPath: 'reference_expired',
+      rebooked: false,
+    });
+  });
+});
+
+describe('HotelReturnStatePanel (D1, D2, D3, D4, D5, D5b)', () => {
+  const namedPartner: HotelPartnerIdentity = {
+    host: 'www.booking.com',
+    label: 'Booking.com',
+    named: true,
+    allowlistVerified: true,
+  };
+  const unnamedPartner: HotelPartnerIdentity = {
+    host: 'obscure-host.example',
+    label: 'booking partner',
+    named: false,
+    allowlistVerified: false,
+  };
+  const declaredStub: HotelStayStub = {
+    v: 1,
+    offerId: 'hotel_123',
+    provider: 'hotellook',
+    partnerHost: 'www.booking.com',
+    partnerLabel: 'Booking.com',
+    name: 'The Example Hotel',
+    areaLabel: 'Midtown',
+    priceCents: 18_400,
+    currency: 'USD',
+    priceBasis: 'per_night_before_taxes_fees',
+    providerUrl: 'https://www.booking.com/hotel/x?aid=123',
+    declaredBookedAt: '2026-08-03T14:14:00.000Z',
+    handoffAttemptId: 'a1b2c3d4-e5f6-4789-a012-3456789abcde',
+  };
+  const datedStub: HotelStayStub = {
+    ...declaredStub,
+    checkIn: '2026-08-14',
+    checkOut: '2026-08-16',
+    nightCount: 2,
+  };
+  const noop = () => {};
+  const headingRef = { current: null };
+
+  describe('S1 — asking (D1, D2)', () => {
+    it('opens outcome-agnostic: never claims a reservation, offers only the two-way choice, and is byte-identical regardless of away-duration', () => {
+      const tree = HotelReturnStatePanel({
+        phase: 'asking',
+        partner: namedPartner,
+        stub: null,
+        storageAvailable: true,
+        headingRef,
+        onDeclareBooked: noop,
+        onDeclareNotBooked: noop,
+      });
+      const text = collectText(tree);
+
+      expect(text).toContain('Back from Booking.com');
+      expect(text).toContain('expaify does not receive your reservation from Booking.com');
+      expect(text).toContain('I booked');
+      expect(text).toContain('I didn’t book');
+      expect(text).not.toMatch(/confirmed|booked successfully/i);
+
+      const heading = findElements(tree, element => element.type === 'h2')[0];
+      expect(heading.props.id).toBe('hotel-return-title');
+      expect(heading.props.tabIndex).toBe(-1);
+
+      const liveRegion = findElements(tree, element => element.props['aria-live'] === 'polite')[0];
+      expect(liveRegion.props.role).toBe('status');
+      expect(liveRegion.type).not.toBe('h2'); // separate sr-only node, not the heading itself
+
+      const buttons = findElements(tree, element => element.type === 'button');
+      expect(buttons.map(collectText)).toEqual(['I booked', 'I didn’t book']);
+      buttons.forEach(button => expect(button.props.className).toContain('min-h-11'));
+    });
+
+    it('uses unnamed-partner copy when the partner cannot be confidently named', () => {
+      const tree = HotelReturnStatePanel({
+        phase: 'asking',
+        partner: unnamedPartner,
+        stub: null,
+        storageAvailable: true,
+        headingRef,
+        onDeclareBooked: noop,
+        onDeclareNotBooked: noop,
+      });
+      const text = collectText(tree);
+
+      expect(text).toContain('Back from the booking partner');
+      expect(text).toContain('expaify does not receive your reservation from the booking partner');
+      expect(text).not.toContain('Booking.com');
+    });
+
+    it('wires the two choices to their declare handlers', () => {
+      const onDeclareBooked = jest.fn();
+      const onDeclareNotBooked = jest.fn();
+      const tree = HotelReturnStatePanel({
+        phase: 'asking',
+        partner: namedPartner,
+        stub: null,
+        storageAvailable: true,
+        headingRef,
+        onDeclareBooked,
+        onDeclareNotBooked,
+      });
+      const buttons = findElements(tree, element => element.type === 'button');
+
+      (buttons[0].props.onClick as () => void)();
+      (buttons[1].props.onClick as () => void)();
+
+      expect(onDeclareBooked).toHaveBeenCalledTimes(1);
+      expect(onDeclareNotBooked).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('S2 — declared (D2, D3, D4, D5b)', () => {
+    it('marks the reservation as traveler-declared, never as confirmed, adjacent to "You told us"', () => {
+      const tree = HotelReturnStatePanel({
+        phase: 'declared',
+        partner: namedPartner,
+        stub: declaredStub,
+        storageAvailable: true,
+        headingRef,
+        onDeclareBooked: noop,
+        onDeclareNotBooked: noop,
+      });
+      const text = collectText(tree);
+
+      expect(text).toContain('You told us you booked this stay');
+      expect(text).toContain('expaify has not confirmed this with Booking.com');
+      expect(text).not.toMatch(/your booking is confirmed/i);
+    });
+
+    it('renders exactly four checklist items, framed as what to save, with no input controls', () => {
+      const tree = HotelReturnStatePanel({
+        phase: 'declared',
+        partner: namedPartner,
+        stub: declaredStub,
+        storageAvailable: true,
+        headingRef,
+        onDeclareBooked: noop,
+        onDeclareNotBooked: noop,
+      });
+      const terms = findElements(tree, element => element.type === 'dt').map(collectText);
+
+      expect(terms).toEqual(['Confirmation number', 'Cancellation deadline', 'Property phone number', 'The email address you used']);
+      expect(findElements(tree, element => ['input', 'select', 'textarea'].includes(String(element.type)))).toHaveLength(0);
+      expect(collectText(tree)).toContain('Booking.com holds this reservation. expaify cannot look it up, change it, or cancel it.');
+      expect(collectText(tree)).not.toMatch(/expaify (holds|has received|can retrieve)/i);
+    });
+
+    it('renders the stay-dates-absent line rather than a blank or inferred date', () => {
+      const tree = HotelReturnStatePanel({
+        phase: 'declared',
+        partner: namedPartner,
+        stub: declaredStub,
+        storageAvailable: true,
+        headingRef,
+        onDeclareBooked: noop,
+        onDeclareNotBooked: noop,
+      });
+
+      expect(collectText(tree)).toContain('Stay dates were not provided for this offer.');
+    });
+
+    it('renders the dated stay line once check-in/check-out/night-count are all present', () => {
+      const tree = HotelReturnStatePanel({
+        phase: 'declared',
+        partner: namedPartner,
+        stub: datedStub,
+        storageAvailable: true,
+        headingRef,
+        onDeclareBooked: noop,
+        onDeclareNotBooked: noop,
+      });
+
+      expect(collectText(tree)).toContain('2 nights');
+      expect(collectText(tree)).not.toContain('Stay dates were not provided');
+    });
+
+    it('shows the offer reference uncollapsed, with a helper denying it is a reservation number', () => {
+      const tree = HotelReturnStatePanel({
+        phase: 'declared',
+        partner: namedPartner,
+        stub: declaredStub,
+        storageAvailable: true,
+        headingRef,
+        onDeclareBooked: noop,
+        onDeclareNotBooked: noop,
+      });
+
+      expect(findElements(tree, element => element.type === 'details')).toHaveLength(0);
+      expect(collectText(tree)).toContain('hotel_123');
+      expect(collectText(tree)).toContain('it is not your reservation number');
+    });
+
+    it('shows the storage-unavailable line, without error styling, only when storage failed', () => {
+      const unavailable = HotelReturnStatePanel({
+        phase: 'declared',
+        partner: namedPartner,
+        stub: declaredStub,
+        storageAvailable: false,
+        headingRef,
+        onDeclareBooked: noop,
+        onDeclareNotBooked: noop,
+      });
+      const available = HotelReturnStatePanel({
+        phase: 'declared',
+        partner: namedPartner,
+        stub: declaredStub,
+        storageAvailable: true,
+        headingRef,
+        onDeclareBooked: noop,
+        onDeclareNotBooked: noop,
+      });
+
+      expect(collectText(unavailable)).toContain('This browser is not saving the stay. Copy the details above before you close this tab.');
+      expect(collectText(available)).not.toContain('This browser is not saving the stay');
+      expect(findElements(unavailable, element => element.props.role === 'alert')).toHaveLength(0);
+    });
+
+    it('reopens the partner only when the stored URL still carries a validated affiliate marker', () => {
+      const withMarker = HotelReturnStatePanel({
+        phase: 'declared',
+        partner: namedPartner,
+        stub: declaredStub,
+        storageAvailable: true,
+        headingRef,
+        onDeclareBooked: noop,
+        onDeclareNotBooked: noop,
+      });
+      const withoutMarker = HotelReturnStatePanel({
+        phase: 'declared',
+        partner: namedPartner,
+        stub: { ...declaredStub, providerUrl: 'https://www.booking.com/hotel/x' },
+        storageAvailable: true,
+        headingRef,
+        onDeclareBooked: noop,
+        onDeclareNotBooked: noop,
+      });
+
+      const reopenWithMarker = findElements(withMarker, element => element.type === 'a' && element.props.target === '_blank');
+      expect(reopenWithMarker).toHaveLength(1);
+      expect(reopenWithMarker[0].props.href).toBe(declaredStub.providerUrl);
+      expect(reopenWithMarker[0].props.rel).toBe('noopener noreferrer sponsored');
+      expect(findElements(withoutMarker, element => element.type === 'a' && element.props.target === '_blank')).toHaveLength(0);
+    });
+  });
+
+  describe('S4 — recognized (D5)', () => {
+    it('does not repeat the capture checklist on a later, recognised visit', () => {
+      const tree = HotelReturnStatePanel({
+        phase: 'recognized',
+        partner: namedPartner,
+        stub: declaredStub,
+        storageAvailable: true,
+        headingRef,
+        onDeclareBooked: noop,
+        onDeclareNotBooked: noop,
+      });
+      const text = collectText(tree);
+
+      expect(text).toContain('You told us you booked this stay');
+      expect(text).toContain("Your confirmation is in Booking.com's email. expaify has no copy of it.");
+      expect(findElements(tree, element => element.type === 'dt')).toHaveLength(0);
+    });
+  });
+
+  it('returns null rather than an empty panel when no stub is available for declared/recognized', () => {
+    expect(HotelReturnStatePanel({
+      phase: 'declared',
+      partner: namedPartner,
+      stub: null,
+      storageAvailable: true,
+      headingRef,
+      onDeclareBooked: noop,
+      onDeclareNotBooked: noop,
+    })).toBeNull();
+    expect(HotelReturnStatePanel({
+      phase: 'recognized',
+      partner: namedPartner,
+      stub: null,
+      storageAvailable: true,
+      headingRef,
+      onDeclareBooked: noop,
+      onDeclareNotBooked: noop,
+    })).toBeNull();
   });
 });

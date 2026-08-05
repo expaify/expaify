@@ -1,8 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEventHandler, type ReactNode, type SyntheticEvent } from 'react'
-import { BOOKING_FORM_PASSENGER_LIMIT, type BookingFareContext, type BookingHotelContext } from '@/lib/booking/config'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type MouseEventHandler, type ReactNode, type SyntheticEvent } from 'react'
+import { BOOKING_FORM_PASSENGER_LIMIT, isValidatedAffiliateProviderUrl, type BookingFareContext, type BookingHotelContext } from '@/lib/booking/config'
 import { getHotelLocationDisplay } from '@/app/components/hotelLocationContext'
+import {
+  getStayStubSnapshot,
+  isStayStorageAvailable,
+  subscribeToStayStoreChanges,
+  writeStayStub,
+  type HotelStayStub,
+} from '@/lib/booking/hotelStayStore'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { track } from '@/lib/analytics'
 import { hasProviderName, providerDisplayName } from '@/lib/providerFreshness'
@@ -75,6 +82,49 @@ const HOTEL_RETURN_REASONS: ReadonlyArray<{ value: HotelReturnReason; label: str
   { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ]
 
+// --- Hotel booking confirmation & itinerary access (D1-D5, D5b) ---------
+// expaify never observes a hotel reservation. Every state below is one of
+// exactly four kinds of string: observed by expaify, declared by the
+// traveler (always attributed), held by the partner (attributed), or
+// explicitly not known to expaify. See
+// docs/pipeline/hotel-booking-confirmation/03-design.md section 0.
+type HotelReturnPhase =
+  | 'none' // pre-handoff, no stub, first visit (or "I didn't book" was declared)
+  | 'asking' // returned from partner, outcome not declared
+  | 'declared' // traveler declared "I booked" this session
+  | 'recognized' // a stored stub for this offerId was found on mount
+
+type AwayDurationBucket = '<5s' | '5–30s' | '30–120s' | '120s+'
+
+const OPAQUE_ANALYTICS_VALUE = /^[A-Za-z0-9_-]{1,100}$/
+
+function partnerPhrase(partner: HotelPartnerIdentity): string {
+  return partner.named ? partner.label : 'the booking partner'
+}
+
+function formatDeclaredAt(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+function formatStayRange(checkIn: string, checkOut: string, nightCount: number): string {
+  const checkOutDate = new Date(checkOut)
+  const year = Number.isNaN(checkOutDate.getTime()) ? '' : `, ${checkOutDate.getFullYear()}`
+  const nightsLabel = `${nightCount} night${nightCount === 1 ? '' : 's'}`
+  return `${formatDateTime(checkIn)} → ${formatDateTime(checkOut)}${year} · ${nightsLabel}`
+}
+
+function stayLineCopy(hotelContext: BookingHotelContext | HotelStayStub): string {
+  const { checkIn, checkOut, nightCount } = hotelContext
+  if (checkIn && checkOut && nightCount !== undefined) return formatStayRange(checkIn, checkOut, nightCount)
+  return 'Stay dates were not provided for this offer.'
+}
+
+function analyticsOfferId(offerId: string): string | undefined {
+  return OPAQUE_ANALYTICS_VALUE.test(offerId) ? offerId : undefined
+}
+
 export function beginHotelDocumentReadinessCheck(
   pendingRef: { current: boolean },
   onStarted?: () => void,
@@ -110,7 +160,7 @@ const trustClaims = [
   'No payment details are collected on this page',
 ]
 
-type HotelPartnerIdentity = {
+export type HotelPartnerIdentity = {
   host: string
   label: string
   named: boolean
@@ -218,6 +268,7 @@ type BookingFlowProps = {
   fareContext: BookingFareContext | null
   hotelContext?: BookingHotelContext | null
   invalidHotelSelection?: boolean
+  recoveryOfferId?: string
   parkingEvidence?: HotelParkingEvidence | null
   parkingConflictDimensions?: readonly HotelParkingConflictDimension[]
   parkingEvidenceMalformed?: boolean
@@ -720,6 +771,9 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
             Use a current hotel result so the review page receives a verified provider, offer identifier, hotel name, integer-cent price, currency, price basis, and provider handoff URL.
           </p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+            If you booked a hotel from this page, your reservation is with the booking partner. Check your email for its confirmation.
+          </p>
         </div>
         <div className={actionStackCls}>
           <a href="/" className="btn-primary">
@@ -728,6 +782,294 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
         </div>
       </div>
     </ReviewShell>
+  )
+}
+
+/**
+ * D5 recovery. A reference-path offer whose 30-minute context has expired
+ * used to fall straight into `InvalidHotelState` with no way back — a dead
+ * end for a traveler who may have just paid. When a stay stub exists for
+ * `recoveryOfferId`, this renders what expaify still knows instead.
+ * Cannot use `ReviewShell`'s hotel branch: there is no `hotelContext`.
+ */
+function HotelRecoveryState({ stub }: { stub: HotelStayStub }) {
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const announcedRef = useRef(false)
+  const partner: HotelPartnerIdentity = useMemo(() => ({
+    host: stub.partnerHost,
+    label: stub.partnerLabel || 'booking partner',
+    named: stub.partnerLabel.length > 0,
+    allowlistVerified: false,
+  }), [stub.partnerHost, stub.partnerLabel])
+  const reopenValid = isValidatedAffiliateProviderUrl(stub.providerUrl)
+
+  useEffect(() => {
+    headingRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
+    if (announcedRef.current) return
+    announcedRef.current = true
+    const offerId = analyticsOfferId(stub.offerId)
+    if (offerId) {
+      emitAnalytics('hotel_repeat_offer_recognized', { offerId, entryPath: 'reference_expired', rebooked: false })
+    }
+  }, [stub.offerId])
+
+  return (
+    <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
+      <a href="/" className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
+        ← Back to search
+      </a>
+      <div className="mt-4 sm:mt-6">
+        <section aria-labelledby="hotel-recovery-title" className={`${panelCls} border-[color:var(--border-strong)] p-4 sm:p-6`}>
+          <p className="sr-only" role="status" aria-live="polite">
+            This page&rsquo;s offer details have expired. expaify still has what you told it about this stay.
+          </p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--brand)]">Earlier from this browser</p>
+          <h2 id="hotel-recovery-title" ref={headingRef} tabIndex={-1} className="mt-2 text-xl font-medium leading-tight text-[color:var(--text-1)] outline-none sm:text-2xl">
+            You told us you booked this stay
+          </h2>
+          <p className="mt-2 text-xs font-medium leading-5 text-[color:var(--text-3)]">
+            You told us you booked this on {formatDeclaredAt(stub.declaredBookedAt)}. expaify has not confirmed this with {partnerPhrase(partner)}.
+          </p>
+          <h3 className="mt-4 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)]">{stub.name}</h3>
+          {stub.areaLabel ? (
+            <p className="mt-1 break-words text-sm font-medium leading-6 text-[color:var(--text-2)]">{stub.areaLabel}</p>
+          ) : null}
+          <div className={`mt-4 p-3.5 sm:p-4 ${insetPanelCls}`}>
+            <p className={factLabelCls}>Stay</p>
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">{stayLineCopy(stub)}</p>
+          </div>
+          <div className={`mt-3 p-3.5 sm:p-4 ${insetPanelCls}`}>
+            <p className={factLabelCls}>Rate expaify showed</p>
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">{formatMoney(stub.priceCents, stub.currency)} per night</p>
+          </div>
+          <p className="mt-4 text-sm leading-6 text-[color:var(--text-2)]">
+            The full offer details for this page have expired. expaify keeps offer pages for 30 minutes.
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+            Your confirmation is in {partnerPhrase(partner)}&rsquo;s email. expaify has no copy of it.
+          </p>
+          <div className={`mt-4 p-3.5 sm:p-4 ${insetPanelCls}`}>
+            <p className={factLabelCls}>expaify offer reference</p>
+            <p className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{stub.offerId}</p>
+            <p className="mt-2 text-xs leading-5 text-[color:var(--text-3)]">
+              Save this with your confirmation. It tells expaify support exactly which rate you were shown — it is not your reservation number.
+            </p>
+          </div>
+          <div className={`${actionStackCls} sm:flex-row`}>
+            <a href="/" className="btn-primary inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] px-4 text-sm font-medium sm:w-auto">
+              Back to search
+            </a>
+            {reopenValid ? (
+              <a
+                href={stub.providerUrl}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                className={`${secondaryButtonCls} sm:w-auto`}
+              >
+                {partner.named ? `Open ${partner.label} again` : 'Open the booking partner again'}
+              </a>
+            ) : null}
+          </div>
+        </section>
+      </div>
+    </main>
+  )
+}
+
+/**
+ * Chooses between the D5 recovery state and the unchanged `InvalidHotelState`
+ * for a reference-path offer whose context has expired. The check for a
+ * matching stay stub is client-only (localStorage), so it runs after mount;
+ * the safe SSR/first-paint fallback is `InvalidHotelState`.
+ */
+function HotelSelectionUnavailable({
+  duffelSandbox,
+  recoveryOfferId,
+}: {
+  duffelSandbox: boolean
+  recoveryOfferId?: string
+}) {
+  // `localStorage` is an external store: React's rule is to read it via
+  // `useSyncExternalStore`, not by stashing it in a ref during an effect
+  // and mutating that ref to force a re-render (unsafe under React's
+  // memoization rules, and misses same-key writes from other tabs).
+  const recoveredStub = useSyncExternalStore(
+    subscribeToStayStoreChanges,
+    () => (recoveryOfferId ? getStayStubSnapshot(recoveryOfferId) : null),
+    () => null,
+  )
+
+  if (recoveredStub) {
+    return <HotelRecoveryState stub={recoveredStub} />
+  }
+
+  return <InvalidHotelState duffelSandbox={duffelSandbox} />
+}
+
+const CAPTURE_CHECKLIST_ITEMS: ReadonlyArray<{
+  term: string
+  detail: (partner: HotelPartnerIdentity) => string
+}> = [
+  {
+    term: 'Confirmation number',
+    detail: partner => `On ${partnerPhrase(partner)}'s confirmation page and in its email. expaify never receives this.`,
+  },
+  {
+    term: 'Cancellation deadline',
+    detail: partner => `${partner.named ? partner.label : 'The booking partner'} set this at checkout. expaify was not told the deadline for this rate.`,
+  },
+  {
+    term: 'Property phone number',
+    detail: partner => `On ${partnerPhrase(partner)}'s confirmation. Use it to reach the property directly.`,
+  },
+  {
+    term: 'The email address you used',
+    detail: () => 'Your confirmation goes there. Check spam if it has not arrived within an hour.',
+  },
+]
+
+/**
+ * D1/D2/D3/D4/D5b — the return state. Mounts in `ReviewShell`'s `status`
+ * slot, directly above the "Check rooms with provider" section, independent
+ * of smoking-policy evidence. Renders S1 (asking), S2 (declared), or S4
+ * (recognized) depending on `phase`; the `'none'` phase renders nothing
+ * here (see docs/pipeline/hotel-booking-confirmation/03-design.md section 5).
+ */
+export function HotelReturnStatePanel({
+  phase,
+  partner,
+  stub,
+  storageAvailable,
+  headingRef,
+  onDeclareBooked,
+  onDeclareNotBooked,
+}: {
+  phase: 'asking' | 'declared' | 'recognized'
+  partner: HotelPartnerIdentity
+  stub: HotelStayStub | null
+  storageAvailable: boolean
+  headingRef: { current: HTMLHeadingElement | null }
+  onDeclareBooked: () => void
+  onDeclareNotBooked: () => void
+}) {
+  const partnerText = partnerPhrase(partner)
+  const reopenLabel = partner.named ? `Open ${partner.label} again` : 'Open the booking partner again'
+
+  if (phase === 'asking') {
+    return (
+      <section aria-labelledby="hotel-return-title" className={`${panelCls} border-[color:var(--border-strong)] p-4 sm:p-6`}>
+        <p className="sr-only" role="status" aria-live="polite">
+          {`Back from ${partnerText}. Tell expaify what happened so it can show the right next step.`}
+        </p>
+        <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--brand)]">After the handoff</p>
+        <h2 id="hotel-return-title" ref={headingRef} tabIndex={-1} className="mt-2 break-words text-xl font-medium leading-tight text-[color:var(--text-1)] outline-none sm:text-2xl">
+          {`Back from ${partnerText}`}
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--text-2)]">
+          {`expaify does not receive your reservation from ${partnerText}. Tell us what happened so we can show you the right next step.`}
+        </p>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={onDeclareBooked}
+            className="btn-primary inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] px-4 text-sm font-medium sm:w-auto"
+          >
+            I booked
+          </button>
+          <button type="button" onClick={onDeclareNotBooked} className={`${secondaryButtonCls} sm:w-auto`}>
+            I didn&rsquo;t book
+          </button>
+        </div>
+        <p className="mt-3 text-xs leading-5 text-[color:var(--text-3)]">
+          {`Your answer stays in this browser. expaify does not send it to ${partnerText} and cannot check it.`}
+        </p>
+      </section>
+    )
+  }
+
+  if (!stub) return null
+
+  const reopenValid = isValidatedAffiliateProviderUrl(stub.providerUrl)
+  const eyebrow = phase === 'declared' ? 'After the handoff' : 'Earlier from this browser'
+  const announcement = phase === 'declared'
+    ? `Saved in this browser. Four details to copy from ${partnerText} now.`
+    : `You told us you booked this stay on ${formatDeclaredAt(stub.declaredBookedAt)}.`
+
+  return (
+    <section aria-labelledby="hotel-return-title" className={`${panelCls} border-[color:var(--border-strong)] p-4 sm:p-6`}>
+      <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--brand)]">{eyebrow}</p>
+      <h2 id="hotel-return-title" ref={headingRef} tabIndex={-1} className="mt-2 text-xl font-medium leading-tight text-[color:var(--text-1)] outline-none sm:text-2xl">
+        You told us you booked this stay
+      </h2>
+      <p className="mt-2 text-xs font-medium leading-5 text-[color:var(--text-3)]">
+        {`You told us you booked this on ${formatDeclaredAt(stub.declaredBookedAt)}. expaify has not confirmed this with ${partnerText}.`}
+      </p>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className={`p-3.5 ${insetPanelCls}`}>
+          <p className={factLabelCls}>Stay</p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">{stayLineCopy(stub)}</p>
+        </div>
+        <div className={`p-3.5 ${insetPanelCls}`}>
+          <p className={factLabelCls}>Rate expaify showed</p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">{formatMoney(stub.priceCents, stub.currency)} per night</p>
+        </div>
+      </div>
+
+      {phase === 'declared' ? (
+        <div className={`mt-4 p-3.5 sm:p-4 ${insetPanelCls}`}>
+          <h3 className="text-sm font-medium leading-5 text-[color:var(--text-1)]">
+            {`Save these from ${partnerText} now — expaify cannot retrieve them later.`}
+          </h3>
+          <dl className="mt-3 space-y-3">
+            {CAPTURE_CHECKLIST_ITEMS.map((item, index) => (
+              <div key={item.term} className="flex gap-3">
+                <span aria-hidden="true" className="mt-0.5 shrink-0 text-xs font-medium text-[color:var(--text-3)]">{index + 1}.</span>
+                <div className="min-w-0 [overflow-wrap:anywhere]">
+                  <dt className="text-sm font-medium leading-5 text-[color:var(--text-1)]">{item.term}</dt>
+                  <dd className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">{item.detail(partner)}</dd>
+                </div>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
+            {`${partner.named ? partner.label : 'The booking partner'} holds this reservation. expaify cannot look it up, change it, or cancel it.`}
+          </p>
+        </div>
+      ) : (
+        <p className="mt-4 text-sm leading-6 text-[color:var(--text-2)]">
+          {`Your confirmation is in ${partnerText}'s email. expaify has no copy of it.`}
+        </p>
+      )}
+
+      <div className={`mt-4 p-3.5 sm:p-4 ${insetPanelCls}`}>
+        <p className={factLabelCls}>expaify offer reference</p>
+        <p className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{stub.offerId}</p>
+        <p className="mt-2 text-xs leading-5 text-[color:var(--text-3)]">
+          Save this with your confirmation. It tells expaify support exactly which rate you were shown — it is not your reservation number.
+        </p>
+        {phase === 'declared' && !storageAvailable ? (
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+            This browser is not saving the stay. Copy the details above before you close this tab.
+          </p>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+        <a href="/" className="btn-primary inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] px-4 text-sm font-medium sm:w-auto">
+          Back to results
+        </a>
+        {reopenValid ? (
+          <a href={stub.providerUrl} target="_blank" rel="noopener noreferrer sponsored" className={`${secondaryButtonCls} sm:w-auto`}>
+            {reopenLabel}
+          </a>
+        ) : null}
+      </div>
+    </section>
   )
 }
 
@@ -931,11 +1273,83 @@ function HotelHandoffReview({
     surface: 'book_handoff',
   })
   const feedbackTriggerRef = useRef<HTMLButtonElement>(null)
-  const [showReturnPrompt, setShowReturnPrompt] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [selectedReturnReason, setSelectedReturnReason] = useState<HotelReturnReason | ''>('')
   const [feedbackSent, setFeedbackSent] = useState(false)
   const policy = hotelSmokingPolicy ?? hotelContext.smokingPolicy
+
+  // D1-D5: the return state.
+  //
+  // `recognizedStub` subscribes to the client-only stay-stub store via
+  // `useSyncExternalStore` — the correct primitive for an external mutable
+  // source like `localStorage` (reading it into a ref during an effect and
+  // mutating that ref to force a repaint is unsafe under React's rules and
+  // misses writes made by other tabs). `sessionOutcome` covers the part of
+  // the state machine that is purely this render session's doing: the
+  // outcome question appearing and being answered. `phase`/`stub` below
+  // merge the two: a stub found before any interaction this session reads
+  // as "recognized"; declaring "I booked" this session reads as "declared"
+  // even though, from that point on, it is backed by the same store entry.
+  const recognizedStub = useSyncExternalStore(
+    subscribeToStayStoreChanges,
+    () => getStayStubSnapshot(hotelContext.offerId),
+    () => null,
+  )
+  const [sessionOutcome, setSessionOutcome] = useState<'none' | 'asking' | 'declared'>('none')
+  const [mismatchAvailable, setMismatchAvailable] = useState(false)
+  const [storageAvailable, setStorageAvailable] = useState(true)
+  const awayDurationBucketRef = useRef<AwayDurationBucket>('<5s')
+  const returnHeadingRef = useRef<HTMLHeadingElement>(null)
+  const returnStateViewedRef = useRef(false)
+  const recognizedAnnouncedRef = useRef(false)
+  const rebookedAnnouncedRef = useRef(false)
+  // Read inside the visibilitychange listener only (never during render) so
+  // that a stale closure doesn't downgrade a 'declared' session back to
+  // 'asking' on a later return trip.
+  const sessionOutcomeRef = useRef(sessionOutcome)
+  useEffect(() => {
+    sessionOutcomeRef.current = sessionOutcome
+  }, [sessionOutcome])
+
+  const phase: HotelReturnPhase = sessionOutcome === 'asking'
+    ? 'asking'
+    : sessionOutcome === 'declared'
+      ? 'declared'
+      : recognizedStub ? 'recognized' : 'none'
+  const stub = phase === 'asking' ? null : recognizedStub
+
+  const emitReturnStateViewed = (stubPresent: boolean) => {
+    if (returnStateViewedRef.current) return
+    returnStateViewedRef.current = true
+    emitAnalytics('hotel_return_state_viewed', {
+      handoffAttemptId,
+      awayDurationBucket: awayDurationBucketRef.current,
+      stubPresent,
+    })
+  }
+
+  // D5: recognise a prior handoff for this exact offer, found via the
+  // external-store subscription above. Wins over the visibilitychange-
+  // driven "asking" phase (a returning traveler who already declared an
+  // outcome is never re-asked). This effect only emits analytics — it
+  // never calls a state setter — so it does not trigger a cascading
+  // render; `recognizedStub` already drives `phase` directly above.
+  useEffect(() => {
+    if (sessionOutcome !== 'none' || !recognizedStub) return
+    emitReturnStateViewed(true)
+    if (recognizedAnnouncedRef.current) return
+    recognizedAnnouncedRef.current = true
+    const offerId = analyticsOfferId(hotelContext.offerId)
+    if (offerId) {
+      emitAnalytics('hotel_repeat_offer_recognized', { offerId, entryPath: 'inline', rebooked: false })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotelContext.offerId, recognizedStub, sessionOutcome])
+
+  useEffect(() => {
+    if (phase === 'none') return
+    returnHeadingRef.current?.focus()
+  }, [phase])
 
   useEffect(() => {
     const guidanceBlock = guidanceBlockRef.current
@@ -992,12 +1406,21 @@ function HotelHandoffReview({
 
       const startedAt = continueStartedAtRef.current
       const durationMs = startedAt === undefined ? 0 : Math.max(0, performance.now() - startedAt)
+      const bucket = getAwayDurationBucket(durationMs)
+      awayDurationBucketRef.current = bucket
       emitAnalytics('hotel_handoff_returned', {
         handoffAttemptId,
         priceDisclosureState: priceComposition.priceDisclosureState,
-        awayDurationBucket: getAwayDurationBucket(durationMs),
+        awayDurationBucket: bucket,
       })
-      setShowReturnPrompt(true)
+      // D2: awayDurationBucket is an analytics dimension only. It never
+      // gates which branch renders, and it never preselects an answer — a
+      // 3-second bounce and a completed checkout render byte-identical
+      // markup. It is not read again below this line for that purpose.
+      if (sessionOutcomeRef.current === 'none') {
+        setSessionOutcome('asking')
+        emitReturnStateViewed(false)
+      }
       returnArmedRef.current = false
       hiddenAfterContinueRef.current = false
       continueStartedAtRef.current = undefined
@@ -1032,6 +1455,75 @@ function HotelHandoffReview({
         selectedRequestCount: 0,
         guidanceSeen: true,
       })
+    }
+  }
+
+  // D2 + D3 + D4: the traveler declares the outcome. expaify never infers
+  // it from awayDurationBucket.
+  const handleDeclareBooked = () => {
+    const declaredBookedAt = new Date().toISOString()
+    const newStub: HotelStayStub = {
+      v: 1,
+      offerId: hotelContext.offerId,
+      provider: hotelContext.provider,
+      partnerHost: partner.host,
+      partnerLabel: partner.named ? partner.label : '',
+      name: hotelContext.name,
+      areaLabel: location.precision === 'missing' ? '' : location.value,
+      priceCents: hotelContext.priceCents,
+      currency: hotelContext.currency,
+      priceBasis: 'per_night_before_taxes_fees',
+      providerUrl: hotelContext.providerUrl,
+      declaredBookedAt,
+      handoffAttemptId,
+      ...(hotelContext.checkIn !== undefined ? { checkIn: hotelContext.checkIn } : {}),
+      ...(hotelContext.checkOut !== undefined ? { checkOut: hotelContext.checkOut } : {}),
+      ...(hotelContext.nightCount !== undefined ? { nightCount: hotelContext.nightCount } : {}),
+    }
+    const writeResult = writeStayStub(newStub)
+    const nextStorageAvailable = writeResult.ok || isStayStorageAvailable()
+    setStorageAvailable(nextStorageAvailable)
+    // `recognizedStub` (useSyncExternalStore) picks up `newStub` on the
+    // next render — the write above already landed in localStorage, and
+    // `setSessionOutcome` below is what triggers that render.
+    setSessionOutcome('declared')
+    emitAnalytics('hotel_return_outcome_declared', {
+      handoffAttemptId,
+      outcome: 'booked',
+      awayDurationBucket: awayDurationBucketRef.current,
+    })
+    const offerId = analyticsOfferId(hotelContext.offerId)
+    if (offerId) {
+      emitAnalytics('hotel_stay_stub_written', {
+        offerId,
+        hasStayDates: Boolean(hotelContext.checkIn && hotelContext.checkOut),
+        storageAvailable: nextStorageAvailable,
+      })
+    }
+  }
+
+  const handleDeclareNotBooked = () => {
+    setMismatchAvailable(true)
+    setSessionOutcome('none')
+    emitAnalytics('hotel_return_outcome_declared', {
+      handoffAttemptId,
+      outcome: 'not_booked',
+      awayDurationBucket: awayDurationBucketRef.current,
+    })
+  }
+
+  const handleRebook = () => {
+    handleContinue()
+    if (!rebookedAnnouncedRef.current) {
+      rebookedAnnouncedRef.current = true
+      const offerId = analyticsOfferId(hotelContext.offerId)
+      if (offerId) {
+        emitAnalytics('hotel_repeat_offer_recognized', {
+          offerId,
+          entryPath: 'inline',
+          rebooked: true,
+        })
+      }
     }
   }
 
@@ -1098,7 +1590,18 @@ function HotelHandoffReview({
     })
   }
 
-  const continueLabel = partner.named ? `Check rooms at ${partner.label}` : 'Check rooms at provider'
+  // D2/D5: while a return decision is pending or already declared, and on a
+  // recognised repeat visit, the handoff CTA is demoted and re-labelled so
+  // it never reads as the traveler's first path to this hotel again.
+  const isDemotedHandoff = phase === 'asking' || phase === 'declared'
+  const isRecognizedHandoff = phase === 'recognized'
+  const reopenLabel = partner.named ? `Open ${partner.label} again` : 'Open the booking partner again'
+  const continueLabel = isRecognizedHandoff
+    ? 'Book this again'
+    : isDemotedHandoff
+      ? reopenLabel
+      : partner.named ? `Check rooms at ${partner.label}` : 'Check rooms at provider'
+  const handoffCtaOnClick = isRecognizedHandoff ? handleRebook : handleContinue
   const newTabCue = partner.named
     ? `Opens ${partner.label} in a new tab. Your expaify search stays open here.`
     : 'Opens the booking partner’s site in a new tab. Your expaify search stays open here.'
@@ -1108,6 +1611,7 @@ function HotelHandoffReview({
     : 'The booking partner confirms the final total before you pay.'
   const transportGuidance = getHotelTransportHandoffGuidance(hotelContext.transportEvidence)
   const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary(priceComposition)} ${finalTotalBoundary} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
+  const rebookWarning = `You already told us you booked this stay on ${stub ? formatDeclaredAt(stub.declaredBookedAt) : ''}. Booking again creates a second reservation with ${partnerPhrase(partner)}.`
 
   return (
     <ReviewShell
@@ -1118,54 +1622,20 @@ function HotelHandoffReview({
       hotelContext={hotelContext}
       duffelSandbox={duffelSandbox}
       onBackClick={handleBack}
+      status={phase === 'none' ? undefined : (
+        <HotelReturnStatePanel
+          phase={phase}
+          partner={partner}
+          stub={stub}
+          storageAvailable={storageAvailable}
+          headingRef={returnHeadingRef}
+          onDeclareBooked={handleDeclareBooked}
+          onDeclareNotBooked={handleDeclareNotBooked}
+        />
+      )}
       hotelSupplement={policy ? (
         <div className="space-y-3">
           <TrackedSmokingPolicyPanel offerId={hotelContext.offerId} provider={hotelContext.provider} policy={policy} surface="review" />
-          {showReturnPrompt ? (
-            <section className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4" aria-labelledby="hotel-return-feedback-title">
-              <h3 id="hotel-return-feedback-title" className="text-sm font-medium text-[color:var(--text-1)]">Did the partner details match?</h3>
-              <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">Optional: tell us the main mismatch so we can improve hotel price details.</p>
-              {feedbackSent ? (
-                <p className="mt-3 text-sm font-medium text-[color:var(--brand)]" role="status">Thanks. Your feedback was recorded.</p>
-              ) : feedbackOpen ? (
-                <form className="mt-3" onSubmit={handleReturnFeedback}>
-                  <fieldset>
-                    <legend className="text-sm font-medium text-[color:var(--text-1)]">What was the main mismatch?</legend>
-                    <div className="mt-2 space-y-1">
-                      {HOTEL_RETURN_REASONS.map(reason => (
-                        <label key={reason.value} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-[var(--radius-control)] px-2 text-sm text-[color:var(--text-2)] focus-within:shadow-[var(--focus-ring)]">
-                          <input
-                            type="radio"
-                            name="hotel-return-reason"
-                            value={reason.value}
-                            checked={selectedReturnReason === reason.value}
-                            onChange={() => setSelectedReturnReason(reason.value)}
-                          />
-                          <span>{reason.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                    <button type="submit" disabled={!selectedReturnReason} className="btn-primary min-h-11 rounded-[var(--radius-control)] px-4 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">Send feedback</button>
-                    <button
-                      type="button"
-                      className={secondaryButtonCls}
-                      onClick={() => {
-                        setFeedbackOpen(false)
-                        setSelectedReturnReason('')
-                        window.setTimeout(() => feedbackTriggerRef.current?.focus(), 0)
-                      }}
-                    >Cancel</button>
-                  </div>
-                </form>
-              ) : (
-                <button ref={feedbackTriggerRef} type="button" onClick={() => setFeedbackOpen(true)} className="mt-3 inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-[color:var(--border)] px-4 text-sm font-medium text-[color:var(--text-1)] focus-visible:shadow-[var(--focus-ring)]">
-                  Report a mismatch
-                </button>
-              )}
-            </section>
-          ) : null}
         </div>
       ) : undefined}
     >
@@ -1202,13 +1672,22 @@ function HotelHandoffReview({
           <HotelBookingModificationCue partner={verifiedModificationPartner} />
         </div>
         <div className="mt-3 flex flex-col gap-3">
+          {isRecognizedHandoff ? (
+            <p className={`text-sm font-medium leading-6 text-[color:var(--warning)] ${partnerLabelWrapCls}`}>
+              {rebookWarning}
+            </p>
+          ) : null}
           <a
             href={hotelContext.providerUrl}
             target="_blank"
             rel="noopener noreferrer sponsored"
             aria-label={accessibleName}
-            onClick={handleContinue}
-            className="btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] px-4 text-center text-sm font-medium"
+            onClick={handoffCtaOnClick}
+            className={
+              isDemotedHandoff || isRecognizedHandoff
+                ? `${secondaryButtonCls} gap-2`
+                : 'btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] px-4 text-center text-sm font-medium'
+            }
           >
             <span className={partnerLabelWrapCls}>{continueLabel}</span>
             <svg aria-hidden="true" focusable="false" className="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="none">
@@ -1216,6 +1695,58 @@ function HotelHandoffReview({
             </svg>
           </a>
           <p className={`text-center text-xs leading-5 text-[color:var(--text-3)] ${partnerLabelWrapCls}`}>{newTabCue}</p>
+          {phase === 'none' && mismatchAvailable ? (
+            <div>
+              <button
+                ref={feedbackTriggerRef}
+                type="button"
+                onClick={() => setFeedbackOpen(true)}
+                className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-1 text-sm font-medium text-[color:var(--brand)] underline underline-offset-2 focus-visible:shadow-[var(--focus-ring)]"
+              >
+                {partner.named ? `Something didn’t match on ${partner.label}` : 'Something didn’t match on the booking partner'}
+              </button>
+              {feedbackOpen || feedbackSent ? (
+                <section className={`mt-3 p-4 ${insetPanelCls}`} aria-labelledby="hotel-return-feedback-title">
+                  <h3 id="hotel-return-feedback-title" className="text-sm font-medium text-[color:var(--text-1)]">What was the main mismatch?</h3>
+                  {feedbackSent ? (
+                    <p className="mt-3 text-sm font-medium text-[color:var(--brand)]" role="status">Thanks. Your feedback was recorded.</p>
+                  ) : (
+                    <form className="mt-3" onSubmit={handleReturnFeedback}>
+                      <fieldset>
+                        <legend className="sr-only">What was the main mismatch?</legend>
+                        <div className="mt-2 space-y-1">
+                          {HOTEL_RETURN_REASONS.map(reason => (
+                            <label key={reason.value} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-[var(--radius-control)] px-2 text-sm text-[color:var(--text-2)] focus-within:shadow-[var(--focus-ring)]">
+                              <input
+                                type="radio"
+                                name="hotel-return-reason"
+                                value={reason.value}
+                                checked={selectedReturnReason === reason.value}
+                                onChange={() => setSelectedReturnReason(reason.value)}
+                              />
+                              <span>{reason.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                        <button type="submit" disabled={!selectedReturnReason} className="btn-primary min-h-11 rounded-[var(--radius-control)] px-4 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">Send feedback</button>
+                        <button
+                          type="button"
+                          className={secondaryButtonCls}
+                          onClick={() => {
+                            setFeedbackOpen(false)
+                            setSelectedReturnReason('')
+                            window.setTimeout(() => feedbackTriggerRef.current?.focus(), 0)
+                          }}
+                        >Cancel</button>
+                      </div>
+                    </form>
+                  )}
+                </section>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -1327,10 +1858,10 @@ function HotelHandoffReview({
           <details className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
             <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[color:var(--brand)]">Show offer details</summary>
             <dl className="border-t border-[color:var(--border)] py-3 text-xs">
-              <dt className={factLabelCls}>Offer reference</dt>
+              <dt className={factLabelCls}>expaify offer reference</dt>
               <dd className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{hotelContext.offerId}</dd>
             </dl>
-            <p className="pb-3 text-xs leading-5 text-[color:var(--text-3)]">Use this reference if you contact expaify support.</p>
+            <p className="pb-3 text-xs leading-5 text-[color:var(--text-3)]">Save this with your confirmation. It tells expaify support exactly which rate you were shown — it is not your reservation number.</p>
           </details>
         </div>
       </section>
@@ -1344,6 +1875,7 @@ export default function BookingFlow({
   fareContext,
   hotelContext = null,
   invalidHotelSelection = false,
+  recoveryOfferId,
   parkingEvidence,
   parkingConflictDimensions,
   parkingEvidenceMalformed = false,
@@ -1385,7 +1917,7 @@ export default function BookingFlow({
   }
 
   if (invalidHotelSelection) {
-    return <InvalidHotelState duffelSandbox={duffelSandbox} />
+    return <HotelSelectionUnavailable duffelSandbox={duffelSandbox} recoveryOfferId={recoveryOfferId} />
   }
 
   async function handleSubmit(e: FormEvent) {
