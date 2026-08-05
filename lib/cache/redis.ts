@@ -26,4 +26,16 @@ export const cache = {
   async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
     await getClient().set(key, JSON.stringify(value), 'EX', ttlSeconds);
   },
+
+  /**
+   * Atomic set-if-absent (Redis `SET key value NX EX ttl`). Returns `true`
+   * when this call created the key (caller holds the lock), `false` when the
+   * key already existed (someone else holds it). Used for idempotency/lock
+   * keys where a plain get-then-set would race two concurrent requests into
+   * both believing they're first.
+   */
+  async setIfAbsent<T>(key: string, value: T, ttlSeconds: number): Promise<boolean> {
+    const result = await getClient().set(key, JSON.stringify(value), 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  },
 };

@@ -1,7 +1,14 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server';
-import { BOOKING_FORM_PASSENGER_LIMIT, isBookingEnabled, validateBookingFareContext } from '@/lib/booking/config';
+import { BOOKING_FORM_PASSENGER_LIMIT, isBookingEnabled, validateBookingFareContext, type BookingFareContext } from '@/lib/booking/config';
+import { cache } from '@/lib/cache/redis';
+import {
+  computeBookingIdempotencyKey,
+  type BookingIdempotencyRecord,
+  BOOKING_IDEMPOTENCY_LOCK_TTL_SECONDS,
+  BOOKING_IDEMPOTENCY_RESULT_TTL_SECONDS,
+} from '@/lib/booking/idempotency';
 
 const BASE_URL = 'https://api.duffel.com';
 
@@ -31,10 +38,140 @@ interface DuffelOrderResponse {
   errors?: Array<{ message: string; type?: string; title?: string }>;
 }
 
+type ApiResult = { httpStatus: number; body: Record<string, unknown> };
+
+function result(httpStatus: number, body: Record<string, unknown>): ApiResult {
+  return { httpStatus, body };
+}
+
 function decimalStringToCents(value: string): number | null {
   if (!/^\d+(\.\d{1,2})?$/.test(value)) return null;
   const [whole, fraction = ''] = value.split('.');
   return Number(`${whole}${fraction.padEnd(2, '0')}`);
+}
+
+const AMBIGUOUS_RESULT: ApiResult = result(202, {
+  ok: false,
+  ambiguous: true,
+  reason: 'expaify could not confirm whether this booking completed. Check your email for a confirmation before submitting again — resubmitting could create a second booking.',
+});
+
+/**
+ * Everything from "we have a validated offerId + passenger" through Duffel
+ * order creation. Split out from POST so the idempotency wrapper below can
+ * gate it behind a Redis lock and cache its (non-ambiguous) result.
+ */
+async function createDuffelOrder(offerId: string, selectedFare: BookingFareContext, p: PassengerData): Promise<ApiResult> {
+  const apiKey = process.env.DUFFEL_KEY ?? '';
+  if (!apiKey) return result(500, { ok: false, reason: 'Duffel not configured' });
+
+  const duffelHeaders = {
+    Authorization: `Bearer ${apiKey}`,
+    'Duffel-Version': 'v2',
+    'Content-Type': 'application/json',
+  };
+
+  // Step 2: Fetch offer details to get the passenger id
+  const offerRes = await fetch(`${BASE_URL}/air/offers/${offerId}`, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Duffel-Version': 'v2',
+    },
+  });
+
+  if (!offerRes.ok) {
+    const text = await offerRes.text().catch(() => '');
+    return result(502, { ok: false, reason: `Failed to fetch offer: ${text.slice(0, 200)}` });
+  }
+
+  const offerJson = (await offerRes.json()) as DuffelOfferResponse;
+  const offerPassengers = offerJson.data.passengers;
+  const passengerId = offerPassengers[0]?.id;
+  const offerPriceCents = decimalStringToCents(offerJson.data.total_amount);
+
+  if (!passengerId) {
+    return result(502, { ok: false, reason: 'Could not extract passenger ID from offer' });
+  }
+
+  if (offerPassengers.length !== selectedFare.passengerCount) {
+    return result(409, { ok: false, reason: 'Fare passenger count changed. Return to search and choose the current fare.' });
+  }
+
+  if (
+    offerPriceCents === null ||
+    offerPriceCents !== selectedFare.priceCents ||
+    offerJson.data.total_currency !== selectedFare.currency
+  ) {
+    return result(409, { ok: false, reason: 'Fare price changed. Return to search and choose the current fare.' });
+  }
+
+  // Step 4: Create order. Everything above this point is safe to cache as a
+  // "done" (non-ambiguous) result -- no order was ever attempted. From here
+  // on, a thrown exception means we genuinely don't know Duffel's outcome;
+  // the caller (POST, below) catches that case separately and marks the
+  // idempotency record 'ambiguous' rather than 'done'.
+  const orderRes = await fetch(`${BASE_URL}/air/orders`, {
+    method: 'POST',
+    headers: {
+      ...duffelHeaders,
+      // Best-effort defense in depth: if Duffel's API recognizes this header
+      // for order creation, it gives us a second, provider-side idempotency
+      // guarantee independent of our own Redis lock. If it doesn't, this is
+      // simply ignored -- our Redis lock remains the primary protection.
+      'Idempotency-Key': computeBookingIdempotencyKey(offerId, p),
+    },
+    body: JSON.stringify({
+      data: {
+        type: 'instant',
+        selected_offers: [offerId],
+        passengers: [
+          {
+            id: passengerId,
+            given_name: p.given_name,
+            family_name: p.family_name,
+            born_on: p.born_on,
+            email: p.email,
+            phone_number: p.phone_number,
+            gender: p.gender,
+            title: p.title,
+          },
+        ],
+        payments: [
+          {
+            type: 'balance',
+            amount: offerJson.data.total_amount,
+            currency: offerJson.data.total_currency,
+          },
+        ],
+      },
+    }),
+  });
+
+  const orderJson = (await orderRes.json()) as DuffelOrderResponse;
+
+  if (!orderRes.ok) {
+    const firstError = orderJson.errors?.[0];
+    const errorMsg = firstError?.message ?? firstError?.title ?? 'Booking failed';
+    const errorType = firstError?.type ?? '';
+
+    // Balance / payment errors get a user-friendly message
+    if (
+      errorType === 'balance_error' ||
+      errorMsg.toLowerCase().includes('balance') ||
+      errorMsg.toLowerCase().includes('payment')
+    ) {
+      return result(402, { ok: false, reason: 'Payment failed — contact airline directly', bookingReference: null });
+    }
+
+    return result(502, { ok: false, reason: errorMsg });
+  }
+
+  // Success
+  return result(200, {
+    ok: true,
+    bookingReference: orderJson.data?.booking_reference,
+    orderId: orderJson.data?.id,
+  });
 }
 
 export async function POST(request: Request) {
@@ -96,125 +233,55 @@ export async function POST(request: Request) {
       }
     }
 
-    // Read env var at call time (not module load)
-    const apiKey = process.env.DUFFEL_KEY ?? '';
-    if (!apiKey) {
-      return NextResponse.json({ ok: false, reason: 'Duffel not configured' }, { status: 500 });
-    }
+    const passengerData = p as PassengerData;
 
-    const duffelHeaders = {
-      Authorization: `Bearer ${apiKey}`,
-      'Duffel-Version': 'v2',
-      'Content-Type': 'application/json',
-    };
+    // From here, offerId + passenger identity are validated enough to derive
+    // a stable idempotency key. Everything above is pure input validation --
+    // no order risk, no need to gate it behind the lock.
+    const idempotencyKey = computeBookingIdempotencyKey(offerId, passengerData);
 
-    // Step 2: Fetch offer details to get the passenger id
-    const offerRes = await fetch(`${BASE_URL}/air/offers/${offerId}`, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Duffel-Version': 'v2',
-      },
-    });
+    const acquired = await cache.setIfAbsent<BookingIdempotencyRecord>(
+      idempotencyKey,
+      { status: 'in_progress' },
+      BOOKING_IDEMPOTENCY_LOCK_TTL_SECONDS
+    );
 
-    if (!offerRes.ok) {
-      const text = await offerRes.text().catch(() => '');
-      return NextResponse.json(
-        { ok: false, reason: `Failed to fetch offer: ${text.slice(0, 200)}` },
-        { status: 502 }
-      );
-    }
-
-    const offerJson = (await offerRes.json()) as DuffelOfferResponse;
-    const offerPassengers = offerJson.data.passengers;
-    const passengerId = offerPassengers[0]?.id;
-    const offerPriceCents = decimalStringToCents(offerJson.data.total_amount);
-
-    if (!passengerId) {
-      return NextResponse.json(
-        { ok: false, reason: 'Could not extract passenger ID from offer' },
-        { status: 502 }
-      );
-    }
-
-    if (offerPassengers.length !== selectedFare.passengerCount) {
-      return NextResponse.json(
-        { ok: false, reason: 'Fare passenger count changed. Return to search and choose the current fare.' },
-        { status: 409 }
-      );
-    }
-
-    if (
-      offerPriceCents === null ||
-      offerPriceCents !== selectedFare.priceCents ||
-      offerJson.data.total_currency !== selectedFare.currency
-    ) {
-      return NextResponse.json(
-        { ok: false, reason: 'Fare price changed. Return to search and choose the current fare.' },
-        { status: 409 }
-      );
-    }
-
-    // Step 4: Create order
-    const orderRes = await fetch(`${BASE_URL}/air/orders`, {
-      method: 'POST',
-      headers: duffelHeaders,
-      body: JSON.stringify({
-        data: {
-          type: 'instant',
-          selected_offers: [offerId],
-          passengers: [
-            {
-              id: passengerId,
-              given_name: p.given_name,
-              family_name: p.family_name,
-              born_on: p.born_on,
-              email: p.email,
-              phone_number: p.phone_number,
-              gender: p.gender,
-              title: p.title,
-            },
-          ],
-          payments: [
-            {
-              type: 'balance',
-              amount: offerJson.data.total_amount,
-              currency: offerJson.data.total_currency,
-            },
-          ],
-        },
-      }),
-    });
-
-    const orderJson = (await orderRes.json()) as DuffelOrderResponse;
-
-    if (!orderRes.ok) {
-      const firstError = orderJson.errors?.[0];
-      const errorMsg = firstError?.message ?? firstError?.title ?? 'Booking failed';
-      const errorType = firstError?.type ?? '';
-
-      // Balance / payment errors get a user-friendly message
-      if (
-        errorType === 'balance_error' ||
-        errorMsg.toLowerCase().includes('balance') ||
-        errorMsg.toLowerCase().includes('payment')
-      ) {
+    if (!acquired) {
+      const existing = await cache.get<BookingIdempotencyRecord>(idempotencyKey);
+      if (!existing || existing.status === 'in_progress') {
         return NextResponse.json(
-          { ok: false, reason: 'Payment failed — contact airline directly', bookingReference: null },
-          { status: 402 }
+          { ok: false, reason: 'A booking request for this fare is already being processed. Please wait a moment before retrying.' },
+          { status: 409 }
         );
       }
-
-      return NextResponse.json({ ok: false, reason: errorMsg }, { status: 502 });
+      if (existing.status === 'ambiguous') {
+        return NextResponse.json(AMBIGUOUS_RESULT.body, { status: AMBIGUOUS_RESULT.httpStatus });
+      }
+      // 'done' -- replay the exact prior outcome instead of attempting another order.
+      return NextResponse.json(existing.body, { status: existing.httpStatus });
     }
 
-    // Success
-    return NextResponse.json({
-      ok: true,
-      bookingReference: orderJson.data?.booking_reference,
-      orderId: orderJson.data?.id,
-    });
+    let outcome: ApiResult;
+    try {
+      outcome = await createDuffelOrder(offerId, selectedFare, passengerData);
+    } catch {
+      // Thrown from inside createDuffelOrder -- we cannot tell whether that
+      // happened before or after the order-creation call reached Duffel, so
+      // this must be treated as ambiguous, never as "safe to retry".
+      await cache.set<BookingIdempotencyRecord>(idempotencyKey, { status: 'ambiguous' }, BOOKING_IDEMPOTENCY_RESULT_TTL_SECONDS);
+      return NextResponse.json(AMBIGUOUS_RESULT.body, { status: AMBIGUOUS_RESULT.httpStatus });
+    }
+
+    await cache.set<BookingIdempotencyRecord>(
+      idempotencyKey,
+      { status: 'done', httpStatus: outcome.httpStatus, body: outcome.body },
+      BOOKING_IDEMPOTENCY_RESULT_TTL_SECONDS
+    );
+    return NextResponse.json(outcome.body, { status: outcome.httpStatus });
   } catch (err) {
-    // NEVER throw — always return Result shape
+    // NEVER throw — always return Result shape. Reached only for failures
+    // before/outside order creation (e.g. malformed request JSON), where no
+    // idempotency key was ever computed and no order was ever attempted.
     return NextResponse.json(
       { ok: false, reason: 'Booking unavailable. Please try again later.' },
       { status: 500 }
