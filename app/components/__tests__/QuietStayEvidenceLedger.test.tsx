@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import {
+  getInsulationEvidenceClass,
   getQuietEvidenceResultCue,
   NO_QUIET_STAY_EVIDENCE,
   QuietStayEvidenceHandoff,
@@ -51,6 +52,22 @@ const propertyFact = {
   observedAt: '2026-07-20T12:00:00.000Z',
 }
 
+// A room_type-scope fact that is NOT a documented insulation attribute — the
+// fixture that exercises the fabrication fix. Before the fix this rendered
+// "Provider lists soundproofing for Garden View Room," inventing a claim the
+// provider never made.
+const roomTypeNonInsulationFact = {
+  normalizedId: 'blackout_curtains',
+  rawProviderId: 'provider:room:12',
+  scope: 'room_type' as const,
+  attributeLabel: 'blackout curtains',
+  sourceLabel: 'Licensed Hotel Source',
+  observedAt: '2026-07-20T12:00:00.000Z',
+  certainty: 'supported' as const,
+  selectedProductId: 'product-12',
+  roomTypeLabel: 'Garden View Room',
+}
+
 const guestPattern = (pattern: GuestNoisePattern['pattern']): GuestNoisePattern => ({
   pattern,
   sourceLabel: 'Licensed Review Source',
@@ -86,6 +103,28 @@ describe('QuietStayEvidenceLedger', () => {
     expect(html).not.toContain('Selected room or stay')
     expect(html).not.toContain('role="status"')
     expect(html).not.toMatch(/likely quiet|noisy|noise risk|quiet-stay score/i)
+    // The two-axis structure only exists once evidence is actually being
+    // shown; the zero-coverage fallback stays a single unknown state.
+    expect(html).not.toContain('Room sound insulation')
+    expect(html).not.toContain('Noise in the surroundings')
+  })
+
+  it('separates insulation and exposure evidence into two labeled axis sections', () => {
+    const html = renderLedger(available({
+      propertyFacts: [propertyFact],
+      nearbyContext: [airportContext],
+    }))
+
+    expect(html).toContain('The sections below separate what is known about a room')
+    const insulationIndex = html.indexOf('Room sound insulation')
+    const surroundingsIndex = html.indexOf('Noise in the surroundings')
+    const propertyClaimIndex = html.indexOf('Provider lists soundproofing for this property.')
+    const nearbyClaimIndex = html.indexOf('Example International Airport is 2.4 miles away')
+    expect(insulationIndex).toBeGreaterThan(-1)
+    expect(surroundingsIndex).toBeGreaterThan(-1)
+    expect(insulationIndex).toBeLessThan(propertyClaimIndex)
+    expect(propertyClaimIndex).toBeLessThan(surroundingsIndex)
+    expect(surroundingsIndex).toBeLessThan(nearbyClaimIndex)
   })
 
   it('keeps checking and failure polite, atomic, non-blocking, and free of fake retry controls', () => {
@@ -224,17 +263,47 @@ describe('QuietStayEvidenceLedger', () => {
     expect(html).not.toContain('Guests mention aircraft.')
   })
 
-  it('creates a result cue only from current valid evidence using strongest-class precedence', () => {
+  it('creates a result cue only from insulation-axis evidence, never from exposure-axis evidence', () => {
     expect(getQuietEvidenceResultCue()).toBeNull()
     expect(getQuietEvidenceResultCue(NO_QUIET_STAY_EVIDENCE)).toBeNull()
     expect(getQuietEvidenceResultCue(available({ propertyFacts: [{ ...propertyFact, sourceLabel: ' ' }] }))).toBeNull()
-    expect(getQuietEvidenceResultCue(available({ nearbyContext: [airportContext] }))).toBe('Quiet-stay evidence available · Nearby context')
+    // Nearby-distance evidence alone must never produce a "Quiet-stay evidence
+    // available" cue — that was the exact overclaim reported in
+    // docs/pipeline/hotel-room-soundproofing/01-discovery.md: a straight-line
+    // airport distance is evidence about the surroundings, not the room's
+    // insulation, and must not be announced as satisfying a quiet-stay need.
+    expect(getQuietEvidenceResultCue(available({ nearbyContext: [airportContext] }))).toBeNull()
+    // A guest-reported pattern alone (even an insulation-revealing one) is not
+    // yet a documented insulation fact and must not produce the cue either.
+    expect(getQuietEvidenceResultCue(available({ guestPatterns: [guestPattern('corridors')] }))).toBeNull()
     expect(getQuietEvidenceResultCue(available({
       selectedStayFacts: [roomTypeFact],
       propertyFacts: [propertyFact],
       guestPatterns: [guestPattern('aircraft')],
       nearbyContext: [airportContext],
     }))).toBe('Quiet-stay evidence available · Room type')
+  })
+
+  it('resolves insulation-axis evidence strength independently of exposure-axis evidence', () => {
+    expect(getInsulationEvidenceClass()).toBe('none')
+    expect(getInsulationEvidenceClass(NO_QUIET_STAY_EVIDENCE)).toBe('none')
+    expect(getInsulationEvidenceClass(available({ nearbyContext: [airportContext] }))).toBe('none')
+    expect(getInsulationEvidenceClass(available({ guestPatterns: [guestPattern('lifts')] }))).toBe('none')
+    // A non-insulation room_type fact (blackout curtains) must not register as
+    // insulation evidence even though it shares the room_type scope.
+    expect(getInsulationEvidenceClass(available({ selectedStayFacts: [roomTypeNonInsulationFact] }))).toBe('none')
+    expect(getInsulationEvidenceClass(available({ selectedStayFacts: [roomTypeFact] }))).toBe('room_type')
+    expect(getInsulationEvidenceClass(available({ propertyFacts: [propertyFact] }))).toBe('property')
+    expect(getInsulationEvidenceClass(available({
+      selectedStayFacts: [{ ...roomTypeFact, normalizedId: 'soundproofing_room', scope: 'selected_stay' as const }],
+    }))).toBe('selected_stay')
+  })
+
+  it('renders truthful, non-fabricated copy for a room_type fact that is not a documented insulation attribute', () => {
+    const html = renderLedger(available({ selectedStayFacts: [roomTypeNonInsulationFact] }))
+
+    expect(html).toContain('Provider lists blackout curtains for Garden View Room. Confirm this room type is selected before payment.')
+    expect(html).not.toMatch(/soundproofing/i)
   })
 
   it('adds the bounded cue inside the existing result link without a new control', () => {
@@ -259,9 +328,18 @@ describe('QuietStayEvidenceLedger', () => {
     )
 
     expect(populated.match(/Quiet-stay evidence available · Property/g)).toHaveLength(1)
-    expect(populated).toContain('aria-label="View deal: Example Hotel; Quiet-stay evidence available: Property"')
+    expect(populated).toContain('aria-label="View deal: Example Hotel. Quiet-stay evidence available: Property."')
     expect(unknown).not.toContain('Quiet-stay evidence available')
     expect(populated.match(/<a /g)).toHaveLength(1)
+
+    // Exposure-only evidence (nearby context) must never surface a quiet-stay
+    // cue on the collapsed card or in its aria-label — the exact overclaim
+    // reported in docs/pipeline/hotel-room-soundproofing/01-discovery.md.
+    const exposureOnly = renderToStaticMarkup(
+      <DealCard deal={deal} href="/deals/hotel-1" quietStayEvidence={available({ nearbyContext: [airportContext] })} />,
+    )
+    expect(exposureOnly).not.toContain('Quiet-stay evidence available')
+    expect(exposureOnly).not.toContain('quiet-stay evidence available')
   })
 
   it('preserves only still-applicable room evidence at handoff and adds no request control', () => {
