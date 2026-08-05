@@ -14,6 +14,7 @@ import {
 } from '../hotels/smokingPolicy';
 import { HOTEL_RATE_ELIGIBILITY_UNSUPPORTED } from '../hotels/rateEligibility';
 import { HOTEL_ADMISSION_POLICY_UNSUPPORTED } from '../hotels/admissionPolicy';
+import { HOTEL_PAYMENT_ACCEPTANCE_UNSUPPORTED } from '../hotels/paymentAcceptance';
 
 const ENGINE_BASE = 'https://engine.hotellook.com/api/v2/cache.json';
 const CACHE_TTL = 21600; // 6 hours
@@ -408,6 +409,7 @@ function normalizeCachedHotelOffer(value: unknown): HotelOffer | null {
     smokingPolicy,
     rateEligibilityCapability: HOTEL_RATE_ELIGIBILITY_UNSUPPORTED,
     admissionPolicyCapability: HOTEL_ADMISSION_POLICY_UNSUPPORTED,
+    paymentAcceptanceCapability: HOTEL_PAYMENT_ACCEPTANCE_UNSUPPORTED,
   };
 }
 
@@ -539,6 +541,7 @@ export class HotellookProvider implements HotelProvider {
           smokingPolicy: notProvidedHotelSmokingPolicy(),
           rateEligibilityCapability: HOTEL_RATE_ELIGIBILITY_UNSUPPORTED,
           admissionPolicyCapability: HOTEL_ADMISSION_POLICY_UNSUPPORTED,
+          paymentAcceptanceCapability: HOTEL_PAYMENT_ACCEPTANCE_UNSUPPORTED,
         };
       });
 

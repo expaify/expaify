@@ -655,6 +655,87 @@ export interface HotelAdmissionPolicyCapability {
   occupancy_admission: boolean;
 }
 
+// --- Payment-method acceptance: does the instrument the traveler holds clear every gate the stay
+// tests it against (G1 booking, G2 property settlement, G3 property incidental hold)? Distinct from
+// HotelFundsPolicyEvidence (which describes the deposit/hold obligation, not which instrument the
+// property accepts for it) and from the unimplemented hotel-payment-options
+// HotelStayPaymentMethodEvidence (which is fixed to purpose: 'stay_price', i.e. G1/G2 only, and
+// explicitly excludes guarantee/deposit/hold methods). See
+// docs/pipeline/hotel-payment-method/03-design.md.
+
+export type HotelPropertyCardRequirement = 'required' | 'not_required' | 'not_confirmed';
+
+export type HotelPropertyPaymentInstrumentClass =
+  | 'credit_card'
+  | 'debit_card'
+  | 'prepaid_card'
+  | 'cash';
+
+export type HotelPropertyPaymentInstrumentState = 'accepted' | 'not_accepted' | 'not_confirmed';
+
+export type HotelBookingGateDivergence = 'same' | 'differs' | 'not_confirmed';
+
+/** Two disagreeing supplier statements about the same fact, retained for the conflicting-row render. */
+export interface HotelPaymentAcceptanceConflict {
+  sourceLabelA: string;
+  valueA: string;
+  sourceLabelB: string;
+  valueB: string;
+}
+
+export interface HotelPaymentAcceptanceEvidence {
+  /** Literal. There is no rate-scoped variant, matching HotelAdmissionPolicyEvidence's shape. */
+  scope: HotelFundsEvidenceScope;
+  /** Must match the rendered offer's id; mismatch degrades the whole record to all-not_confirmed. */
+  propertyId: string;
+  /** Must match HotelOffer.source; mismatch degrades the whole record to all-not_confirmed. */
+  supplier: string;
+  loadState: 'loading' | 'ready' | 'error';
+  fetchedAt?: string;
+  cardRequiredAtProperty: HotelPropertyCardRequirement;
+  cardRequiredConflict?: HotelPaymentAcceptanceConflict;
+  instruments: Record<HotelPropertyPaymentInstrumentClass, HotelPropertyPaymentInstrumentState>;
+  instrumentConflicts?: Partial<Record<HotelPropertyPaymentInstrumentClass, HotelPaymentAcceptanceConflict>>;
+  bookingGateDivergence: HotelBookingGateDivergence;
+  bookingGateDivergenceConflict?: HotelPaymentAcceptanceConflict;
+  sourceLabel: string;
+}
+
+/** Declares whether an adapter's contract can return an explicit answer for each fact family. All-false today. */
+export interface HotelPaymentAcceptanceCapability {
+  cardRequiredAtProperty: boolean;
+  instrumentClasses: boolean;
+  bookingGateDivergence: boolean;
+}
+
+export type HotelPaymentAcceptanceRowId =
+  | 'card_required_at_property'
+  | 'credit_card'
+  | 'debit_card'
+  | 'prepaid_card'
+  | 'cash'
+  | 'booking_gate_divergence';
+
+export type HotelPaymentAcceptanceRowTone = 'confirmed_positive' | 'confirmed_negative' | 'not_confirmed' | 'conflicting';
+
+export interface HotelPaymentAcceptanceRow {
+  id: HotelPaymentAcceptanceRowId;
+  label: string;
+  tone: HotelPaymentAcceptanceRowTone;
+  sentence: string;
+}
+
+export type HotelPaymentAcceptancePresentation =
+  | { state: 'loading' }
+  | { state: 'error' }
+  | {
+      state: 'ready';
+      statusLine: string;
+      cardRequiredWarning: boolean;
+      rows: readonly HotelPaymentAcceptanceRow[];
+      provenance: string;
+    };
+
 export type HotelStayCostState =
   | 'provider_total'
   | 'partial_total'
@@ -772,6 +853,8 @@ export interface HotelOffer {
   rateEligibilityCapability?: HotelRateEligibilityCapability;
   admissionPolicy?: HotelAdmissionPolicyEvidence;
   admissionPolicyCapability?: HotelAdmissionPolicyCapability;
+  paymentAcceptance?: HotelPaymentAcceptanceEvidence;
+  paymentAcceptanceCapability?: HotelPaymentAcceptanceCapability;
   taxEvidence?: HotelRequiredChargeEvidence;
   mandatoryPropertyChargeEvidence?: HotelRequiredChargeEvidence;
   requiredChargeCapabilities?: HotelRequiredChargeCapabilities;

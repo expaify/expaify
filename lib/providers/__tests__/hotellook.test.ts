@@ -181,6 +181,7 @@ describe('HotellookProvider.searchHotels', () => {
         },
         rateEligibilityCapability: { membership: false, residency: false, age: false, refundability: false },
         admissionPolicyCapability: { checkin_age: false, checkin_identity: false, local_guest_restriction: false, occupancy_admission: false },
+        paymentAcceptanceCapability: { cardRequiredAtProperty: false, instrumentClasses: false, bookingGateDivergence: false },
       },
     ]);
   });

@@ -229,7 +229,12 @@ function ObligationCard({ record, heading }: { record: HotelFundsEvidenceRecord;
       <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {record.amount ? <Fact label="Amount" value={amountAndBasis(record)} /> : null}
         {record.applicationWording ? <Fact label={applicationLabel(record.type)} value={record.applicationWording} /> : null}
-        {record.paymentMethodWording ? <Fact label="Payment method" value={record.paymentMethodWording} /> : null}
+        {record.paymentMethodWording ? (
+          <Fact
+            label={`Applies to this ${record.type ? mechanismLabels[record.type].toLowerCase() : 'obligation'}`}
+            value={record.paymentMethodWording}
+          />
+        ) : null}
         {release ? <Fact label={returnLabel(record.type)} value={release} /> : null}
       </dl>
       {record.returnOrRelease?.issuerProcessingWording ? (

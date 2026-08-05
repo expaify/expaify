@@ -8,6 +8,7 @@ import { createNotReturnedHotelFundsPolicy } from '../hotels/fundsPolicy';
 import { notProvidedHotelSmokingPolicy } from '../hotels/smokingPolicy';
 import { HOTEL_RATE_ELIGIBILITY_UNSUPPORTED } from '../hotels/rateEligibility';
 import { HOTEL_ADMISSION_POLICY_UNSUPPORTED } from '../hotels/admissionPolicy';
+import { HOTEL_PAYMENT_ACCEPTANCE_UNSUPPORTED } from '../hotels/paymentAcceptance';
 
 // Real, live Booking.com inventory via RapidAPI. Unlike Hotelbeds (a wholesale
 // B2B API with no public consumer booking page), this aggregator has no
@@ -196,6 +197,7 @@ export class BookingComHotelsRapidApiProvider implements HotelProvider {
           smokingPolicy: notProvidedHotelSmokingPolicy(),
           rateEligibilityCapability: HOTEL_RATE_ELIGIBILITY_UNSUPPORTED,
           admissionPolicyCapability: HOTEL_ADMISSION_POLICY_UNSUPPORTED,
+          paymentAcceptanceCapability: HOTEL_PAYMENT_ACCEPTANCE_UNSUPPORTED,
           photoUrl: property.photoUrls?.[0],
         }];
       });

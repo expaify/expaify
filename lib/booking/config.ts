@@ -15,6 +15,10 @@ import type {
   HotelDocumentStatus,
   HotelFundsPolicyEvidence,
   HotelOffer,
+  HotelPaymentAcceptanceCapability,
+  HotelPaymentAcceptanceConflict,
+  HotelPaymentAcceptanceEvidence,
+  HotelPropertyPaymentInstrumentClass,
   HotelQualityConfidence,
   HotelQualityKind,
   HotelRateEligibilityCapability,
@@ -102,6 +106,8 @@ export type BookingHotelContext = {
   rateEligibilityCapability?: HotelRateEligibilityCapability;
   admissionPolicy?: HotelAdmissionPolicyEvidence;
   admissionPolicyCapability?: HotelAdmissionPolicyCapability;
+  paymentAcceptance?: HotelPaymentAcceptanceEvidence;
+  paymentAcceptanceCapability?: HotelPaymentAcceptanceCapability;
   taxEvidence?: HotelRequiredChargeEvidence;
   mandatoryPropertyChargeEvidence?: HotelRequiredChargeEvidence;
   requiredChargeCapabilities?: HotelRequiredChargeCapabilities;
@@ -812,6 +818,103 @@ function validateHotelAdmissionPolicyCapability(value: unknown): HotelAdmissionP
   };
 }
 
+const CARD_REQUIREMENT_VALUES = new Set(['required', 'not_required', 'not_confirmed']);
+const INSTRUMENT_STATE_VALUES = new Set(['accepted', 'not_accepted', 'not_confirmed']);
+const GATE_DIVERGENCE_VALUES = new Set(['same', 'differs', 'not_confirmed']);
+const PAYMENT_INSTRUMENT_CLASS_KEYS: readonly HotelPropertyPaymentInstrumentClass[] = ['credit_card', 'debit_card', 'prepaid_card', 'cash'];
+const MAX_CONFLICT_LABEL_LENGTH = 80;
+const MAX_CONFLICT_VALUE_LENGTH = 40;
+
+function validateHotelPaymentAcceptanceConflict(value: unknown): HotelPaymentAcceptanceConflict | null | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const sourceLabelA = cleanRequired(record.sourceLabelA);
+  const valueA = cleanRequired(record.valueA);
+  const sourceLabelB = cleanRequired(record.sourceLabelB);
+  const valueB = cleanRequired(record.valueB);
+  if (!sourceLabelA || !valueA || !sourceLabelB || !valueB) return null;
+  if (sourceLabelA.length > MAX_CONFLICT_LABEL_LENGTH || sourceLabelB.length > MAX_CONFLICT_LABEL_LENGTH) return null;
+  if (valueA.length > MAX_CONFLICT_VALUE_LENGTH || valueB.length > MAX_CONFLICT_VALUE_LENGTH) return null;
+  return { sourceLabelA, valueA, sourceLabelB, valueB };
+}
+
+function validateHotelPaymentAcceptanceEvidence(value: unknown): HotelPaymentAcceptanceEvidence | null | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const propertyId = cleanRequired(record.propertyId);
+  const supplier = cleanRequired(record.supplier);
+  const fetchedAt = cleanOptional(record.fetchedAt);
+  const scope = record.scope;
+  if (!propertyId || !supplier) return null;
+  if (scope !== 'property' && scope !== 'room' && scope !== 'rate' && scope !== 'selected_stay' && scope !== 'not_returned') return null;
+  if (record.loadState !== 'loading' && record.loadState !== 'ready' && record.loadState !== 'error') return null;
+  if (fetchedAt !== undefined && !isValidDateInput(fetchedAt)) return null;
+  if (!CARD_REQUIREMENT_VALUES.has(record.cardRequiredAtProperty as string)) return null;
+  if (!GATE_DIVERGENCE_VALUES.has(record.bookingGateDivergence as string)) return null;
+
+  const instrumentsRecord = typeof record.instruments === 'object' && record.instruments !== null && !Array.isArray(record.instruments)
+    ? record.instruments as Record<string, unknown>
+    : null;
+  if (!instrumentsRecord) return null;
+  const instruments: Record<string, string> = {};
+  for (const key of PAYMENT_INSTRUMENT_CLASS_KEYS) {
+    const instrumentValue = instrumentsRecord[key];
+    if (!INSTRUMENT_STATE_VALUES.has(instrumentValue as string)) return null;
+    instruments[key] = instrumentValue as string;
+  }
+
+  const cardRequiredConflict = validateHotelPaymentAcceptanceConflict(record.cardRequiredConflict);
+  if (cardRequiredConflict === null) return null;
+  const bookingGateDivergenceConflict = validateHotelPaymentAcceptanceConflict(record.bookingGateDivergenceConflict);
+  if (bookingGateDivergenceConflict === null) return null;
+
+  const instrumentConflictsRecord = typeof record.instrumentConflicts === 'object' && record.instrumentConflicts !== null && !Array.isArray(record.instrumentConflicts)
+    ? record.instrumentConflicts as Record<string, unknown>
+    : undefined;
+  const instrumentConflicts: Record<string, HotelPaymentAcceptanceConflict> = {};
+  if (instrumentConflictsRecord) {
+    for (const key of PAYMENT_INSTRUMENT_CLASS_KEYS) {
+      if (!(key in instrumentConflictsRecord)) continue;
+      const conflict = validateHotelPaymentAcceptanceConflict(instrumentConflictsRecord[key]);
+      if (conflict === null) return null;
+      if (conflict !== undefined) instrumentConflicts[key] = conflict;
+    }
+  }
+
+  const sourceLabel = cleanRequired(record.sourceLabel);
+  if (!sourceLabel) return null;
+
+  return {
+    scope: scope as HotelPaymentAcceptanceEvidence['scope'],
+    propertyId,
+    supplier,
+    loadState: record.loadState as HotelPaymentAcceptanceEvidence['loadState'],
+    ...(fetchedAt !== undefined ? { fetchedAt } : {}),
+    cardRequiredAtProperty: record.cardRequiredAtProperty as HotelPaymentAcceptanceEvidence['cardRequiredAtProperty'],
+    ...(cardRequiredConflict !== undefined ? { cardRequiredConflict } : {}),
+    instruments: instruments as HotelPaymentAcceptanceEvidence['instruments'],
+    ...(Object.keys(instrumentConflicts).length > 0 ? { instrumentConflicts: instrumentConflicts as HotelPaymentAcceptanceEvidence['instrumentConflicts'] } : {}),
+    bookingGateDivergence: record.bookingGateDivergence as HotelPaymentAcceptanceEvidence['bookingGateDivergence'],
+    ...(bookingGateDivergenceConflict !== undefined ? { bookingGateDivergenceConflict } : {}),
+    sourceLabel,
+  };
+}
+
+function validateHotelPaymentAcceptanceCapability(value: unknown): HotelPaymentAcceptanceCapability | null | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const keys = ['cardRequiredAtProperty', 'instrumentClasses', 'bookingGateDivergence'] as const;
+  if (keys.some(key => typeof record[key] !== 'boolean')) return null;
+  return {
+    cardRequiredAtProperty: record.cardRequiredAtProperty as boolean,
+    instrumentClasses: record.instrumentClasses as boolean,
+    bookingGateDivergence: record.bookingGateDivergence as boolean,
+  };
+}
+
 const TRANSPORT_SERVICE_KINDS = new Set<HotelTransportServiceKind>(['airport_shuttle', 'airport_transfer', 'other_documented']);
 const TRANSPORT_DIRECTIONS = new Set<HotelTransportDirection>(['to_property', 'from_property', 'round_trip', 'unknown']);
 const TRANSPORT_OPERATORS = new Set<HotelTransportOperator>(['property', 'third_party', 'unknown']);
@@ -974,6 +1077,8 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
   const rateEligibilityCapability = validateHotelRateEligibilityCapability(input.rateEligibilityCapability) ?? undefined;
   const admissionPolicy = validateHotelAdmissionPolicyEvidence(input.admissionPolicy) ?? undefined;
   const admissionPolicyCapability = validateHotelAdmissionPolicyCapability(input.admissionPolicyCapability) ?? undefined;
+  const paymentAcceptance = validateHotelPaymentAcceptanceEvidence(input.paymentAcceptance) ?? undefined;
+  const paymentAcceptanceCapability = validateHotelPaymentAcceptanceCapability(input.paymentAcceptanceCapability) ?? undefined;
   const transportEvidence = validateHotelTransportEvidence(input.transportEvidence);
   const requiredChargeCapabilities = normalizeHotelRequiredChargeCapabilities(input.requiredChargeCapabilities);
   const priceComposition = buildHotelPriceComposition({
@@ -1033,6 +1138,8 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     ...(rateEligibilityCapability !== undefined ? { rateEligibilityCapability } : {}),
     ...(admissionPolicy !== undefined ? { admissionPolicy } : {}),
     ...(admissionPolicyCapability !== undefined ? { admissionPolicyCapability } : {}),
+    ...(paymentAcceptance !== undefined ? { paymentAcceptance } : {}),
+    ...(paymentAcceptanceCapability !== undefined ? { paymentAcceptanceCapability } : {}),
     ...(transportEvidence !== undefined ? { transportEvidence } : {}),
     taxEvidence: priceComposition.taxes,
     mandatoryPropertyChargeEvidence: priceComposition.mandatoryPropertyCharges,
@@ -1153,6 +1260,8 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     rateEligibilityCapability: parseJsonQueryParam(firstParam(params.rateEligibilityCapability)),
     admissionPolicy: parseJsonQueryParam(firstParam(params.admissionPolicy)),
     admissionPolicyCapability: parseJsonQueryParam(firstParam(params.admissionPolicyCapability)),
+    paymentAcceptance: parseJsonQueryParam(firstParam(params.paymentAcceptance)),
+    paymentAcceptanceCapability: parseJsonQueryParam(firstParam(params.paymentAcceptanceCapability)),
     transportEvidence: parseJsonQueryParam(firstParam(params.transportEvidence)),
     taxEvidence: parseJsonQueryParam(firstParam(params.taxEvidence)),
     mandatoryPropertyChargeEvidence: parseJsonQueryParam(firstParam(params.mandatoryPropertyChargeEvidence)),
@@ -1261,6 +1370,8 @@ export function buildBookingHotelContext(hotel: HotelOffer, continuity?: Booking
     ...(hotel.rateEligibilityCapability !== undefined ? { rateEligibilityCapability: hotel.rateEligibilityCapability } : {}),
     ...(hotel.admissionPolicy !== undefined ? { admissionPolicy: hotel.admissionPolicy } : {}),
     ...(hotel.admissionPolicyCapability !== undefined ? { admissionPolicyCapability: hotel.admissionPolicyCapability } : {}),
+    ...(hotel.paymentAcceptance !== undefined ? { paymentAcceptance: hotel.paymentAcceptance } : {}),
+    ...(hotel.paymentAcceptanceCapability !== undefined ? { paymentAcceptanceCapability: hotel.paymentAcceptanceCapability } : {}),
     ...(hotel.transportEvidence !== undefined ? { transportEvidence: hotel.transportEvidence } : {}),
     taxEvidence: priceComposition.taxes,
     mandatoryPropertyChargeEvidence: priceComposition.mandatoryPropertyCharges,
@@ -1332,6 +1443,8 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
   if (context.rateEligibilityCapability) params.set('rateEligibilityCapability', JSON.stringify(context.rateEligibilityCapability));
   if (context.admissionPolicy) params.set('admissionPolicy', JSON.stringify(context.admissionPolicy));
   if (context.admissionPolicyCapability) params.set('admissionPolicyCapability', JSON.stringify(context.admissionPolicyCapability));
+  if (context.paymentAcceptance) params.set('paymentAcceptance', JSON.stringify(context.paymentAcceptance));
+  if (context.paymentAcceptanceCapability) params.set('paymentAcceptanceCapability', JSON.stringify(context.paymentAcceptanceCapability));
   if (context.transportEvidence) params.set('transportEvidence', JSON.stringify(context.transportEvidence));
   if (context.taxEvidence) params.set('taxEvidence', JSON.stringify(context.taxEvidence));
   if (context.mandatoryPropertyChargeEvidence) params.set('mandatoryPropertyChargeEvidence', JSON.stringify(context.mandatoryPropertyChargeEvidence));
