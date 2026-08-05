@@ -19,6 +19,21 @@ const sizeClasses = {
 export function PropertyPhoto({ src, size, loading = 'lazy', onFailure }: PropertyPhotoProps) {
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState(false)
+  // `loaded`/`failed` describe one specific `src`, not this component instance
+  // for its whole lifetime. A parent that keeps the same list position mounted
+  // (same React key) while swapping in a different photo -- e.g. after a
+  // filter/sort/refresh replaces the data behind an unchanged card -- would
+  // otherwise carry a PREVIOUS photo's failure into a brand-new, perfectly
+  // valid src, permanently showing "Photo unavailable" for it. Resetting here,
+  // synchronously during render when `src` changes (React's documented pattern
+  // for "adjusting state when a prop changes"), avoids both the stale state
+  // and the extra render/flash a useEffect-based reset would add.
+  const [srcForState, setSrcForState] = useState(src)
+  if (src !== srcForState) {
+    setSrcForState(src)
+    setLoaded(false)
+    setFailed(false)
+  }
   const classes = sizeClasses[size]
 
   if (!src || failed) {
