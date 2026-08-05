@@ -58,6 +58,10 @@ const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries
     resilience_disclosure_opened: ['dealId', 'evidenceState', 'entrySurface'],
     hotel_admission_policy_viewed: ['hotel_id', 'surface', 'source', 'evidence_state', 'families_reported', 'viewport_group'],
     hotel_handoff_with_admission_restriction: ['hotel_id', 'surface', 'source', 'restricted_families'],
+    hotel_return_state_viewed: ['handoffAttemptId', 'awayDurationBucket', 'stubPresent'],
+    hotel_return_outcome_declared: ['handoffAttemptId', 'outcome', 'awayDurationBucket'],
+    hotel_stay_stub_written: ['offerId', 'hasStayDates', 'storageAvailable'],
+    hotel_repeat_offer_recognized: ['offerId', 'entryPath', 'rebooked'],
   }).map(([event, keys]) => [event, new Set(keys)]),
 )
 
@@ -110,6 +114,12 @@ const REQUIRED_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntr
     resilience_disclosure_opened: ['dealId', 'evidenceState', 'entrySurface'],
     hotel_admission_policy_viewed: ['hotel_id', 'surface', 'source', 'evidence_state', 'families_reported', 'viewport_group'],
     hotel_handoff_with_admission_restriction: ['hotel_id', 'surface', 'source', 'restricted_families'],
+    // hotel_return_state_viewed omitted: it fires for both a fresh return
+    // (awayDurationBucket meaningful) and a later recognised-return visit
+    // (no away-duration to report), so awayDurationBucket is optional.
+    hotel_return_outcome_declared: ['handoffAttemptId', 'outcome', 'awayDurationBucket'],
+    hotel_stay_stub_written: ['offerId', 'hasStayDates', 'storageAvailable'],
+    hotel_repeat_offer_recognized: ['offerId', 'entryPath', 'rebooked'],
   }).map(([event, keys]) => [event, new Set(keys)]),
 )
 
@@ -161,13 +171,16 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
     ])
   }
   if (key === 'criteria_version' || key === 'previous_version' || key === 'deal_id' || key === 'dealId' ||
-    key === 'eventId' || key === 'hotel_id') {
+    key === 'eventId' || key === 'hotel_id' || key === 'offerId') {
     return typeof value === 'string' && OPAQUE_VALUE.test(value)
   }
   if (key === 'destination_present' || key === 'draft_changed' || key === 'premium_eligible' || key === 'needed' ||
-    key === 'partnerNamed' || key === 'guidanceSeen' || key === 'has_dates' || key === 'has_verified_guest_rating') {
+    key === 'partnerNamed' || key === 'guidanceSeen' || key === 'has_dates' || key === 'has_verified_guest_rating' ||
+    key === 'stubPresent' || key === 'hasStayDates' || key === 'storageAvailable' || key === 'rebooked') {
     return typeof value === 'boolean'
   }
+  if (key === 'outcome') return oneOf(value, ['booked', 'not_booked'])
+  if (key === 'entryPath') return oneOf(value, ['inline', 'reference_expired'])
   if (key === 'surface') {
     return event.startsWith('hotel_funds_policy_')
       ? oneOf(value, ['hotel_card', 'book_handoff'])
