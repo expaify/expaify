@@ -40,6 +40,7 @@ import HotelFundsPolicyPanel, {
 import { useHotelFundsPolicyExposure } from '@/app/components/hotelFundsPolicyAnalytics'
 import { HotelPaymentAcceptanceSection } from '@/app/components/HotelPaymentAcceptance'
 import { deriveHotelPaymentAcceptancePresentation } from '@/lib/hotels/paymentAcceptance'
+import { HotelConnectingRoomsEvidence } from '@/app/components/HotelConnectingRoomsEvidence'
 import {
   trackHotelHandoffWithPaymentUnconfirmed,
   useHotelPaymentAcceptanceViewed,
@@ -1900,6 +1901,7 @@ function HotelHandoffReview({
           />
         </div>
         <HotelPaymentAcceptanceSection presentation={paymentAcceptancePresentation} />
+        <HotelConnectingRoomsEvidence amenityEvidence={hotelContext.amenityEvidence} />
           <details className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
             <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[color:var(--brand)]">Show offer details</summary>
             <dl className="border-t border-[color:var(--border)] py-3 text-xs">
