@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
   const results: Record<string, unknown> = {}
   let totalNewDeals = 0
   let rateLimited = false
+  let marketsAttempted = 0
+  let emptyMarketCount = 0
 
   for (let mi = 0; mi < markets.length; mi++) {
     const market = markets[mi]
@@ -35,14 +37,30 @@ export async function POST(req: NextRequest) {
       const dealsFound = await detectDealsForMarket(market)
       results[market.iata] = { snapshots, dealsFound }
       totalNewDeals += dealsFound
+      marketsAttempted += 1
+      // A market is "empty" this run if every check-in it attempted came back
+      // with zero hotels processed -- previously invisible, since a market
+      // returning 0 hotels was never distinguished from one that worked
+      // normally. See REPAIR-PIPELINE-SILENT-FAILURE-VISIBILITY-01.
+      if (snapshots.every(s => s.hotelsProcessed === 0)) emptyMarketCount += 1
     } catch (err) {
       results[market.iata] = { error: err instanceof Error ? err.message : String(err) }
+      marketsAttempted += 1
+      emptyMarketCount += 1
       if (err instanceof RateLimitError) {
         rateLimited = true
         break
       }
     }
   }
+
+  // More than half of attempted markets came back with nothing. This is the
+  // exact shape of the silent 2026-07-06 to 2026-07-27 outage: every provider
+  // failing (or returning empty) for most markets, night after night, while
+  // the pipeline itself never threw and always reported ok:true. A single
+  // market returning 0 is not unusual; most/all of them doing so, especially
+  // repeatedly, means the pipeline is not actually doing its job.
+  const pipelineDegraded = marketsAttempted > 0 && emptyMarketCount / marketsAttempted > 0.5
 
   // Generate AI headlines for deals missing one
   const headlineCandidates = await getActiveDeals({ limit: 20, sort: 'newest', includeMock: false })
@@ -86,5 +104,15 @@ export async function POST(req: NextRequest) {
     results['_alerts'] = { error: err instanceof Error ? err.message : String(err) }
   }
 
-  return NextResponse.json({ ok: true, markets: markets.length, totalNewDeals, alertsSent, rateLimited, results })
+  return NextResponse.json({
+    ok: true,
+    markets: markets.length,
+    totalNewDeals,
+    alertsSent,
+    rateLimited,
+    emptyMarketCount,
+    marketsAttempted,
+    pipelineDegraded,
+    results,
+  })
 }
