@@ -22,6 +22,11 @@ export default async function BookPage({ searchParams }: BookPageProps) {
     ? referencedHotelContext.data
     : parseBookingHotelContext(params);
   const requestedHotelReview = params.kind === 'hotel' || (Array.isArray(params.kind) && params.kind[0] === 'hotel');
+  // Raw pass-through only — this server component never reads localStorage,
+  // so it cannot resolve a stay stub itself. BookingFlow resolves it
+  // client-side when the hotel-context reference above has expired. See
+  // docs/pipeline/hotel-booking-confirmation/03-design.md section 5.6.
+  const recoveryOfferId = Array.isArray(params.offerId) ? params.offerId[0] : params.offerId;
 
   return (
     <div className="min-h-screen bg-[color:var(--bg-base)]">
@@ -51,6 +56,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
           hotelContext={hotelContext}
           hotelSmokingPolicy={hotelContext?.smokingPolicy}
           invalidHotelSelection={requestedHotelReview && !hotelContext}
+          recoveryOfferId={recoveryOfferId}
         />
       </Suspense>
     </div>

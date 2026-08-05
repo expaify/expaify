@@ -19,7 +19,12 @@ export async function POST(request: Request) {
     ok: true,
     data: {
       reference: result.data.reference,
-      href: `/book?kind=hotel&hotelContextRef=${encodeURIComponent(result.data.reference)}`,
+      // The offer id is carried alongside the reference so that if this
+      // reference later expires (HOTEL_CONTEXT_TTL_SECONDS), the client can
+      // still look up a traveler-declared stay stub for the same offer
+      // instead of hitting a dead end. See
+      // docs/pipeline/hotel-booking-confirmation/03-design.md section 5.6.
+      href: `/book?kind=hotel&hotelContextRef=${encodeURIComponent(result.data.reference)}&offerId=${encodeURIComponent(result.data.offerId)}`,
     },
   });
 }

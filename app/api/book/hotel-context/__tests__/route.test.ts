@@ -9,8 +9,8 @@ import { POST } from '../route';
 describe('POST /api/book/hotel-context', () => {
   beforeEach(() => persistMock.mockReset());
 
-  it('returns a bounded booking href for a persisted opaque context', async () => {
-    persistMock.mockResolvedValue({ ok: true, data: { reference: 'a'.repeat(24) } });
+  it('returns a bounded booking href carrying the offer id for a persisted opaque context', async () => {
+    persistMock.mockResolvedValue({ ok: true, data: { reference: 'a'.repeat(24), offerId: 'hotel_offer_1' } });
     const input = { kind: 'hotel', fundsPolicy: { state: 'complete' } };
     const response = await POST(new Request('https://expaify.test/api/book/hotel-context', {
       method: 'POST',
@@ -23,7 +23,7 @@ describe('POST /api/book/hotel-context', () => {
       ok: true,
       data: {
         reference: 'a'.repeat(24),
-        href: `/book?kind=hotel&hotelContextRef=${'a'.repeat(24)}`,
+        href: `/book?kind=hotel&hotelContextRef=${'a'.repeat(24)}&offerId=hotel_offer_1`,
       },
     });
     expect(persistMock).toHaveBeenCalledWith(input);
