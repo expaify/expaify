@@ -1,10 +1,26 @@
 # UXDES-HOTEL-ADJOINING-ROOMS-01: Connecting-Room Confidence — Design Spec
 
+**STOP — INVALIDATED. Do not implement this spec.** Everything below is
+built on `02-research.md`'s D1–D5, which that document's own
+"STOP — CRITICAL CORRECTION" banner (added after the fact, at the top of
+`02-research.md`) has withdrawn: a fully-built, tested, DEV-shipped
+connecting-room evidence model already exists
+(`app/components/HotelCard.tsx`'s `room_pref_connecting` access fact, from
+ticket `hotel-access-requirements`), just not mounted to a live surface.
+Building the `HotelRoomAdjacencyEvidence`/`HotelRoomAdjacencyConfidence`
+system specified below would ship a second, duplicate, independently-drifting
+implementation of the same fact. See `02-research.md`'s correction banner for
+the full finding and the two legitimate paths forward — both require a
+human/product decision this ticket did not have the authority to make
+unilaterally. UI, DEV, and TEST stages must not consume this document.
+
+---
+
 Date: 2026-08-05
 Stage: UX Design (UXDES)
 Persona: Senior UX Designer / Interaction Designer
 Ticket: UXDES-HOTEL-ADJOINING-ROOMS-01 (P1)
-Upstream: `docs/pipeline/hotel-adjoining-rooms/02-research.md` (D1–D5)
+Upstream: `docs/pipeline/hotel-adjoining-rooms/02-research.md` (D1–D5) — **withdrawn, see banner above**
 
 This spec is implementation-ready. It defines two new components, their full
 prop contracts, every visible string, every Tailwind class pattern against

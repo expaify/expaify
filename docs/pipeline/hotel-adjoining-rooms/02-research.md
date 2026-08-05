@@ -6,6 +6,127 @@ Persona: Senior UX Researcher
 Ticket: UXR-HOTEL-ADJOINING-ROOMS-01 (P1)
 Upstream: `docs/pipeline/hotel-adjoining-rooms/01-discovery.md`
 
+---
+
+## STOP — CRITICAL CORRECTION (added after §1–§8 below were already written; do not implement §6/D1–D5 or `03-design.md` as written)
+
+**Everything below this banner, and the design spec in `03-design.md` built
+from it, is invalidated by a fact this brief failed to find on its first
+pass. This ticket is halted at UXR pending human/product decision. No
+UXDES/UI/DEV/TEST work should proceed from the state model in §4/§6 below.**
+
+### What was missed
+
+The upstream discovery doc (`01-discovery.md:80-90`, §2.2) states: *"There is
+no room identity, no rate identity, no room-count field, and no
+room-adjacency or connecting-room field"* on `HotelOffer`. **This is false.**
+This research brief repeated the error instead of catching it — neither
+audit grepped the codebase for the word "connecting" before designing a new
+type.
+
+`app/components/HotelCard.tsx` already implements a complete, tested,
+DEV-shipped connecting-room evidence model, built for ticket
+`hotel-access-requirements` (`docs/pipeline/hotel-access-requirements/`,
+discovery dated 2026-07-21 — **13 days before this ticket's discovery**):
+
+- `lib/types.ts` already carries `HotelOffer.amenityEvidence?:
+  HotelAmenityEvidence[]` (added by `DEV-HOTEL-ACCESS-REQUIREMENTS-01`,
+  commit `2ffc972`), and `HotelCard.tsx`'s `ACCESS_FACTS` includes
+  `room_pref_connecting` (`HotelCard.tsx:88`) as one of five room/property
+  access facts (elevator, step-free route, ground-floor, high-floor,
+  near-elevator, **connecting rooms**), each carrying exactly the
+  guaranteed / requestable / unavailable(explicit-negative) / unknown
+  certainty model this brief spent §4 reinventing under the name
+  `HotelRoomAdjacencyEvidence`.
+- The copy already exists and ships the same non-guarantee discipline this
+  brief's D4 asked for: `NON_GUARANTEE_CLAUSE = 'Request only — not
+  guaranteed until the provider confirms.'` (`HotelCard.tsx:79`), guaranteed
+  copy at `:206` (`'The provider guarantees connecting rooms for this
+  selected stay.'`), requestable copy at `:169`, explicit-unavailable copy at
+  `:219` (`'The provider states connecting rooms cannot be requested for
+  this stay.'`).
+- The data plumbing is real, not a stub: `lib/providers/hotelAmenityEvidence.ts`
+  (177 lines, added by the same DEV commit) normalizes it from
+  `hotellook.ts`, with real test coverage
+  (`lib/providers/__tests__/hotellook.test.ts`,
+  `app/components/__tests__/HotelCard.accessEvidence.test.tsx`).
+- `hotel-access-requirements`'s own `01-discovery.md` explicitly names the
+  audience this ticket also targets: *"Families needing connecting or
+  adjacent rooms"* is listed as an affected segment in that ticket's "Who Is
+  Affected" section — this is not an incidental overlap, it is the same user
+  problem, already scoped by an earlier ticket.
+
+### Why this ticket's premise survives in the live product but not in the codebase audit
+
+`HotelCard.tsx` is **never mounted**. `app/deals/DealFeed.tsx` (the live
+results feed) renders `DealCard` (`app/components/ui/DealCard.tsx`), not
+`HotelCard`; `app/deals/[dealId]/page.tsx` and `app/book/BookingFlow.tsx`
+reference neither `amenityEvidence` nor `AccessEvidence` at all. A
+codebase-wide search confirms `HotelCard` has zero real importers (the only
+two string matches outside its own file and tests are an unrelated
+coincidentally-named helper, `HotelCardEligibilityLine` in
+`HotelRateRestrictions.tsx`, and a UI-label string literal in a research
+fixture harness). So the *live, user-experienced* product genuinely has no
+connecting-room signal anywhere — the discovery doc's **user-facing
+conclusion** is still directionally right. Its **evidence** ("no field, no
+adapter could ever answer this") is wrong, and that wrong evidence is what
+this brief built a redundant type system on top of.
+
+This is not an oversight `hotel-access-requirements` left dangling by
+accident — its own `03-design.md` (lines 345-367) documents the gap
+explicitly: *"`HotelCard` is currently mounted only in tests; the live hotel
+deal surface in `app/deals/DealFeed.tsx` renders its own `DealCard`. This
+spec does not authorize mounting or redesigning that live surface... a
+separately scoped integration ticket is required before real users can see
+this panel."* That integration ticket was never created. This ticket
+(`hotel-adjoining-rooms`) was later commissioned into the same gap, from
+scratch, unaware of the work already sitting on the other side of it.
+
+### What §1–§8 below get wrong as a result
+
+- §1's verification table confirms `HotelOffer` claims from `01-discovery.md`
+  without checking `amenityEvidence` — a real miss, not a typo.
+- §4's `HotelRoomAdjacencyEvidence`/`HotelRoomAdjacencyCapability`/
+  `HotelRoomAdjacencyState` type triplet duplicates `HotelAmenityEvidence` +
+  `room_pref_connecting` + its `status`/`certainty` fields almost exactly,
+  under different names, with independently-drifted copy.
+- §5's "resolution" of the discovery §6 measurement conflict is unaffected by
+  this finding and still holds on its own terms (party-size capture is a
+  separate, correctly-identified blocker via `hotel-guest-count-clarity`).
+- §6's directives D1–D5 must not be implemented. `03-design.md`, built from
+  them, must not be implemented either.
+
+### Recommended next step (for a human or a fresh, correctly-scoped pipeline run — not this session)
+
+Two legitimate paths exist and the choice is a product/ownership call this
+agent should not make unilaterally:
+
+1. **Treat `hotel-adjoining-rooms` as the missing `hotel-access-requirements`
+   integration ticket**, scoped to: (a) mount the existing
+   `room_pref_connecting` access-evidence fact — and, if the product wants
+   the other four access facts too, that is `hotel-access-requirements`'s
+   call, not this ticket's — onto the live results card (`DealCard.tsx`) and
+   the booking handoff (`BookingFlow.tsx`, which has no access-evidence
+   mount at all today, live or dead); (b) close this ticket's genuinely novel
+   gaps on top of the *existing* type: the `HotelAmenityEvidence` shape for
+   `room_pref_connecting` is single-room-scoped ("can I request a connecting
+   room"), not stay/rate-paired ("are *these two specific offers*
+   connected") — whether that distinction matters enough to extend the
+   existing type (adding a paired/stay scope) rather than fork a new one is
+   a real design question worth taking to UXDES, but starting from the
+   existing type, not a new one.
+2. **Keep the tickets separate but sequence them**: run the deferred
+   `hotel-access-requirements` integration ticket first (it is smaller, has
+   working DEV code waiting, and covers 4 of 5 facts this ticket doesn't
+   touch at all), then re-run `hotel-adjoining-rooms` UXR against the
+   post-integration codebase, where the "no field exists" premise will
+   either be fully resolved (skip to a much smaller UXDES/UI gap-filling
+   ticket) or partially resolved (revise scope accordingly).
+
+Either way: **do not build `HotelRoomAdjacencyEvidence` as specified below.**
+
+---
+
 Files read for this brief (verified, not assumed):
 `lib/hotels/searchCriteria.ts`, `app/components/HotelSearchCriteria.tsx`,
 `lib/types.ts`, `lib/providers/hotellook.ts`, `app/book/BookingFlow.tsx`,
