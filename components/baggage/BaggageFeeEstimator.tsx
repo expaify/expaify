@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import type { BaggageCabinClass, BaggageFeeEstimate } from '@/lib/baggage/types'
+import { isValidBaggageMoney } from '@/lib/baggage/types'
 import { formatMoney } from '@/lib/money'
 import type { Money } from '@/lib/types'
 
@@ -19,42 +20,22 @@ function confidenceCopy(confidence: BaggageFeeEstimate['confidence']): string {
   return 'Low-confidence estimate using a fallback rule; verify with the airline before booking.'
 }
 
-function usdAmountToMoney(value: number): Money | null {
-  if (!Number.isFinite(value) || value < 0) return null
-
-  const priceCents = Math.round(value * 100)
-  if (!Number.isSafeInteger(priceCents) || priceCents < 0) return null
-
-  return { priceCents, currency: 'USD' }
-}
-
-function formatUsdAmount(value: number): string {
-  const money = usdAmountToMoney(value)
-  return money ? formatMoney(money) : 'Unavailable'
+function formatBaggageMoney(value: Money): string {
+  return isValidBaggageMoney(value) ? formatMoney(value) : 'Unavailable'
 }
 
 function isBaggageEstimatePayload(value: unknown): value is BaggageFeeEstimate {
   if (!value || typeof value !== 'object') return false
 
   const estimate = value as Partial<BaggageFeeEstimate>
-  if (
-    typeof estimate.estimatedTotalUsd !== 'number' ||
-    !Number.isFinite(estimate.estimatedTotalUsd) ||
-    estimate.estimatedTotalUsd < 0
-  ) {
-    return false
-  }
+  if (!isValidBaggageMoney(estimate.estimatedTotal)) return false
   if (!Array.isArray(estimate.lines)) return false
 
   return estimate.lines.every(line => {
     if (!line || typeof line !== 'object') return false
     const candidate = line as Partial<BaggageFeeEstimate['lines'][number]>
     if (candidate.included === true) return true
-    return (
-      typeof candidate.totalUsd === 'number' &&
-      Number.isFinite(candidate.totalUsd) &&
-      candidate.totalUsd >= 0
-    )
+    return isValidBaggageMoney(candidate.total)
   })
 }
 
@@ -208,7 +189,7 @@ export function BaggageFeeEstimator(props: BaggageFeeEstimatorProps): JSX.Elemen
               <div className="text-left sm:text-right">
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-2)]">Estimated add-on</p>
                 <p className="font-display text-2xl font-extrabold text-[var(--text-1)] tabular-nums" data-testid="baggage-total">
-                  {formatUsdAmount(estimate.estimatedTotalUsd)}
+                  {formatBaggageMoney(estimate.estimatedTotal)}
                 </p>
               </div>
             </div>
@@ -224,7 +205,7 @@ export function BaggageFeeEstimator(props: BaggageFeeEstimatorProps): JSX.Elemen
                       {line.label}
                     </span>
                     <span className="shrink-0 text-right text-[11px] font-bold leading-4 text-[var(--text-1)]">
-                      {line.included ? 'Included' : formatUsdAmount(line.totalUsd)}
+                      {line.included ? 'Included' : formatBaggageMoney(line.total)}
                     </span>
                   </div>
                 ))}
