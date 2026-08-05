@@ -1,4 +1,5 @@
 import {
+  appendBookingReturnTo,
   buildBookingHref,
   buildBookingHotelContext,
   buildHotelBookingHref,
@@ -9,6 +10,7 @@ import {
   validateBookingFareContext,
   validateBookingHotelContext,
   validateHotelReturnUrl,
+  validateInternalReturnPath,
   validateStructuredBookingHotelContext,
 } from '../config';
 import type { HotelOffer, NormalizedFare } from '@/lib/types';
@@ -174,6 +176,77 @@ describe('booking fare context continuity', () => {
     expect(validateBookingFareContext({ ...baseContext, depart: 'not-a-date' })).toBeNull();
     expect(validateBookingFareContext({ ...baseContext, return: 'not-a-date' })).toBeNull();
     expect(validateBookingFareContext({ ...baseContext, currency: 'US Dollars' })).toBeNull();
+  });
+});
+
+describe('flight booking returnTo continuity and open-redirect guard (REPAIR-BOOKING-RETURN-CONTEXT-01)', () => {
+  const validFareParams = {
+    offerId: 'off_123',
+    provider: 'duffel',
+    origin: 'JFK',
+    destination: 'LAX',
+    depart: '2026-09-22T08:00:00.000Z',
+    carrier: 'American Airlines',
+    stops: '0',
+    priceCents: '45001',
+    currency: 'USD',
+    passengerCount: '1',
+    priceScope: 'party_total',
+  } as const;
+
+  it('validateInternalReturnPath accepts the same allowlisted relative paths as validateHotelReturnUrl', () => {
+    expect(validateInternalReturnPath('/deals?city=Lisbon&min_discount=30')).toBe('/deals?city=Lisbon&min_discount=30');
+    expect(validateInternalReturnPath('/destinations/paris?date_from=2026-10-01')).toBe('/destinations/paris?date_from=2026-10-01');
+    expect(validateInternalReturnPath('/')).toBe('/');
+    expect(validateInternalReturnPath).toBe(validateHotelReturnUrl);
+  });
+
+  it('validateInternalReturnPath rejects every open-redirect vector', () => {
+    expect(validateInternalReturnPath('https://evil.com')).toBeUndefined();
+    expect(validateInternalReturnPath('http://evil.com/deals')).toBeUndefined();
+    expect(validateInternalReturnPath('//evil.com')).toBeUndefined();
+    expect(validateInternalReturnPath('//evil.com/deals')).toBeUndefined();
+    expect(validateInternalReturnPath('/\\evil.com')).toBeUndefined();
+    expect(validateInternalReturnPath('javascript:alert(1)')).toBeUndefined();
+    expect(validateInternalReturnPath('mailto:a@b.com')).toBeUndefined();
+    expect(validateInternalReturnPath('deals')).toBeUndefined();
+    expect(validateInternalReturnPath('/admin')).toBeUndefined();
+    expect(validateInternalReturnPath('')).toBeUndefined();
+    expect(validateInternalReturnPath(undefined)).toBeUndefined();
+    expect(validateInternalReturnPath(null)).toBeUndefined();
+    expect(validateInternalReturnPath(42)).toBeUndefined();
+  });
+
+  it('parseBookingFareContext carries a validated returnTo through unchanged', () => {
+    const parsed = parseBookingFareContext({ ...validFareParams, returnTo: '/deals?city=Lisbon' });
+    expect(parsed?.returnTo).toBe('/deals?city=Lisbon');
+  });
+
+  it('parseBookingFareContext drops an invalid returnTo but still returns the rest of a valid fare context', () => {
+    const parsed = parseBookingFareContext({ ...validFareParams, returnTo: 'https://evil.com' });
+    expect(parsed).not.toBeNull();
+    expect(parsed?.returnTo).toBeUndefined();
+    expect(parsed?.offerId).toBe('off_123');
+  });
+
+  it('parseBookingFareContext omits returnTo entirely when absent, rather than storing an empty/undefined key', () => {
+    const parsed = parseBookingFareContext(validFareParams);
+    expect(parsed).not.toBeNull();
+    expect(parsed && 'returnTo' in parsed).toBe(false);
+  });
+
+  it('appendBookingReturnTo attaches a validated returnTo to an internal /book href', () => {
+    const href = appendBookingReturnTo('/book?offerId=off_123', '/deals?city=Lisbon');
+    const url = new URL(href, 'https://expaify.test');
+
+    expect(url.pathname).toBe('/book');
+    expect(url.searchParams.get('offerId')).toBe('off_123');
+    expect(url.searchParams.get('returnTo')).toBe('/deals?city=Lisbon');
+  });
+
+  it('appendBookingReturnTo leaves the href unchanged when returnTo fails validation', () => {
+    expect(appendBookingReturnTo('/book?offerId=off_123', 'https://evil.com')).toBe('/book?offerId=off_123');
+    expect(appendBookingReturnTo('/book?offerId=off_123', '//evil.com')).toBe('/book?offerId=off_123');
   });
 });
 

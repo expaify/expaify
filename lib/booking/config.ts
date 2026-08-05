@@ -75,6 +75,12 @@ export type BookingFareContext = {
   currency: string;
   passengerCount: number;
   priceScope: 'per_person' | 'party_total';
+  /** Bounded, validated relative path back to the results the traveler came
+   * from (e.g. `/deals?...`). Populated from the `returnTo` query param by
+   * `parseBookingFareContext` via `validateInternalReturnPath`. Absent or
+   * invalid input is dropped silently — every consumer must fall back to
+   * `/` on its own, never trust this as always present. */
+  returnTo?: string;
 };
 
 export type BookingHotelEntrySource = 'search' | 'saved' | 'direct';
@@ -269,6 +275,32 @@ export function validateHotelReturnUrl(value: unknown): string | undefined {
   if (!HOTEL_RETURN_URL_ALLOWED_PATHS.some(pattern => pattern.test(url.pathname))) return undefined;
 
   return `${url.pathname}${url.search}`;
+}
+
+/**
+ * Same relative-path allowlist check as `validateHotelReturnUrl`, exported
+ * under a neutral name for non-hotel callers (flight booking review `returnTo`)
+ * that link back to the same `/`, `/deals`, and `/destinations/*` results
+ * surfaces. Rejects absolute URLs, protocol-relative URLs (`//evil.com`), and
+ * any path outside the allowlist — this is the open-redirect guard for every
+ * booking-review "back to search" link, flight or hotel.
+ */
+export const validateInternalReturnPath = validateHotelReturnUrl;
+
+/** Attaches a validated internal `returnTo` path to an internal `/book` href
+ * built by `buildBookingHref`. Called client-side (the current results URL
+ * is not known when `buildBookingHref` runs server-side at fetch time), so
+ * `returnTo` here is whatever the browser's current URL already is — no new
+ * encoding is invented, and the receiving page must still validate it via
+ * `validateInternalReturnPath` before using it, since query params are
+ * user-editable. */
+export function appendBookingReturnTo(href: string, returnTo: string): string {
+  const validated = validateInternalReturnPath(returnTo);
+  if (!validated) return href;
+  const [path, query = ''] = href.split('?');
+  const params = new URLSearchParams(query);
+  params.set('returnTo', validated);
+  return `${path}?${params.toString()}`;
 }
 
 function providerEvidenceLabel(provider: string): string {
@@ -499,6 +531,7 @@ export function validateBookingFareContext(input: FareContextInput): BookingFare
   const stops = parseInteger(input.stops);
   const passengerCount = parseInteger(input.passengerCount);
   const priceScope = cleanRequired(input.priceScope);
+  const returnTo = validateInternalReturnPath(input.returnTo);
 
   if (
     !offerId ||
@@ -535,6 +568,7 @@ export function validateBookingFareContext(input: FareContextInput): BookingFare
     currency,
     passengerCount,
     priceScope,
+    ...(returnTo !== undefined ? { returnTo } : {}),
   };
 }
 
@@ -552,6 +586,7 @@ export function parseBookingFareContext(params: SearchParams): BookingFareContex
     currency: firstParam(params.currency),
     passengerCount: firstParam(params.passengerCount),
     priceScope: firstParam(params.priceScope),
+    returnTo: firstParam(params.returnTo),
   });
 }
 

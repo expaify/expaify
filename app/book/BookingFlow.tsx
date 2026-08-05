@@ -285,6 +285,12 @@ type BookingFlowProps = {
   hotelFundsPolicy?: HotelFundsPolicyEvidence | null
   hotelFundsPolicyLoadState?: HotelFundsPolicyLoadState
   hotelSmokingPolicy?: HotelSmokingPolicyView
+  /** Validated fallback for the flight review's "Back to search" links when
+   * `fareContext` itself is missing or invalid (so `fareContext.returnTo`
+   * isn't available). Parsed and validated independently in `app/book/page.tsx`
+   * via `validateInternalReturnPath` since a malformed/expired fare should
+   * not also cost the traveler their return-to-results link. */
+  returnTo?: string
 }
 
 function formatMoney(cents: number, currency: string) {
@@ -333,6 +339,19 @@ function getPriceBasisLabel(fareContext: BookingFareContext) {
   return fareContext.priceScope === 'party_total'
     ? `total for ${getPassengerLabel(fareContext.passengerCount)}`
     : 'per person'
+}
+
+/**
+ * Where the flight review's "Back to search"/recovery/error/success links
+ * should point. `fareContext.returnTo` (validated by `validateInternalReturnPath`
+ * in `parseBookingFareContext`) is preferred since it is the exact fare the
+ * traveler is reviewing; the page-level `returnTo` fallback covers states
+ * that render without a valid `fareContext` (e.g. `InvalidBookingState`).
+ * Both are already validated — this never receives raw, unvalidated input —
+ * and the ultimate fallback is `/`, unchanged from pre-repair behavior.
+ */
+function getBookingBackHref(fareContext: BookingFareContext | null, returnTo?: string): string {
+  return fareContext?.returnTo ?? returnTo ?? '/'
 }
 
 function isChangedFareReason(reason: string) {
@@ -601,6 +620,7 @@ function ReviewShell({
   status,
   onBackClick,
   hotelSupplement,
+  returnTo,
   children,
 }: {
   eyebrow?: string
@@ -613,6 +633,7 @@ function ReviewShell({
   status?: ReactNode
   onBackClick?: MouseEventHandler<HTMLAnchorElement>
   hotelSupplement?: ReactNode
+  returnTo?: string
   children: ReactNode
 }) {
   if (hotelContext) {
@@ -632,7 +653,7 @@ function ReviewShell({
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-10 lg:px-8">
-      <a href="/" onClick={onBackClick} className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
+      <a href={getBookingBackHref(fareContext, returnTo)} onClick={onBackClick} className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
         ← Back to search
       </a>
       <div className="mt-4 grid gap-5 lg:mt-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
@@ -663,6 +684,7 @@ function RecoveryState({
   actionLabel = 'Back to search',
   fareContext,
   duffelSandbox,
+  returnTo,
 }: {
   title: string
   message: string
@@ -670,6 +692,7 @@ function RecoveryState({
   actionLabel?: string
   fareContext: BookingFareContext | null
   duffelSandbox: boolean
+  returnTo?: string
 }) {
   const statusLive = statusTitle === 'One passenger is supported' ? 'assertive' : 'polite'
   const statusTone = statusTitle === 'One passenger is supported' ? 'red' : 'amber'
@@ -681,6 +704,7 @@ function RecoveryState({
       fareContext={fareContext}
       duffelSandbox={duffelSandbox}
       status={<StatusPanel title={statusTitle} message={message} tone={statusTone} live={statusLive} />}
+      returnTo={returnTo}
     >
       <div className={`${panelCls} p-4 sm:p-6`}>
         <div className={`mt-5 p-4 ${insetPanelCls}`}>
@@ -690,7 +714,7 @@ function RecoveryState({
           </p>
         </div>
         <div className={actionStackCls}>
-          <a href="/" className="btn-primary">
+          <a href={getBookingBackHref(fareContext, returnTo)} className="btn-primary">
             {actionLabel}
           </a>
         </div>
@@ -699,7 +723,7 @@ function RecoveryState({
   )
 }
 
-function InvalidBookingState({ duffelSandbox }: { duffelSandbox: boolean }) {
+function InvalidBookingState({ duffelSandbox, returnTo }: { duffelSandbox: boolean; returnTo?: string }) {
   const headingRef = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
@@ -712,6 +736,7 @@ function InvalidBookingState({ duffelSandbox }: { duffelSandbox: boolean }) {
       message="Return to search and choose a current result before reviewing booking options."
       fareContext={null}
       duffelSandbox={duffelSandbox}
+      returnTo={returnTo}
       status={
         <StatusPanel
           title="Selection details are missing"
@@ -736,7 +761,7 @@ function InvalidBookingState({ duffelSandbox }: { duffelSandbox: boolean }) {
           </p>
         </div>
         <div className={actionStackCls}>
-          <a href="/" className="btn-primary">
+          <a href={getBookingBackHref(null, returnTo)} className="btn-primary">
             Back to search
           </a>
         </div>
@@ -1930,6 +1955,7 @@ export default function BookingFlow({
   hotelFundsPolicy,
   hotelFundsPolicyLoadState = 'ready',
   hotelSmokingPolicy,
+  returnTo,
 }: BookingFlowProps) {
   const [state, setState] = useState<BookingState>('idle')
   const [bookingRef, setBookingRef] = useState('')
@@ -2003,6 +2029,7 @@ export default function BookingFlow({
         message="Duffel returned a booking reference for the selected fare."
         fareContext={fareContext}
         duffelSandbox={duffelSandbox}
+        returnTo={returnTo}
         status={
           <StatusPanel
             title="Provider confirmed this fare"
@@ -2016,7 +2043,7 @@ export default function BookingFlow({
             <p className={factLabelCls}>Booking reference</p>
             <p className="mt-2 break-all font-mono text-xl font-medium text-[color:var(--brand)] sm:text-2xl">{bookingRef}</p>
           </div>
-          <a href="/" className={`mt-5 ${secondaryButtonCls}`}>
+          <a href={getBookingBackHref(fareContext, returnTo)} className={`mt-5 ${secondaryButtonCls}`}>
             Search more flights
           </a>
         </div>
@@ -2025,7 +2052,7 @@ export default function BookingFlow({
   }
 
   if (!fareContext) {
-    return <InvalidBookingState duffelSandbox={duffelSandbox} />
+    return <InvalidBookingState duffelSandbox={duffelSandbox} returnTo={returnTo} />
   }
 
   if (!bookingEnabled) {
@@ -2036,6 +2063,7 @@ export default function BookingFlow({
         statusTitle="Booking remains paused"
         fareContext={fareContext}
         duffelSandbox={duffelSandbox}
+        returnTo={returnTo}
       />
     )
   }
@@ -2049,6 +2077,7 @@ export default function BookingFlow({
         actionLabel="Search one passenger"
         fareContext={fareContext}
         duffelSandbox={duffelSandbox}
+        returnTo={returnTo}
       />
     )
   }
@@ -2062,6 +2091,7 @@ export default function BookingFlow({
         message="The selected fare is still visible, but the provider stopped the booking request before an order was created."
         fareContext={fareContext}
         duffelSandbox={duffelSandbox}
+        returnTo={returnTo}
         status={
           <StatusPanel
             title={errorStatus.title}
@@ -2076,7 +2106,7 @@ export default function BookingFlow({
             <button onClick={() => setState('idle')} className="btn-primary">
               Review details again
             </button>
-            <a href="/" className={secondaryButtonCls}>
+            <a href={getBookingBackHref(fareContext, returnTo)} className={secondaryButtonCls}>
               Back to search
             </a>
           </div>
@@ -2091,6 +2121,7 @@ export default function BookingFlow({
       message="Confirm the itinerary and price basis before expaify sends traveler details to Duffel for provider verification."
       fareContext={fareContext}
       duffelSandbox={duffelSandbox}
+      returnTo={returnTo}
       status={
         <StatusPanel
           title="Selected fare preserved from search"
