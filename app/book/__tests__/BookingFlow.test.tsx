@@ -946,6 +946,116 @@ describe('BookingFlow fare context review', () => {
   });
 });
 
+describe('BookingFlow return-to-search continuity (REPAIR-BOOKING-RETURN-CONTEXT-01)', () => {
+  beforeEach(() => {
+    trackMock.mockClear();
+  });
+
+  function backToSearchLink(tree: TestElement) {
+    return findElements(tree, element => (
+      element.type === 'a' && collectText(element).includes('Back to search')
+    ))[0];
+  }
+
+  it('uses fareContext.returnTo for the initial review "Back to search" link when present', () => {
+    const tree = BookingFlow({
+      bookingEnabled: true,
+      duffelSandbox: false,
+      fareContext: { ...oneAdultFareContext, returnTo: '/deals?city=Lisbon&min_discount=30' },
+    });
+
+    expect(backToSearchLink(tree).props.href).toBe('/deals?city=Lisbon&min_discount=30');
+  });
+
+  it('falls back to / for the initial review "Back to search" link when returnTo is absent', () => {
+    const tree = BookingFlow({
+      bookingEnabled: true,
+      duffelSandbox: false,
+      fareContext: oneAdultFareContext,
+    });
+
+    expect(backToSearchLink(tree).props.href).toBe('/');
+  });
+
+  it('uses fareContext.returnTo for the "booking is paused" recovery action', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: true,
+      fareContext: { ...fareContext, returnTo: '/destinations/paris?date_from=2026-10-01' },
+    });
+    const action = findElements(tree, element => (
+      element.type === 'a' && collectText(element) === 'Back to search'
+    ))[0];
+
+    expect(action.props.href).toBe('/destinations/paris?date_from=2026-10-01');
+  });
+
+  it('falls back to / for the "booking is paused" recovery action when returnTo is absent', () => {
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: true,
+      fareContext,
+    });
+    const action = findElements(tree, element => (
+      element.type === 'a' && collectText(element) === 'Back to search'
+    ))[0];
+
+    expect(action.props.href).toBe('/');
+  });
+
+  it('uses fareContext.returnTo for the multi-passenger recovery action', () => {
+    const tree = BookingFlow({
+      bookingEnabled: true,
+      duffelSandbox: true,
+      fareContext: { ...fareContext, returnTo: '/deals?city=Lisbon' },
+    });
+    const text = collectText(tree);
+    const action = findElements(tree, element => (
+      element.type === 'a' && collectText(element) === 'Search one passenger'
+    ))[0];
+
+    expect(text).toContain('Multi-passenger review is paused');
+    expect(action.props.href).toBe('/deals?city=Lisbon');
+  });
+
+  it('uses the page-level returnTo prop for the missing-fare recovery link, and falls back to / without it', () => {
+    const withReturnTo = BookingFlow({
+      bookingEnabled: true,
+      duffelSandbox: true,
+      fareContext: null,
+      returnTo: '/deals?city=Lisbon',
+    });
+    expect(backToSearchLink(withReturnTo).props.href).toBe('/deals?city=Lisbon');
+
+    const withoutReturnTo = BookingFlow({
+      bookingEnabled: true,
+      duffelSandbox: true,
+      fareContext: null,
+    });
+    expect(backToSearchLink(withoutReturnTo).props.href).toBe('/');
+  });
+
+  it('never uses a page-level returnTo for the hotel-review "Back to results" link (out of scope for this repair)', () => {
+    // The hotel handoff review has its own separate `hotelContext.returnUrl`
+    // field/validator (`validateHotelReturnUrl`) that this repair does not
+    // wire up — see the audit's P2 finding that hotel booking review is a
+    // different, not-yet-built product surface in this worktree. Guards
+    // against silently expanding scope to the hotel link later.
+    const tree = BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: true,
+      fareContext: null,
+      hotelContext,
+      returnTo: '/deals?city=Lisbon',
+    });
+    const backToResults = findElements(tree, element => (
+      element.type === 'a' && collectText(element).includes('Back to results')
+    ))[0];
+
+    expect(backToResults.props.href).toBe('/');
+  });
+});
+
 describe('BookingFlow hotel return-state wiring (D5 recognized-on-mount)', () => {
   beforeEach(() => {
     trackMock.mockClear();

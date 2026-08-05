@@ -1,5 +1,11 @@
 import { Suspense } from 'react';
-import { isBookingEnabled, isDuffelSandboxMode, parseBookingFareContext, parseBookingHotelContext } from '@/lib/booking/config';
+import {
+  isBookingEnabled,
+  isDuffelSandboxMode,
+  parseBookingFareContext,
+  parseBookingHotelContext,
+  validateInternalReturnPath,
+} from '@/lib/booking/config';
 import { resolveBookingHotelContext } from '@/lib/booking/hotelContextStore';
 import BookingFlow from './BookingFlow';
 
@@ -27,6 +33,14 @@ export default async function BookPage({ searchParams }: BookPageProps) {
   // client-side when the hotel-context reference above has expired. See
   // docs/pipeline/hotel-booking-confirmation/03-design.md section 5.6.
   const recoveryOfferId = Array.isArray(params.offerId) ? params.offerId[0] : params.offerId;
+  // Independent of `fareContext`: a malformed or expired fare should not
+  // also cost the traveler their "Back to search" link. `parseBookingFareContext`
+  // already validates `returnTo` the same way when the rest of the fare
+  // context is valid; this covers the states where it isn't (see
+  // `audits/AUDIT-BOOKING-REVIEW-BROWSER-NAVIGATION-RECOVERY-01.md`, P1
+  // "Visible return links discard result context").
+  const rawReturnTo = Array.isArray(params.returnTo) ? params.returnTo[0] : params.returnTo;
+  const returnTo = validateInternalReturnPath(rawReturnTo);
 
   return (
     <div className="min-h-screen bg-[color:var(--bg-base)]">
@@ -57,6 +71,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
           hotelSmokingPolicy={hotelContext?.smokingPolicy}
           invalidHotelSelection={requestedHotelReview && !hotelContext}
           recoveryOfferId={recoveryOfferId}
+          returnTo={returnTo}
         />
       </Suspense>
     </div>

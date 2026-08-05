@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { DealScore, NormalizedFare } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
 import { flightFreshnessLabel, flightPriceCheckCopy, hasProviderName, validFreshnessDate } from '@/lib/providerFreshness'
+import { appendBookingReturnTo } from '@/lib/booking/config'
 import DealScorePanel from './DealScorePanel'
 
 type Props = {
@@ -423,6 +424,18 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
   const isInternalBooking = isSafeInternalBookingLink(fare.source, fare.deeplink)
   const hasDeeplink = isInternalBooking || isSafeExternalProviderLink(fare.deeplink)
   const canOpenProvider = hasDeeplink && hasValidPrice
+  // `window.location` is unavailable during server render, so the very
+  // first (server) paint always uses the plain internal booking link —
+  // identical to pre-repair behavior. Once running in the browser, this
+  // recovers the current results URL (route, dates, tab, filters) so the
+  // booking review page's "Back to search" links can return to it instead
+  // of the homepage. Computed directly during render (no extra hook) so
+  // this stays a plain function call, matching how this component is
+  // exercised by this repo's no-jsdom, direct-invocation component tests.
+  const currentResultsUrl = typeof window === 'undefined' ? '' : `${window.location.pathname}${window.location.search}`
+  const ctaHref = isInternalBooking && currentResultsUrl
+    ? appendBookingReturnTo(fare.deeplink, currentResultsUrl)
+    : fare.deeplink
   const freshnessLabel = flightFreshnessLabel(fare.source, fare.fetchedAt)
   const priceCheckCopy = flightPriceCheckCopy(fare.source, fare.fetchedAt)
   const shouldShowUnavailableFreshness = hasProviderName(fare.source) || Boolean(validFreshnessDate(fare.fetchedAt))
@@ -520,7 +533,7 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
           </div>
           {canOpenProvider ? (
             <a
-              href={fare.deeplink}
+              href={ctaHref}
               target={isInternalBooking ? undefined : '_blank'}
               rel={isInternalBooking ? undefined : 'noopener noreferrer sponsored'}
               aria-label={ctaAriaLabel}
