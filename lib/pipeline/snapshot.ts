@@ -180,22 +180,37 @@ type ProviderFn = (iata: string, ci: string, co: string, key: string) => Promise
 
 const PROVIDERS: ProviderFn[] = [fetchBookingCom15, fetchBookingComCoords, fetchTripAdvisor]
 
+type RotationResult = { hotels: HotelEntry[]; providerErrors: string[] }
+
 async function fetchWithRotation(
   iata: string, checkIn: string, checkOut: string, key: string, offsetIndex: number, marketIndex: number
-): Promise<HotelEntry[]> {
+): Promise<RotationResult> {
   // Each check-in offset gets a different starting provider; market index shifts within that
   const startIdx = (offsetIndex + marketIndex) % PROVIDERS.length
+  const providerErrors: string[] = []
   for (let i = 0; i < PROVIDERS.length; i++) {
     const provider = PROVIDERS[(startIdx + i) % PROVIDERS.length]
     try {
       const results = await provider(iata, checkIn, checkOut, key)
-      if (results.length > 0) return results
+      if (results.length > 0) return { hotels: results, providerErrors }
+      // An empty result isn't necessarily an error (a market can genuinely have
+      // no matches), but it's worth recording alongside real errors so a market
+      // that comes back empty from every provider, every night, is visible
+      // instead of indistinguishable from "briefly nothing to report."
+      providerErrors.push(`${provider.name}: returned 0 results`)
     } catch (err) {
       // Rate limit is shared across all providers (same key) — stop immediately
       if (err instanceof RateLimitError) throw err
+      // Every other per-provider failure used to be swallowed entirely here,
+      // with no log and no way to distinguish "provider had nothing" from
+      // "provider is broken" -- this is exactly how a market silently
+      // stopped producing data for three weeks (2026-07-06 to 2026-07-27)
+      // while the pipeline kept reporting overall success every night, and
+      // no real deal was detected anywhere for over a month as a result.
+      providerErrors.push(`${provider.name}: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
-  return []
+  return { hotels: [], providerErrors }
 }
 
 // ── DB write ──────────────────────────────────────────────────────────────────
@@ -213,7 +228,7 @@ async function storeSnapshot(market: Market, hotel: HotelEntry, checkIn: string,
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export type SnapshotResult = { market: string; checkIn: string; hotelsProcessed: number; error?: string }
+export type SnapshotResult = { market: string; checkIn: string; hotelsProcessed: number; error?: string; providerErrors?: string[] }
 
 export async function runSnapshotsForMarket(market: Market, marketIndex = 0): Promise<SnapshotResult[]> {
   const key = process.env.RAPIDAPI_KEY ?? ''
@@ -224,15 +239,23 @@ export async function runSnapshotsForMarket(market: Market, marketIndex = 0): Pr
   const checkOut = toCheckOut(checkIn, NIGHTS)
 
   try {
-    const hotels = isMock
-      ? generateMockHotels(market.iata, checkIn)
+    const { hotels, providerErrors } = isMock
+      ? { hotels: generateMockHotels(market.iata, checkIn), providerErrors: [] as string[] }
       : await fetchWithRotation(market.iata, checkIn, checkOut, key, 0, marketIndex)
 
     for (const hotel of hotels) {
       await storeSnapshot(market, hotel, checkIn, isMock)
     }
 
-    return [{ market: market.iata, checkIn, hotelsProcessed: hotels.length }]
+    return [{
+      market: market.iata,
+      checkIn,
+      hotelsProcessed: hotels.length,
+      // Surfaced even on the "no exception thrown" path -- a market that came
+      // back empty from every provider is a real signal worth keeping visible,
+      // not silently indistinguishable from a normal, healthy zero-hotel night.
+      ...(hotels.length === 0 && providerErrors.length > 0 ? { providerErrors } : {}),
+    }]
   } catch (err) {
     const result = { market: market.iata, checkIn, hotelsProcessed: 0, error: err instanceof Error ? err.message : String(err) }
     if (err instanceof RateLimitError) throw err
