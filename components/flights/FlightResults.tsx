@@ -6,6 +6,7 @@ import FlightCard from '@/app/components/FlightCard'
 import { AIRPORTS } from '@/lib/airports/data'
 import type { DealScore, Money, NormalizedFare, ProviderNotice } from '@/lib/types'
 import type { BaggageCabinClass, BaggageFeeEstimate } from '@/lib/baggage/types'
+import { isValidBaggageMoney } from '@/lib/baggage/types'
 import { formatMoney } from '@/lib/money'
 import { fareFreshnessSummary } from '@/lib/providerFreshness'
 
@@ -114,23 +115,12 @@ function cabinForBaggage(cabin: NormalizedFare['cabin']): BaggageCabinClass {
   return 'ECONOMY'
 }
 
-function usdAmountToMoney(value: number): Money | null {
-  if (!Number.isFinite(value) || value < 0) return null
-
-  const priceCents = Math.round(value * 100)
-  if (!Number.isSafeInteger(priceCents) || priceCents < 0) return null
-
-  return { priceCents, currency: 'USD' }
-}
-
 function isBaggageEstimatePayload(value: unknown): value is BaggageFeeEstimate {
   if (!value || typeof value !== 'object') return false
 
   const estimate = value as Partial<BaggageFeeEstimate>
   return (
-    typeof estimate.estimatedTotalUsd === 'number' &&
-    Number.isFinite(estimate.estimatedTotalUsd) &&
-    estimate.estimatedTotalUsd >= 0 &&
+    isValidBaggageMoney(estimate.estimatedTotal) &&
     (estimate.confidence === 'high' || estimate.confidence === 'medium' || estimate.confidence === 'low') &&
     typeof estimate.includedCarryOnBags === 'number' &&
     typeof estimate.includedCheckedBags === 'number'
@@ -789,8 +779,8 @@ export default function FlightResults({
         .then(response => response.ok ? response.json() as Promise<unknown> : Promise.reject())
         .then(data => {
           if (!isBaggageEstimatePayload(data)) throw new Error('Invalid baggage estimate payload')
-          const fee = usdAmountToMoney(data.estimatedTotalUsd)
-          if (!fee || fare.price.currency !== 'USD') throw new Error('Invalid baggage estimate money')
+          const fee = data.estimatedTotal
+          if (fare.price.currency !== 'USD') throw new Error('Invalid baggage estimate money')
 
           setBagRequests(prev => ({
             ...prev,

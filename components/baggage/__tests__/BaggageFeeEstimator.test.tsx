@@ -119,7 +119,7 @@ describe('estimateBaggageFees', () => {
       carryOnBags: 1,
     })
 
-    expect(estimate.estimatedTotalUsd).toBe(0)
+    expect(estimate.estimatedTotal).toEqual({ priceCents: 0, currency: 'USD' })
     expect(estimate.includedCheckedBags).toBe(2)
   })
 
@@ -133,8 +133,46 @@ describe('estimateBaggageFees', () => {
       carryOnBags: 1,
     })
 
-    expect(estimate.estimatedTotalUsd).toBe(40)
+    expect(estimate.estimatedTotal).toEqual({ priceCents: 4000, currency: 'USD' })
     expect(estimate.confidence).toBe('low')
+  })
+
+  it('sums multiple paid lines as exact integer cents, never floating-point dollars', () => {
+    // BA: 1 carry-on included, 1 checked included, $50/$75 fees. 3 carry-on
+    // + 3 checked requests -> 2 paid carry-on ($100.00) + 2 paid checked
+    // ($150.00) = $250.00 exactly. Every intermediate and final value here
+    // must be an integer number of cents -- if this module ever regresses to
+    // dollar-float arithmetic, an equivalent case with a fee that doesn't
+    // terminate cleanly in binary floating point would silently drift by a
+    // fraction of a cent; asserting exact integers here catches that class
+    // of regression even though these particular fee amounts happen to be
+    // whole dollars.
+    const estimate = estimateBaggageFees({
+      carrierCode: 'BA',
+      originCountry: 'US',
+      destinationCountry: 'GB',
+      cabinClass: 'ECONOMY',
+      checkedBags: 3,
+      carryOnBags: 3,
+    })
+
+    const paidCarryOn = estimate.lines.find(l => l.kind === 'carry_on' && !l.included)
+    const paidChecked = estimate.lines.find(l => l.kind === 'checked_bag' && !l.included)
+
+    expect(paidCarryOn?.quantity).toBe(2)
+    expect(paidCarryOn?.unitPrice).toEqual({ priceCents: 5000, currency: 'USD' })
+    expect(paidCarryOn?.total).toEqual({ priceCents: 10000, currency: 'USD' })
+
+    expect(paidChecked?.quantity).toBe(2)
+    expect(paidChecked?.unitPrice).toEqual({ priceCents: 7500, currency: 'USD' })
+    expect(paidChecked?.total).toEqual({ priceCents: 15000, currency: 'USD' })
+
+    expect(estimate.estimatedTotal).toEqual({ priceCents: 25000, currency: 'USD' })
+    expect(Number.isInteger(estimate.estimatedTotal.priceCents)).toBe(true)
+    for (const line of estimate.lines) {
+      expect(Number.isInteger(line.total.priceCents)).toBe(true)
+      expect(Number.isInteger(line.unitPrice.priceCents)).toBe(true)
+    }
   })
 })
 
@@ -219,15 +257,15 @@ describe('BaggageFeeEstimator', () => {
         carrierCode: 'ZZ',
         includedCarryOnBags: 1,
         includedCheckedBags: 0,
-        estimatedTotalUsd: Number.NaN,
+        estimatedTotal: { priceCents: Number.NaN, currency: 'USD' },
         confidence: 'low',
         lines: [
           {
             kind: 'checked_bag',
             label: 'Checked bag estimate',
             quantity: 1,
-            unitPriceUsd: 40,
-            totalUsd: Number.NaN,
+            unitPrice: { priceCents: 4000, currency: 'USD' },
+            total: { priceCents: Number.NaN, currency: 'USD' },
             included: false,
           },
         ],
