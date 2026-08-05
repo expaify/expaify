@@ -16,14 +16,14 @@ function cacheKey(reference: string): string {
 
 export async function persistBookingHotelContext(
   input: unknown,
-): Promise<Result<{ reference: string }>> {
+): Promise<Result<{ reference: string; offerId: string }>> {
   const context = validateStructuredBookingHotelContext(input);
   if (!context) return { ok: false, reason: 'Invalid hotel booking context' };
 
   const reference = randomBytes(18).toString('base64url');
   try {
     await cache.set(cacheKey(reference), context, HOTEL_CONTEXT_TTL_SECONDS);
-    return { ok: true, data: { reference } };
+    return { ok: true, data: { reference, offerId: context.offerId } };
   } catch {
     return { ok: false, reason: 'Hotel booking review could not be prepared' };
   }
