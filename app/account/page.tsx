@@ -1,11 +1,12 @@
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { getSubscription, isPremium } from '@/lib/subscription'
+import { reconcileCheckoutSession } from '@/lib/stripe/reconcileCheckout'
 import { query } from '@/lib/db/client'
 import { AccountClient } from './AccountClient'
 
 type PageProps = {
-  searchParams: Promise<{ welcome?: string; checkout?: string }>
+  searchParams: Promise<{ welcome?: string; checkout?: string; session_id?: string }>
 }
 
 function formatDate(d?: Date | null) {
@@ -21,13 +22,23 @@ export default async function AccountPage({ searchParams }: PageProps) {
   const session = await auth()
   if (!session?.user?.id) redirect('/login')
 
-  const [sub, params, activeDealCount] = await Promise.all([
+  const [initialSub, params, activeDealCount] = await Promise.all([
     getSubscription(session.user.id).catch(() => null),
     searchParams,
     query<{ count: string }>(
       `SELECT COUNT(*)::text AS count FROM deals WHERE status = 'active' AND is_mock = false`
     ).then(r => parseInt(r.rows[0]?.count ?? '0', 10)).catch(() => 0),
   ])
+
+  // Backstop for the async Stripe webhook: a user landing here right after
+  // checkout may beat the webhook that would otherwise mark them premium.
+  // Only attempted when the DB doesn't already show premium, so the
+  // overwhelmingly common already-reconciled case never makes an extra call.
+  let sub = initialSub
+  if (params.checkout === 'success' && params.session_id && !(sub && isPremium(sub.status))) {
+    await reconcileCheckoutSession(params.session_id, session.user.id)
+    sub = await getSubscription(session.user.id).catch(() => sub)
+  }
 
   const premium = sub ? isPremium(sub.status) : false
   const showWelcome = params.welcome === '1' || params.checkout === 'success'

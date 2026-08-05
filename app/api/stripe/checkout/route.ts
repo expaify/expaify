@@ -63,7 +63,11 @@ async function createCheckoutUrl({
       trial_period_days: 7,
       metadata: { user_id: userId, plan },
     },
-    success_url: `${origin}/account?checkout=success`,
+    // The webhook (checkout.session.completed) usually lands within seconds, but
+    // there is no guarantee it beats the browser back to /account. Passing the
+    // session id lets the success page synchronously reconcile with Stripe as a
+    // backstop when the DB hasn't caught up yet -- see DEV-PAYWALL-PREMIUM-NOT-DETECTED-01.
+    success_url: `${origin}/account?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}${cancelPath}`,
     metadata: { user_id: userId, plan },
   }
