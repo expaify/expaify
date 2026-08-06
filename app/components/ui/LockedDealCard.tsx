@@ -31,7 +31,11 @@ export function LockedDealCard({
         </span>
       </div>
 
-      <div className="px-4 pt-3">
+      {/* Blurred, not just decorative filler: an unblurred real hotel photo
+          next to an invented placeholder name/city would read as a specific
+          claim about that property. Blurred, it's honestly just "there's
+          more behind the paywall" texture. */}
+      <div className="px-4 pt-3 blur-[5px]" aria-hidden>
         <PropertyPhoto src={photoUrl} size="card" />
       </div>
 

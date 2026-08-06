@@ -2,7 +2,7 @@ import { query } from '../db/client'
 import { generateHeadlines } from '../ai/generateHeadline'
 import { buildOtaLinks } from './otaLinks'
 import { evaluateDeal } from './dealRules'
-import type { HotelDealSort } from '../deals/feedContract'
+import { TRACKED_HOTEL_ID_PREFIX, type HotelDealSort } from '../deals/feedContract'
 
 type Market = { id: number; city: string; country: string; iata: string }
 
@@ -397,7 +397,7 @@ export async function getTrackedHotels(opts: {
       checkOut: checkOut.toISOString().slice(0, 10),
     })
     return {
-      id: `tracked-${row.hotel_id}-${checkInStr}`,
+      id: `${TRACKED_HOTEL_ID_PREFIX}${row.hotel_id}-${checkInStr}`,
       hotel_id: row.hotel_id,
       hotel_name: row.hotel_name,
       stars: row.stars,
