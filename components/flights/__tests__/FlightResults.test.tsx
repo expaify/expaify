@@ -20,6 +20,7 @@ const defaultProps = {
   flights: [],
   displayFlights: [],
   isSearching: false,
+  hasSearched: true,
   sortBy: 'deal' as const,
   setSortBy: jest.fn(),
   filterStops: null,
@@ -111,6 +112,61 @@ describe('FlightResults', () => {
     expect(text).toContain('Departure date is missing');
     expect(text).toContain('Dates needed for a complete search');
     expect(text).toContain('Add a departure date');
+    expect(text).toContain('Search notice');
+    expect(text).toContain('Provider coverage may be incomplete');
+  });
+
+  it('shows a calm, neutral invitation on a fresh page load before any search is attempted, with no warning styling', () => {
+    const text = collectText({
+      ...defaultProps,
+      hasSearched: false,
+      origin: '',
+      dest: '',
+      depart: '',
+      returnDate: '',
+      searchContext: '',
+    });
+
+    expect(text).toContain('Search above to get started');
+    expect(text).toContain('Compare live fares across 5 providers');
+
+    // None of the alarming, warning-toned copy that a real incomplete/failed
+    // search would show should appear before the user has done anything.
+    expect(text).not.toContain('Search notice');
+    expect(text).not.toContain('Provider coverage may be incomplete');
+    expect(text).not.toContain('Dates needed for a complete search');
+    expect(text).not.toContain('Departure date is missing');
+    expect(text).not.toContain('No flights returned');
+  });
+
+  it('still shows the amber incomplete-dates warning once a real search was submitted without dates', () => {
+    const text = collectText({
+      ...defaultProps,
+      hasSearched: true,
+      depart: '',
+    });
+
+    expect(text).toContain('Search notice');
+    expect(text).toContain('Provider coverage may be incomplete');
+    expect(text).toContain('Departure date is missing, so live fare coverage may be incomplete.');
+    expect(text).toContain('Dates needed for a complete search');
+    expect(text).not.toContain('Search above to get started');
+  });
+
+  it('treats a genuine provider failure after a real search as a warning, not the calm pre-search state', () => {
+    const text = collectText({
+      ...defaultProps,
+      hasSearched: true,
+      providerNotices: [{
+        provider: 'Travelpayouts',
+        status: 'unavailable',
+        message: 'Travelpayouts is unavailable for this search.',
+      }],
+    });
+
+    expect(text).toContain('Travelpayouts is unavailable for this search.');
+    expect(text).toContain('Flights unavailable');
+    expect(text).not.toContain('Search above to get started');
   });
 
   it('distinguishes filters hiding fares from no provider inventory', () => {

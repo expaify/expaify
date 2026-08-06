@@ -284,6 +284,7 @@ export function FlightsClient() {
         flights={searchState.flights}
         displayFlights={displayFlights}
         isSearching={isSearching}
+        hasSearched={lastSearch !== null}
         sortBy={sortBy}
         setSortBy={setSortBy}
         filterStops={filterStops}
