@@ -26,6 +26,7 @@ type FlightResultsProps = {
   flights: NormalizedFare[]
   displayFlights: NormalizedFare[]
   isSearching: boolean
+  hasSearched: boolean
   sortBy: SortBy
   setSortBy: Dispatch<SetStateAction<SortBy>>
   filterStops: number | null
@@ -595,6 +596,7 @@ export default function FlightResults({
   flights,
   displayFlights,
   isSearching,
+  hasSearched,
   sortBy,
   setSortBy,
   filterStops,
@@ -640,8 +642,12 @@ export default function FlightResults({
   const freshnessSummary = fareFreshnessSummary(displayFlights)
   const alertThreshold = cheapestFareThreshold(flights)
   const formattedAlertThreshold = alertThreshold ? formatMoney(alertThreshold) : null
-  const missingDepart = !depart
-  const missingRoundtripReturn = tripType === 'roundtrip' && !returnDate
+  // Missing dates only read as a warning once the user has actually
+  // attempted a search — on a fresh page load the form's own empty/default
+  // values would otherwise trip these same conditions and paint an amber
+  // "something's wrong" state before the visitor has done anything.
+  const missingDepart = hasSearched && !depart
+  const missingRoundtripReturn = hasSearched && tripType === 'roundtrip' && !returnDate
   const filtersHideResults = flights.length > 0 && displayFlights.length === 0
   const hasProviderUnavailable = flightProviderWarningNotices.length > 0 && flights.length === 0 && !missingDepart && !missingRoundtripReturn
   const incompleteDates = missingDepart || missingRoundtripReturn
@@ -1167,6 +1173,15 @@ export default function FlightResults({
             ))}
           </div>
         </div>
+      ) : displayFlights.length === 0 && !hasSearched ? (
+        <FlightStatePanel
+          eyebrow="Flight results"
+          title="Search above to get started"
+        >
+          <p>
+            Compare live fares across 5 providers by entering a route and travel dates above.
+          </p>
+        </FlightStatePanel>
       ) : displayFlights.length === 0 ? (
         <FlightStatePanel
           eyebrow="Flight results"

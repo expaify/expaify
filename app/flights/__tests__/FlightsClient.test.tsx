@@ -32,6 +32,7 @@ jest.mock('@/components/flights/FlightResults', () => ({
       'div',
       { 'data-testid': 'flight-results-stub' },
       React.createElement('p', { 'data-testid': 'is-searching' }, String(props.isSearching)),
+      React.createElement('p', { 'data-testid': 'has-searched' }, String(props.hasSearched)),
       React.createElement(
         'ul',
         null,
@@ -266,6 +267,23 @@ describe('FlightsClient', () => {
     flexible: false,
     tripType: 'roundtrip',
   }
+
+  it('reports hasSearched=false before any search is submitted, flipping true the moment a search starts', async () => {
+    installFetchMock({
+      searchChunks: [ndjsonBody([{ type: 'done' }])],
+    })
+
+    await renderFlightsClient()
+    expect(capturedFlightResultsProps?.hasSearched).toBe(false)
+    const preSearchNode = container.querySelector('[data-testid="has-searched"]')
+    expect(preSearchNode?.textContent).toBe('false')
+
+    await submitSearch(payload)
+
+    expect(capturedFlightResultsProps?.hasSearched).toBe(true)
+    const postSearchNode = container.querySelector('[data-testid="has-searched"]')
+    expect(postSearchNode?.textContent).toBe('true')
+  })
 
   it('submits a search to /api/search with the right query params and streams flights into FlightResults', async () => {
     const calls = installFetchMock({
