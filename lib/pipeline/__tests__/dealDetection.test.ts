@@ -1,11 +1,149 @@
 import { query } from '../../db/client'
-import { getActiveDeals } from '../dealDetection'
+import { getActiveDeals, getDealById, getTrackedDealById } from '../dealDetection'
 
 jest.mock('../../db/client', () => ({
   query: jest.fn(),
 }))
 
 const mockQuery = query as jest.MockedFunction<typeof query>
+
+function trackedRow(overrides: Partial<{
+  hotel_id: string
+  hotel_name: string
+  stars: number | null
+  photo_url: string | null
+  check_in: Date
+  market_id: number
+  city: string
+  median_price_cents: number
+  latest_price_cents: number
+  latest_captured_at: Date
+  snapshot_count: number
+}> = {}) {
+  return {
+    hotel_id: 'bk_15386643',
+    hotel_name: 'Hotel Grande Athina',
+    stars: 4,
+    photo_url: 'https://example.com/photo.jpg',
+    check_in: new Date('2026-09-01T00:00:00.000Z'),
+    market_id: 17,
+    city: 'Athens',
+    median_price_cents: 12000,
+    latest_price_cents: 9000,
+    latest_captured_at: new Date('2026-08-05T12:00:00.000Z'),
+    snapshot_count: 5,
+    ...overrides,
+  }
+}
+
+describe('getTrackedDealById', () => {
+  beforeEach(() => {
+    mockQuery.mockReset()
+  })
+
+  it('parses the hotel id and check-in date out of a tracked- synthetic id and queries by them', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [trackedRow()],
+      rowCount: 1,
+      command: 'SELECT',
+      oid: 0,
+      fields: [],
+    })
+
+    const deal = await getTrackedDealById('tracked-bk_15386643-2026-09-01')
+
+    expect(deal).not.toBeNull()
+    expect(deal?.hotel_id).toBe('bk_15386643')
+    expect(deal?.check_in_date).toBe('2026-09-01')
+    expect(deal?.city).toBe('Athens')
+    expect(deal?.id).toBe('tracked-bk_15386643-2026-09-01')
+
+    const [sql, params] = mockQuery.mock.calls[0]
+    expect(String(sql)).toContain('g.hotel_id = $1 AND g.check_in = $2::date')
+    expect(params).toEqual(['bk_15386643', '2026-09-01'])
+  })
+
+  it('returns null without querying when the id is not a tracked- id', async () => {
+    const deal = await getTrackedDealById('deal_real_123')
+
+    expect(deal).toBeNull()
+    expect(mockQuery).not.toHaveBeenCalled()
+  })
+
+  it('returns null without querying when the id has no parseable trailing date', async () => {
+    const deal = await getTrackedDealById('tracked-bk_15386643')
+
+    expect(deal).toBeNull()
+    expect(mockQuery).not.toHaveBeenCalled()
+  })
+
+  it('returns null when the underlying snapshot data is gone (e.g. check-in has passed)', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [],
+      rowCount: 0,
+      command: 'SELECT',
+      oid: 0,
+      fields: [],
+    })
+
+    const deal = await getTrackedDealById('tracked-bk_15386643-2026-09-01')
+
+    expect(deal).toBeNull()
+  })
+
+  it('never fabricates a discount from fewer than 3 real observations', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [trackedRow({ snapshot_count: 2, median_price_cents: 20000, latest_price_cents: 9000 })],
+      rowCount: 1,
+      command: 'SELECT',
+      oid: 0,
+      fields: [],
+    })
+
+    const deal = await getTrackedDealById('tracked-bk_15386643-2026-09-01')
+
+    expect(deal?.discount_pct).toBe(0)
+    expect(deal?.median_price_cents).toBe(deal?.deal_price_cents)
+  })
+})
+
+describe('getDealById routing', () => {
+  beforeEach(() => {
+    mockQuery.mockReset()
+  })
+
+  it('delegates tracked- ids to the price_snapshots lookup instead of querying the deals table', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [trackedRow()],
+      rowCount: 1,
+      command: 'SELECT',
+      oid: 0,
+      fields: [],
+    })
+
+    const deal = await getDealById('tracked-bk_15386643-2026-09-01')
+
+    expect(deal?.hotel_id).toBe('bk_15386643')
+    const [sql] = mockQuery.mock.calls[0]
+    expect(String(sql)).not.toContain('FROM deals d')
+  })
+
+  it('still queries the deals table directly for a normal deal id', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [],
+      rowCount: 0,
+      command: 'SELECT',
+      oid: 0,
+      fields: [],
+    })
+
+    await getDealById('deal_real_123')
+
+    const [sql, params] = mockQuery.mock.calls[0]
+    expect(String(sql)).toContain('FROM deals d')
+    expect(params).toEqual(['deal_real_123'])
+  })
+})
 
 describe('getActiveDeals ordering', () => {
   beforeEach(() => {

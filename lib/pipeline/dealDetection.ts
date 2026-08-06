@@ -2,7 +2,7 @@ import { query } from '../db/client'
 import { generateHeadlines } from '../ai/generateHeadline'
 import { buildOtaLinks } from './otaLinks'
 import { evaluateDeal } from './dealRules'
-import { TRACKED_HOTEL_ID_PREFIX, type HotelDealSort } from '../deals/feedContract'
+import { TRACKED_HOTEL_ID_PREFIX, isTrackedHotelId, type HotelDealSort } from '../deals/feedContract'
 
 type Market = { id: number; city: string; country: string; iata: string }
 
@@ -181,6 +181,11 @@ export type PriceHistoryPoint = {
 }
 
 export async function getDealById(id: string): Promise<DealRow | null> {
+  // tracked- ids are synthesized by getTrackedHotels() and never appear in
+  // the `deals` table -- they must be resolved back through the same real
+  // price_snapshots lookup that produced them in the first place.
+  if (isTrackedHotelId(id)) return getTrackedDealById(id)
+
   const res = await query<DealRow>(
     `SELECT
        d.id, d.hotel_id, d.hotel_name, d.stars, d.photo_url,
@@ -317,6 +322,109 @@ export async function getActiveDeals(opts: {
  * current price. If there isn't yet enough history to compute a trustworthy
  * median, discount_pct comes back 0 (never a fabricated/overstated %).
  */
+type TrackedSnapshotRow = {
+  hotel_id: string
+  hotel_name: string
+  stars: number | null
+  photo_url: string | null
+  check_in: Date
+  market_id: number
+  city: string
+  median_price_cents: number
+  latest_price_cents: number
+  latest_captured_at: Date
+  snapshot_count: number
+}
+
+// hotel_name/stars/photo_url are read from the single most recent snapshot
+// via the LATERAL join, not grouped on directly — a provider occasionally
+// returning a refreshed photo_url or a slightly different name for the
+// same hotel_id must not fragment its price history into false-median
+// sibling groups (grouping on photo_url previously caused exactly that:
+// a stale, tiny group's "median" got compared against a price captured
+// under a different photo_url, producing a fabricated-looking discount).
+const TRACKED_SNAPSHOT_SELECT = `
+  SELECT g.hotel_id, latest.hotel_name, latest.stars, latest.photo_url,
+         g.check_in, g.market_id, g.city,
+         g.median_price_cents, latest.price_cents AS latest_price_cents,
+         latest.captured_at AS latest_captured_at, g.snapshot_count
+  FROM (
+    SELECT ps.hotel_id, ps.check_in, ps.market_id, m.city,
+           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ps.price_cents)::INT AS median_price_cents,
+           COUNT(*)::INT AS snapshot_count
+    FROM price_snapshots ps
+    JOIN tracked_markets m ON m.id = ps.market_id
+    WHERE ps.is_mock = false
+      AND ps.captured_at >= NOW() - INTERVAL '60 days'
+      AND ps.check_in >= CURRENT_DATE
+    GROUP BY ps.hotel_id, ps.check_in, ps.market_id, m.city
+  ) g
+  JOIN LATERAL (
+    SELECT hotel_name, stars, photo_url, price_cents, captured_at
+    FROM price_snapshots ps2
+    WHERE ps2.hotel_id = g.hotel_id AND ps2.market_id = g.market_id AND ps2.check_in = g.check_in
+    ORDER BY captured_at DESC
+    LIMIT 1
+  ) latest ON true
+  WHERE latest.photo_url IS NOT NULL
+`
+
+function mapTrackedRowToDealRow(row: TrackedSnapshotRow): DealRow {
+  // A 2-point swing is as likely to be provider noise (occupancy/room-type
+  // mix, a per-person vs per-room rate) as a real price change — require at
+  // least 3 real observations before showing a computed discount at all.
+  const hasComparableHistory = row.snapshot_count >= 3 && row.median_price_cents > 0
+  const ratio = hasComparableHistory ? row.latest_price_cents / row.median_price_cents : 1
+  const discountPct = ratio < 1 ? Math.round((1 - ratio) * 100) : 0
+  const checkInStr = row.check_in.toISOString().slice(0, 10)
+  const checkOut = new Date(row.check_in)
+  checkOut.setDate(checkOut.getDate() + 2)
+  const links = buildOtaLinks({
+    hotelName: row.hotel_name,
+    city: row.city,
+    checkIn: checkInStr,
+    checkOut: checkOut.toISOString().slice(0, 10),
+  })
+  return {
+    id: `${TRACKED_HOTEL_ID_PREFIX}${row.hotel_id}-${checkInStr}`,
+    hotel_id: row.hotel_id,
+    hotel_name: row.hotel_name,
+    stars: row.stars,
+    photo_url: row.photo_url,
+    city: row.city,
+    deal_price_cents: row.latest_price_cents,
+    // Never show an inflated "usually $X" reference for a discount we
+    // can't actually back up with history — collapse it to the current
+    // price so DealChip/the savings line render nothing rather than a
+    // misleading comparison.
+    median_price_cents: discountPct > 0 ? row.median_price_cents : row.latest_price_cents,
+    discount_pct: discountPct,
+    check_in_window: formatWindow(row.check_in, 2),
+    check_in_date: checkInStr,
+    nights: 2,
+    snapshot_count: row.snapshot_count,
+    ota_links: links,
+    headline: null,
+    description: null,
+    is_mock: false,
+    first_seen: null,
+    expires_at: null,
+    updated_at: row.latest_captured_at.toISOString(),
+  }
+}
+
+/**
+ * Real, currently-tracked hotels that haven't (yet) cleared the MIN_SNAPSHOTS /
+ * DEAL_THRESHOLD bar in dealRules.ts to be flagged as a confirmed "deal".
+ *
+ * getActiveDeals() only reads the `deals` table, which stays empty for a
+ * market until a hotel+check-in pair accumulates enough history to be
+ * statistically flagged — that can take days even once real snapshots are
+ * flowing. Rather than filling that gap with entirely fabricated example
+ * cards, this reads real snapshots directly: real hotel, real photo, real
+ * current price. If there isn't yet enough history to compute a trustworthy
+ * median, discount_pct comes back 0 (never a fabricated/overstated %).
+ */
 export async function getTrackedHotels(opts: {
   limit?: number
   marketId?: number
@@ -329,49 +437,8 @@ export async function getTrackedHotels(opts: {
     params.push(marketId)
   }
 
-  const res = await query<{
-    hotel_id: string
-    hotel_name: string
-    stars: number | null
-    photo_url: string | null
-    check_in: Date
-    market_id: number
-    city: string
-    median_price_cents: number
-    latest_price_cents: number
-    latest_captured_at: Date
-    snapshot_count: number
-  }>(
-    // hotel_name/stars/photo_url are read from the single most recent snapshot
-    // via the LATERAL join, not grouped on directly — a provider occasionally
-    // returning a refreshed photo_url or a slightly different name for the
-    // same hotel_id must not fragment its price history into false-median
-    // sibling groups (grouping on photo_url previously caused exactly that:
-    // a stale, tiny group's "median" got compared against a price captured
-    // under a different photo_url, producing a fabricated-looking discount).
-    `SELECT g.hotel_id, latest.hotel_name, latest.stars, latest.photo_url,
-            g.check_in, g.market_id, g.city,
-            g.median_price_cents, latest.price_cents AS latest_price_cents,
-            latest.captured_at AS latest_captured_at, g.snapshot_count
-     FROM (
-       SELECT ps.hotel_id, ps.check_in, ps.market_id, m.city,
-              PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ps.price_cents)::INT AS median_price_cents,
-              COUNT(*)::INT AS snapshot_count
-       FROM price_snapshots ps
-       JOIN tracked_markets m ON m.id = ps.market_id
-       WHERE ps.is_mock = false
-         AND ps.captured_at >= NOW() - INTERVAL '60 days'
-         AND ps.check_in >= CURRENT_DATE
-       GROUP BY ps.hotel_id, ps.check_in, ps.market_id, m.city
-     ) g
-     JOIN LATERAL (
-       SELECT hotel_name, stars, photo_url, price_cents, captured_at
-       FROM price_snapshots ps2
-       WHERE ps2.hotel_id = g.hotel_id AND ps2.market_id = g.market_id AND ps2.check_in = g.check_in
-       ORDER BY captured_at DESC
-       LIMIT 1
-     ) latest ON true
-     WHERE latest.photo_url IS NOT NULL ${marketFilter}
+  const res = await query<TrackedSnapshotRow>(
+    `${TRACKED_SNAPSHOT_SELECT} ${marketFilter}
      ORDER BY
        g.snapshot_count DESC,
        GREATEST(0, latest.price_cents::numeric / NULLIF(g.median_price_cents, 0)) ASC,
@@ -380,47 +447,31 @@ export async function getTrackedHotels(opts: {
     params
   )
 
-  return res.rows.map((row) => {
-    // A 2-point swing is as likely to be provider noise (occupancy/room-type
-    // mix, a per-person vs per-room rate) as a real price change — require at
-    // least 3 real observations before showing a computed discount at all.
-    const hasComparableHistory = row.snapshot_count >= 3 && row.median_price_cents > 0
-    const ratio = hasComparableHistory ? row.latest_price_cents / row.median_price_cents : 1
-    const discountPct = ratio < 1 ? Math.round((1 - ratio) * 100) : 0
-    const checkInStr = row.check_in.toISOString().slice(0, 10)
-    const checkOut = new Date(row.check_in)
-    checkOut.setDate(checkOut.getDate() + 2)
-    const links = buildOtaLinks({
-      hotelName: row.hotel_name,
-      city: row.city,
-      checkIn: checkInStr,
-      checkOut: checkOut.toISOString().slice(0, 10),
-    })
-    return {
-      id: `${TRACKED_HOTEL_ID_PREFIX}${row.hotel_id}-${checkInStr}`,
-      hotel_id: row.hotel_id,
-      hotel_name: row.hotel_name,
-      stars: row.stars,
-      photo_url: row.photo_url,
-      city: row.city,
-      deal_price_cents: row.latest_price_cents,
-      // Never show an inflated "usually $X" reference for a discount we
-      // can't actually back up with history — collapse it to the current
-      // price so DealChip/the savings line render nothing rather than a
-      // misleading comparison.
-      median_price_cents: discountPct > 0 ? row.median_price_cents : row.latest_price_cents,
-      discount_pct: discountPct,
-      check_in_window: formatWindow(row.check_in, 2),
-      check_in_date: checkInStr,
-      nights: 2,
-      snapshot_count: row.snapshot_count,
-      ota_links: links,
-      headline: null,
-      description: null,
-      is_mock: false,
-      first_seen: null,
-      expires_at: null,
-      updated_at: row.latest_captured_at.toISOString(),
-    }
-  })
+  return res.rows.map(mapTrackedRowToDealRow)
+}
+
+const TRACKED_DEAL_ID_PATTERN = /^(.+)-(\d{4}-\d{2}-\d{2})$/
+
+/**
+ * Resolves a tracked- synthetic id (see getTrackedHotels above) back to the
+ * exact real snapshot row it was built from, so /deals/[dealId] has
+ * something real to render instead of 404ing on every currently-live deal
+ * card whenever the `deals` table itself is empty.
+ */
+export async function getTrackedDealById(id: string): Promise<DealRow | null> {
+  if (!isTrackedHotelId(id)) return null
+
+  const rest = id.slice(TRACKED_HOTEL_ID_PREFIX.length)
+  const match = TRACKED_DEAL_ID_PATTERN.exec(rest)
+  if (!match) return null
+  const [, hotelId, checkInStr] = match
+
+  const res = await query<TrackedSnapshotRow>(
+    `${TRACKED_SNAPSHOT_SELECT} AND g.hotel_id = $1 AND g.check_in = $2::date
+     LIMIT 1`,
+    [hotelId, checkInStr]
+  )
+
+  const row = res.rows[0]
+  return row ? mapTrackedRowToDealRow(row) : null
 }

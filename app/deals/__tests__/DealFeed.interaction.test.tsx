@@ -19,8 +19,8 @@ jest.mock('@/app/components/HotelSearchCriteria', () => ({
   HotelSearchCriteriaSummary: () => null,
 }))
 jest.mock('@/app/components/ui/DealCard', () => ({
-  DealCard: ({ deal }: { deal: { id: string; hotelName: string } }) => (
-    <article data-testid={`deal-${deal.id}`}>{deal.hotelName}</article>
+  DealCard: ({ deal, href }: { deal: { id: string; hotelName: string }; href?: string }) => (
+    <article data-testid={`deal-${deal.id}`} data-href={href ?? ''}>{deal.hotelName}</article>
   ),
 }))
 jest.mock('@/app/components/ui/LockedDealCard', () => ({
@@ -372,5 +372,17 @@ describe('DealFeed continuation interactions', () => {
     expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain('offset=12')
     expect((global.fetch as jest.Mock).mock.calls[1][0]).toContain('offset=12')
     expect(textContent()).toContain('reached the end of current expaify deals')
+  })
+
+  it('links real deal cards including tracked- ids, and only omits the link for mock cards', async () => {
+    const trackedDeal = { ...deal('tracked-bk_123-2026-09-01'), isMock: false }
+    const mockDeal = { ...deal('mock-example'), isMock: true }
+    await renderDealFeed({ initialDeals: [trackedDeal, mockDeal] })
+
+    const trackedCard = document.querySelector('[data-testid="deal-tracked-bk_123-2026-09-01"]')
+    const mockCard = document.querySelector('[data-testid="deal-mock-example"]')
+
+    expect(trackedCard?.getAttribute('data-href')).toMatch(new RegExp(`^/deals/${trackedDeal.id}(\\?|$)`))
+    expect(mockCard?.getAttribute('data-href')).toBe('')
   })
 })
