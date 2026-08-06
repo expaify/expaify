@@ -123,4 +123,16 @@ describe('sortFlights', () => {
 
     expect(sorted.map(fare => fare.id)).toEqual(['high-good', 'low-great']);
   });
+
+  it('sorts by price on a party-total-normalized basis, not raw priceCents mixed across scopes', () => {
+    // per-person: raw priceCents (9000) looks cheapest, but at 3 passengers
+    // its real party total (27000) is actually the most expensive of the three.
+    const perPerson: NormalizedFare = { ...makeFare('per-person', 9000), priceScope: 'per_person', passengerCount: 3 };
+    const partyTotalCheap: NormalizedFare = { ...makeFare('party-cheap', 15000), priceScope: 'party_total', passengerCount: 3 };
+    const partyTotalMid: NormalizedFare = { ...makeFare('party-mid', 20000), priceScope: 'party_total', passengerCount: 3 };
+
+    const sorted = sortFlights([perPerson, partyTotalMid, partyTotalCheap], 'price', {});
+
+    expect(sorted.map(fare => fare.id)).toEqual(['party-cheap', 'party-mid', 'per-person']);
+  });
 });

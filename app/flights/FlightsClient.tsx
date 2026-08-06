@@ -5,6 +5,7 @@ import type { FormEvent } from 'react'
 import { SearchPanel, type SearchPanelSubmitPayload } from '@/components/search/SearchPanel'
 import FlightResults from '@/components/flights/FlightResults'
 import { sortFlights } from '@/lib/search/sortFlights'
+import { comparablePriceCents } from '@/lib/search/comparablePrice'
 import {
   applySearchStreamEvent,
   initialSearchStreamState,
@@ -46,7 +47,10 @@ function buildSearchContext(search: SearchPanelSubmitPayload | null): string {
 
 function cheapestFarePrice(fares: NormalizedFare[]): Money | null {
   if (fares.length === 0) return null
-  return fares.reduce((best, fare) => (fare.price.priceCents < best.priceCents ? fare.price : best), fares[0].price)
+  const cheapest = fares.reduce((best, fare) =>
+    comparablePriceCents(fare) < comparablePriceCents(best) ? fare : best
+  , fares[0])
+  return { priceCents: comparablePriceCents(cheapest), currency: cheapest.price.currency }
 }
 
 function isFlightsEvent(event: unknown): event is { type: 'flights'; data: NormalizedFare[] } {
@@ -128,6 +132,13 @@ export function FlightsClient() {
     setIsSearching(true)
 
     const dispatch = (event: unknown) => {
+      // A reader.read() already in flight when a newer search supersedes
+      // this one can still resolve after abort() — abort only rejects the
+      // *next* read, not one already pending. Without this guard, that
+      // straggling chunk would merge into the new search's freshly-reset
+      // state. abortRef.current is checked fresh on every call rather than
+      // captured once, since it can change between events in the same loop.
+      if (abortRef.current !== controller) return
       setSearchState(prev => applySearchStreamEvent(prev, event))
       // Kick off scoring from the raw event's fares rather than from the
       // merged state — reading side effects off a setState updater risks
