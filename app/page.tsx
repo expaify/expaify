@@ -120,10 +120,15 @@ export default async function LandingPage() {
   // flowing. Rather than showing fabricated example cards while that builds
   // up, fill any remaining slots with real, currently-tracked hotels — real
   // photo, real price, real booking links, just not (yet) a confirmed deal.
+  // Fetch a few extra so the (still-blurred) locked teaser cards below can
+  // use a real photo too instead of an empty "Photo unavailable" box.
   let combinedRows = rows
-  if (combinedRows.length < 2) {
-    const tracked = await getTrackedHotels({ limit: 2 - combinedRows.length }).catch(() => [] as DealRow[])
-    combinedRows = [...combinedRows, ...tracked]
+  let lockedPhotoPool: (string | null)[] = []
+  if (combinedRows.length < 3) {
+    const tracked = await getTrackedHotels({ limit: 5 }).catch(() => [] as DealRow[])
+    const needed = Math.max(0, 2 - combinedRows.length)
+    combinedRows = [...combinedRows, ...tracked.slice(0, needed)]
+    lockedPhotoPool = tracked.slice(needed).map(row => row.photo_url)
   }
 
   const realDeals = combinedRows.map(rowToCard)
@@ -175,6 +180,7 @@ export default async function LandingPage() {
                   placeholderName="Boutique Urban Stays"
                   placeholderCity="Paris · Oct 10 – 12"
                   stars={4}
+                  photoUrl={lockedPhotoPool[0] ?? undefined}
                 />
               </div>
               {/* Front card */}
@@ -224,12 +230,14 @@ export default async function LandingPage() {
                 placeholderName="Beachfront All-Inclusive"
                 placeholderCity="Cancún · Oct 7 – 11"
                 stars={5}
+                photoUrl={lockedPhotoPool[1] ?? undefined}
               />
             )}
             <LockedDealCard
               placeholderName="Design District Boutique"
               placeholderCity="Miami · Sep 28 – 30"
               stars={4}
+              photoUrl={lockedPhotoPool[2] ?? undefined}
             />
           </div>
         </section>

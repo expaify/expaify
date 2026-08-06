@@ -1,5 +1,16 @@
 export type HotelDealSort = 'newest' | 'discount' | 'price'
 
+// getTrackedHotels() (lib/pipeline/dealDetection.ts) synthesizes an id for
+// real hotels that haven't cleared the confirmed-deal bar yet — there's no
+// row for them in the `deals` table, so no internal hotel-detail page exists
+// at /deals/[dealId]. Anything consuming a deal id (client or server) needs
+// this check before linking to that page, or it 404s.
+export const TRACKED_HOTEL_ID_PREFIX = 'tracked-'
+
+export function isTrackedHotelId(id: string): boolean {
+  return id.startsWith(TRACKED_HOTEL_ID_PREFIX)
+}
+
 export const HOTEL_DEAL_PAGE_SIZE = 12
 
 export type DealCoverage = 'more_available' | 'confirmed_end'
