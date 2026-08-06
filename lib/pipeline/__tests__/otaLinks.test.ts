@@ -39,9 +39,27 @@ describe('buildOtaLinks', () => {
     expect(links.trip).toContain(encodeURIComponent('Harbour View Inn Lisbon'))
   })
 
-  it('omits outbound links when affiliate attribution is absent', () => {
+  it('omits attributed outbound links when affiliate attribution is absent, but keeps the real unattributed fallback', () => {
     const links = buildOtaLinks(OPTS)
-    expect(links).toEqual({ expedia: undefined, booking: undefined, kiwi: undefined, trip: undefined })
+    expect(links.expedia).toBeUndefined()
+    expect(links.booking).toBeUndefined()
+    expect(links.kiwi).toBeUndefined()
+    expect(links.trip).toBeUndefined()
+    expect(links.bookingSearchUrl).toContain('booking.com/searchresults.html')
+  })
+
+  // Confirmed live (2026-08-06): this account has no hotel programs approved
+  // by Travelpayouts at all, so `trip` 404s/errors regardless of marker.
+  // bookingSearchUrl is a real, working, zero-setup link that doesn't depend
+  // on any affiliate credential -- must always be present.
+  it('always builds a real, working, unattributed Booking.com search link regardless of affiliate config', () => {
+    const links = buildOtaLinks(OPTS)
+    expect(links.bookingSearchUrl).toBe(
+      'https://www.booking.com/searchresults.html?ss=Harbour%20View%20Inn%20Lisbon&checkin=2026-08-01&checkout=2026-08-03'
+    )
+    // No occupancy default baked in -- same honesty rule as the attributed trip link.
+    expect(links.bookingSearchUrl).not.toContain('adults')
+    expect(links.bookingSearchUrl).not.toContain('rooms')
   })
 
   // deploy.yml only ever provisions TP_AFFILIATE_MARKER as a secret --
