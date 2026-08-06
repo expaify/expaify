@@ -68,7 +68,8 @@ describe('HotelSearchCriteria UI', () => {
   it('repeats missing context immediately before provider handoff', () => {
     const html = renderToStaticMarkup(<HotelCriteriaContextCard status="missing" handoff />)
 
-    expect(html).toContain('Search criteria unavailable')
+    expect(html).toContain('Viewing this deal directly')
+    expect(html).toContain('that&#x27;s expected if you followed a shared link, bookmark, or refreshed the page')
     expect(html).toContain('confirm the price and room fit with the provider')
     expect(html).not.toContain('Search hotel deals')
   })
