@@ -215,8 +215,16 @@ async function fetchPricelineComProvider(iata: string, checkIn: string, checkOut
     const stars = hotel.starRating ? Number(hotel.starRating) : null
     const images = hotel.images as { fastlyUrl?: string }[] | undefined
     const photo = images?.[0]?.fastlyUrl ?? (typeof hotel.thumbnailUrl === 'string' ? hotel.thumbnailUrl : null)
-    const ratesSummary = hotel.ratesSummary as { minPrice?: string } | undefined
-    const price = Number(ratesSummary?.minPrice ?? 0)
+    // ratesSummary.minPrice is a pre-tax/fee teaser figure -- confirmed live
+    // (2026-08-06) against real Vegas listings where it understated the real
+    // price by 8-13x (e.g. Flamingo Las Vegas: minPrice "6.00" vs the actual
+    // nightlyRateIncludingTaxesAndFees "62.99", which matches grandTotal /
+    // nights exactly). Using minPrice would have shipped fabricated
+    // sub-$10/night "deals" -- the same class of dishonesty this app has
+    // repeatedly had to fix elsewhere (never present a pre-fee price as if
+    // it were the real one).
+    const ratesSummary = hotel.ratesSummary as { nightlyRateIncludingTaxesAndFees?: string } | undefined
+    const price = Number(ratesSummary?.nightlyRateIncludingTaxesAndFees ?? 0)
     const priceCents = Math.round(price * 100)
     if (!id || !name || priceCents <= 0) return []
     return [{ hotelId: `pl_${id}`, hotelName: name, stars, priceCents, photoUrl: photo }]

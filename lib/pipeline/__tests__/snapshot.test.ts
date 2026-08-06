@@ -1,4 +1,5 @@
 import { runSnapshotsForMarket, RateLimitError } from '../snapshot'
+import { query } from '../../db/client'
 
 jest.mock('../../db/client', () => ({
   query: jest.fn().mockResolvedValue({ rows: [] }),
@@ -12,6 +13,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
   beforeEach(() => {
     process.env.RAPIDAPI_KEY = 'test-key'
     global.fetch = jest.fn()
+    ;(query as jest.Mock).mockClear()
   })
 
   afterAll(() => {
@@ -93,6 +95,7 @@ describe('fetchPricelineCom (4th rotation provider, separate RAPIDAPI_KEY_PRICEL
     process.env.RAPIDAPI_KEY = 'test-key'
     process.env.RAPIDAPI_KEY_PRICELINE = 'test-priceline-key'
     global.fetch = jest.fn()
+    ;(query as jest.Mock).mockClear()
   })
 
   afterAll(() => {
@@ -113,7 +116,7 @@ describe('fetchPricelineCom (4th rotation provider, separate RAPIDAPI_KEY_PRICEL
             name: 'INNSiDE by Melia Barcelona Aeropuerto',
             starRating: 4,
             images: [{ fastlyUrl: 'https://assets.pclncdn.com/example.jpg' }],
-            ratesSummary: { minPrice: '153.14', minCurrencyCode: 'USD' },
+            ratesSummary: { nightlyRateIncludingTaxesAndFees: '153.14', minCurrencyCode: 'USD' },
           }],
         },
       }),
@@ -126,6 +129,40 @@ describe('fetchPricelineCom (4th rotation provider, separate RAPIDAPI_KEY_PRICEL
     const [url] = (global.fetch as jest.Mock).mock.calls[0]
     expect(url).toContain('priceline-com2.p.rapidapi.com/hotels/search')
     expect(url).toContain('locationId=3000003311') // MIA's Priceline city id
+  })
+
+  // Confirmed live against real Vegas listings (2026-08-06): ratesSummary.minPrice
+  // is a pre-tax/fee teaser figure that understated real prices by 8-13x (e.g.
+  // Flamingo Las Vegas: minPrice "6.00" vs the real nightlyRateIncludingTaxesAndFees
+  // "62.99"). Using minPrice would have stored fabricated near-zero "deals".
+  it('stores the fee-inclusive nightly price, not the pre-fee teaser minPrice', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: {
+          hotels: [{
+            hotelId: '999',
+            name: 'Flamingo Las Vegas',
+            starRating: 3,
+            images: [{ fastlyUrl: 'https://assets.pclncdn.com/flamingo.jpg' }],
+            ratesSummary: {
+              minPrice: '6.00', // the misleading pre-fee figure -- must NOT be used
+              nightlyRateIncludingTaxesAndFees: '62.99',
+              grandTotal: '125.98',
+            },
+          }],
+        },
+      }),
+    })
+
+    const [result] = await runSnapshotsForMarket(MIA, 3)
+    expect(result.hotelsProcessed).toBe(1)
+
+    const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
+    expect(insertCall).toBeDefined()
+    const priceCents = insertCall?.[1]?.[7]
+    expect(priceCents).toBe(6299) // $62.99, not the fake $6.00 teaser (600 cents)
   })
 
   it('is silently skipped (no network call) when RAPIDAPI_KEY_PRICELINE is unset, but still reports a providerErrors reason', async () => {
