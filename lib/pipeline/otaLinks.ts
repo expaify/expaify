@@ -15,11 +15,6 @@ export function buildOtaLinks(opts: {
 }): OtaLinks {
   const { hotelName, city, checkIn, checkOut } = opts
   const q = encodeURIComponent(`${hotelName} ${city}`)
-  // deploy.yml only ever provisions TP_AFFILIATE_MARKER -- HOTEL_AFFILIATE_ID
-  // has never existed in this deployment, so this always resolved to '' and
-  // every real deal's booking link silently never rendered. lib/providers/
-  // hotellook.ts already carries this same fallback for the same reason.
-  const marker = process.env.HOTEL_AFFILIATE_ID ?? process.env.TP_AFFILIATE_MARKER ?? ''
 
   // The approved hotel contract exposes one Travelpayouts/HotelLook marker,
   // not provider-specific Expedia, Booking, or Kiwi affiliate credentials.
@@ -29,14 +24,18 @@ export function buildOtaLinks(opts: {
   const booking = undefined
   const kiwi = undefined
 
-  // Confirmed live (2026-08-06) via the actual Travelpayouts dashboard: this
-  // account has zero hotel programs subscribed -- Trip.com/Hotellook/Booking
-  // are all gated behind Travelpayouts' own review (3 consecutive months of
-  // stable traffic + an active travel-content blog), not a config value. The
-  // marker/trs below will silently 404/error until that review passes.
-  const trip = marker
-    ? `https://tp.media/r?marker=${encodeURIComponent(marker)}&trs=233847&p=4536&u=https%3A%2F%2Fwww.trip.com%2Fhotels%2F%3FhotelName%3D${q}%26checkIn%3D${checkIn}%26checkOut%3D${checkOut}`
-    : undefined
+  // Trip.com is deliberately never built here. Confirmed live (2026-08-06)
+  // via the actual Travelpayouts dashboard: this account has zero hotel
+  // programs subscribed -- Trip.com/Hotellook/Booking are all gated behind
+  // Travelpayouts' own review (3 consecutive months of stable traffic + an
+  // active travel-content blog), not a config value. A correctly-attributed
+  // link (marker + trs + p) was shipped once and rendered as a real,
+  // clickable option, but every click landed on a Travelpayouts error page
+  // ("traffic_source is not valid") instead of Trip.com -- worse than not
+  // showing it at all. See REPAIR-TRAVELPAYOUTS-TRS-INVALID-01 and
+  // REPAIR-TRIP-LINK-REMOVE-UNTIL-APPROVED-01 for the working marker/trs/p
+  // values and exact URL format to restore once the account is approved.
+  const trip = undefined
 
   // Real, working, zero-setup fallback while that review is pending: a plain
   // Booking.com search for this exact hotel/city/dates. Not affiliate-
