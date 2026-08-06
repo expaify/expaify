@@ -23,6 +23,7 @@ type DealLinks = {
   booking?: string
   kiwi?: string
   trip?: string
+  bookingSearchUrl?: string
 }
 
 type DealCardDeal = {
@@ -152,7 +153,19 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
         ) : href ? (
           <p className="flex min-h-11 items-center justify-center rounded-[var(--radius-input)] border border-[color:var(--primary)] text-small font-medium text-[color:var(--primary)]">View deal</p>
         ) : (
-          <CompareRow links={deal.links} />
+          <div className="space-y-2">
+            <CompareRow links={deal.links} />
+            {deal.links.bookingSearchUrl ? (
+              <a
+                href={deal.links.bookingSearchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center text-caption font-medium text-[color:var(--ink-faint)] underline-offset-2 hover:underline"
+              >
+                Or search this stay on Booking.com
+              </a>
+            ) : null}
+          </div>
         )}
 
         {!deal.isMock && !deal.expired ? (

@@ -27,7 +27,7 @@ type DealCardDeal = {
   discountPct: number
   checkInWindow: string
   snapshotCount: number
-  links: { expedia?: string; booking?: string; kiwi?: string; trip?: string }
+  links: { expedia?: string; booking?: string; kiwi?: string; trip?: string; bookingSearchUrl?: string }
   headline?: string
   isMock?: boolean
   firstSeen?: string
@@ -52,6 +52,7 @@ function rowToCard(row: DealRow): DealCardDeal {
       booking: ota['booking'] ?? ota['Booking.com'],
       kiwi: ota['kiwi'] ?? ota['Kiwi'],
       trip: ota['trip'] ?? ota['Trip.com'],
+      bookingSearchUrl: ota['bookingSearchUrl'],
     },
     headline: row.headline ?? undefined,
     isMock: row.is_mock,
