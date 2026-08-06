@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { auth } from '@/auth'
 import { getSubscription } from '@/lib/subscription'
 import { getPaywallContext, getFreeUnlockedDealIds } from '@/lib/paywall'
-import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
+import { getActiveDeals, getTrackedHotels, type DealRow } from '@/lib/pipeline/dealDetection'
 import { generateMockDeals } from '@/lib/pipeline/mock'
 import { redirect } from 'next/navigation'
 import { LandingNav } from '../components/LandingNav'
@@ -129,31 +129,37 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     effectiveView.minDiscount === 20 && effectiveView.maxPriceCents === null &&
     effectiveView.minStars === 0 && effectiveView.sort === 'newest'
   ) {
-    // Fallback mock deals while real data accumulates
-    initialDeals = generateMockDeals(3).map((d) => {
-      const base: ApiDeal = {
-        id: d.hotel_id,
-        hotelId: d.hotel_id,
-        hotelName: d.hotel_name,
-        stars: d.stars,
-        photoUrl: d.photo_url,
-        city: '',
-        dealPriceCents: d.deal_price_cents,
-        medianPriceCents: d.median_price_cents,
-        discountPct: d.discount_pct,
-        checkInWindow: d.check_in_window,
-        checkInDate: d.check_in_date,
-        nights: d.nights,
-        snapshotCount: d.snapshot_count,
-        otaLinks: d.ota_links as Record<string, string>,
-        headline: null,
-        isMock: true,
-        firstSeen: null,
-        updatedAt: null,
-        locked: false,
-      }
-      return base
-    })
+    // No confirmed deals yet for the default (unfiltered) view. Prefer real,
+    // currently-tracked hotels (real photo, real price) over fabricated
+    // example cards — only fall back to generated mock deals if there's
+    // truly no real snapshot data at all yet.
+    const tracked = await getTrackedHotels({ limit: 3 }).catch(() => [] as DealRow[])
+    initialDeals = tracked.length > 0
+      ? tracked.map(row => toApiDeal(row, false))
+      : generateMockDeals(3).map((d) => {
+        const base: ApiDeal = {
+          id: d.hotel_id,
+          hotelId: d.hotel_id,
+          hotelName: d.hotel_name,
+          stars: d.stars,
+          photoUrl: d.photo_url,
+          city: '',
+          dealPriceCents: d.deal_price_cents,
+          medianPriceCents: d.median_price_cents,
+          discountPct: d.discount_pct,
+          checkInWindow: d.check_in_window,
+          checkInDate: d.check_in_date,
+          nights: d.nights,
+          snapshotCount: d.snapshot_count,
+          otaLinks: d.ota_links as Record<string, string>,
+          headline: null,
+          isMock: true,
+          firstSeen: null,
+          updatedAt: null,
+          locked: false,
+        }
+        return base
+      })
   } else {
     initialDeals = []
   }

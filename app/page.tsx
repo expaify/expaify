@@ -3,7 +3,7 @@ import { DealCard } from './components/ui/DealCard'
 import { LockedDealCard } from './components/ui/LockedDealCard'
 import { LandingNav } from './components/LandingNav'
 import { FaqAccordion } from './components/FaqAccordion'
-import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
+import { getActiveDeals, getTrackedHotels, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DEAL_THRESHOLD, MIN_SNAPSHOTS } from '@/lib/pipeline/dealRules'
 
 export const metadata: Metadata = {
@@ -115,7 +115,18 @@ export default async function LandingPage() {
     minDiscount: 20,
   }).catch(() => [] as DealRow[])
 
-  const realDeals = rows.map(rowToCard)
+  // Statistically-confirmed deals (30%+ below an 8-snapshot median) can take
+  // days to accumulate for a given market even once real snapshots are
+  // flowing. Rather than showing fabricated example cards while that builds
+  // up, fill any remaining slots with real, currently-tracked hotels — real
+  // photo, real price, real booking links, just not (yet) a confirmed deal.
+  let combinedRows = rows
+  if (combinedRows.length < 2) {
+    const tracked = await getTrackedHotels({ limit: 2 - combinedRows.length }).catch(() => [] as DealRow[])
+    combinedRows = [...combinedRows, ...tracked]
+  }
+
+  const realDeals = combinedRows.map(rowToCard)
   const heroCard = realDeals[0] ?? MOCK_HERO
   const teaserCard = realDeals[1] ?? MOCK_TEASER
   const hasReal = realDeals.length > 0

@@ -6,6 +6,7 @@ import { query } from '@/lib/db/client'
 
 jest.mock('@/lib/pipeline/dealDetection', () => ({
   getActiveDeals: jest.fn(),
+  getTrackedHotels: jest.fn(() => Promise.resolve([])),
 }))
 
 jest.mock('@/lib/paywall', () => ({

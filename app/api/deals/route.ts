@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
+import { getActiveDeals, getTrackedHotels, type DealRow } from '@/lib/pipeline/dealDetection'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { generateMockDeals } from '@/lib/pipeline/mock'
 import { buildDealPage, HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
@@ -161,10 +161,16 @@ export async function GET(req: NextRequest) {
   const source = rowsWithLookahead.length > 0 ? buildDealPage(rowsWithLookahead, offset, limit) : null
 
   if (!source && !hasFilters) {
-    const mocks = generateMockDeals(3).map(mockToApiDeal)
+    // No confirmed deals yet — prefer real, currently-tracked hotels (real
+    // photo, real price) over fabricated example cards. Only fall back to
+    // generated mock deals if there's truly no real snapshot data yet.
+    const tracked = await getTrackedHotels({ limit: 3 }).catch(() => [] as DealRow[])
+    const deals = tracked.length > 0
+      ? tracked.map(row => toApiDeal(row, false))
+      : generateMockDeals(3).map(mockToApiDeal)
     return NextResponse.json({
-      deals: mocks,
-      total: mocks.length,
+      deals,
+      total: deals.length,
       premium: pwCtx.premium,
       coverage: 'confirmed_end',
       page: { nextOffset: null, hasMore: false },
