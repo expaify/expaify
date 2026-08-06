@@ -17,6 +17,8 @@ import { getSubscription } from '@/lib/subscription'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
+import { AiDayPlanSection } from '@/app/components/AiDayPlanSection'
+import { AiDayPlanCardSkeleton } from '@/app/components/ui/AiDayPlanCard'
 import { notProvidedHotelDocumentReadiness } from '@/lib/providers/hotelDocumentReadiness'
 import HotelCancellationChoicesUnavailable from '@/app/components/HotelCancellationChoicesUnavailable'
 import {
@@ -483,6 +485,9 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
               <HotelContinuityPrototype dealId={deal.id} hotelName={deal.hotel_name} fixtureId={continuityFixtureId} disclosure={continuityDisclosure} initiallyExpanded={disclosureParam === 'expanded'} />
               <Suspense fallback={<PriceHistorySkeleton />}>
                 <PriceHistorySection deal={deal} />
+              </Suspense>
+              <Suspense fallback={<AiDayPlanCardSkeleton />}>
+                <AiDayPlanSection city={deal.city} />
               </Suspense>
               <details className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
                 <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[color:var(--brand)]">Show offer details</summary>
