@@ -185,7 +185,7 @@ export default async function LandingPage() {
               </div>
               {/* Front card */}
               <div className="relative z-10 w-full min-[900px]:-rotate-2">
-                <DealCard deal={heroCard} href={hasReal ? '/deals' : undefined} />
+                <DealCard deal={heroCard} href={hasReal ? '/deals' : undefined} photoLoading="eager" />
               </div>
             </div>
           </div>

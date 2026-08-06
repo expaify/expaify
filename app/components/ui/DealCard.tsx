@@ -51,6 +51,8 @@ type DealCardProps = {
   quietStayEvidence?: QuietStayEvidence
   disruptionEvidence?: HotelDisruptionEvidence
   poolEvidence?: HotelPoolEvidence
+  /** 'eager' for above-the-fold instances (e.g. the homepage hero/teaser) so the LCP image isn't deferred. */
+  photoLoading?: 'eager' | 'lazy'
 }
 
 function starChars(stars: number): string {
@@ -71,7 +73,7 @@ function absoluteCheckedAt(iso: string | null | undefined): string | undefined {
   })
 }
 
-export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvidence, poolEvidence }: DealCardProps) {
+export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvidence, poolEvidence, photoLoading = 'lazy' }: DealCardProps) {
   const savings = deal.medianPrice.priceCents - deal.dealPrice.priceCents
   const showSavings = savings >= 2000
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
@@ -143,7 +145,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
           ) : null}
         </div>
 
-        <PropertyPhoto src={deal.photoUrl} size="card" />
+        <PropertyPhoto src={deal.photoUrl} size="card" loading={photoLoading} />
 
         {deal.expired ? null : deal.isMock ? (
           <p className="text-caption font-medium leading-snug text-[color:var(--ink-faint)]">Sample hotel — not bookable</p>
