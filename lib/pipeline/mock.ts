@@ -26,6 +26,12 @@ export type MockDeal = {
   status: 'active'
 }
 
+// No photoUrl here: these are fabricated example hotels (see DealCard's
+// "Example" / "Sample hotel — not bookable" labeling). Attaching a real
+// stock photo to an invented hotel name falsely implies that photo depicts
+// that specific property — the same evidence-fabrication problem the fleet
+// already removed from the homepage hero/teaser cards (a2bc0d8). Honestly
+// showing "Photo unavailable" here keeps every mock card consistent.
 const MOCK_HOTELS = [
   {
     id: 'mock-1',
@@ -33,7 +39,6 @@ const MOCK_HOTELS = [
     stars: 4,
     price: 8900,
     median: 16700,
-    photoUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80',
   },
   {
     id: 'mock-2',
@@ -41,7 +46,6 @@ const MOCK_HOTELS = [
     stars: 4,
     price: 11200,
     median: 19800,
-    photoUrl: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=900&q=80',
   },
   {
     id: 'mock-3',
@@ -49,7 +53,6 @@ const MOCK_HOTELS = [
     stars: 5,
     price: 14200,
     median: 26100,
-    photoUrl: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=900&q=80',
   },
   {
     id: 'mock-4',
@@ -57,7 +60,6 @@ const MOCK_HOTELS = [
     stars: 3,
     price: 5800,
     median: 10400,
-    photoUrl: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=900&q=80',
   },
   {
     id: 'mock-5',
@@ -65,7 +67,6 @@ const MOCK_HOTELS = [
     stars: 4,
     price: 9600,
     median: 17100,
-    photoUrl: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=900&q=80',
   },
 ]
 
@@ -94,7 +95,7 @@ export function generateMockDeals(count = 5): MockDeal[] {
       hotel_id: h.id,
       hotel_name: h.name,
       stars: h.stars,
-      photo_url: h.photoUrl,
+      photo_url: null,
       deal_price_cents: h.price,
       median_price_cents: h.median,
       discount_pct: discountPct,
