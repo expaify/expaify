@@ -23,7 +23,7 @@ import {
   type HotelResultsViewState,
   type HotelSearchCriteriaV1,
 } from '@/lib/hotels/searchCriteria'
-import { HOTEL_DEAL_PAGE_SIZE, isTrackedHotelId, type HotelDealSort } from '@/lib/deals/feedContract'
+import { HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
 import {
   HotelResultStatus,
 } from './HotelRecoveryUI'
@@ -1909,8 +1909,8 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                   ) : (
                     <DealCard
                       key={deal.id}
-                      href={deal.isMock || isTrackedHotelId(deal.id) ? undefined : buildHotelDetailUrl(deal.id, researchResultsUrl)}
-                      onOpen={deal.isMock || isTrackedHotelId(deal.id) ? undefined : () => trackCardOpen(index + 1)}
+                      href={deal.isMock ? undefined : buildHotelDetailUrl(deal.id, researchResultsUrl)}
+                      onOpen={deal.isMock ? undefined : () => trackCardOpen(index + 1)}
                       deal={{
                         id: deal.id,
                         hotelName: deal.hotelName,
