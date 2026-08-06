@@ -247,9 +247,9 @@ export function HotelCriteriaContextCard({ status, handoff = false }: { status: 
   const invalid = status === 'invalid'
   return (
     <section className={`${handoff ? 'rounded-[var(--radius-control)] border border-[color:var(--gold)] bg-[color:var(--warning-soft)] p-4' : 'rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-5'}`}>
-      <h2 className="text-sm font-medium text-[color:var(--text-1)]">{invalid ? 'Search criteria couldn\'t be restored' : 'Search criteria unavailable'}</h2>
+      <h2 className="text-sm font-medium text-[color:var(--text-1)]">{invalid ? 'Search criteria couldn\'t be restored' : 'Viewing this deal directly'}</h2>
       <p className="mt-1 text-xs leading-5 text-[color:var(--text-2)]">
-        {invalid ? 'This search link is incomplete or no longer valid. Review this deal\'s dates before continuing.' : 'We can\'t verify which search opened this deal. Review the deal dates and confirm the price and room fit with the provider.'}
+        {invalid ? 'This search link is incomplete or no longer valid. Review this deal\'s dates before continuing.' : 'This deal isn\'t tied to an active search — that\'s expected if you followed a shared link, bookmark, or refreshed the page. Review the deal dates, and confirm the price and room fit with the provider before you book.'}
       </p>
       {!handoff ? <Link href="/deals" className="btn btn-outline mt-3 min-h-11 px-4">{invalid ? 'Start a new search' : 'Search hotel deals'}</Link> : null}
     </section>
