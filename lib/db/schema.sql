@@ -269,7 +269,6 @@ CREATE TABLE IF NOT EXISTS deal_alert_deliveries (
 CREATE INDEX IF NOT EXISTS idx_deal_alert_deliveries_user_day
   ON deal_alert_deliveries (user_id, delivered_at DESC);
 
-<<<<<<< HEAD
 -- First-party, privacy-bounded product analytics. session_id is generated per
 -- browser tab and is intentionally not tied to an account or raw search text.
 CREATE TABLE IF NOT EXISTS analytics_events (
@@ -392,17 +391,3 @@ BEGIN
       CHECK (status IN ('requested', 'verifying', 'in_progress', 'completed', 'rejected'));
   END IF;
 END $$;
-=======
--- Privacy-reviewed product events: anonymous session id plus allowlisted scalar
--- properties only. The API route rejects free text and unknown event shapes.
-CREATE TABLE IF NOT EXISTS product_analytics_events (
-  id                    BIGSERIAL   PRIMARY KEY,
-  event_name            TEXT        NOT NULL,
-  analytics_session_id  TEXT        NOT NULL,
-  properties            JSONB       NOT NULL,
-  occurred_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_product_analytics_events_name_time
-  ON product_analytics_events (event_name, occurred_at DESC);
->>>>>>> agent/DEV-HOTEL-SMOKING-POLICY-01
