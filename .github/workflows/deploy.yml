@@ -80,6 +80,7 @@ jobs:
                 "PIPELINE_SECRET=${{ secrets.PIPELINE_SECRET }}" \
                 "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" \
                 "RAPIDAPI_KEY=${{ secrets.RAPIDAPI_KEY }}" \
+                "RAPIDAPI_KEY_PRICELINE=${{ secrets.RAPIDAPI_KEY_PRICELINE }}" \
               --output none
           else
             az containerapp update \
@@ -111,5 +112,6 @@ jobs:
                 "PIPELINE_SECRET=${{ secrets.PIPELINE_SECRET }}" \
                 "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" \
                 "RAPIDAPI_KEY=${{ secrets.RAPIDAPI_KEY }}" \
+                "RAPIDAPI_KEY_PRICELINE=${{ secrets.RAPIDAPI_KEY_PRICELINE }}" \
               --output none
           fi
