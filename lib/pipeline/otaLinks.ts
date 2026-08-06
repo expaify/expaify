@@ -13,7 +13,11 @@ export function buildOtaLinks(opts: {
 }): OtaLinks {
   const { hotelName, city, checkIn, checkOut } = opts
   const q = encodeURIComponent(`${hotelName} ${city}`)
-  const marker = process.env.HOTEL_AFFILIATE_ID ?? ''
+  // deploy.yml only ever provisions TP_AFFILIATE_MARKER -- HOTEL_AFFILIATE_ID
+  // has never existed in this deployment, so this always resolved to '' and
+  // every real deal's booking link silently never rendered. lib/providers/
+  // hotellook.ts already carries this same fallback for the same reason.
+  const marker = process.env.HOTEL_AFFILIATE_ID ?? process.env.TP_AFFILIATE_MARKER ?? ''
 
   // The approved hotel contract exposes one Travelpayouts/HotelLook marker,
   // not provider-specific Expedia, Booking, or Kiwi affiliate credentials.
