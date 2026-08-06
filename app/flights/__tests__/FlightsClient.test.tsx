@@ -75,6 +75,27 @@ const fareA: NormalizedFare = {
   fetchedAt: '2026-06-30T00:00:00.000Z',
 }
 
+// A per-person fare whose raw priceCents looks cheaper than fareA, but whose
+// true party-total (priceCents * passengerCount) is actually more expensive
+// -- used to prove the alert threshold compares on a normalized basis, not
+// raw priceCents mixed across scopes.
+const farePerPerson: NormalizedFare = {
+  id: 'fare-per-person',
+  fareType: 'cash',
+  source: 'travelpayouts',
+  carrier: 'DL',
+  origin: 'JFK',
+  destination: 'LAX',
+  depart: '2026-09-01T09:00:00.000Z',
+  price: { priceCents: 10000, currency: 'USD' },
+  priceScope: 'per_person',
+  passengerCount: 3,
+  deeplink: 'https://example.com/book-2',
+  stops: 0,
+  cabin: 'economy',
+  fetchedAt: '2026-06-30T00:00:00.000Z',
+}
+
 const dealScore: DealScore = {
   percentile: 8,
   pctVsMedian: -25,
@@ -138,6 +159,14 @@ function installFetchMock(options: {
         ok: true,
         status: 200,
         json: async () => dealScore,
+      } as unknown as Response)
+    }
+
+    if (url.startsWith('/api/alerts')) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, data: { id: 'alert-1', message: 'ok', active: true } }),
       } as unknown as Response)
     }
 
@@ -379,5 +408,107 @@ describe('FlightsClient', () => {
 
     const searchCallsAfter = calls.filter(c => c.url.startsWith('/api/search')).length
     expect(searchCallsAfter).toBe(2)
+  })
+
+  it('sets the price-alert threshold from the party-total-normalized cheapest fare, not raw priceCents', async () => {
+    // fareA: party_total $250.00. farePerPerson: $100.00 per person x 3 =
+    // $300.00 party total -- more expensive once normalized, despite its raw
+    // priceCents (10000) looking cheaper than fareA's (25000).
+    const calls = installFetchMock({
+      searchChunks: [
+        ndjsonBody([
+          { type: 'flights', source: 'travelpayouts', data: [fareA, farePerPerson] },
+          { type: 'done' },
+        ]),
+      ],
+    })
+
+    await renderFlightsClient()
+    await submitSearch(payload)
+
+    await waitFor(() => {
+      expect(capturedFlightResultsProps?.flights).toHaveLength(2)
+    })
+
+    const { act } = require('react') as typeof import('react')
+    await act(async () => {
+      capturedFlightResultsProps?.handleAlertSubmit({ preventDefault: () => {} } as unknown as React.FormEvent<HTMLFormElement>)
+    })
+    await flush()
+
+    const alertCall = calls.find(c => c.url.startsWith('/api/alerts'))
+    expect(alertCall).toBeDefined()
+    const body = JSON.parse(String(alertCall!.init?.body))
+    expect(body.thresholdCents).toBe(25000)
+  })
+
+  it('drops a stale search stream event that resolves after a newer search has already started', async () => {
+    let resolveStaleRead!: (value: { done: boolean; value?: Uint8Array }) => void
+    const staleRead = new Promise<{ done: boolean; value?: Uint8Array }>(resolve => {
+      resolveStaleRead = resolve
+    })
+    let staleReadCallCount = 0
+
+    let searchCallCount = 0
+    global.fetch = jest.fn((input: unknown) => {
+      const url = typeof input === 'string' ? input : String(input)
+
+      if (url.startsWith('/api/search')) {
+        searchCallCount += 1
+        if (searchCallCount === 1) {
+          // First search: its first read() never resolves on its own -- it's
+          // released manually, after the second search has begun. Every
+          // read() after that first one reports the stream as finished, so
+          // the read loop doesn't spin forever re-consuming the same chunk.
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            body: {
+              getReader: () => ({
+                read: () => {
+                  staleReadCallCount += 1
+                  return staleReadCallCount === 1 ? staleRead : Promise.resolve({ done: true, value: undefined })
+                },
+              }),
+            },
+            json: async () => ({}),
+          } as unknown as Response)
+        }
+        // Second (superseding) search resolves immediately with its own fare.
+        const reader = makeReader([
+          ndjsonBody([{ type: 'flights', source: 'travelpayouts', data: [farePerPerson] }, { type: 'done' }]),
+        ])
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: { getReader: () => reader },
+          json: async () => ({}),
+        } as unknown as Response)
+      }
+
+      if (url.startsWith('/api/score')) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => dealScore } as unknown as Response)
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`))
+    }) as unknown as typeof fetch
+
+    await renderFlightsClient()
+    await submitSearch(payload)
+    await submitSearch({ ...payload, destinationIata: 'SFO' })
+
+    await waitFor(() => {
+      expect(capturedFlightResultsProps?.flights.map(f => f.id)).toEqual(['fare-per-person'])
+    })
+
+    // Now let the first (superseded) search's stale read resolve with fareA.
+    resolveStaleRead({
+      done: false,
+      value: new TextEncoder().encode(JSON.stringify({ type: 'flights', source: 'travelpayouts', data: [fareA] }) + '\n'),
+    })
+    await flush()
+    await flush()
+
+    expect(capturedFlightResultsProps?.flights.map(f => f.id)).toEqual(['fare-per-person'])
   })
 })

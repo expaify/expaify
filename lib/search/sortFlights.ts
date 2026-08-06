@@ -1,4 +1,5 @@
 import type { DealScore, NormalizedFare } from '@/lib/types'
+import { comparablePriceCents } from './comparablePrice'
 
 type SortBy = 'price' | 'deal' | 'estimatedTotal' | 'duration'
 type SortOptions = {
@@ -14,7 +15,7 @@ const verdictRank: Record<DealScore['verdict'], number> = {
 function compareFallback(a: NormalizedFare, b: NormalizedFare): number {
   return (
     a.price.currency.localeCompare(b.price.currency) ||
-    a.price.priceCents - b.price.priceCents ||
+    comparablePriceCents(a) - comparablePriceCents(b) ||
     a.stops - b.stops ||
     a.depart.localeCompare(b.depart) ||
     a.carrier.localeCompare(b.carrier) ||
@@ -33,7 +34,7 @@ function compareDuration(a: NormalizedFare, b: NormalizedFare): number {
   return (
     confirmedDuration(a) - confirmedDuration(b) ||
     a.price.currency.localeCompare(b.price.currency) ||
-    a.price.priceCents - b.price.priceCents ||
+    comparablePriceCents(a) - comparablePriceCents(b) ||
     a.stops - b.stops ||
     a.depart.localeCompare(b.depart) ||
     a.id.localeCompare(b.id)
