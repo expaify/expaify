@@ -81,6 +81,7 @@ jobs:
                 "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" \
                 "RAPIDAPI_KEY=${{ secrets.RAPIDAPI_KEY }}" \
                 "RAPIDAPI_KEY_PRICELINE=${{ secrets.RAPIDAPI_KEY_PRICELINE }}" \
+                "RAPIDAPI_KEY_GOOGLE_FLIGHTS=${{ secrets.RAPIDAPI_KEY_GOOGLE_FLIGHTS }}" \
               --output none
           else
             az containerapp update \
@@ -113,5 +114,6 @@ jobs:
                 "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" \
                 "RAPIDAPI_KEY=${{ secrets.RAPIDAPI_KEY }}" \
                 "RAPIDAPI_KEY_PRICELINE=${{ secrets.RAPIDAPI_KEY_PRICELINE }}" \
+                "RAPIDAPI_KEY_GOOGLE_FLIGHTS=${{ secrets.RAPIDAPI_KEY_GOOGLE_FLIGHTS }}" \
               --output none
           fi
