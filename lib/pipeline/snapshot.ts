@@ -104,8 +104,16 @@ async function fetchBookingCom15(iata: string, checkIn: string, checkOut: string
     const name = String(prop.name ?? '')
     const stars = prop.propertyClass ? Number(prop.propertyClass) : null
     const photo = (prop.photoUrls as string[] | undefined)?.[0] ?? null
-    const price = (prop.priceBreakdown as { grossPrice?: { value?: number } } | undefined)?.grossPrice?.value ?? 0
-    const priceCents = Math.round(price * 100)
+    // grossPrice is the TOTAL for the whole stay, not a nightly rate -- confirmed
+    // live (2026-08-06) by querying the same hotel/dates for 1 night vs 2 nights:
+    // grossPrice scaled from $207.26 to $389.12, not staying flat. This provider
+    // has been storing prices ~2x too high (undivided by NIGHTS) since its first
+    // commit, unlike fetchBookingComCoords below, which already divides by NIGHTS
+    // for the same reason. Both share the bk_ id prefix, so any hotel snapshotted
+    // by both sub-providers on different nights had a corrupted, inconsistent
+    // price history -- not just a uniformly-wrong absolute price.
+    const totalPrice = (prop.priceBreakdown as { grossPrice?: { value?: number } } | undefined)?.grossPrice?.value ?? 0
+    const priceCents = Math.round((totalPrice / NIGHTS) * 100)
     if (!id || !name || priceCents <= 0) return []
     return [{ hotelId: `bk_${id}`, hotelName: name, stars, priceCents, photoUrl: photo }]
   })

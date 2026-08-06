@@ -78,6 +78,37 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
     expect(result.providerErrors).toBeUndefined()
   })
 
+  // Confirmed live (2026-08-06): booking-com15's grossPrice is the TOTAL for
+  // the whole stay, not a nightly rate -- querying the same hotel/dates for
+  // 1 night vs 2 nights returned $207.26 vs $389.12, not a flat value. This
+  // provider stored prices ~2x too high (undivided by NIGHTS) since its
+  // first commit, unlike fetchBookingComCoords, which already divided.
+  it('stores grossPrice divided by NIGHTS, not the raw total-for-stay value', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: {
+          hotels: [{
+            property: {
+              id: '2822154', name: 'Motel One Barcelona-Ciutadella', propertyClass: 3,
+              photoUrls: ['https://example.com/a.jpg'],
+              priceBreakdown: { grossPrice: { value: 389.12 } }, // 2-night total, per the live check above
+            },
+          }],
+        },
+      }),
+    })
+
+    const [result] = await runSnapshotsForMarket(MIA, 0)
+    expect(result.hotelsProcessed).toBe(1)
+
+    const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
+    expect(insertCall).toBeDefined()
+    const priceCents = insertCall?.[1]?.[7]
+    expect(priceCents).toBe(19456) // $194.56/night ($389.12 / 2), not the undivided $389.12 (38912 cents)
+  })
+
   it('still re-throws RateLimitError out of runSnapshotsForMarket unchanged (the route handler, not this function, decides what to do with it)', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({}) })
 
