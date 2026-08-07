@@ -4,7 +4,6 @@ import type { HotelOffer, NormalizedFare } from '@/lib/types';
 import { travelpayouts } from '../../../../lib/providers/travelpayouts';
 import { duffel } from '../../../../lib/providers/duffel';
 import { amadeus } from '../../../../lib/providers/amadeus';
-import { kiwi } from '../../../../lib/providers/kiwi';
 import { googleFlights } from '../../../../lib/providers/googleFlights';
 import { bookingComHotels } from '../../../../lib/providers/bookingComHotelsRapidApi';
 import { query } from '../../../../lib/db/client';
@@ -21,10 +20,6 @@ jest.mock('../../../../lib/providers/amadeus', () => ({
   amadeus: { searchFares: jest.fn() },
 }));
 
-jest.mock('../../../../lib/providers/kiwi', () => ({
-  kiwi: { searchFares: jest.fn() },
-}));
-
 jest.mock('../../../../lib/providers/googleFlights', () => ({
   googleFlights: { searchFares: jest.fn() },
 }));
@@ -37,7 +32,7 @@ jest.mock('../../../../lib/db/client', () => ({
   query: jest.fn(),
 }));
 
-const flightProviders = [travelpayouts, duffel, amadeus, kiwi, googleFlights] as unknown as Array<{
+const flightProviders = [travelpayouts, duffel, amadeus, googleFlights] as unknown as Array<{
   searchFares: jest.Mock;
 }>;
 const mockHotelSearch = bookingComHotels.searchHotels as jest.Mock;
@@ -308,7 +303,6 @@ describe('GET /api/search guardrails and provider failures', () => {
     (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Travelpayouts timed out' });
     (duffel.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Duffel timed out' });
     (amadeus.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Amadeus timed out' });
-    (kiwi.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Kiwi timed out' });
     (googleFlights.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'GoogleFlights timed out' });
 
     const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
@@ -320,7 +314,6 @@ describe('GET /api/search guardrails and provider failures', () => {
       expect.objectContaining({ provider: 'Travelpayouts', message: expect.stringContaining('did not respond in time') }),
       expect.objectContaining({ provider: 'Duffel', message: expect.stringContaining('did not respond in time') }),
       expect.objectContaining({ provider: 'Amadeus', message: expect.stringContaining('did not respond in time') }),
-      expect.objectContaining({ provider: 'Kiwi', message: expect.stringContaining('did not respond in time') }),
       expect.objectContaining({ provider: 'GoogleFlights', message: expect.stringContaining('did not respond in time') }),
     ]);
     expect(messages).toContainEqual(expect.objectContaining({ type: 'done' }));
