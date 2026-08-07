@@ -95,4 +95,80 @@ describe('PropertyPhoto', () => {
     // invisibly until some unrelated re-render happens to flip it.
     expect(root.root.findByType('img').props.className).toContain('opacity-0')
   })
+
+  // Regression test for a confirmed live bug: on a fast connection/warm cache,
+  // the browser can finish loading the <img> before React finishes hydrating
+  // and attaches onLoad -- that one-time native event fires and is gone, so
+  // without a post-hydration `.complete` check the image stays hidden behind
+  // its skeleton forever despite having loaded successfully.
+  it('reveals the image via the post-hydration .complete check when the browser finished loading before onLoad could attach', () => {
+    let root!: TestRenderer.ReactTestRenderer
+    act(() => {
+      root = TestRenderer.create(
+        <PropertyPhoto src="https://example.com/already-loaded.jpg" size="card" />,
+        { createNodeMock: () => ({ complete: true, naturalWidth: 400 }) },
+      )
+    })
+
+    // No onLoad was ever fired -- only the effect's .complete check ran.
+    expect(root.root.findByType('img').props.className).toContain('opacity-100')
+    expect(hasUnavailableMessage(root)).toBe(false)
+  })
+
+  it('shows unavailable via the post-hydration check when the browser already failed the load before onError could attach', () => {
+    let root!: TestRenderer.ReactTestRenderer
+    const onFailure = jest.fn()
+    act(() => {
+      root = TestRenderer.create(
+        <PropertyPhoto src="https://example.com/already-broken.jpg" size="card" onFailure={onFailure} />,
+        { createNodeMock: () => ({ complete: true, naturalWidth: 0 }) },
+      )
+    })
+
+    // No onError was ever fired -- only the effect's .complete/.naturalWidth check ran.
+    expect(hasUnavailableMessage(root)).toBe(true)
+    expect(onFailure).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not resolve early when the image has not finished loading yet (.complete is false)', () => {
+    let root!: TestRenderer.ReactTestRenderer
+    act(() => {
+      root = TestRenderer.create(
+        <PropertyPhoto src="https://example.com/still-loading.jpg" size="card" />,
+        { createNodeMock: () => ({ complete: false, naturalWidth: 0 }) },
+      )
+    })
+
+    expect(root.root.findByType('img').props.className).toContain('opacity-0')
+    expect(hasUnavailableMessage(root)).toBe(false)
+  })
+
+  // Verifies the effect's src-change handling composes correctly with the
+  // existing render-time failed/loaded reset: a component that previously
+  // failed must still recover via the .complete fast-path when swapped to a
+  // new, already-loaded src (not just via a later real onLoad call).
+  it('recovers via the .complete fast-path when a failed instance is swapped to a new, already-loaded src', () => {
+    let root!: TestRenderer.ReactTestRenderer
+    act(() => {
+      root = TestRenderer.create(
+        <PropertyPhoto src="https://example.com/a.jpg" size="card" />,
+        { createNodeMock: () => ({ complete: false, naturalWidth: 0 }) },
+      )
+    })
+    triggerImgError(root)
+    expect(hasUnavailableMessage(root)).toBe(true)
+
+    act(() => {
+      root.update(
+        <PropertyPhoto src="https://example.com/b-already-loaded.jpg" size="card" />,
+      )
+    })
+
+    // react-test-renderer calls createNodeMock again for the new host node,
+    // so this second mount gets complete:false too -- confirms the FAILED
+    // state clears (not stuck) even though naturalWidth stays 0, i.e. the
+    // reset is driven by the render-time src-change logic, not the effect.
+    expect(hasUnavailableMessage(root)).toBe(false)
+    expect(root.root.findByType('img').props.className).toContain('opacity-0')
+  })
 })

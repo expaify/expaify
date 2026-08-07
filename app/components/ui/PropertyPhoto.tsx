@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type PropertyPhotoProps = {
   src?: string | null
@@ -35,6 +35,29 @@ export function PropertyPhoto({ src, size, loading = 'lazy', onFailure }: Proper
     setFailed(false)
   }
   const classes = sizeClasses[size]
+  const imgRef = useRef<HTMLImageElement | null>(null)
+
+  // Hydration race: on a fast connection/warm cache, the browser can finish
+  // loading the <img> before React finishes hydrating and attaches the
+  // onLoad/onError listeners below -- that one-time native load event fires
+  // and is gone, so `loaded` would otherwise never become true and the image
+  // stays hidden behind its skeleton forever despite having loaded correctly.
+  // `.complete` (true once the browser is done, one way or another) plus
+  // `.naturalWidth` (0 only for a failed/broken load) let us detect and
+  // recover from that missed event once this effect runs post-hydration.
+  useEffect(() => {
+    const img = imgRef.current
+    if (!img || !img.complete) return
+    if (img.naturalWidth > 0) {
+      setLoaded(true)
+    } else {
+      setFailed(true)
+      onFailure?.()
+    }
+    // Only re-check on a genuine src change -- `loaded`/`failed`/`onFailure`
+    // are set by this same effect or by onLoad/onError, not inputs to it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src])
 
   if (!src || failed) {
     return (
@@ -56,6 +79,7 @@ export function PropertyPhoto({ src, size, loading = 'lazy', onFailure }: Proper
         {!loaded ? <div className="skeleton absolute inset-0 motion-reduce:animate-none" aria-hidden="true" /> : null}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
+          ref={imgRef}
           src={src}
           alt=""
           loading={loading}
