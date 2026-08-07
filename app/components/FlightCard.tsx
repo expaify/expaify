@@ -125,6 +125,17 @@ function confirmedStopsSummary(itinerary: NormalizedItinerary): string {
   return cities.length > 0 ? `${label} · ${cities.join(', ')}` : label
 }
 
+// The honest counterpart for a certainty:'partial' leg (e.g. Google
+// Flights, which gives a real duration and arrival time but never real
+// per-segment layover data). Uses the fare's own top-level `stops` count
+// -- always real, set by every provider regardless of itinerary certainty
+// -- but never invents a layover city name the way confirmedStopsSummary
+// can, since that data genuinely isn't there for a partial itinerary.
+function partialStopsSummary(stops: number): string {
+  if (stops <= 0) return 'Nonstop'
+  return stops === 1 ? '1 stop' : `${stops} stops`
+}
+
 function getScheduleContext(label: 'Depart' | 'Return', value: string) {
   const date = formatDate(value) || value
   const time = formatTime(value)
@@ -458,10 +469,12 @@ function RouteArrow({ tone = 'strong' }: { tone?: 'strong' | 'muted' }) {
 
 // The rich, Kiwi-style leg row: bold depart time + origin code on the
 // left, duration/stops in the middle, bold arrival time + destination code
-// on the right. Only ever used for a certainty:'confirmed' leg, so every
-// value it renders (departValue, arriveValue, durationMinutes,
-// stopsSummary) traces back to real provider-confirmed itinerary/fare
-// fields — nothing here is estimated or invented.
+// on the right. Used for both a certainty:'confirmed' leg (every value
+// provider-confirmed) and certainty:'partial' (real duration + arrival
+// time, but stopsSummary must be the honest partialStopsSummary, never
+// confirmedStopsSummary's invented-city version) — `estimated` distinguishes
+// the two visually so a partial leg is never presented with confirmed's
+// full precision.
 function LegTimeline({
   originCode,
   destinationCode,
@@ -469,6 +482,7 @@ function LegTimeline({
   arriveValue,
   durationMinutes,
   stopsSummary,
+  estimated = false,
 }: {
   originCode: string
   destinationCode: string
@@ -476,6 +490,7 @@ function LegTimeline({
   arriveValue: string
   durationMinutes?: number
   stopsSummary: string
+  estimated?: boolean
 }) {
   const departTime = formatTime(departValue)
   const arriveTime = formatTime(arriveValue)
@@ -498,6 +513,9 @@ function LegTimeline({
         ) : null}
         <RouteArrow tone="strong" />
         <p className="truncate text-xs font-medium leading-4 text-[var(--text-2)]">{stopsSummary}</p>
+        {estimated ? (
+          <p className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wide text-[var(--text-3)]">Estimated</p>
+        ) : null}
       </div>
       <div className="min-w-0 text-right">
         <p className="font-display text-lg font-bold leading-6 text-[var(--text-1)] tabular-nums sm:text-2xl">
@@ -569,22 +587,28 @@ function NightsDivider({ nights, destinationCity }: { nights: number; destinatio
 
 // The default-visible visual timeline this redesign adds: a real
 // departure-time/arrival-time route row (in the spirit of Kiwi's results
-// card), rendered whenever the outbound leg's itinerary is fully
-// provider-confirmed. Certainty 'partial' and 'unavailable' fares keep the
-// existing, unchanged collapsed treatment (duration pill + stops chip +
-// "Departs" text) rather than this richer view — this function returns
-// null for those, so FlightCard's own honest fallback keeps doing its job.
+// card). Renders for certainty:'confirmed' (full precision, real layover
+// city names) AND certainty:'partial' (real duration + arrival time, but
+// an honest stops-only summary and a visible "Estimated" cue — this is
+// Google Flights' realistic case, and live traffic showed this path is
+// what actually needs to render for the redesign to be visible at all;
+// see REPAIR-FLIGHT-TIMELINE-PARTIAL-CERTAINTY-01). Certainty 'unavailable'
+// fares keep the existing, unchanged collapsed treatment (duration pill +
+// stops chip + "Departs" text) — this function returns null for those, so
+// FlightCard's own honest fallback keeps doing its job.
 function RouteTimeline({ fare }: { fare: NormalizedFare }) {
   const itinerary = fare.itinerary
-  if (!itinerary || itinerary.certainty !== 'confirmed') return null
+  if (!itinerary || (itinerary.certainty !== 'confirmed' && itinerary.certainty !== 'partial')) return null
   if (!itinerary.arrive || !Number.isFinite(itinerary.durationMinutes)) return null
 
-  const stopsSummary = confirmedStopsSummary(itinerary)
+  const isConfirmed = itinerary.certainty === 'confirmed'
+  const stopsSummary = isConfirmed ? confirmedStopsSummary(itinerary) : partialStopsSummary(fare.stops)
   const nights = fare.return ? nightsBetween(fare.depart, fare.return) : null
   const nightsClause = nights !== null ? ` ${nights} night${nights === 1 ? '' : 's'} in ${formatAirportCity(fare.destination)}.` : ''
+  const precisionClause = isConfirmed ? '' : ' Timing is provider-estimated, not confirmed.'
   const ariaLabel = fare.return
-    ? `Outbound: ${stopsSummary === 'Nonstop' ? 'nonstop' : stopsSummary} from ${fare.origin} to ${fare.destination}, departs ${formatTime(fare.depart)}, arrives ${formatTime(itinerary.arrive)}, total duration ${durationAria(itinerary.durationMinutes)}.${nightsClause} Return arrives ${formatTime(fare.return)} at ${fare.origin} on ${formatDate(fare.return)}.`
-    : `${stopsSummary === 'Nonstop' ? 'Nonstop' : stopsSummary} from ${fare.origin} to ${fare.destination}, departs ${formatTime(fare.depart)}, arrives ${formatTime(itinerary.arrive)}, total duration ${durationAria(itinerary.durationMinutes)}.`
+    ? `Outbound: ${stopsSummary === 'Nonstop' ? 'nonstop' : stopsSummary} from ${fare.origin} to ${fare.destination}, departs ${formatTime(fare.depart)}, arrives ${formatTime(itinerary.arrive)}, total duration ${durationAria(itinerary.durationMinutes)}.${nightsClause} Return arrives ${formatTime(fare.return)} at ${fare.origin} on ${formatDate(fare.return)}.${precisionClause}`
+    : `${stopsSummary === 'Nonstop' ? 'Nonstop' : stopsSummary} from ${fare.origin} to ${fare.destination}, departs ${formatTime(fare.depart)}, arrives ${formatTime(itinerary.arrive)}, total duration ${durationAria(itinerary.durationMinutes)}.${precisionClause}`
 
   return (
     <div
@@ -599,6 +623,7 @@ function RouteTimeline({ fare }: { fare: NormalizedFare }) {
         arriveValue={itinerary.arrive}
         durationMinutes={itinerary.durationMinutes}
         stopsSummary={stopsSummary}
+        estimated={!isConfirmed}
       />
       {fare.return ? (
         <>
@@ -692,7 +717,7 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
   const itineraryCertainty = itinerary?.certainty ?? 'unavailable'
   const durationLabel = formatDuration(itinerary?.durationMinutes)
   const showCollapsedDuration = Boolean(durationLabel) && (itineraryCertainty === 'confirmed' || itineraryCertainty === 'partial')
-  const showRouteTimeline = itineraryCertainty === 'confirmed' && Boolean(itinerary?.arrive) && Number.isFinite(itinerary?.durationMinutes)
+  const showRouteTimeline = (itineraryCertainty === 'confirmed' || itineraryCertainty === 'partial') && Boolean(itinerary?.arrive) && Number.isFinite(itinerary?.durationMinutes)
   const scheduleAriaLabel = itineraryCertainty === 'confirmed' && durationLabel
     ? `Flight schedule, total duration ${durationAria(itinerary?.durationMinutes)}`
     : 'Flight schedule'

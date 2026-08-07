@@ -232,11 +232,81 @@ describe('FlightCard route timeline (confirmed itinerary)', () => {
   })
 })
 
+describe('FlightCard route timeline (Google-Flights-style partial itinerary: real duration + arrive, no segments)', () => {
+  // This is the shape live traffic actually produces right now: Google
+  // Flights' timestamps have no timezone offset, so it can never reach
+  // buildConfirmedItinerary -- but it does supply a real duration and
+  // arrival time. REPAIR-FLIGHT-TIMELINE-PARTIAL-CERTAINTY-01 extends the
+  // rich timeline to this case specifically because without it, the
+  // redesign never rendered on real searches (Duffel/Amadeus/Kiwi were all
+  // down, leaving only Google Flights + Travelpayouts, and Travelpayouts
+  // never confirms duration/arrive either).
+  it('shows a nonstop partial-certainty timeline with real times and an honest "Estimated" cue', () => {
+    const nonstopPartialFare: NormalizedFare = {
+      ...baseFare,
+      stops: 0,
+      itinerary: {
+        certainty: 'partial',
+        durationMinutes: 334,
+        arrive: '2026-09-01T13:29:00.000Z',
+      },
+    }
+
+    const text = collectText(FlightCard({ fare: nonstopPartialFare, score: null, loading: false }))
+
+    expect(text).toContain('8:00 AM')
+    expect(text).toContain('1:29 PM')
+    expect(text).toContain('5h 34m')
+    expect(text).toContain('Nonstop')
+    expect(text).toContain('Estimated')
+  })
+
+  it('shows a real stop count from fare.stops for a partial 1-stop fare, without inventing a layover city name', () => {
+    const oneStopPartialFare: NormalizedFare = {
+      ...baseFare,
+      stops: 1,
+      itinerary: {
+        certainty: 'partial',
+        durationMinutes: 410,
+        arrive: '2026-09-01T14:50:00.000Z',
+      },
+    }
+
+    const text = collectText(FlightCard({ fare: oneStopPartialFare, score: null, loading: false }))
+
+    expect(text).toContain('1 stop')
+    expect(text).toContain('Estimated')
+    // No layover data exists for a partial itinerary -- must never show a
+    // "1 stop · <city>" style summary the way the confirmed case does.
+    expect(text).not.toMatch(/1 stop\s*·/)
+  })
+
+  it('does not show the rich timeline for a partial fare missing durationMinutes (Duffel/Amadeus\'s thinner partial shape)', () => {
+    const thinPartialFare: NormalizedFare = {
+      ...baseFare,
+      stops: 0,
+      itinerary: {
+        certainty: 'partial',
+        arrive: '2026-09-01T13:30:00.000Z',
+      },
+    }
+
+    const text = collectText(FlightCard({ fare: thinPartialFare, score: null, loading: false }))
+
+    expect(text).not.toContain('Estimated')
+    expect(text).toContain('Departs 8:00 AM')
+  })
+})
+
 describe('FlightCard route timeline — honest fallback for partial/unavailable certainty', () => {
-  it('keeps the existing sparse collapsed treatment for a partial-certainty round trip (the realistic real-provider case) instead of a fabricated rich timeline', () => {
+  it('keeps the existing sparse collapsed treatment for a THIN partial-certainty round trip (Duffel/Amadeus\'s realistic case: no confirmed duration) instead of a fabricated rich timeline', () => {
     // Mirrors what Duffel/Amadeus actually return for a real round-trip
     // fare: itinerary only ever reaches 'partial' certainty, with just an
-    // outbound arrival timestamp and no confirmed duration or segments.
+    // outbound arrival timestamp and NO durationMinutes -- RouteTimeline's
+    // gate requires both arrive and a finite durationMinutes, so this thin
+    // shape correctly still falls back regardless of certainty extending to
+    // 'partial' elsewhere (see the sibling describe block below for the
+    // richer Google-Flights-style partial case that DOES get the timeline).
     const partialRoundTripFare: NormalizedFare = {
       ...baseFare,
       stops: 1,
@@ -251,8 +321,6 @@ describe('FlightCard route timeline — honest fallback for partial/unavailable 
 
     expect(text).toContain('Departs 8:00 AM')
     expect(text).toContain('1 stop')
-    // None of the new confirmed-only visual timeline markers should appear —
-    // this fare's certainty does not support them.
     expect(text).not.toContain('nights in')
     expect(text).not.toContain('Departure time unavailable')
     expect(text).not.toContain('Lands')
