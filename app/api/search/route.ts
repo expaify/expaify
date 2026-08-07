@@ -6,7 +6,6 @@ import { getNearby } from '../../../lib/airports/nearby';
 import { travelpayouts } from '../../../lib/providers/travelpayouts';
 import { duffel } from '../../../lib/providers/duffel';
 import { amadeus } from '../../../lib/providers/amadeus';
-import { kiwi } from '../../../lib/providers/kiwi';
 import { googleFlights } from '../../../lib/providers/googleFlights';
 import { bookingComHotels } from '../../../lib/providers/bookingComHotelsRapidApi';
 import { query } from '../../../lib/db/client';
@@ -378,7 +377,6 @@ export async function GET(request: NextRequest) {
         })(),
         searchFlightProvider('Duffel', 'duffel', () => duffel.searchFares(originIATA, destIATA ?? '', range)),
         searchFlightProvider('Amadeus', 'amadeus', () => amadeus.searchFares(originIATA, destIATA ?? '', range)),
-        searchFlightProvider('Kiwi', 'kiwi', () => kiwi.searchFares(originIATA, destIATA ?? '', range)),
         searchFlightProvider('GoogleFlights', 'googleFlights', () => googleFlights.searchFares(originIATA, destIATA ?? '', range)),
       ]);
 
