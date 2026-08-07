@@ -5,6 +5,18 @@ type AiDayPlanCardProps = {
   activities: AiDayPlanActivity[]
 }
 
+/**
+ * The AI trip planner only ever returns a free-text `description` sentence
+ * (e.g. "Visit Sagrada Familia"), never a structured place name -- so this
+ * builds a genuine Google Maps *search* URL from that sentence plus the
+ * destination city, the same honesty bar as buildGoogleFlightsDeeplink: a
+ * real search link, never a claim of a specific verified location.
+ */
+function buildActivityMapSearchUrl(description: string, destination: string): string {
+  const query = `${description} ${destination}`
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+}
+
 export function AiDayPlanCard({ destination, activities }: AiDayPlanCardProps) {
   if (activities.length === 0) return null
 
@@ -18,7 +30,15 @@ export function AiDayPlanCard({ destination, activities }: AiDayPlanCardProps) {
         {activities.map((activity, index) => (
           <li key={`${activity.time}-${index}`} className="flex gap-3 text-sm">
             <span className="w-20 shrink-0 font-medium text-[color:var(--text-2)]">{activity.time}</span>
-            <span className="text-[color:var(--text-2)]">{activity.description}</span>
+            <a
+              href={buildActivityMapSearchUrl(activity.description, destination)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[color:var(--text-2)] underline decoration-1 underline-offset-2 hover:text-[color:var(--brand)]"
+            >
+              {activity.description}
+              <span className="sr-only"> (opens a map search in a new tab)</span>
+            </a>
           </li>
         ))}
       </ol>
