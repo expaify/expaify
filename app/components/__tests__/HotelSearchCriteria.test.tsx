@@ -28,10 +28,16 @@ describe('HotelSearchCriteria UI', () => {
     expect(html).toContain('Your search')
     expect(html).toContain('Paris')
     expect(html).toContain('Check in Sep 10–13')
-    expect(html).toContain('Guests &amp; rooms not captured')
-    expect(html).toContain('Paris. Check in Sep 10–13. Guests and rooms not captured.')
+    expect(html).toContain('Party size not filtered yet')
+    expect(html).toContain('Prices assume standard occupancy')
+    expect(html).toContain('Paris. Check in Sep 10–13. Party size not filtered yet — prices assume standard occupancy.')
     expect(html).toContain('aria-label="Edit hotel search"')
     expect(html).not.toMatch(/2 adults|1 room|Matches your party/)
+    // The old copy read like a broken capture pipeline ("not captured") rather
+    // than a stated product choice -- confirmed live 2026-08-07 via a 5-model
+    // production audit that flagged it as undermining the "never overpay"
+    // trust promise. Must not regress back to that phrasing.
+    expect(html).not.toContain('not captured')
   })
 
   it('keeps the last applied summary visible and disables Edit while updating', () => {
@@ -39,7 +45,7 @@ describe('HotelSearchCriteria UI', () => {
       <HotelSearchCriteriaSummary criteria={criteria} surface="results" status="updating" onEdit={() => undefined} />,
     )
 
-    expect(html).toContain('Paris. Check in Sep 10–13. Guests and rooms not captured.')
+    expect(html).toContain('Paris. Check in Sep 10–13. Party size not filtered yet — prices assume standard occupancy.')
     expect(html).toContain('Updating results…')
     expect(html).toContain('aria-atomic="true"')
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*aria-label="Edit hotel search"/)

@@ -904,7 +904,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     setFailedCriteriaDraft(null)
     failedCriteriaVersionRef.current = null
     setUndoError(false)
-    setStatusAnnouncement(`Results updated for ${nextCriteria.destination.state === 'selected' ? nextCriteria.destination.city : 'All destinations'}. ${formatHotelCriteriaDates(nextCriteria.dates)}. Guests and rooms not captured.`)
+    setStatusAnnouncement(`Results updated for ${nextCriteria.destination.state === 'selected' ? nextCriteria.destination.city : 'All destinations'}. ${formatHotelCriteriaDates(nextCriteria.dates)}. Party size not filtered yet — prices assume standard occupancy.`)
     track('hotel_criteria_edit_applied', {
       changed_fields: changedFields,
       previous_version: criteria.criteriaVersion,
