@@ -1,12 +1,15 @@
 import type { ReactElement } from 'react'
-import type { NormalizedFare } from '@/lib/types'
+import type { DealScore, NormalizedFare } from '@/lib/types'
 
 // AirportInput and FlightCard each have their own dedicated test suites --
 // this test is about the wiring: does a search reach /api/search with the
 // right origin/dest/dates, does the NDJSON stream become sorted results,
-// and are notices/errors surfaced honestly instead of hidden.
+// are notices/errors surfaced honestly instead of hidden, and does each
+// cheapest fare get scored via the same /api/score infrastructure /flights
+// already uses (not a null score forever).
 let capturedAirportOnChange: ((iata: string, display: string) => void) | undefined
 const capturedFlightCardFares: NormalizedFare[] = []
+const capturedFlightCardProps: Array<{ fare: NormalizedFare; score: DealScore | null; loading: boolean }> = []
 
 jest.mock('@/app/components/AirportInput', () => ({
   __esModule: true,
@@ -19,8 +22,9 @@ jest.mock('@/app/components/AirportInput', () => ({
 
 jest.mock('@/app/components/FlightCard', () => ({
   __esModule: true,
-  default: (props: { fare: NormalizedFare }) => {
+  default: (props: { fare: NormalizedFare; score: DealScore | null; loading: boolean }) => {
     capturedFlightCardFares.push(props.fare)
+    capturedFlightCardProps.push(props)
     const React = require('react') as typeof import('react')
     return React.createElement('div', { 'data-testid': `flight-card-${props.fare.id}` }, `${props.fare.carrier} ${props.fare.price.priceCents}`)
   },
@@ -60,7 +64,18 @@ function makeReader(chunks: Uint8Array[]) {
   }
 }
 
-function installFetchMock(searchChunks: Uint8Array[], searchOk = true) {
+const DEFAULT_SCORE: DealScore = {
+  percentile: 20,
+  pctVsMedian: -15,
+  medianCents: 25000,
+  currency: 'USD',
+  verdict: 'Great',
+  confidence: 'high',
+  explanation: '$100.00 — about 15% below the usual $250.00 for this fare over the last 90 days.',
+  sampleSize: 12,
+}
+
+function installFetchMock(searchChunks: Uint8Array[], searchOk = true, scoreOk = true) {
   const calls: { url: string }[] = []
   global.fetch = jest.fn((input: unknown) => {
     const url = typeof input === 'string' ? input : String(input)
@@ -71,6 +86,12 @@ function installFetchMock(searchChunks: Uint8Array[], searchOk = true) {
       }
       const reader = makeReader(searchChunks)
       return Promise.resolve({ ok: true, status: 200, body: { getReader: () => reader } } as unknown as Response)
+    }
+    if (url.startsWith('/api/score')) {
+      if (!scoreOk) {
+        return Promise.resolve({ ok: false, status: 500, json: async () => ({}) } as unknown as Response)
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => DEFAULT_SCORE } as unknown as Response)
     }
     return Promise.reject(new Error(`Unexpected fetch call: ${url}`))
   }) as unknown as typeof fetch
@@ -107,6 +128,7 @@ describe('FlightsToThisDeal', () => {
   beforeEach(() => {
     capturedAirportOnChange = undefined
     capturedFlightCardFares.length = 0
+    capturedFlightCardProps.length = 0
     document.body.innerHTML = '<div id="root"></div>'
     container = document.querySelector('#root') as HTMLDivElement
     const { createRoot } = require('react-dom/client') as typeof import('react-dom/client')
@@ -196,8 +218,9 @@ describe('FlightsToThisDeal', () => {
     await act(async () => capturedAirportOnChange?.('JFK', 'New York (JFK)'))
     await act(async () => searchButton().click())
 
-    await waitFor(() => expect(capturedFlightCardFares.length).toBe(3))
-    expect(capturedFlightCardFares.map(f => f.id)).toEqual(['cheapest', 'mid', 'fourth'])
+    await waitFor(() => expect(new Set(capturedFlightCardFares.map(f => f.id)).size).toBe(3))
+    const uniqueIdsInFirstSeenOrder = [...new Set(capturedFlightCardFares.map(f => f.id))]
+    expect(uniqueIdsInFirstSeenOrder).toEqual(['cheapest', 'mid', 'fourth'])
   })
 
   it('surfaces a real provider notice instead of hiding it', async () => {
@@ -233,5 +256,52 @@ describe('FlightsToThisDeal', () => {
     await act(async () => searchButton().click())
 
     await waitFor(() => expect(container.textContent).toContain('Flight search failed'))
+  })
+
+  it('scores each cheapest fare via the same /api/score infrastructure /flights uses, not a permanent null score', async () => {
+    const calls = installFetchMock([
+      ndjsonBody([
+        { type: 'flights', source: 'duffel', data: [makeFare('cheapest', 10000)] },
+        { type: 'done' },
+      ]),
+    ])
+    await render()
+
+    const { act } = require('react') as typeof import('react')
+    await act(async () => capturedAirportOnChange?.('JFK', 'New York (JFK)'))
+    await act(async () => searchButton().click())
+
+    await waitFor(() => {
+      const scored = capturedFlightCardProps.filter(p => p.fare.id === 'cheapest' && p.score !== null)
+      expect(scored.length).toBeGreaterThan(0)
+    })
+
+    const scoreCall = calls.find(c => c.url.startsWith('/api/score'))
+    expect(scoreCall).toBeDefined()
+
+    const latest = capturedFlightCardProps.filter(p => p.fare.id === 'cheapest').at(-1)
+    expect(latest?.score).toEqual(DEFAULT_SCORE)
+    expect(latest?.loading).toBe(false)
+  })
+
+  it('shows an honest null score (never a fabricated one) when the score request fails', async () => {
+    installFetchMock(
+      [ndjsonBody([{ type: 'flights', source: 'duffel', data: [makeFare('cheapest', 10000)] }, { type: 'done' }])],
+      true,
+      false,
+    )
+    await render()
+
+    const { act } = require('react') as typeof import('react')
+    await act(async () => capturedAirportOnChange?.('JFK', 'New York (JFK)'))
+    await act(async () => searchButton().click())
+
+    await waitFor(() => {
+      const settled = capturedFlightCardProps.filter(p => p.fare.id === 'cheapest' && !p.loading)
+      expect(settled.length).toBeGreaterThan(0)
+    })
+
+    const latest = capturedFlightCardProps.filter(p => p.fare.id === 'cheapest').at(-1)
+    expect(latest?.score).toBeNull()
   })
 })
