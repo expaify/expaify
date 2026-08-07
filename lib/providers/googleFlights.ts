@@ -217,25 +217,31 @@ export class GoogleFlightsProvider implements FlightProvider {
       for (let index = 0; index < rawItineraries.length; index += 1) {
         const raw = rawItineraries[index];
         if (typeof raw !== 'object' || raw === null) {
-          return { ok: false, reason: 'GoogleFlights returned a malformed response' };
+          continue;
         }
         const item = raw as GoogleFlightsItinerary;
 
+        // Round-trip results can legitimately include unpriced itineraries
+        // (e.g. mixed-carrier "self transfer" combos where Google can't quote
+        // a combined fare) -- confirmed live via a real round-trip payload
+        // where `price` was the literal string "unavailable" on 2 of 73
+        // items. Skip just that item instead of discarding every real fare
+        // in the response over a handful of unbookable ones.
         if (typeof item.price !== 'number') {
-          return { ok: false, reason: 'GoogleFlights returned a malformed response' };
+          continue;
         }
         const priceCents = toPriceCents(item.price);
         if (priceCents === null) {
-          return { ok: false, reason: 'GoogleFlights returned an invalid price' };
+          continue;
         }
 
         if (typeof item.departure_time !== 'string' || typeof item.arrival_time !== 'string') {
-          return { ok: false, reason: 'GoogleFlights returned a malformed response' };
+          continue;
         }
         const parsedDepart = parseGoogleFlightsDateTime(item.departure_time);
         const parsedArrive = parseGoogleFlightsDateTime(item.arrival_time);
         if (parsedDepart === null || parsedArrive === null) {
-          return { ok: false, reason: 'GoogleFlights returned a malformed response' };
+          continue;
         }
 
         const segments = Array.isArray(item.flights) ? item.flights : [];

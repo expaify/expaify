@@ -407,58 +407,95 @@ describe('GoogleFlightsProvider.searchFares malformed-response handling', () => 
     expect(result.reason).toBe('GoogleFlights returned a malformed response');
   });
 
-  it('returns { ok: false, reason } when an itinerary entry is missing a numeric price', async () => {
-    mockFetchOk({
-      data: {
-        itineraries: {
-          topFlights: [
-            {
-              departure_time: '10-09-2026 01:55 PM',
-              arrival_time: '10-09-2026 10:29 PM',
-              duration: { raw: 334 },
-              flights: [],
-              stops: 0,
-              // price missing
-            },
-          ],
-        },
-      },
-    });
-    const provider = new GoogleFlightsProvider();
-    const result = await provider.searchFares('LAX', 'JFK', { depart: '2026-09-10', passengers: 1 });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error('Expected error');
-    expect(result.reason).toBe('GoogleFlights returned a malformed response');
-  });
-
-  it('returns { ok: false, reason } when departure_time cannot be parsed', async () => {
-    mockFetchOk({
-      data: {
-        itineraries: {
-          topFlights: [
-            {
-              departure_time: 'not a date',
-              arrival_time: '10-09-2026 10:29 PM',
-              duration: { raw: 334 },
-              flights: [],
-              price: 209,
-              stops: 0,
-            },
-          ],
-        },
-      },
-    });
-    const provider = new GoogleFlightsProvider();
-    const result = await provider.searchFares('LAX', 'JFK', { depart: '2026-09-10', passengers: 1 });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error('Expected error');
-    expect(result.reason).toBe('GoogleFlights returned a malformed response');
-  });
-
   it('treats an empty itineraries object as zero fares, not malformed', async () => {
     mockFetchOk({ data: { itineraries: {} } });
+    const provider = new GoogleFlightsProvider();
+    const result = await provider.searchFares('LAX', 'JFK', { depart: '2026-09-10', passengers: 1 });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.data).toEqual([]);
+  });
+});
+
+// ─── searchFares — skips individually broken itinerary entries ───────────────
+//
+// A real recorded round-trip response (LAX -> ATH, 2026-08-07) had 73 total
+// itinerary entries where 2 had `price: "unavailable"` (a literal string --
+// Google's own signal for a mixed-carrier "self transfer" combo it can't
+// quote a combined fare for). The old behavior treated any single bad item
+// as a fatal parse error for the WHOLE response, discarding all 71 good
+// fares along with the 2 unpriced ones -- this is what caused every
+// round-trip search to show "GoogleFlights returned a response we could not
+// use." These tests lock in the fix: skip just the broken entry.
+
+describe('GoogleFlightsProvider.searchFares skips individually broken itinerary entries', () => {
+  const GOOD_ITEM = {
+    departure_time: '10-09-2026 01:55 PM',
+    arrival_time: '10-09-2026 10:29 PM',
+    duration: { raw: 334 },
+    flights: [],
+    price: 209,
+    stops: 0,
+  };
+
+  it('skips an item whose price is the literal string "unavailable" (real Google Flights self-transfer signal) and keeps the rest', async () => {
+    mockFetchOk({
+      data: {
+        itineraries: {
+          topFlights: [GOOD_ITEM, { ...GOOD_ITEM, price: 'unavailable' }],
+        },
+      },
+    });
+    const provider = new GoogleFlightsProvider();
+    const result = await provider.searchFares('LAX', 'ATH', { depart: '2026-09-10', passengers: 1 });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].price.priceCents).toBe(20900);
+  });
+
+  it('skips an item with an unparseable departure_time and keeps the rest', async () => {
+    mockFetchOk({
+      data: {
+        itineraries: {
+          topFlights: [GOOD_ITEM, { ...GOOD_ITEM, departure_time: 'not a date' }],
+        },
+      },
+    });
+    const provider = new GoogleFlightsProvider();
+    const result = await provider.searchFares('LAX', 'JFK', { depart: '2026-09-10', passengers: 1 });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.data).toHaveLength(1);
+  });
+
+  it('skips a non-object entry in the itineraries array and keeps the rest', async () => {
+    mockFetchOk({
+      data: {
+        itineraries: {
+          topFlights: [GOOD_ITEM, null, 'not-an-object'],
+        },
+      },
+    });
+    const provider = new GoogleFlightsProvider();
+    const result = await provider.searchFares('LAX', 'JFK', { depart: '2026-09-10', passengers: 1 });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.data).toHaveLength(1);
+  });
+
+  it('returns ok:true with an empty array (not malformed) when every entry is individually broken', async () => {
+    mockFetchOk({
+      data: {
+        itineraries: {
+          topFlights: [{ ...GOOD_ITEM, price: 'unavailable' }],
+        },
+      },
+    });
     const provider = new GoogleFlightsProvider();
     const result = await provider.searchFares('LAX', 'JFK', { depart: '2026-09-10', passengers: 1 });
 
