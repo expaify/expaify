@@ -139,7 +139,7 @@ export function FlightsToThisDeal({ destinationIata, checkInDate, nights }: Flig
   }
 
   return (
-    <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-4 sm:p-6">
+    <section className="rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[var(--bg-surface)] p-4 sm:p-6">
       <h2 className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Find flights to {destinationIata}</h2>
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <div className="min-w-[200px] flex-1">
