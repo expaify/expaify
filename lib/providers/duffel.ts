@@ -201,7 +201,14 @@ export class DuffelProvider implements FlightProvider {
       });
 
       if (!res.ok) {
-        console.error('[Duffel] API error', { status: res.status, body: await res.text() });
+        const bodyText = await res.text();
+        console.error('[Duffel] API error', { status: res.status, body: bodyText });
+        await cache.set('debug:duffel:last_error', {
+          kind: 'http_error',
+          status: res.status,
+          body: bodyText.slice(0, 2000),
+          at: new Date().toISOString(),
+        }, 300).catch(() => {});
         return { ok: false, reason: `Duffel /air/offer_requests HTTP ${res.status}` };
       }
 
@@ -264,6 +271,13 @@ export class DuffelProvider implements FlightProvider {
       return { ok: true, data: fares };
     } catch (err) {
       console.error('[Duffel] Unhandled error', err);
+      await cache.set('debug:duffel:last_error', {
+        kind: 'exception',
+        message: err instanceof Error ? err.message : String(err),
+        name: err instanceof Error ? err.name : undefined,
+        stack: err instanceof Error ? err.stack?.slice(0, 2000) : undefined,
+        at: new Date().toISOString(),
+      }, 300).catch(() => {});
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     }
   }
