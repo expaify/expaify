@@ -34,12 +34,6 @@ export function LandingNav() {
         </a>
 
         <nav className="flex items-center gap-1" aria-label="Main navigation">
-          <a
-            href="/flights"
-            className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
-          >
-            Flights
-          </a>
           {status === 'loading' ? null : status === 'authenticated' ? (
             <>
               <a
