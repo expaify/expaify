@@ -82,6 +82,8 @@ jobs:
                 "RAPIDAPI_KEY=${{ secrets.RAPIDAPI_KEY }}" \
                 "RAPIDAPI_KEY_PRICELINE=${{ secrets.RAPIDAPI_KEY_PRICELINE }}" \
                 "RAPIDAPI_KEY_GOOGLE_FLIGHTS=${{ secrets.RAPIDAPI_KEY_GOOGLE_FLIGHTS }}" \
+                "GOOGLE_PLACES_API_KEY=${{ secrets.GOOGLE_PLACES_API_KEY }}" \
+                "IONET_API_KEY=${{ secrets.IONET_API_KEY }}" \
               --output none
           else
             az containerapp update \
@@ -115,5 +117,7 @@ jobs:
                 "RAPIDAPI_KEY=${{ secrets.RAPIDAPI_KEY }}" \
                 "RAPIDAPI_KEY_PRICELINE=${{ secrets.RAPIDAPI_KEY_PRICELINE }}" \
                 "RAPIDAPI_KEY_GOOGLE_FLIGHTS=${{ secrets.RAPIDAPI_KEY_GOOGLE_FLIGHTS }}" \
+                "GOOGLE_PLACES_API_KEY=${{ secrets.GOOGLE_PLACES_API_KEY }}" \
+                "IONET_API_KEY=${{ secrets.IONET_API_KEY }}" \
               --output none
           fi
