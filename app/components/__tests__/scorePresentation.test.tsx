@@ -460,7 +460,7 @@ describe('Deal score presentation', () => {
     expect(collectText(figure)).toBe('Property photo')
   })
 
-  it('keeps DealCard identity, rate evidence, and photo in source and DOM order', () => {
+  it('leads with the property photo, then keeps DealCard identity and rate evidence in source and DOM order', () => {
     const card = DealCard({
       deal: {
         id: 'deal-order',
@@ -479,10 +479,10 @@ describe('Deal score presentation', () => {
     })
     const text = collectText(card)
 
+    expect(text.indexOf('Property photo')).toBeLessThan(text.indexOf('Identity First Hotel'))
     expect(text.indexOf('Identity First Hotel')).toBeLessThan(text.indexOf('$140 USD'))
     expect(text.indexOf('Lisbon')).toBeLessThan(text.indexOf('$140 USD'))
     expect(text.indexOf('$140 USD')).toBeLessThan(text.indexOf('43% below usual'))
-    expect(text.indexOf('43% below usual')).toBeLessThan(text.indexOf('Property photo'))
   })
 
   it('uses the honest DealCard no-photo state without a scope caption', () => {

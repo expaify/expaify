@@ -215,12 +215,14 @@ function SkeletonCard() {
     // Mirrors DealCard's block order and heights so the feed does not jump when
     // real cards replace the placeholders.
     <div aria-hidden="true" className="overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)]">
+      <div className="px-4 pt-3">
+        <div className="skeleton h-34 w-full rounded-[var(--radius-control)] sm:h-38" />
+      </div>
       <div className="space-y-3 px-4 pb-4 pt-3">
         <div className="space-y-1.5">
           <div className="skeleton h-5 w-3/4 rounded-[var(--radius-pill)]" />
           <div className="skeleton h-3 w-1/2 rounded-[var(--radius-pill)]" />
         </div>
-        <div className="skeleton h-10 w-full rounded-[var(--radius-control)]" />
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <div className="skeleton h-8 w-24 rounded-[var(--radius-pill)]" />
@@ -228,8 +230,7 @@ function SkeletonCard() {
           </div>
           <div className="skeleton h-3 w-2/5 rounded-[var(--radius-pill)]" />
         </div>
-        <div className="skeleton h-34 w-full rounded-[var(--radius-control)] sm:h-38" />
-        <div className="skeleton h-11 w-full rounded-[var(--radius-input)]" />
+        <div className="skeleton h-10 w-full rounded-[var(--radius-control)]" />
         <div className="skeleton h-3 w-4/5 rounded-[var(--radius-pill)]" />
       </div>
     </div>
