@@ -155,7 +155,15 @@ export class DuffelProvider implements FlightProvider {
     if (departDate < new Date().toISOString().slice(0, 10)) return { ok: true, data: [] };
 
     const apiKey = this.apiKey;
-    if (!apiKey) return { ok: false, reason: 'Duffel not configured' };
+    if (!apiKey) {
+      console.error('[Duffel] not configured -- DUFFEL_KEY env var is empty/unset at runtime');
+      await cache.set('debug:duffel:last_error', {
+        kind: 'not_configured',
+        keyLength: apiKey.length,
+        at: new Date().toISOString(),
+      }, 300).catch(() => {});
+      return { ok: false, reason: 'Duffel not configured' };
+    }
 
     const passengerCount = range.passengers;
     const returnDate = range.return && /^\d{4}-\d{2}-\d{2}$/.test(range.return) && range.return >= departDate
