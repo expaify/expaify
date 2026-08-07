@@ -84,13 +84,17 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
 
   const content = (
     <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
+      <div className="px-4 pt-3">
+        {deal.isMock ? (
+          <span className="mb-2 inline-flex rounded-[var(--radius-pill)] bg-[color:var(--bg-muted)] px-2 py-1 font-display text-caption font-bold leading-none text-[color:var(--ink-soft)]">
+            Example
+          </span>
+        ) : null}
+        <PropertyPhoto src={deal.photoUrl} size="card" loading={photoLoading} />
+      </div>
+
       <div className="space-y-3 px-4 pb-4 pt-3">
         <div>
-          {deal.isMock ? (
-            <span className="mb-2 inline-flex rounded-[var(--radius-pill)] bg-[color:var(--bg-muted)] px-2 py-1 font-display text-caption font-bold leading-none text-[color:var(--ink-soft)]">
-              Example
-            </span>
-          ) : null}
           <h3 className="text-body line-clamp-2 font-display font-bold leading-snug text-[color:var(--ink)]">
             {deal.hotelName}
           </h3>
@@ -145,8 +149,6 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
             </p>
           ) : null}
         </div>
-
-        <PropertyPhoto src={deal.photoUrl} size="card" loading={photoLoading} />
 
         {deal.expired ? null : deal.isMock ? (
           <p className="text-caption font-medium leading-snug text-[color:var(--ink-faint)]">Sample hotel — not bookable</p>
