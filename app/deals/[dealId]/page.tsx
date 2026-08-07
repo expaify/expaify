@@ -18,6 +18,7 @@ import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
 import { AiDayPlanSection } from '@/app/components/AiDayPlanSection'
+import { LocationQualitySection } from '@/app/components/LocationQualitySection'
 import { AiDayPlanCardSkeleton } from '@/app/components/ui/AiDayPlanCard'
 import { notProvidedHotelDocumentReadiness } from '@/lib/providers/hotelDocumentReadiness'
 import HotelCancellationChoicesUnavailable from '@/app/components/HotelCancellationChoicesUnavailable'
@@ -481,6 +482,9 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             <h2 id="saved-supporting-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Supporting evidence</h2>
             <div className="mt-5 space-y-6">
               {deal.photo_url ? <PropertyPhoto src={deal.photo_url} size="detail" loading="lazy" /> : null}
+              <Suspense fallback={null}>
+                <LocationQualitySection hotelName={deal.hotel_name} city={deal.city} />
+              </Suspense>
               <HotelDealCriteriaSummary context={criteriaContext} deal={{ city: deal.city, checkInDate: deal.check_in_date }} />
               <HotelContinuityPrototype dealId={deal.id} hotelName={deal.hotel_name} fixtureId={continuityFixtureId} disclosure={continuityDisclosure} initiallyExpanded={disclosureParam === 'expanded'} />
               <Suspense fallback={<PriceHistorySkeleton />}>
