@@ -14,7 +14,8 @@ import {
 } from '@/app/components/HotelDecisionAnalytics'
 import { WatchCityPill } from '@/app/components/ui/WatchCityPill'
 import { getSubscription } from '@/lib/subscription'
-import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
+import { TRACKED_MARKET_NAMES, TRACKED_MARKETS } from '@/lib/trackedMarkets'
+import { FlightsToThisDeal } from '@/app/components/FlightsToThisDeal'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
 import { AiDayPlanSection } from '@/app/components/AiDayPlanSection'
@@ -477,6 +478,14 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
               />
             )}
           </section>
+
+          {!isExpired && !datesIncomplete && TRACKED_MARKETS.find(m => m.city === deal.city) ? (
+            <FlightsToThisDeal
+              destinationIata={TRACKED_MARKETS.find(m => m.city === deal.city)!.iata}
+              checkInDate={deal.check_in_date}
+              nights={deal.nights}
+            />
+          ) : null}
 
           <section aria-labelledby="saved-supporting-title" data-hotel-decision-section="supporting_evidence" data-hotel-decision-position="5" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="saved-supporting-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Supporting evidence</h2>
