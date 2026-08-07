@@ -176,7 +176,7 @@ async function PriceHistorySection({ deal }: { deal: DealRow }) {
 
   if (history.length < 3) {
     return (
-      <section>
+      <section id="price-history">
         <h3 className="text-h3 text-[color:var(--ink)]">Price history</h3>
         <p className="mt-2 text-sm text-[color:var(--text-2)]">Not enough historical checks are available to draw a chart.</p>
         <div className="mt-3">
@@ -187,7 +187,7 @@ async function PriceHistorySection({ deal }: { deal: DealRow }) {
   }
 
   return (
-    <section>
+    <section id="price-history">
       <h3 className="text-h3 text-[color:var(--ink)]">Price history</h3>
       <div className="mt-4">
         <PriceSparkline
@@ -239,6 +239,14 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
     score = scoreDeal(offer, pricePoints)
   }
 
+  // The Deal Score verdict and the price-history chart further down the page
+  // describe the exact same underlying data (same getPriceHistory query),
+  // but previously had no link between them -- a user who wanted to see the
+  // actual prices behind a Great/Good/Typical verdict had no path from one
+  // to the other. Only offer the jump when a real chart will actually be
+  // there to land on (matches PriceHistorySection's own >= 3 threshold).
+  const hasChartableHistory = rawHistory.length >= 3
+
   return (
     <div>
       <DealScorePanel
@@ -248,6 +256,14 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
         priceNoun="nightly rate"
         unavailableCopy="We could not compare this nightly rate with enough recent hotel prices."
       />
+      {hasChartableHistory ? (
+        <a
+          href="#price-history"
+          className="mt-2 inline-flex items-center text-xs font-medium text-[color:var(--brand)] underline decoration-1 underline-offset-2 hover:text-[color:var(--brand-hover)]"
+        >
+          See the price history behind this score
+        </a>
+      ) : null}
     </div>
   )
 }
