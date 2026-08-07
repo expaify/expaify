@@ -143,6 +143,13 @@ export class DuffelProvider implements FlightProvider {
     dest: string,
     range: FlightSearchRange
   ): Promise<Result<NormalizedFare[]>> {
+    cache.set('debug:duffel:heartbeat', {
+      calledAt: new Date().toISOString(),
+      origin,
+      dest,
+      keyLength: this.apiKey.length,
+    }, 300).catch(err => console.error('[Duffel] heartbeat write failed', err));
+
     // Duffel requires a destination and a valid future departure date
     if (!dest) return { ok: true, data: [] };
 
