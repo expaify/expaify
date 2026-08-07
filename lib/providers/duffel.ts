@@ -229,6 +229,12 @@ export class DuffelProvider implements FlightProvider {
 
       const json = await res.json();
       if (!isDuffelOfferResponse(json)) {
+        console.error('[Duffel] malformed response shape', JSON.stringify(json).slice(0, 1000));
+        await cache.set('debug:duffel:last_error', {
+          kind: 'malformed_response',
+          json: JSON.stringify(json).slice(0, 2000),
+          at: new Date().toISOString(),
+        }, 300).catch(() => {});
         return { ok: false, reason: 'Duffel returned a malformed response' };
       }
 
