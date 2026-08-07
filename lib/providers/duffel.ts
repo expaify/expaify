@@ -201,6 +201,7 @@ export class DuffelProvider implements FlightProvider {
       });
 
       if (!res.ok) {
+        console.error('[Duffel] API error', { status: res.status, body: await res.text() });
         return { ok: false, reason: `Duffel /air/offer_requests HTTP ${res.status}` };
       }
 
@@ -262,6 +263,7 @@ export class DuffelProvider implements FlightProvider {
       await cache.set(cacheKey, fares, CACHE_TTL);
       return { ok: true, data: fares };
     } catch (err) {
+      console.error('[Duffel] Unhandled error', err);
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
     }
   }

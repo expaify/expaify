@@ -150,6 +150,7 @@ function mockFetchError(status: number): void {
     status,
     statusText: 'Error',
     json: async () => ({}),
+    text: async () => '',
   } as Response);
 }
 
