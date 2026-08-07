@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import Link from 'next/link'
 import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
 
 type Props = {
@@ -91,15 +92,18 @@ export function SearchBar({ premium, onResult, onClear }: Props) {
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleSearch(query) }}
+          onFocus={() => { if (!premium) setMessage('Natural-language search is included with Premium.') }}
           placeholder={premium ? "Search e.g. '4 star hotels in Miami under $150'" : 'Upgrade to search deals in plain English'}
-          disabled={loading || !premium}
+          disabled={loading}
+          aria-describedby={!premium ? 'search-bar-premium-message' : undefined}
           className="w-full rounded-[var(--radius-input)] border border-[color:var(--line-ivory)] bg-white px-4 py-3 text-sm text-[color:var(--ink)] outline-none transition-colors focus:border-[color:var(--primary)] placeholder:text-[color:var(--ink-faint)] disabled:bg-[color:var(--surface)] disabled:opacity-75"
         />
         <button
           type="button"
           onClick={() => handleSearch(query)}
-          disabled={loading || !premium}
+          disabled={loading}
           aria-label="Search deals"
+          aria-describedby={!premium ? 'search-bar-premium-message' : undefined}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[color:var(--primary)] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {loading ? (
@@ -126,8 +130,17 @@ export function SearchBar({ premium, onResult, onClear }: Props) {
       </div>
 
       {message && (
-        <p className="mt-2 text-xs font-medium text-[color:var(--ink-soft)]">
-          {message}
+        <p id={!premium ? 'search-bar-premium-message' : undefined} className="mt-2 text-xs font-medium text-[color:var(--ink-soft)]">
+          {!premium && message === 'Natural-language search is included with Premium.' ? (
+            <>
+              Natural-language search is included with Premium.{' '}
+              <Link href="/account" className="font-medium text-[color:var(--primary)] underline underline-offset-2">
+                Upgrade
+              </Link>
+            </>
+          ) : (
+            message
+          )}
         </p>
       )}
 
