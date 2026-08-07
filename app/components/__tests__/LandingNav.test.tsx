@@ -60,18 +60,17 @@ describe('LandingNav', () => {
     })
   }
 
-  it('renders a Flights nav link pointing at /flights', async () => {
+  it('does not render a standalone Flights nav link -- flight search is contextual to hotel deals, not a peer nav destination', async () => {
     await renderNav()
 
     const flightsLink = Array.from(document.querySelectorAll('a')).find(
       a => a.textContent?.trim() === 'Flights'
     )
 
-    expect(flightsLink).toBeDefined()
-    expect(flightsLink?.getAttribute('href')).toBe('/flights')
+    expect(flightsLink).toBeUndefined()
   })
 
-  it('shows the Flights link for authenticated users too', async () => {
+  it('still shows the Deals link for authenticated users, unaffected by removing the Flights link', async () => {
     useSessionMock.mockReturnValue({
       data: { user: { email: 'traveler@example.com', name: 'Traveler' } },
       status: 'authenticated',
@@ -82,9 +81,8 @@ describe('LandingNav', () => {
     const flightsLink = Array.from(document.querySelectorAll('a')).find(
       a => a.textContent?.trim() === 'Flights'
     )
+    expect(flightsLink).toBeUndefined()
 
-    expect(flightsLink?.getAttribute('href')).toBe('/flights')
-    // Existing authenticated-only links should be unaffected by the addition.
     const dealsLink = Array.from(document.querySelectorAll('a')).find(a => a.textContent?.trim() === 'Deals')
     expect(dealsLink?.getAttribute('href')).toBe('/deals')
   })
