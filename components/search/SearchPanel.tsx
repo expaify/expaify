@@ -57,7 +57,11 @@ export function SearchPanel({
   initialReturnDate = '',
   onSubmit,
 }: SearchPanelProps): JSX.Element {
-  const [searchIntent, setSearchIntent] = React.useState<SearchIntent>('trip');
+  // Defaults to 'hotels', not 'trip' -- matches the site's actual
+  // differentiator (curated hotel-deal judgment, confirmed by tonight's
+  // 5-model research and already applied to the top nav) rather than
+  // presenting flights/hotels/both as three equal-weight starting points.
+  const [searchIntent, setSearchIntent] = React.useState<SearchIntent>('hotels');
   const [tripType, setTripType] = React.useState<TripType>('roundtrip');
   const [origin, setOrigin] = React.useState(initialOriginIata);
   const [originDisplay, setOriginDisplay] = React.useState(initialOriginDisplay);
@@ -96,9 +100,9 @@ export function SearchPanel({
         <legend className="sr-only">Search intent</legend>
         <div className="grid grid-cols-1 gap-2 rounded-xl bg-white/[0.04] p-1 sm:grid-cols-3">
           {([
-            ['flights', 'Flights', 'Rank fares'],
             ['hotels', 'Hotels', 'Check stays'],
             ['trip', 'Flight + hotel', 'Review both'],
+            ['flights', 'Flights', 'Rank fares'],
           ] as const).map(([intent, label, description]) => (
             <button
               key={intent}
