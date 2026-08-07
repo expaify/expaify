@@ -59,11 +59,11 @@ export function HotelSearchCriteriaSummary({ criteria, surface, status = 'ready'
           <p className="mt-1 text-base font-medium leading-6 text-[color:var(--text-1)] sm:text-base">
             {destination} <span aria-hidden="true">·</span> {dateDisplay}
           </p>
-          <p className="mt-1 text-sm font-medium leading-5 text-[color:var(--text-1)]">Guests &amp; rooms not captured</p>
+          <p className="mt-1 text-sm font-medium leading-5 text-[color:var(--text-1)]">Party size not filtered yet</p>
           <p className="mt-1 text-xs leading-5 text-[color:var(--text-2)]">
-            Confirm the price and room fit for your party with the provider.
+            Prices assume standard occupancy — confirm room fit for your party with the provider.
           </p>
-          <span className="sr-only">{destination}. {dateDisplay}. Guests and rooms not captured.</span>
+          <span className="sr-only">{destination}. {dateDisplay}. Party size not filtered yet — prices assume standard occupancy.</span>
           {status === 'updating' ? (
             <p role="status" aria-live="polite" aria-atomic="true" className="mt-2 text-xs font-medium text-[color:var(--brand)]">Updating results…</p>
           ) : null}
