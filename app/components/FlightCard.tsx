@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { DealScore, NormalizedFare } from '@/lib/types'
+import { DealScore, NormalizedFare, NormalizedItinerary } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
 import { flightFreshnessLabel, flightPriceCheckCopy, hasProviderName, validFreshnessDate } from '@/lib/providerFreshness'
 import { appendBookingReturnTo } from '@/lib/booking/config'
+import { AIRPORTS } from '@/lib/airports/data'
 import DealScorePanel from './DealScorePanel'
 
 type Props = {
@@ -76,6 +77,52 @@ function arrivalDaySuffix(depart: string, arrive?: string): string {
   const arriveDay = new Date(arriveDate.getFullYear(), arriveDate.getMonth(), arriveDate.getDate()).getTime()
   const diffDays = Math.round((arriveDay - departDay) / 86_400_000)
   return diffDays > 0 ? ` +${diffDays} day${diffDays === 1 ? '' : 's'}` : ''
+}
+
+function formatAirportCity(iata: string): string {
+  const code = iata.trim().toUpperCase()
+  if (!code) return ''
+  const airport = AIRPORTS.find(entry => entry.iata === code)
+  return airport?.city || code
+}
+
+// Counts full calendar days between two timestamps (or date-only values),
+// used only for the "X nights in {destination}" divider on round-trip
+// cards. Both `fromValue` and `toValue` are always real fields already on
+// the fare (`fare.depart` and `fare.return`) — never fabricated — but the
+// resulting night count is an honest approximation: `fare.return` is the
+// return flight's arrival time back at the origin (confirmed by every
+// provider that sets it), not its departure time from the destination, so
+// an overnight return flight can shift this by up to a day. Returns null
+// when either value is missing/invalid or the trip isn't at least one full
+// day, rather than showing a misleading "0 nights".
+function nightsBetween(fromValue: string, toValue: string): number | null {
+  if (!fromValue || !toValue) return null
+  const fromDate = fromValue.includes('T') ? new Date(fromValue) : new Date(`${fromValue}T00:00:00`)
+  const toDate = toValue.includes('T') ? new Date(toValue) : new Date(`${toValue}T00:00:00`)
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) return null
+  const fromDay = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate()).getTime()
+  const toDay = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate()).getTime()
+  const diffDays = Math.round((toDay - fromDay) / 86_400_000)
+  return diffDays > 0 ? diffDays : null
+}
+
+// Builds a Kiwi-style "1 stop · Houston" summary strictly from a
+// certainty:'confirmed' itinerary's own segments/layovers. By construction
+// (see lib/providers/itinerary.ts buildConfirmedItinerary), a confirmed
+// itinerary's layovers array is always complete — one entry per gap
+// between segments, each with a real airport code — so this never needs to
+// fall back to fare.stops (which, for round trips, is the sum of stops
+// across BOTH legs and would overcount a single leg).
+function confirmedStopsSummary(itinerary: NormalizedItinerary): string {
+  const segments = itinerary.segments ?? []
+  const stopCount = Math.max(segments.length - 1, 0)
+  if (stopCount === 0) return 'Nonstop'
+  const label = stopCount === 1 ? '1 stop' : `${stopCount} stops`
+  const cities = (itinerary.layovers ?? [])
+    .map(layover => formatAirportCity(layover.airport))
+    .filter(Boolean)
+  return cities.length > 0 ? `${label} · ${cities.join(', ')}` : label
 }
 
 function getScheduleContext(label: 'Depart' | 'Return', value: string) {
@@ -394,6 +441,179 @@ function ScoreChip({ score, loading }: { score: DealScore | null; loading: boole
   )
 }
 
+function RouteArrow({ tone = 'strong' }: { tone?: 'strong' | 'muted' }) {
+  const lineClass = tone === 'strong' ? 'bg-[var(--border-strong)]' : 'bg-[var(--border)]'
+  return (
+    <div className="my-1 flex w-full min-w-[2rem] items-center gap-1" aria-hidden="true">
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${lineClass}`} />
+      <span className={`h-px min-w-[0.5rem] flex-1 ${lineClass}`} />
+      <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="shrink-0 text-[var(--text-3)]">
+        <path d="M1 7h11M7.5 3.5L11 7l-3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <span className={`h-px min-w-[0.5rem] flex-1 ${lineClass}`} />
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${lineClass}`} />
+    </div>
+  )
+}
+
+// The rich, Kiwi-style leg row: bold depart time + origin code on the
+// left, duration/stops in the middle, bold arrival time + destination code
+// on the right. Only ever used for a certainty:'confirmed' leg, so every
+// value it renders (departValue, arriveValue, durationMinutes,
+// stopsSummary) traces back to real provider-confirmed itinerary/fare
+// fields — nothing here is estimated or invented.
+function LegTimeline({
+  originCode,
+  destinationCode,
+  departValue,
+  arriveValue,
+  durationMinutes,
+  stopsSummary,
+}: {
+  originCode: string
+  destinationCode: string
+  departValue: string
+  arriveValue: string
+  durationMinutes?: number
+  stopsSummary: string
+}) {
+  const departTime = formatTime(departValue)
+  const arriveTime = formatTime(arriveValue)
+  const daySuffix = arrivalDaySuffix(departValue, arriveValue)
+  const durationLabel = formatDuration(durationMinutes)
+
+  return (
+    <div className="grid grid-cols-[auto_minmax(3.5rem,1fr)_auto] items-center gap-2 sm:gap-3">
+      <div className="min-w-0 text-left">
+        <p className="font-display text-lg font-bold leading-6 text-[var(--text-1)] tabular-nums sm:text-2xl">
+          {departTime}
+        </p>
+        <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-2)]">
+          {originCode}
+        </p>
+      </div>
+      <div className="flex min-w-0 flex-col items-center px-1">
+        {durationLabel ? (
+          <p className="text-xs font-medium leading-4 text-[var(--text-2)] tabular-nums">{durationLabel}</p>
+        ) : null}
+        <RouteArrow tone="strong" />
+        <p className="truncate text-xs font-medium leading-4 text-[var(--text-2)]">{stopsSummary}</p>
+      </div>
+      <div className="min-w-0 text-right">
+        <p className="font-display text-lg font-bold leading-6 text-[var(--text-1)] tabular-nums sm:text-2xl">
+          {arriveTime}{daySuffix}
+        </p>
+        <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-2)]">
+          {destinationCode}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// The honest counterpart to LegTimeline for a round trip's return leg.
+// No provider in this codebase ever supplies the return flight's
+// departure time, duration, or stop count — only its arrival back at the
+// origin (`fare.return`, confirmed by every provider that sets it — see
+// duffel.ts/amadeus.ts/kiwi.ts, each assigning it from the final return
+// segment's real arrival timestamp). Inventing a fake departure time or
+// duration to mirror LegTimeline's layout would violate this card's
+// no-fabrication rule, so this row deliberately shows less: a muted
+// "Return" label in place of a depart time, and a real bold arrival time.
+function ReturnArrivalRow({
+  fromCode,
+  toCode,
+  arriveValue,
+}: {
+  fromCode: string
+  toCode: string
+  arriveValue: string
+}) {
+  const arriveTime = formatTime(arriveValue)
+  const arriveDate = formatDate(arriveValue)
+
+  return (
+    <div className="grid grid-cols-[auto_minmax(3.5rem,1fr)_auto] items-center gap-2 sm:gap-3">
+      <div className="min-w-0 text-left">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-2)]">Return</p>
+        <p className="mt-0.5 text-xs font-medium leading-4 text-[var(--text-3)]">{fromCode}</p>
+      </div>
+      <div className="flex min-w-0 flex-col items-center px-1">
+        <p className="text-xs font-medium leading-4 text-[var(--text-3)]">Departure time unavailable</p>
+        <RouteArrow tone="muted" />
+      </div>
+      <div className="min-w-0 text-right">
+        <p className="font-display text-lg font-bold leading-6 text-[var(--text-1)] tabular-nums sm:text-2xl">
+          {arriveTime}
+        </p>
+        <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-2)]">
+          {toCode}
+        </p>
+        <p className="text-[10px] font-medium leading-4 text-[var(--text-3)]">Lands {arriveDate}</p>
+      </div>
+    </div>
+  )
+}
+
+function NightsDivider({ nights, destinationCity }: { nights: number; destinationCity: string }) {
+  return (
+    <div className="my-3 flex items-center gap-2" role="separator">
+      <span className="h-px flex-1 bg-[var(--border)]" />
+      <span className="whitespace-nowrap rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-2)]">
+        {nights} night{nights === 1 ? '' : 's'} in {destinationCity}
+      </span>
+      <span className="h-px flex-1 bg-[var(--border)]" />
+    </div>
+  )
+}
+
+// The default-visible visual timeline this redesign adds: a real
+// departure-time/arrival-time route row (in the spirit of Kiwi's results
+// card), rendered whenever the outbound leg's itinerary is fully
+// provider-confirmed. Certainty 'partial' and 'unavailable' fares keep the
+// existing, unchanged collapsed treatment (duration pill + stops chip +
+// "Departs" text) rather than this richer view — this function returns
+// null for those, so FlightCard's own honest fallback keeps doing its job.
+function RouteTimeline({ fare }: { fare: NormalizedFare }) {
+  const itinerary = fare.itinerary
+  if (!itinerary || itinerary.certainty !== 'confirmed') return null
+  if (!itinerary.arrive || !Number.isFinite(itinerary.durationMinutes)) return null
+
+  const stopsSummary = confirmedStopsSummary(itinerary)
+  const nights = fare.return ? nightsBetween(fare.depart, fare.return) : null
+  const nightsClause = nights !== null ? ` ${nights} night${nights === 1 ? '' : 's'} in ${formatAirportCity(fare.destination)}.` : ''
+  const ariaLabel = fare.return
+    ? `Outbound: ${stopsSummary === 'Nonstop' ? 'nonstop' : stopsSummary} from ${fare.origin} to ${fare.destination}, departs ${formatTime(fare.depart)}, arrives ${formatTime(itinerary.arrive)}, total duration ${durationAria(itinerary.durationMinutes)}.${nightsClause} Return arrives ${formatTime(fare.return)} at ${fare.origin} on ${formatDate(fare.return)}.`
+    : `${stopsSummary === 'Nonstop' ? 'Nonstop' : stopsSummary} from ${fare.origin} to ${fare.destination}, departs ${formatTime(fare.depart)}, arrives ${formatTime(itinerary.arrive)}, total duration ${durationAria(itinerary.durationMinutes)}.`
+
+  return (
+    <div
+      className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-raised)] px-3 py-3 sm:px-4"
+      role="group"
+      aria-label={ariaLabel}
+    >
+      <LegTimeline
+        originCode={fare.origin}
+        destinationCode={fare.destination}
+        departValue={fare.depart}
+        arriveValue={itinerary.arrive}
+        durationMinutes={itinerary.durationMinutes}
+        stopsSummary={stopsSummary}
+      />
+      {fare.return ? (
+        <>
+          {nights !== null ? (
+            <NightsDivider nights={nights} destinationCity={formatAirportCity(fare.destination)} />
+          ) : (
+            <div className="my-3 h-px bg-[var(--border)]" role="separator" />
+          )}
+          <ReturnArrivalRow fromCode={fare.destination} toCode={fare.origin} arriveValue={fare.return} />
+        </>
+      ) : null}
+    </div>
+  )
+}
+
 export default function FlightCard({ fare, score, loading, baggageEstimate }: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -472,6 +692,7 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
   const itineraryCertainty = itinerary?.certainty ?? 'unavailable'
   const durationLabel = formatDuration(itinerary?.durationMinutes)
   const showCollapsedDuration = Boolean(durationLabel) && (itineraryCertainty === 'confirmed' || itineraryCertainty === 'partial')
+  const showRouteTimeline = itineraryCertainty === 'confirmed' && Boolean(itinerary?.arrive) && Number.isFinite(itinerary?.durationMinutes)
   const scheduleAriaLabel = itineraryCertainty === 'confirmed' && durationLabel
     ? `Flight schedule, total duration ${durationAria(itinerary?.durationMinutes)}`
     : 'Flight schedule'
@@ -500,7 +721,7 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
                 {tripLabel} · {carrierLabel}
               </p>
               <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
-                {showCollapsedDuration ? (
+                {showCollapsedDuration && !showRouteTimeline ? (
                   <span className={`text-xs leading-5 tabular-nums ${
                     itineraryCertainty === 'confirmed'
                       ? 'font-medium text-[var(--text-1)]'
@@ -510,7 +731,7 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
                   </span>
                 ) : null}
                 <StopsChip stops={fare.stops} />
-                {departContext.time ? (
+                {departContext.time && !showRouteTimeline ? (
                   <span className="truncate text-xs font-medium leading-5 text-[var(--text-2)]">
                     Departs {departContext.time}
                   </span>
@@ -524,6 +745,12 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
             <PriceUnavailable reason={unavailableReason} freshnessLabel={shouldShowUnavailableFreshness ? freshnessLabel : undefined} />
           )}
         </div>
+
+        {showRouteTimeline ? (
+          <div className="mt-3">
+            <RouteTimeline fare={fare} />
+          </div>
+        ) : null}
 
         {baggageEstimate ? <BaggageEstimateRow estimate={baggageEstimate} /> : null}
 
