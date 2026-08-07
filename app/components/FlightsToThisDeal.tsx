@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import AirportInput from '@/app/components/AirportInput'
 import FlightCard from '@/app/components/FlightCard'
 import { extractNdjsonLines } from '@/lib/search/parseNdjsonBuffer'
@@ -9,7 +9,7 @@ import {
   initialSearchStreamState,
   type SearchStreamState,
 } from '@/lib/search/searchStreamReducer'
-import type { NormalizedFare } from '@/lib/types'
+import type { DealScore, NormalizedFare } from '@/lib/types'
 
 /** Adds calendar days to a YYYY-MM-DD string in UTC, avoiding the
  * local-timezone day-boundary shift a plain `new Date(str).setDate(...)`
@@ -30,7 +30,45 @@ type ActiveSearch = {
 function FlightsToThisDealResults({ search }: { search: ActiveSearch }) {
   const [streamState, dispatch] = useReducer(applySearchStreamEvent, initialSearchStreamState)
   const [streamError, setStreamError] = useState<string | null>(null)
+  const [scores, setScores] = useState<Record<string, DealScore | null>>({})
+  const [scoreLoading, setScoreLoading] = useState<Set<string>>(new Set())
   const abortRef = useRef<AbortController | null>(null)
+  const requestedScoreIds = useRef<Set<string>>(new Set())
+
+  // Same Deal-Score-for-flights infrastructure /flights already uses
+  // (POST /api/score -> scoreDeal() against real route price history) --
+  // reused as-is so "Getting there" carries the identical Great/Good/Typical
+  // verdict grammar and trust model as the hotel Deal Score, not a
+  // bespoke one-off scale.
+  const scoreFare = useCallback((fare: NormalizedFare, signal: AbortSignal) => {
+    setScoreLoading(prev => new Set(prev).add(fare.id))
+    fetch('/api/score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fare }),
+      signal,
+    })
+      .then(response => {
+        if (!response.ok) throw new Error(`Deal score request failed (${response.status}).`)
+        return response.json() as Promise<DealScore>
+      })
+      .then(score => {
+        setScores(prev => ({ ...prev, [fare.id]: score }))
+      })
+      .catch(error => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        // A missing score is shown honestly as "no score" by FlightCard —
+        // never fabricate a DealScore when the request failed.
+        setScores(prev => ({ ...prev, [fare.id]: null }))
+      })
+      .finally(() => {
+        setScoreLoading(prev => {
+          const next = new Set(prev)
+          next.delete(fare.id)
+          return next
+        })
+      })
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -85,6 +123,17 @@ function FlightsToThisDealResults({ search }: { search: ActiveSearch }) {
     .sort((a, b) => a.price.priceCents - b.price.priceCents)
     .slice(0, 3)
 
+  useEffect(() => {
+    const controller = new AbortController()
+    const newFares = cheapestFares.filter(fare => !requestedScoreIds.current.has(fare.id))
+    newFares.forEach(fare => {
+      requestedScoreIds.current.add(fare.id)
+      scoreFare(fare, controller.signal)
+    })
+    return () => controller.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cheapestFares.map(fare => fare.id).join(','), scoreFare])
+
   return (
     <div className="mt-4 space-y-3">
       {streamError ? (
@@ -111,7 +160,12 @@ function FlightsToThisDealResults({ search }: { search: ActiveSearch }) {
       ) : null}
 
       {cheapestFares.map(fare => (
-        <FlightCard key={fare.id} fare={fare} score={null} loading={false} />
+        <FlightCard
+          key={fare.id}
+          fare={fare}
+          score={scores[fare.id] ?? null}
+          loading={scoreLoading.has(fare.id)}
+        />
       ))}
     </div>
   )
