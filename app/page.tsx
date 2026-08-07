@@ -163,30 +163,32 @@ export default async function LandingPage() {
                   See live deals
                 </a>
               </div>
-              <p className="flex items-center gap-1.5 text-small text-[color:var(--ink-faint)]">
+              <p className="flex items-center gap-1.5 text-small font-semibold text-[color:var(--ink)]">
                 <span aria-hidden className="text-[color:var(--primary)]">★★★★★</span>
                 Trusted by 2,400+ deal hunters
               </p>
             </div>
 
             {/* Right — deal cards stack */}
-            <div className="relative flex w-full max-w-[360px] flex-shrink-0 justify-center min-[900px]:justify-end">
-              {/* Peeking card behind — hidden on very small screens */}
-              <div
-                className="absolute inset-0 top-3 mx-auto hidden w-[calc(100%-32px)] opacity-60 min-[380px]:block min-[900px]:rotate-[3deg]"
-                aria-hidden
-                inert
-              >
-                <LockedDealCard
-                  placeholderName="Boutique Urban Stays"
-                  placeholderCity="Paris · Oct 10 – 12"
-                  stars={4}
-                  photoUrl={lockedPhotoPool[0] ?? undefined}
-                />
-              </div>
-              {/* Front card */}
-              <div className="relative z-10 w-full min-[900px]:-rotate-2">
-                <DealCard deal={heroCard} href={hasReal ? '/deals' : undefined} photoLoading="eager" />
+            <div className="flex w-full max-w-[360px] justify-center">
+              <div className="relative w-full">
+                {/* Peeking card behind — hidden on very small screens */}
+                <div
+                  className="absolute -inset-x-4 -top-4 hidden opacity-60 min-[380px]:block min-[900px]:-inset-x-6 min-[900px]:-top-6"
+                  aria-hidden
+                  inert
+                >
+                  <LockedDealCard
+                    placeholderName="Boutique Urban Stays"
+                    placeholderCity="Paris · Oct 10 – 12"
+                    stars={4}
+                    photoUrl={lockedPhotoPool[0] ?? undefined}
+                  />
+                </div>
+                {/* Front card */}
+                <div className="relative z-10">
+                  <DealCard deal={heroCard} href={hasReal ? '/deals' : undefined} photoLoading="eager" />
+                </div>
               </div>
             </div>
           </div>
