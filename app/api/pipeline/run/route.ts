@@ -5,6 +5,7 @@ import { getActiveMarkets, runSnapshotsForMarket, RateLimitError } from '@/lib/p
 import { detectDealsForMarket, getActiveDeals } from '@/lib/pipeline/dealDetection'
 import { sendInstantAlerts } from '@/lib/email/sendDealAlert'
 import { generateHeadlines } from '@/lib/ai/generateHeadline'
+import { pingIndexNow } from '@/lib/indexNow'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -102,6 +103,19 @@ export async function POST(req: NextRequest) {
     }
   } catch (err) {
     results['_alerts'] = { error: err instanceof Error ? err.message : String(err) }
+  }
+
+  // Ping Bing/Yandex's instant-indexing endpoint for newly published deal
+  // pages -- best-effort, never blocks or fails the pipeline response.
+  if (totalNewDeals > 0) {
+    try {
+      const newest = await getActiveDeals({ limit: Math.min(totalNewDeals, 100), sort: 'newest', includeMock: false })
+      const urls = newest.map(d => `https://expaify.com/deals/${d.id}`)
+      urls.push('https://expaify.com/deals')
+      void pingIndexNow(urls)
+    } catch {
+      // non-fatal — indexing pings are cosmetic
+    }
   }
 
   return NextResponse.json({

@@ -19,6 +19,7 @@ jest.mock('@/lib/pipeline/dealDetection', () => ({
 
 jest.mock('@/lib/email/sendDealAlert', () => ({ sendInstantAlerts: jest.fn() }))
 jest.mock('@/lib/ai/generateHeadline', () => ({ generateHeadlines: jest.fn().mockResolvedValue(undefined) }))
+jest.mock('@/lib/indexNow', () => ({ pingIndexNow: jest.fn().mockResolvedValue(undefined) }))
 
 const mockGetActiveMarkets = getActiveMarkets as jest.MockedFunction<typeof getActiveMarkets>
 const mockRunSnapshots = runSnapshotsForMarket as jest.MockedFunction<typeof runSnapshotsForMarket>
