@@ -8,8 +8,12 @@ import {
 } from '@/lib/booking/config';
 import { resolveBookingHotelContext } from '@/lib/booking/hotelContextStore';
 import BookingFlow from './BookingFlow';
+import type { Metadata } from 'next';
 
-export const metadata = { title: 'Booking review — expaify' };
+export const metadata: Metadata = {
+  title: 'Booking review — expaify',
+  robots: { index: false, follow: false },
+};
 
 type BookPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -77,3 +81,4 @@ export default async function BookPage({ searchParams }: BookPageProps) {
     </div>
   );
 }
+

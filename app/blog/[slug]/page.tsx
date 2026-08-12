@@ -44,6 +44,13 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   return {
     title: post.title,
     description: post.excerpt ?? undefined,
+    openGraph: {
+      title: post.title,
+      description: post.excerpt ?? undefined,
+      url: `https://expaify.com/blog/${slug}`,
+      type: 'article',
+    },
+    alternates: { canonical: `https://expaify.com/blog/${slug}` },
   };
 }
 
@@ -54,8 +61,25 @@ export default async function BlogPostPage({ params }: { params: PageParams }) {
 
   const formatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'long' });
 
+  const articleSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    description: post.excerpt ?? undefined,
+    datePublished: post.publishedDate,
+    image: post.heroImageUrl ?? undefined,
+    author: { '@type': 'Organization', name: 'expaify' },
+    publisher: { '@type': 'Organization', name: 'expaify', url: 'https://expaify.com' },
+    mainEntityOfPage: `https://expaify.com/blog/${slug}`,
+  };
+
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
       <LandingNav />
       <main className="mx-auto max-w-[760px] px-5 py-12">
         <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">{post.title}</h1>

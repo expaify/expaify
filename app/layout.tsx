@@ -63,10 +63,25 @@ export const viewport: Viewport = {
   themeColor: "#FAF7F2",
 };
 
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "expaify",
+  url: "https://expaify.com",
+  logo: "https://expaify.com/favicon.svg",
+  description:
+    "We track 20 destinations daily and alert you the moment a hotel drops 30%+ below its normal price.",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-[color:var(--bg)] text-[color:var(--ink)] antialiased">
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
         <Providers>{children}</Providers>
       </body>
     </html>

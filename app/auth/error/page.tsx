@@ -1,3 +1,10 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Sign-in error — expaify',
+  robots: { index: false, follow: false },
+};
+
 const ERROR_COPY: Record<string, string> = {
   Configuration: "There's a temporary problem with our sign-in service. Please try again in a moment.",
   AccessDenied: "Access was denied. If this is unexpected, try a different sign-in method.",
@@ -51,3 +58,4 @@ export default async function AuthErrorPage({
     </div>
   )
 }
+

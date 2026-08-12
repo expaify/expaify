@@ -3,6 +3,8 @@ import { LandingNav } from '@/app/components/LandingNav'
 
 export const metadata: Metadata = {
   title: 'Terms of Service — expaify',
+  description: 'The terms covering your expaify subscription, pricing and availability, affiliate relationships, and acceptable use.',
+  alternates: { canonical: 'https://expaify.com/terms' },
 }
 
 export default function TermsPage() {
@@ -10,7 +12,7 @@ export default function TermsPage() {
     <div className="min-h-screen bg-[color:var(--bg)]">
       <LandingNav />
       <main className="mx-auto max-w-[760px] px-5 py-12">
-        <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">Terms of Service</h1>
+        <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">Terms of Service — expaify</h1>
         <p className="mt-1 mb-10 text-sm text-[color:var(--ink-faint)]">Last updated July 2, 2026</p>
 
         <Section title="What expaify is">

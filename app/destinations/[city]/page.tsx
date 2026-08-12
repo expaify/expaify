@@ -156,7 +156,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
       </nav>
 
       <h1 className="text-h2 text-[color:var(--ink)] font-display mb-1">
-        Hotel deals in {displayName}
+        Hotel deals in {displayName} today
       </h1>
       {showWatchPill && sub && (
         <div className="mb-3 mt-2">

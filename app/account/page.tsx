@@ -4,6 +4,12 @@ import { getSubscription, isPremium } from '@/lib/subscription'
 import { reconcileCheckoutSession } from '@/lib/stripe/reconcileCheckout'
 import { query } from '@/lib/db/client'
 import { AccountClient } from './AccountClient'
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Your account — expaify',
+  robots: { index: false, follow: false },
+};
 
 type PageProps = {
   searchParams: Promise<{ welcome?: string; checkout?: string; session_id?: string }>
@@ -201,3 +207,4 @@ export default async function AccountPage({ searchParams }: PageProps) {
     </div>
   )
 }
+
