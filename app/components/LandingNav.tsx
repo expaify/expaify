@@ -37,6 +37,12 @@ export function LandingNav() {
           {status === 'loading' ? null : status === 'authenticated' ? (
             <>
               <a
+                href="/blog"
+                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
+              >
+                Blog
+              </a>
+              <a
                 href="/deals"
                 className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
               >
@@ -76,6 +82,12 @@ export function LandingNav() {
                   </a>
                 </>
               )}
+              <a
+                href="/blog"
+                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
+              >
+                Blog
+              </a>
               <a
                 href="/login"
                 className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
