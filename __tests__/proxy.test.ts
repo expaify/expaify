@@ -23,6 +23,16 @@ describe('proxy', () => {
     expect(mockAuth).not.toHaveBeenCalled()
   })
 
+  it('strips the internal container port from the redirect target -- Azure Container Apps ingress terminates TLS externally and forwards to the container on an internal port, so request.url reflects that internal port even though the Host header correctly says www.expaify.com', async () => {
+    const request = new NextRequest('http://127.0.0.1:3000/deals?city=paris', {
+      headers: { host: 'www.expaify.com' },
+    })
+
+    const response = await proxy(request)
+
+    expect(response.headers.get('location')).toBe('https://expaify.com/deals?city=paris')
+  })
+
   it('redirects www even for a protected path, before the auth check runs', async () => {
     const request = new NextRequest('https://www.expaify.com/account', {
       headers: { host: 'www.expaify.com' },
