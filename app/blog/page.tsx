@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   title: 'Blog',
 };
 
+// Contentful credentials are runtime-only secrets, not available during the
+// Docker build's `next build` step, so this route must never be statically
+// prerendered -- a build-time fetch would bake in an empty "No posts yet"
+// page that only self-heals after the next ISR revalidation window.
+export const dynamic = 'force-dynamic';
+
 export default async function BlogIndexPage() {
   const posts = await getBlogPosts();
   const formatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'long' });
