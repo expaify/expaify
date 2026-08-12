@@ -87,7 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <Providers>{children}</Providers>
         <Script
-          src="https://app.zipchat.ai/widget/zipchat.js?id=zcu-8b7babe599565681477d52a2995b56a484d81f70cfe26902"
+          src="https://app.zipchat.ai/widget/zipchat.js?id=YsPi3MJVzlI9TOdDBU2D"
           strategy="lazyOnload"
           data-no-optimize="1"
         />
