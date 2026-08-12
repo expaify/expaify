@@ -13,7 +13,9 @@ export async function proxy(request: NextRequest) {
   // tags alone mitigate. Redirect it to the canonical apex domain.
   if (request.headers.get('host') === 'www.expaify.com') {
     const url = new URL(request.url)
-    url.host = 'expaify.com'
+    url.protocol = 'https'
+    url.hostname = 'expaify.com'
+    url.port = ''
     return NextResponse.redirect(url, 308)
   }
 
