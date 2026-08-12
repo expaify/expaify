@@ -43,6 +43,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    site: "@expaify",
     title: "expaify Deal Desk",
     description:
       "Search live flight and hotel pricing, compare each option to recent route baselines, and review deal confidence before booking.",
@@ -71,6 +72,7 @@ const organizationSchema = {
   logo: "https://expaify.com/favicon.svg",
   description:
     "We track 20 destinations daily and alert you the moment a hotel drops 30%+ below its normal price.",
+  sameAs: ["https://x.com/expaify", "https://www.tiktok.com/@expaify"],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

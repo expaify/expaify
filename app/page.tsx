@@ -448,6 +448,30 @@ export default async function LandingPage() {
               <p className="text-small max-w-[180px] text-[color:var(--ink-faint-on-dark)]">
                 Never overpay for a hotel again.
               </p>
+              <div className="flex items-center gap-3">
+                <a
+                  href="https://x.com/expaify"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="expaify on X"
+                  className="text-[color:var(--ink-faint-on-dark)] transition-colors hover:text-[color:var(--text-inverse)]"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                </a>
+                <a
+                  href="https://www.tiktok.com/@expaify"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="expaify on TikTok"
+                  className="text-[color:var(--ink-faint-on-dark)] transition-colors hover:text-[color:var(--text-inverse)]"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <path d="M16.6 5.82a4.28 4.28 0 0 1-.53-2.9h-3.03v13.44a2.6 2.6 0 1 1-2.6-2.6c.19 0 .38.02.56.06V10.8a5.6 5.6 0 1 0 4.9 5.56V8.94a7.24 7.24 0 0 0 4.24 1.36V7.28a4.28 4.28 0 0 1-3.54-1.46z" />
+                  </svg>
+                </a>
+              </div>
             </div>
 
             {/* Product */}
