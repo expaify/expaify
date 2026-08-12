@@ -21,6 +21,7 @@ import { parseHotelPoolFixture } from '@/app/components/research/hotelPoolFixtur
 export const metadata: Metadata = {
   title: 'Hotel deals today — expaify',
   description: 'We track 20 destinations daily and surface hotel deals at least 30% below their 60-day median price.',
+  alternates: { canonical: 'https://expaify.com/deals' },
 }
 
 function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
@@ -168,6 +169,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     <>
       <LandingNav />
       <main className="mx-auto max-w-[1140px] px-5 pb-24 pt-10">
+        <h1 className="sr-only">Hotel deals today — expaify</h1>
         <DealFeed
           key={criteria.criteriaVersion}
           initialDeals={initialDeals}

@@ -37,7 +37,7 @@ export default function LoginPage() {
           expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
         </a>
 
-        <h1 className="mb-2 font-display text-2xl font-bold text-[color:var(--ink)]">Sign in</h1>
+        <h1 className="mb-2 font-display text-2xl font-bold text-[color:var(--ink)]">Sign in to your expaify account</h1>
         <p className="mb-8 text-base text-[color:var(--ink-soft)]">
           We&apos;ll email you a magic link — no password needed.
         </p>

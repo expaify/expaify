@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { getDealById, getPriceHistory, type DealRow } from '@/lib/pipeline/dealDetection'
@@ -56,6 +57,26 @@ import { HotelPoolEvidenceLedger } from '@/app/components/ui/HotelPoolEvidenceLe
 type PageProps = {
   params: Promise<{ dealId: string }>
   searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { dealId } = await params
+  const deal = await getDealById(dealId)
+  if (!deal) return {}
+
+  const title = `${deal.hotel_name} in ${deal.city} — expaify`
+  const description = `${deal.discount_pct}% below its usual price for ${deal.check_in_window} in ${deal.city}.`
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `https://expaify.com/deals/${dealId}`,
+    },
+    alternates: { canonical: `https://expaify.com/deals/${dealId}` },
+  }
 }
 
 function fmtDate(iso?: string | null): string {

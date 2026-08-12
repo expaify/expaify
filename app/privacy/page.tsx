@@ -3,6 +3,8 @@ import { LandingNav } from '@/app/components/LandingNav'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy — expaify',
+  description: 'What expaify collects, how we use it, and the data processors we share it with. No advertising profiles, no data sold to third parties.',
+  alternates: { canonical: 'https://expaify.com/privacy' },
 }
 
 export default function PrivacyPage() {
@@ -10,7 +12,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-[color:var(--bg)]">
       <LandingNav />
       <main className="mx-auto max-w-[760px] px-5 py-12">
-        <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">Privacy Policy</h1>
+        <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">Privacy Policy — expaify</h1>
         <p className="mt-1 mb-10 text-sm text-[color:var(--ink-faint)]">Last updated July 2, 2026</p>
 
         <Section title="What we collect">

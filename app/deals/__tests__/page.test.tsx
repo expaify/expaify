@@ -4,6 +4,7 @@ import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { getActiveDeals } from '@/lib/pipeline/dealDetection'
 import { query } from '@/lib/db/client'
 import DealsPage from '../page'
+import { DealFeed } from '../DealFeed'
 
 jest.mock('@/auth', () => ({ auth: jest.fn() }))
 jest.mock('@/lib/subscription', () => ({ getSubscription: jest.fn() }))
@@ -22,8 +23,11 @@ const mockQuery = query as jest.MockedFunction<typeof query>
 function dealFeedProps(tree: ReactElement<Record<string, unknown>>): Record<string, unknown> {
   const rootChildren = Children.toArray(tree.props.children as ReactNode) as ReactElement<Record<string, unknown>>[]
   const main = rootChildren.find(child => child.type === 'main')
-  if (!main || !main.props.children || typeof main.props.children !== 'object') throw new Error('DealFeed not found')
-  return (main.props.children as ReactElement<Record<string, unknown>>).props
+  if (!main) throw new Error('DealFeed not found')
+  const mainChildren = Children.toArray(main.props.children as ReactNode) as ReactElement<Record<string, unknown>>[]
+  const dealFeed = mainChildren.find(child => child.type === DealFeed)
+  if (!dealFeed) throw new Error('DealFeed not found')
+  return dealFeed.props
 }
 
 describe('/deals server reconstruction', () => {

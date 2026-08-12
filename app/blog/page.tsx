@@ -4,7 +4,9 @@ import { LandingNav } from '@/app/components/LandingNav';
 import { getBlogPosts } from '@/lib/contentful';
 
 export const metadata: Metadata = {
-  title: 'Blog',
+  title: 'The expaify Blog — hotel deal-hunting, explained honestly',
+  description: 'How Deal Score, price history, and location quality actually work -- straight explanations of the signals expaify uses to tell a real hotel deal from a marketing discount.',
+  alternates: { canonical: 'https://expaify.com/blog' },
 };
 
 // Contentful credentials are runtime-only secrets, not available during the
@@ -21,7 +23,7 @@ export default async function BlogIndexPage() {
     <div className="min-h-screen bg-[color:var(--bg)]">
       <LandingNav />
       <main className="mx-auto max-w-[760px] px-5 py-12">
-        <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">The expaify Blog</h1>
+        <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">The expaify Blog: honest hotel deal advice</h1>
         {posts.length === 0 ? (
           <p className="mt-6 text-body text-[color:var(--ink-soft)]">No posts yet — check back soon.</p>
         ) : (

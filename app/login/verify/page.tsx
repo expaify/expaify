@@ -1,3 +1,10 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Check your inbox — expaify',
+  robots: { index: false, follow: false },
+};
+
 export default function VerifyPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[color:var(--bg)] px-5">
@@ -44,3 +51,4 @@ export default function VerifyPage() {
     </div>
   )
 }
+

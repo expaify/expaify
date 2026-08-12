@@ -3,6 +3,12 @@ import { requireAdmin } from '@/lib/admin/role'
 import { getAdminDossier } from '@/lib/admin/dossier'
 import { AdminForbidden, AdminRoleCheckError } from '@/app/components/admin/AdminAccessState'
 import { AdminAccountDossier } from '@/app/components/admin/AdminAccountDossier'
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Admin — User detail — expaify',
+  robots: { index: false, follow: false },
+};
 
 interface PageProps {
   params: Promise<{ userId: string }>
@@ -40,3 +46,4 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
 
   return <AdminAccountDossier initialDossier={dossierResult.data} userId={userId} adminEmail={admin.data.email} />
 }
+
