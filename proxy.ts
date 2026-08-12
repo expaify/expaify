@@ -8,6 +8,15 @@ const PROTECTED_ROUTES = ['/account', '/admin']
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // www.expaify.com previously served full 200 content independently of
+  // expaify.com -- a duplicate-content risk beyond what per-page canonical
+  // tags alone mitigate. Redirect it to the canonical apex domain.
+  if (request.headers.get('host') === 'www.expaify.com') {
+    const url = new URL(request.url)
+    url.host = 'expaify.com'
+    return NextResponse.redirect(url, 308)
+  }
+
   if (PROTECTED_ROUTES.some((r) => pathname.startsWith(r))) {
     const session = await auth()
     if (!session) {
@@ -21,5 +30,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/account/:path*', '/admin/:path*'],
+  matcher: ['/((?!_next/static|_next/image).*)'],
 }
