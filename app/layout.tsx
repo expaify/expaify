@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Space_Grotesk } from "next/font/google";
+import Script from "next/script";
 import { Providers } from "./Providers";
 import "./globals.css";
 
@@ -85,6 +86,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
         <Providers>{children}</Providers>
+        <Script
+          src="https://widget.zipchat.ai/widget/zipchat.js?id=zcu-8b7babe599565681477d52a2995b56a484d81f70cfe26902"
+          strategy="lazyOnload"
+          data-no-optimize="1"
+        />
       </body>
     </html>
   );
