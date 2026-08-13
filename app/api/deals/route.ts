@@ -160,7 +160,7 @@ export async function GET(req: NextRequest) {
   // Fall back to mock deals when DB has no real data yet
   const source = rowsWithLookahead.length > 0 ? buildDealPage(rowsWithLookahead, offset, limit) : null
 
-  if (!source && !hasFilters) {
+  if (!source && !hasFilters && offset === 0) {
     // No confirmed deals yet — prefer real, currently-tracked hotels (real
     // photo, real price) over fabricated example cards. Only fall back to
     // generated mock deals if there's truly no real snapshot data yet.
