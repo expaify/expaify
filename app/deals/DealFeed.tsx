@@ -1793,9 +1793,9 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               </div>
               <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150`}>
                 {deals.map(deal => deal.locked ? (
-                  <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars ?? 4} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
+                  <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
-                  <DealCard key={deal.id} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars ?? 3, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
+                  <DealCard key={deal.id} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
               </div>
             </>
@@ -1810,9 +1810,9 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               </div>
               <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150`}>
                 {deals.map(deal => deal.locked ? (
-                  <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars ?? 4} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
+                  <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
-                  <DealCard key={deal.id} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars ?? 3, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
+                  <DealCard key={deal.id} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
               </div>
             </>
@@ -1897,7 +1897,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                       key={deal.id}
                       placeholderName="Members-only deal"
                       placeholderCity={deal.city}
-                      stars={deal.stars ?? 4}
+                      stars={deal.stars}
                       photoUrl={deal.photoUrl ?? undefined}
                       joinHref="/join"
                     />
@@ -1910,7 +1910,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                         id: deal.id,
                         hotelName: deal.hotelName,
                         city: deal.city,
-                        stars: deal.stars ?? 3,
+                        stars: deal.stars,
                         photoUrl: deal.photoUrl ?? undefined,
                         dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' },
                         medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' },
