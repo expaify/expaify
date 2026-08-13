@@ -1,0 +1,25 @@
+name: Weekly Free-Tier Teaser Emails
+
+on:
+  schedule:
+    # Runs every Monday at 10am UTC. The endpoint also enforces a 7-day cooldown.
+    - cron: '0 10 * * 1'
+  workflow_dispatch:
+
+jobs:
+  teaser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger free-tier teaser on prod
+        env:
+          PIPELINE_SECRET: ${{ secrets.PIPELINE_SECRET }}
+        run: |
+          curl -fsSL --max-time 60 \
+            -X POST https://expaify.com/api/alerts/teaser \
+            -H "Authorization: Bearer ${PIPELINE_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{}' | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          print(f'Sent: {d.get(\"recipients\", 0)}, Skipped: {d.get(\"skipped\", 0)}')
+          "
