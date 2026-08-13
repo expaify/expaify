@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { DealCard } from '../components/ui/DealCard'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
+import { Icon } from '../components/ui/icons/Icon'
 import { SearchBar } from '../components/ui/SearchBar'
 import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
 import { track } from '@/lib/analytics'
@@ -268,13 +269,6 @@ const FILTER_REMOVE_NAMES: Record<FilterPillKey, string> = {
   maxPrice: 'maximum price',
 }
 
-const LockGlyph = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <rect x="5" y="11" width="14" height="10" rx="2" />
-    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-  </svg>
-)
-
 /** Outline pill that opens a popover of options. Three states — neutral,
     set (premium fill + removable ×), locked (free tier, server-effective
     value, no ×) — never uses the `disabled` attribute so focus is preserved. */
@@ -382,7 +376,7 @@ function FilterPill({ label, filterKey, valueLabel, state, busy, inert, options,
           }}
           className={`flex min-h-11 items-center gap-1.5 rounded-l-[var(--radius-pill)] px-4 text-small font-medium ${blocked ? 'cursor-not-allowed' : ''} ${inert ? 'opacity-60' : ''} ${state === 'set' ? 'pr-1' : 'rounded-r-[var(--radius-pill)] pr-3'}`}
         >
-          {state === 'locked' ? <LockGlyph /> : null}
+          {state === 'locked' ? <Icon name="premium_unlocked" size={16} /> : null}
           <span className="min-w-0 truncate">{state === 'neutral' ? label : valueLabel}</span>
           {busy ? (
             <svg className="h-4 w-4 shrink-0 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -436,7 +430,7 @@ function FilterPill({ label, filterKey, valueLabel, state, busy, inert, options,
               <span className="min-w-0 flex-1">{opt.label}</span>
               {opt.locked ? (
                 <span aria-hidden="true" className="flex shrink-0 items-center gap-1 text-caption font-medium leading-5 text-[color:var(--text-1)]">
-                  <LockGlyph />
+                  <Icon name="premium_unlocked" size={16} />
                   Premium
                 </span>
               ) : null}

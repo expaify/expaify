@@ -6,6 +6,7 @@ import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { query } from '@/lib/db/client'
 import { formatMoney } from '@/lib/money'
 import { TrustLine } from '@/app/components/ui/TrustLine'
+import { Icon } from '@/app/components/ui/icons/Icon'
 import { PriceSparkline } from '@/app/components/ui/PriceSparkline'
 import { ShareButton } from '@/app/components/ui/ShareButton'
 import {
@@ -161,10 +162,7 @@ function LockedDealDetail({ city, checkInDate, checkInWindow, criteriaContext }:
           </div>
 
           <div className="mx-auto mt-6 flex max-w-[340px] flex-col items-center gap-3">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <rect x="5" y="11" width="14" height="10" rx="2" />
-              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-            </svg>
+            <Icon name="premium_unlocked" size={24} className="text-[color:var(--gold-deep)]" />
             <h1 className="font-display text-xl font-bold leading-snug text-[color:var(--ink)]">
               Members-only deal
             </h1>

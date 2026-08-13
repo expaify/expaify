@@ -1,4 +1,5 @@
 import { PropertyPhoto } from './PropertyPhoto'
+import { Icon } from './icons/Icon'
 
 type LockedDealCardProps = {
   placeholderName: string
@@ -64,10 +65,7 @@ export function LockedDealCard({
         </div>
 
         <div className="absolute inset-x-4 top-1/2 flex -translate-y-1/2 flex-col items-center gap-3 rounded-[var(--radius-input)] bg-[color:var(--bg-overlay)] px-4 py-4 text-center shadow-[var(--shadow-card-hover)] backdrop-blur-[2px]">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <rect x="5" y="11" width="14" height="10" rx="2" />
-            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-          </svg>
+          <Icon name="premium_unlocked" size={24} className="text-[color:var(--gold-deep)]" />
           <p className="text-caption font-medium text-[color:var(--ink-soft)]">Members-only deal</p>
           <a href={joinHref} className="btn btn-conversion btn-sm">Unlock with Premium</a>
         </div>
