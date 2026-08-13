@@ -11,6 +11,10 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
+  // Nested git worktrees (.claude/worktrees/<name>/) contain full copies of this
+  // repo's test files. Without this, jest recurses into them from the main
+  // checkout and double-runs (or more) every test against stale/incomplete copies.
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.claude/'],
 };
 
 export default createJestConfig(config);
