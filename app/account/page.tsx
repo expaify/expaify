@@ -28,12 +28,16 @@ export default async function AccountPage({ searchParams }: PageProps) {
   const session = await auth()
   if (!session?.user?.id) redirect('/login')
 
-  const [initialSub, params, activeDealCount] = await Promise.all([
+  const [initialSub, params, activeDealCount, authProviderResult] = await Promise.all([
     getSubscription(session.user.id).catch(() => null),
     searchParams,
     query<{ count: string }>(
       `SELECT COUNT(*)::text AS count FROM deals WHERE status = 'active' AND is_mock = false`
     ).then(r => parseInt(r.rows[0]?.count ?? '0', 10)).catch(() => 0),
+    query<{ provider: string }>(
+      `SELECT provider FROM accounts WHERE "userId" = $1 ORDER BY provider = 'google' DESC LIMIT 1`,
+      [session.user.id]
+    ).catch(() => ({ rows: [] })),
   ])
 
   // Backstop for the async Stripe webhook: a user landing here right after
@@ -50,6 +54,9 @@ export default async function AccountPage({ searchParams }: PageProps) {
   const showWelcome = params.welcome === '1' || params.checkout === 'success'
   const showCheckoutError = params.checkout === 'error'
   const daysLeft = sub?.status === 'trialing' && sub.trialEndsAt ? trialDaysLeft(sub.trialEndsAt) : null
+  const signInMethod = authProviderResult.rows[0]?.provider === 'google'
+    ? 'Signed in with Google'
+    : 'Signed in via email link'
 
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
@@ -179,16 +186,15 @@ export default async function AccountPage({ searchParams }: PageProps) {
         <section className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
           <h2 className="mb-3 font-display text-base font-bold text-[color:var(--ink)]">Profile</h2>
           <p className="text-sm text-[color:var(--ink-soft)] [overflow-wrap:anywhere]">{session.user.email}</p>
-          {!premium && (
-            <div className="mt-3 border-t border-[color:var(--line-ivory)] pt-3">
-              <AccountClient userId={session.user.id} signOutOnly />
-            </div>
-          )}
+          <p className="mt-1 text-sm text-[color:var(--ink-faint)]">{signInMethod}</p>
+          <div className="mt-3 border-t border-[color:var(--line-ivory)] pt-3">
+            <AccountClient userId={session.user.id} signOutOnly />
+          </div>
         </section>
 
         {/* Alerts + Watchlist (premium only) */}
         {premium && (
-          <section id="alerts" className="scroll-mt-20 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
+          <section id="alerts" className="mb-5 scroll-mt-20 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
             <h2 className="mb-1 font-display text-base font-bold text-[color:var(--ink)]">Email alerts</h2>
             <p className="mb-5 text-sm text-[color:var(--ink-faint)]">
               Choose how often we email you when a deal appears. Changes save instantly.
@@ -203,8 +209,16 @@ export default async function AccountPage({ searchParams }: PageProps) {
             />
           </section>
         )}
+
+        {/* Privacy (all authenticated users) */}
+        <section className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
+          <h2 className="mb-1 font-display text-base font-bold text-[color:var(--ink)]">Privacy</h2>
+          <p className="mb-5 text-sm text-[color:var(--ink-faint)]">
+            Request a copy of your account data or ask us to delete your account.
+          </p>
+          <AccountClient userId={session.user.id} showPrivacy />
+        </section>
       </main>
     </div>
   )
 }
-
