@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { Icon } from './icons/Icon'
 
 export type WatchCityPillProps = {
   city: string             // display name, must be in TRACKED_MARKET_NAMES
@@ -10,22 +11,6 @@ export type WatchCityPillProps = {
 
 type Status = 'idle' | 'error' | 'cap' | 'emptied'
 type WatchlistResponse = { watchlist?: unknown; error?: unknown }
-
-function PlusIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden>
-      <path d="M8 3v10M3 8h10" />
-    </svg>
-  )
-}
-
-function CheckIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M3 8.5l3.2 3.2L13 5" />
-    </svg>
-  )
-}
 
 export function WatchCityPill({ city, initialWatching, initialCount }: WatchCityPillProps) {
   const [watching, setWatching] = useState(initialWatching)
@@ -129,7 +114,7 @@ export function WatchCityPill({ city, initialWatching, initialCount }: WatchCity
         onClick={toggle}
         className={pillClass}
       >
-        {pending ? <span className="spinner" aria-hidden /> : watching ? <CheckIcon /> : <PlusIcon />}
+        {pending ? <span className="spinner" aria-hidden /> : <Icon name="watchlist" size={16} active={watching} />}
         {watching ? `Watching ${city}` : `Watch ${city}`}
       </button>
       <p aria-live="polite" className="mt-1.5 min-h-[18px] text-xs leading-[18px]">

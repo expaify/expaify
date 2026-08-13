@@ -6,6 +6,7 @@ import type { HotelDisruptionEvidence } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
 import { CompareRow } from './CompareRow'
 import { DealChip } from './DealChip'
+import { Icon } from './icons/Icon'
 import { PropertyPhoto } from './PropertyPhoto'
 import {
   getQuietEvidenceResultCue,
@@ -78,6 +79,17 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
   const savings = deal.medianPrice.priceCents - deal.dealPrice.priceCents
   const showSavings = savings >= 2000
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
+  // Trust Resolution Gate: Verify sufficient snapshot volume, fresh updates, and high discount magnitude
+  const isFresh = deal.updatedAt
+    ? (Date.now() - new Date(deal.updatedAt).getTime()) < 36 * 60 * 60 * 1000 // 36 hours in milliseconds
+    : false
+
+  const showVerifiedBadge =
+    !deal.isMock &&
+    !deal.expired &&
+    deal.snapshotCount >= 12 &&
+    deal.discountPct >= 15 &&
+    isFresh
   const quietEvidenceCue = getQuietEvidenceResultCue(quietStayEvidence)
   const disruptionCue = getHotelDisruptionResultCue(disruptionEvidence)
   const poolCue = getHotelPoolCardSummary(poolEvidence)
@@ -129,7 +141,20 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
                 Expired
               </span>
             ) : (
-              <DealChip discountPct={deal.discountPct} />
+              <>
+                <DealChip discountPct={deal.discountPct} />
+                {showVerifiedBadge && (
+                  <div
+                    className="inline-flex items-center gap-1 rounded-[var(--radius-pill)] bg-[color:var(--bg-muted)] px-2 py-1 text-caption font-bold text-[color:var(--primary)] self-center"
+                    role="status"
+                    title={`Verified savings based on ${deal.snapshotCount} independent price checks.`}
+                    aria-label={`Price verified by expaify. Based on ${deal.snapshotCount} independent price checks over the past 60 days.`}
+                  >
+                    <Icon name="verified_savings" size={16} className="text-[color:var(--primary)]" />
+                    <span>Price Verified</span>
+                  </div>
+                )}
+              </>
             )}
           </div>
           {deal.headline ? (

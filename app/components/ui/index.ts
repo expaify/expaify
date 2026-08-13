@@ -1,6 +1,7 @@
 export * from "./CompareRow";
 export * from "./DealCard";
 export * from "./DealChip";
+export * from "./icons/Icon";
 export * from "./LockedDealCard";
 export * from "./PriceBlock";
 export * from "./StarRow";
