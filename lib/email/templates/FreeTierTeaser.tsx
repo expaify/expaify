@@ -79,7 +79,7 @@ export function FreeTierTeaser({ lockedDealCount, topDeal, manageUrl, unsubscrib
               margin: '20px 0',
             }}
           >
-            Upgrade -- 7-day free trial
+            Upgrade — 7-day free trial
           </Button>
 
           <Hr style={{ border: 'none', borderTop: '1px solid #E8E2D8', margin: '0 0 16px' }} />
