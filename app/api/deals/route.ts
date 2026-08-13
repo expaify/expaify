@@ -59,7 +59,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
     id: row.id,
     hotelId: row.hotel_id,
     hotelName: row.hotel_name,
-    stars: row.stars,
+    stars: row.stars === null ? null : Number(row.stars),
     photoUrl: row.photo_url,
     city: row.city,
     dealPriceCents: row.deal_price_cents,
