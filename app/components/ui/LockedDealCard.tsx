@@ -4,7 +4,7 @@ import { Icon } from './icons/Icon'
 type LockedDealCardProps = {
   placeholderName: string
   placeholderCity: string
-  stars: number
+  stars: number | null
   photoUrl?: string
   joinHref?: string
 }
@@ -44,7 +44,7 @@ export function LockedDealCard({
         <div className="pointer-events-none select-none blur-[5px]" aria-hidden>
           <h3 className="text-body font-display font-bold leading-snug text-[color:var(--ink)]">{placeholderName}</h3>
           <p className="text-caption mt-0.5 leading-snug text-[color:var(--ink-faint)]">
-            {starChars(stars)} · {placeholderCity}
+            {stars === null ? 'Not yet rated' : starChars(stars)} · {placeholderCity}
           </p>
         </div>
         <div className="pointer-events-none select-none space-y-0.5 blur-[5px]" aria-hidden>

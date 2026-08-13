@@ -31,7 +31,7 @@ type DealCardDeal = {
   id: string
   hotelName: string
   city: string
-  stars: number
+  stars: number | null
   photoUrl?: string
   dealPrice: Money
   medianPrice: Money
@@ -111,7 +111,11 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
             {deal.hotelName}
           </h3>
           <p className="text-caption mt-0.5 leading-snug text-[color:var(--ink-faint)]">
-            <span aria-label={`${Math.round(deal.stars)} stars`} aria-hidden>{starChars(deal.stars)}</span>
+            {deal.stars === null ? (
+              <span>Not yet rated</span>
+            ) : (
+              <span aria-label={`${Math.round(deal.stars)} stars`} role="img">{starChars(deal.stars)}</span>
+            )}
             {' · '}{deal.city}{' · '}{deal.checkInWindow}
           </p>
           <HotelDisruptionResultCue evidence={disruptionEvidence} analyticsKey={deal.id} />
