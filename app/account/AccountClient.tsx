@@ -14,6 +14,7 @@ type Props = {
   minDiscountPct?: MinDiscountPct
   userId?: string
   showAlerts?: boolean
+  showPrivacy?: boolean
   signOutOnly?: boolean
   upgradePlan?: 'monthly' | 'annual'
 }
@@ -94,10 +95,13 @@ function PillRadioGroup<T extends string | number>({ label, options, value, onCh
   )
 }
 
-export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [], minDiscountPct = 40, showAlerts, signOutOnly, upgradePlan }: Props) {
+export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [], minDiscountPct = 40, showAlerts, showPrivacy, signOutOnly, upgradePlan }: Props) {
   const [portalLoading, setPortalLoading] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [privacyLoading, setPrivacyLoading] = useState<'export' | 'deletion' | null>(null)
+  const [privacySuccess, setPrivacySuccess] = useState<Record<'export' | 'deletion', boolean>>({ export: false, deletion: false })
+  const [privacyError, setPrivacyError] = useState<string | null>(null)
   const [pref, setPref] = useState<AlertPreference>(alertPreference ?? 'daily')
   const [discountPct, setDiscountPct] = useState<MinDiscountPct>(minDiscountPct)
   const [cities, setCities] = useState<string[]>(watchlist)
@@ -187,6 +191,32 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
     } catch (err) {
       setCheckoutError(err instanceof Error ? err.message : 'Checkout could not start')
       setCheckoutLoading(false)
+    }
+  }
+
+  async function requestPrivacyAction(type: 'export' | 'deletion') {
+    if (type === 'deletion') {
+      const confirmed = window.confirm(
+        'Request account deletion? Nothing is deleted immediately. We will review your request and follow up by email within 30 days.'
+      )
+      if (!confirmed) return
+    }
+
+    setPrivacyLoading(type)
+    setPrivacyError(null)
+    try {
+      const res = await fetch('/api/account/privacy-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type }),
+      })
+      const result = (await res.json().catch(() => null)) as { ok?: boolean; reason?: string } | null
+      if (!res.ok || !result?.ok) throw new Error(result?.reason ?? 'Could not create the request')
+      setPrivacySuccess(current => ({ ...current, [type]: true }))
+    } catch (err) {
+      setPrivacyError(err instanceof Error ? err.message : 'Could not create the request')
+    } finally {
+      setPrivacyLoading(null)
     }
   }
 
@@ -340,25 +370,58 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
     )
   }
 
+  if (showPrivacy) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div>
+          <button
+            type="button"
+            onClick={() => void requestPrivacyAction('export')}
+            disabled={privacyLoading !== null || privacySuccess.export}
+            className="btn btn-outline disabled:opacity-60"
+          >
+            {privacyLoading === 'export' ? 'Sending request…' : 'Request my data'}
+          </button>
+          {privacySuccess.export && (
+            <p role="status" className="mt-2 text-sm font-medium text-[color:var(--primary)]">
+              Request received — we will follow up by email within 30 days.
+            </p>
+          )}
+        </div>
+        <div className="border-t border-[color:var(--line-ivory)] pt-4">
+          <button
+            type="button"
+            onClick={() => void requestPrivacyAction('deletion')}
+            disabled={privacyLoading !== null || privacySuccess.deletion}
+            className="text-sm font-medium text-[color:var(--error-text)] hover:underline disabled:opacity-60"
+          >
+            {privacyLoading === 'deletion' ? 'Sending request…' : 'Delete my account'}
+          </button>
+          {privacySuccess.deletion && (
+            <p role="status" className="mt-2 text-sm font-medium text-[color:var(--primary)]">
+              Request received — we will follow up by email within 30 days.
+            </p>
+          )}
+        </div>
+        {privacyError && (
+          <p role="alert" className="text-sm font-medium text-[color:var(--error-text)]">
+            {privacyError}. Please try again.
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  if (!stripeCustomerId) return null
+
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      {stripeCustomerId && (
-        <button
-          type="button"
-          onClick={openPortal}
-          disabled={portalLoading}
-          className="btn btn-primary"
-        >
-          {portalLoading ? 'Loading…' : 'Manage billing'}
-        </button>
-      )}
-      <button
-        type="button"
-        onClick={() => signOut({ callbackUrl: '/' })}
-        className="text-sm text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]"
-      >
-        Sign out
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={openPortal}
+      disabled={portalLoading}
+      className="btn btn-primary"
+    >
+      {portalLoading ? 'Loading…' : 'Manage billing'}
+    </button>
   )
 }
