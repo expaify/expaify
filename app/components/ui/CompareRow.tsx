@@ -1,6 +1,7 @@
 'use client'
 
 import { track } from '@/lib/analytics'
+import { accessibilityProviderNameSuffix, type AccessibilityPresentation } from './HotelAccessibilityFit'
 
 export type CompareLinks = {
   expedia?: string;
@@ -24,6 +25,7 @@ type CompareRowProps = {
   handoffContext?: HotelHandoffAnalyticsContext
   hotelName?: string
   onProviderOpen?: (provider: keyof CompareLinks) => void
+  accessibility?: AccessibilityPresentation
 };
 
 const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
@@ -89,7 +91,7 @@ export function eligibleHotelProviderLinks(links: CompareLinks): CompareLinks {
   ) as CompareLinks
 }
 
-export function CompareRow({ links, size = "compact", handoffContext, hotelName, onProviderOpen }: CompareRowProps) {
+export function CompareRow({ links, size = "compact", handoffContext, hotelName, onProviderOpen, accessibility }: CompareRowProps) {
   const primary = size === "primary";
 
   // Layout only — colour is applied per-state so the unavailable variant can opt
@@ -118,7 +120,9 @@ export function CompareRow({ links, size = "compact", handoffContext, hotelName,
                   rel="noopener noreferrer sponsored"
                   data-hotel-provider={key}
                   aria-label={primary && hotelName
-                    ? `Check rooms at ${label} for ${hotelName}. Opens in a new tab. Room availability has not been checked by expaify; the provider will show current rooms and prices.`
+                    ? accessibility
+                      ? `Check rooms at ${label} for ${hotelName}. Opens in a new tab.${accessibilityProviderNameSuffix(accessibility) ? ` ${accessibilityProviderNameSuffix(accessibility)}` : ' Confirm room details, live availability, final total, taxes and fees, cancellation policy, and terms on the provider site.'}`
+                      : `Check rooms at ${label} for ${hotelName}. Opens in a new tab. Room availability has not been checked by expaify; the provider will show current rooms and prices.`
                     : `Check this deal on ${label}`}
                   onClick={() => {
                     onProviderOpen?.(key)
