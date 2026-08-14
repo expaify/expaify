@@ -38,7 +38,10 @@ const hotel: HotelOffer = {
   source: 'hotellook',
   documentReadiness: {
     status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
-    billingDetailsStep: 'unknown', source: { label: 'Hotellook' },
+    billingDetailsStep: 'unknown',
+    taxIdentifierEligibility: { state: 'not_provided', entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Hotellook', scope: 'rate' } },
+    documentNameEligibility: { state: 'not_provided', allowedAddresseeTypes: [], relationships: { guest: 'not_provided', booker: 'not_provided', cardholder: 'not_provided' }, entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Hotellook', scope: 'rate' } },
+    source: { label: 'Hotellook' },
   },
   fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'Hotellook', scope: 'not_returned' },
 }

@@ -155,6 +155,13 @@ describe('HotellookProvider.searchHotels', () => {
           documentTypes: [],
           issuerByDocument: {},
           billingDetailsStep: 'unknown',
+          taxIdentifierEligibility: {
+            state: 'not_provided', entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Hotellook', scope: 'rate' },
+          },
+          documentNameEligibility: {
+            state: 'not_provided', allowedAddresseeTypes: [], relationships: { guest: 'not_provided', booker: 'not_provided', cardholder: 'not_provided' },
+            entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Hotellook', scope: 'rate' },
+          },
           source: { label: 'Hotellook' },
         },
         hotelClass: {
@@ -470,6 +477,13 @@ describe('HotellookProvider.searchHotels', () => {
             documentTypes: [],
             issuerByDocument: {},
             billingDetailsStep: 'unknown',
+            taxIdentifierEligibility: {
+              state: 'not_provided', entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Hotellook', scope: 'rate' },
+            },
+            documentNameEligibility: {
+              state: 'not_provided', allowedAddresseeTypes: [], relationships: { guest: 'not_provided', booker: 'not_provided', cardholder: 'not_provided' },
+              entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Hotellook', scope: 'rate' },
+            },
             source: { label: 'Hotellook' },
           },
           hotelClass: {
