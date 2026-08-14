@@ -1121,7 +1121,11 @@ export default function HotelCard({
 
             <HotelTransportSection hotelId={hotel.id} evidence={resolvedTransportEvidence} />
 
-            <HotelAdmissionPolicyCardBlock presentation={admissionPolicy} providerName={hasHotelProviderName ? providerName : ''} />
+            <HotelAdmissionPolicyCardBlock
+              presentation={admissionPolicy}
+              providerName={hasHotelProviderName ? providerName : ''}
+              identityHeadingId={`${detailsId}-guest-identity-title`}
+            />
 
             <ParkingSection
               hotelId={hotel.id}

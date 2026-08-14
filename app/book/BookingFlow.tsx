@@ -26,6 +26,11 @@ import { deriveRateEligibilityPresentation } from '@/lib/hotels/rateEligibility'
 import { HotelAdmissionPolicySection } from '@/app/components/HotelAdmissionPolicy'
 import { deriveAdmissionPolicyPresentation } from '@/lib/hotels/admissionPolicy'
 import {
+  deriveGuestIdentityPresentation,
+  getGuestIdentityAccessibleAction,
+  HotelGuestIdentityRules,
+} from '@/app/components/HotelGuestIdentityRules'
+import {
   trackHotelHandoffWithAdmissionRestriction,
   useHotelAdmissionPolicyViewed,
 } from '@/app/components/hotelAdmissionPolicyAnalytics'
@@ -502,7 +507,11 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
             <p className="mt-2 text-xs leading-5 text-[color:var(--text-2)]">This provider did not return guest-rating evidence.</p>
           </div>
         </dl>
-        <HotelAdmissionPolicySection presentation={admissionPolicy} providerName={hasProviderName(hotelContext.provider) ? rateSource : ''} />
+        <HotelAdmissionPolicySection
+          presentation={admissionPolicy}
+          providerName={hasProviderName(hotelContext.provider) ? rateSource : ''}
+          includeIdentityRules={false}
+        />
         <HotelSustainabilityCredentialEvidence />
       </section>
     </>
@@ -1142,6 +1151,10 @@ function HotelHandoffReview({
     evidence: hotelContext.admissionPolicy,
     capability: hotelContext.admissionPolicyCapability,
   })
+  const guestIdentity = deriveGuestIdentityPresentation(
+    admissionPolicy,
+    hasProviderName(hotelContext.provider) ? providerDisplayName(hotelContext.provider) : '',
+  )
   const resolvedFundsPolicy = fundsPolicy ?? hotelContext.fundsPolicy
   // No reachable provider (Hotellook, Booking.com RapidAPI, Hotelbeds) supplies payment-acceptance
   // evidence today — see docs/pipeline/hotel-payment-method/02-research.md §1.3. All three declare
@@ -1679,7 +1692,7 @@ function HotelHandoffReview({
     ? `${partner.label} confirms the final total before you pay.`
     : 'The booking partner confirms the final total before you pay.'
   const transportGuidance = getHotelTransportHandoffGuidance(hotelContext.transportEvidence)
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary(priceComposition)} ${finalTotalBoundary} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner.`
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary(priceComposition)} ${finalTotalBoundary} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner. ${getGuestIdentityAccessibleAction(guestIdentity)}`
   const rebookWarning = `You already told us you booked this stay on ${stub ? formatDeclaredAt(stub.declaredBookedAt) : ''}. Booking again creates a second reservation with ${partnerPhrase(partner)}.`
 
   return (
@@ -1740,6 +1753,10 @@ function HotelHandoffReview({
         <div className="mt-3">
           <HotelBookingModificationCue partner={verifiedModificationPartner} />
         </div>
+        <HotelGuestIdentityRules
+          presentation={guestIdentity}
+          headingId="hotel-handoff-guest-identity-title"
+        />
         <div className="mt-3 flex flex-col gap-3">
           {isRecognizedHandoff ? (
             <p className={`text-sm font-medium leading-6 text-[color:var(--warning)] ${partnerLabelWrapCls}`}>
@@ -1856,10 +1873,10 @@ function HotelHandoffReview({
             What you may need
           </h3>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            Have the lead guest’s full name, a confirmation email, and a reachable phone number ready. The booking partner will show exactly what is required.
+            Have the lead guest’s full name, a confirmation email, and a reachable phone number ready. The booking partner will show what it needs to create the booking.
           </p>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            Booking for someone else? Use the name of the person checking in as the lead guest. The booking partner will tell you whose email and phone it needs.
+            Booking for someone else? Use the name of the person checking in as the lead guest. This does not confirm whose ID or payment card the property will accept; review the ID and cardholder rules before paying.
           </p>
         </section>
         <HotelDocumentIntentControl checked={invoiceNeeded} onChange={handleInvoiceNeedChange} />
