@@ -214,7 +214,7 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
   if (key === 'filter') return oneOf(value, ['city', 'minDiscount', 'minStars', 'maxPrice', 'dateFrom', 'dateTo'])
   if (key === 'source') {
     if (event === 'feed_filter_chip_removed') return oneOf(value, ['promoted', 'review_filters'])
-    return oneOf(value, ['hotellook', 'duffel', 'amadeus', 'kiwi', 'travelpayouts', 'other'])
+    return oneOf(value, ['hotellook', 'duffel', 'kiwi', 'travelpayouts', 'other'])
   }
   if (key === 'current_sort' || key === 'previous_sort' || key === 'sort_from' || key === 'sort_to') {
     return oneOf(value, ['recently_found', 'biggest_discount', 'lowest_nightly_price'])

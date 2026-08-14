@@ -141,7 +141,7 @@ curl -s -X POST http://localhost:3001/api/tickets \
 - Implement logic, API routes (`app/api/`), providers (`lib/providers/`), scoring (`lib/scoring/`), or data helpers (`lib/db/`).
 - Every provider method returns `Result<T>` — never throws to callers.
 - Money is always `{ priceCents: number; currency: string }` — never floats.
-- Secrets come from env only: `TP_TOKEN`, `AMADEUS_ID`, `AMADEUS_SECRET`, `DUFFEL_KEY`, `SERPAPI_KEY`.
+- Secrets come from env only: `TP_TOKEN`, `DUFFEL_KEY`, `SERPAPI_KEY`.
 - Run `npx tsc --noEmit --incremental false` and `npm test -- --passWithNoTests`. Both must exit 0.
 - Commit: `git add -A && git commit -m "DEV-<id>: <what changed>"`.
 

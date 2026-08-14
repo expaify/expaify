@@ -17,7 +17,6 @@ const confirmationCopy = 'Confirm location, cost, reservation rules, operator, a
 const recognizedProviders = new Map([
   ['travelpayouts', 'Travelpayouts'],
   ['duffel', 'Duffel'],
-  ['amadeus', 'Amadeus'],
   ['kiwi', 'Kiwi'],
   ['hotellook', 'Hotellook'],
   ['booking.com', 'Booking.com'],
