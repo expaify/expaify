@@ -4,7 +4,20 @@ import {
   parseBookingHotelContext,
   validateStructuredBookingHotelContext,
 } from '../config'
-import type { HotelOffer, HotelTransportEvidence } from '../../types'
+import type { HotelOffer, HotelReviewEvidence, HotelTransportEvidence } from '../../types'
+
+const reviewEvidence: HotelReviewEvidence = {
+  schemaVersion: 1,
+  state: 'ready',
+  providerPropertyId: 'transport-hotel',
+  providerId: 'future-provider',
+  provenance: 'verified_guest',
+  score: { value: 8.7, scaleMax: 10 },
+  sourceLabel: 'Future Hotel Provider reviews',
+  overallReviewCount: 1_248,
+  coverage: { kind: 'provider_declared_aggregate', endMonth: '2026-03' },
+  ratingObservedAt: '2026-07-31T12:00:00.000Z',
+}
 
 const transportEvidence: HotelTransportEvidence = {
   state: 'ready',
@@ -45,6 +58,7 @@ const hotel: HotelOffer = {
     state: 'not_returned', obligations: [], sourceLabel: 'Future Hotel Provider', scope: 'not_returned',
   },
   transportEvidence,
+  reviewEvidence,
 }
 
 const paidWithoutDocumentedDetails = {
@@ -69,6 +83,9 @@ describe('hotel transport booking continuity', () => {
     expect(context.transportEvidence).toEqual(transportEvidence)
     expect(structured?.transportEvidence).toEqual(transportEvidence)
     expect(inline?.transportEvidence).toEqual(transportEvidence)
+    expect(context.reviewEvidence).toEqual(reviewEvidence)
+    expect(structured?.reviewEvidence).toEqual(reviewEvidence)
+    expect(inline?.reviewEvidence).toEqual(reviewEvidence)
     expect(inline?.providerUrl).toBe(hotel.deeplink)
   })
 

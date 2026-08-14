@@ -1,7 +1,7 @@
 'use client'
 
 import { formatMoney } from '@/lib/money'
-import type { Money } from '@/lib/types'
+import type { HotelReviewEvidence, Money } from '@/lib/types'
 import type { HotelDisruptionEvidence } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
 import { CompareRow } from './CompareRow'
@@ -23,6 +23,7 @@ import {
   accessibilityCardAccessibleText,
   type AccessibilityPresentation,
 } from './HotelAccessibilityFit'
+import { getGuestReviewScanLine } from '../GuestReviewEvidence'
 
 type DealLinks = {
   expedia?: string
@@ -49,6 +50,7 @@ type DealCardDeal = {
   firstSeen?: string
   updatedAt?: string | null
   expired?: boolean
+  reviewEvidence?: HotelReviewEvidence
 }
 
 type DealCardProps = {
@@ -100,6 +102,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
   const disruptionCue = getHotelDisruptionResultCue(disruptionEvidence)
   const poolCue = getHotelPoolCardSummary(poolEvidence)
   const accessibilityAccessibleText = accessibilityCardAccessibleText(accessibility, deal.expired)
+  const reviewScanLine = getGuestReviewScanLine(deal.reviewEvidence)
 
   const content = (
     <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
@@ -121,10 +124,15 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
             {deal.stars === null ? (
               <span>Not yet rated</span>
             ) : (
-              <span aria-label={`${Math.round(deal.stars)} stars`} role="img">{starChars(deal.stars)}</span>
+              <span aria-label={`${Math.round(deal.stars)}-star hotel class`} role="img">{starChars(deal.stars)}</span>
             )}
             {' · '}{deal.city}{' · '}{deal.checkInWindow}
           </p>
+          {reviewScanLine ? (
+            <p aria-label={reviewScanLine.accessible} className="mt-1 break-words text-caption font-medium leading-5 text-[color:var(--text-2)]">
+              {reviewScanLine.visible}
+            </p>
+          ) : null}
           <HotelDisruptionResultCue evidence={disruptionEvidence} analyticsKey={deal.id} />
           {quietEvidenceCue ? (
             <p className="mt-2 break-words text-caption font-medium leading-5 text-[color:var(--text-2)]">
@@ -226,7 +234,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
         if ((event.target as Element).closest('a') === event.currentTarget) onOpen?.()
       }}
       className="block text-inherit no-underline"
-      aria-label={`View deal: ${deal.hotelName}.${disruptionCue ? ` Supplier notice: ${disruptionCue}.` : ''}${accessibilityAccessibleText ? ` ${accessibilityAccessibleText}` : ''}${quietEvidenceCue ? ` ${quietEvidenceCue.replace(' · ', ': ')}.` : ''}${poolCue ? ` Pool detail: ${poolCue.copy}.` : ''}`}
+      aria-label={`View deal: ${deal.hotelName}.${deal.stars === null ? '' : ` ${Math.round(deal.stars)}-star hotel class.`}${reviewScanLine ? ` ${reviewScanLine.accessible}.` : ''}${disruptionCue ? ` Supplier notice: ${disruptionCue}.` : ''}${accessibilityAccessibleText ? ` ${accessibilityAccessibleText}` : ''}${quietEvidenceCue ? ` ${quietEvidenceCue.replace(' · ', ': ')}.` : ''}${poolCue ? ` Pool detail: ${poolCue.copy}.` : ''}`}
     >
       {content}
     </a>
