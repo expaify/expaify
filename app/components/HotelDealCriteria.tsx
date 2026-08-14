@@ -37,6 +37,7 @@ import {
 } from '@/app/components/ui/HotelDisruptionNotice'
 import type { HotelPoolEvidence } from '@/app/components/research/hotelPoolFixtures'
 import { HOTEL_POOL_HANDOFF_REMINDER, HotelPoolReturnFeedback } from '@/app/components/ui/HotelPoolEvidenceLedger'
+import type { AccessibilityPresentation } from './ui/HotelAccessibilityFit'
 
 type ResolvedContext = {
   criteria?: HotelSearchCriteriaV1
@@ -176,7 +177,7 @@ export function HotelDealCriteriaSummary({ context, deal }: {
   )
 }
 
-export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, datesIncomplete, disruptionEvidence = NO_HOTEL_DISRUPTION_EVIDENCE, disruptionFixture = false, poolEvidence }: {
+export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, datesIncomplete, disruptionEvidence = NO_HOTEL_DISRUPTION_EVIDENCE, disruptionFixture = false, poolEvidence, accessibility }: {
   context: ResolvedContext
   deal: {
     id: string
@@ -192,6 +193,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
   disruptionEvidence?: HotelDisruptionEvidence
   disruptionFixture?: boolean
   poolEvidence?: HotelPoolEvidence
+  accessibility?: AccessibilityPresentation
 }) {
   const criteria = context.criteria
   const status = criteria ? hotelCriteriaContextStatus(criteria, deal) : context.status
@@ -374,6 +376,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
                   provider,
                 })
               }}
+              accessibility={accessibility}
             />
           </div>
           {showRoomRecovery && activeRoomHandoff.current ? (

@@ -7,6 +7,7 @@ type LockedDealCardProps = {
   stars: number | null
   photoUrl?: string
   joinHref?: string
+  accessibilityNeedsSelected?: boolean
 }
 
 function starChars(stars: number): string {
@@ -20,6 +21,7 @@ export function LockedDealCard({
   stars,
   photoUrl,
   joinHref = '/join',
+  accessibilityNeedsSelected = false,
 }: LockedDealCardProps) {
   return (
     <article className="overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]">
@@ -54,6 +56,11 @@ export function LockedDealCard({
             <div className="h-4 w-20 rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)]" />
           </div>
         </div>
+        {accessibilityNeedsSelected ? (
+          <p className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-2.5 text-caption font-medium leading-5 text-[color:var(--text-2)]">
+            Accessibility fit available after this deal is unlocked.
+          </p>
+        ) : null}
         <div className="pointer-events-none select-none blur-[5px]" aria-hidden>
           <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
             {['Expedia', 'Booking', 'Kiwi', 'Trip.com'].map(name => (
