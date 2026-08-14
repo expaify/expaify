@@ -443,6 +443,6 @@ export function AccessibilityHandoffBoundary({ presentation }: { presentation: A
 
 export function accessibilityProviderNameSuffix(presentation?: AccessibilityPresentation): string | undefined {
   if (!presentation || presentation.needs.length === 0) return undefined
-  if (presentation.rollup === 'all_documented') return 'all selected accessibility needs are documented for this stay. Review details before paying.'
-  return `accessibility confirmation is still required for ${presentation.needs.filter(need => need.outcome !== 'documented').length} selected needs.`
+  if (presentation.rollup === 'all_documented') return 'All selected accessibility needs are documented for this stay. Review details before paying.'
+  return `Accessibility confirmation is still required for ${presentation.needs.filter(need => need.outcome !== 'documented').length} selected needs.`
 }
