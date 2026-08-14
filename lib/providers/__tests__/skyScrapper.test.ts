@@ -85,7 +85,7 @@ describe('SkyScrapperProvider', () => {
       id: 'skyScrapper-12712-2609152130--32677-0-10413-2609161110',
       fareType: 'cash',
       origin: 'JFK',
-      destination: 'JFK',
+      destination: 'CDG',
       depart: '2026-09-15T21:30:00',
       return: '2026-09-22T10:00:00',
       cabin: 'economy',
@@ -138,7 +138,7 @@ describe('SkyScrapperProvider', () => {
 
     expect(result).toEqual({ ok: false, reason: 'SkyScrapper HTTP error 429' });
     expect(cache.set).toHaveBeenCalledWith(
-      'debug:skyscanner:last_error',
+      'debug:skyscrapper:last_error',
       expect.objectContaining({ kind: 'http_error', status: 429 }),
       300,
     );
@@ -160,18 +160,51 @@ describe('SkyScrapperProvider', () => {
     expect(cache.set).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ['price', { id: 'missing-price', legs: REAL_SHAPED_FIXTURE.data.itineraries[0].legs }],
-    ['legs', { id: 'missing-legs', price: { raw: 100 } }],
-  ])('discards an itinerary with missing %s fields', async (_field, itinerary) => {
-    mockFetch({ data: { itineraries: [itinerary] } });
+  it('returns an error without caching when validation discards every raw itinerary', async () => {
+    mockFetch({
+      data: {
+        itineraries: [
+          { id: 'missing-price', legs: REAL_SHAPED_FIXTURE.data.itineraries[0].legs },
+          { id: 'missing-legs', price: { raw: 100 } },
+        ],
+      },
+    });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     const result = await new SkyScrapperProvider().searchFares('JFK', 'LAX', {
       depart: '2026-09-15',
       passengers: 1,
     });
 
-    expect(result).toEqual({ ok: true, data: [] });
-    expect(cache.set).toHaveBeenCalledWith(expect.any(String), [], 21600);
+    expect(result).toEqual({
+      ok: false,
+      reason: 'SkyScrapper parsing validation discarded all results',
+    });
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[SkyScrapper] Parsing validation discarded all results',
+      { rawCount: 2 },
+    );
+    expect(cache.set).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it.each([
+    ['price', { id: 'missing-price', legs: REAL_SHAPED_FIXTURE.data.itineraries[0].legs }],
+    ['legs', { id: 'missing-legs', price: { raw: 100 } }],
+  ])('returns an error when an itinerary has missing %s fields', async (_field, itinerary) => {
+    mockFetch({ data: { itineraries: [itinerary] } });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const result = await new SkyScrapperProvider().searchFares('JFK', 'LAX', {
+      depart: '2026-09-15',
+      passengers: 1,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'SkyScrapper parsing validation discarded all results',
+    });
+    expect(cache.set).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });

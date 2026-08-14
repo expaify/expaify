@@ -153,7 +153,7 @@ export class SkyScrapperProvider implements FlightProvider {
 
       if (!response.ok) {
         console.error('[SkyScrapper] API error', { status: response.status });
-        await cache.set('debug:skyscanner:last_error', {
+        await cache.set('debug:skyscrapper:last_error', {
           kind: 'http_error',
           status: response.status,
           at: new Date().toISOString(),
@@ -178,14 +178,13 @@ export class SkyScrapperProvider implements FlightProvider {
         if (priceCents === null || legs.length !== item.legs.length) return [];
 
         const firstLeg = legs[0];
-        const lastLeg = legs[legs.length - 1];
         if (!isDateTime(firstLeg.departure) || !isDateTime(firstLeg.arrival)) return [];
 
         const fare: NormalizedFare = {
           id: `skyScrapper-${typeof item.id === 'string' && item.id ? item.id : index}`,
           fareType: 'cash',
           origin: airportCode(firstLeg.origin?.displayCode, origin),
-          destination: airportCode(lastLeg.destination?.displayCode, dest),
+          destination: airportCode(firstLeg.destination?.displayCode, dest),
           depart: firstLeg.departure,
           cabin: DEFAULT_CABIN_CLASS,
           stops: Math.max(...legs.map(leg =>
@@ -215,6 +214,16 @@ export class SkyScrapperProvider implements FlightProvider {
         fare.deeplink = buildBookingHref(fare);
         return [fare];
       });
+
+      if (rawItineraries.length > 0 && fares.length === 0) {
+        console.error('[SkyScrapper] Parsing validation discarded all results', {
+          rawCount: rawItineraries.length,
+        });
+        return {
+          ok: false,
+          reason: 'SkyScrapper parsing validation discarded all results',
+        };
+      }
 
       await cache.set(cacheKey, fares, CACHE_TTL);
       return { ok: true, data: fares };
