@@ -68,6 +68,8 @@ import {
 } from '@/app/components/HotelPriceComposition'
 import { HotelSustainabilityCredentialEvidence } from '@/app/components/HotelSustainabilityCredentialEvidence'
 import { buildHotelPriceComposition } from '@/lib/hotels/priceDisclosure'
+import { WifiEvidenceLedger } from '@/app/components/research/WifiEvidenceLedger'
+import type { HotelWifiEvidence } from '@/app/components/research/hotelWifiFixtures'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -296,6 +298,7 @@ type BookingFlowProps = {
    * via `validateInternalReturnPath` since a malformed/expired fare should
    * not also cost the traveler their return-to-results link. */
   returnTo?: string
+  hotelWifiEvidence?: HotelWifiEvidence | null
 }
 
 function formatMoney(cents: number, currency: string) {
@@ -1126,6 +1129,7 @@ function HotelHandoffReview({
   fundsPolicy,
   fundsPolicyLoadState = 'ready',
   hotelSmokingPolicy,
+  hotelWifiEvidence,
 }: {
   hotelContext: BookingHotelContext
   duffelSandbox: boolean
@@ -1136,6 +1140,7 @@ function HotelHandoffReview({
   fundsPolicy?: HotelFundsPolicyEvidence | null
   fundsPolicyLoadState?: HotelFundsPolicyLoadState
   hotelSmokingPolicy?: HotelSmokingPolicyView
+  hotelWifiEvidence?: HotelWifiEvidence | null
 }) {
   const partner = useMemo(() => getHotelPartnerIdentity(hotelContext.providerUrl), [hotelContext.providerUrl])
   const verifiedModificationPartner = useMemo(() => (
@@ -1721,6 +1726,8 @@ function HotelHandoffReview({
         </div>
       ) : undefined}
     >
+      {hotelWifiEvidence ? <WifiEvidenceLedger evidence={hotelWifiEvidence} idSuffix="hotel-review" /> : null}
+
       <section aria-labelledby="hotel-provider-title" className={`${panelCls} border-[color:var(--border-strong)] p-4 sm:p-6`}>
         <h2 id="hotel-provider-title" className="text-xl font-medium leading-tight text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
         <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
@@ -1973,6 +1980,7 @@ export default function BookingFlow({
   hotelFundsPolicyLoadState = 'ready',
   hotelSmokingPolicy,
   returnTo,
+  hotelWifiEvidence,
 }: BookingFlowProps) {
   const [state, setState] = useState<BookingState>('idle')
   const [bookingRef, setBookingRef] = useState('')
@@ -2002,6 +2010,7 @@ export default function BookingFlow({
         fundsPolicy={hotelFundsPolicy}
         fundsPolicyLoadState={hotelFundsPolicyLoadState}
         hotelSmokingPolicy={hotelSmokingPolicy}
+        hotelWifiEvidence={hotelWifiEvidence}
       />
     )
   }

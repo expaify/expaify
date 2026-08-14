@@ -7,6 +7,11 @@ import {
   validateInternalReturnPath,
 } from '@/lib/booking/config';
 import { resolveBookingHotelContext } from '@/lib/booking/hotelContextStore';
+import {
+  createWifiFixture,
+  isWifiResearchPrototypeEnabled,
+  parseWifiFixture,
+} from '@/app/components/research/hotelWifiFixtures';
 import BookingFlow from './BookingFlow';
 import type { Metadata } from 'next';
 
@@ -45,6 +50,10 @@ export default async function BookPage({ searchParams }: BookPageProps) {
   // "Visible return links discard result context").
   const rawReturnTo = Array.isArray(params.returnTo) ? params.returnTo[0] : params.returnTo;
   const returnTo = validateInternalReturnPath(rawReturnTo);
+  const wifiFixtureId = isWifiResearchPrototypeEnabled()
+    ? parseWifiFixture(params.wifiFixture)
+    : 'control';
+  const wifiEvidence = createWifiFixture(wifiFixtureId);
 
   return (
     <div className="min-h-screen bg-[color:var(--bg-base)]">
@@ -73,6 +82,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
           fareContext={fareContext}
           hotelContext={hotelContext}
           hotelSmokingPolicy={hotelContext?.smokingPolicy}
+          hotelWifiEvidence={wifiEvidence}
           invalidHotelSelection={requestedHotelReview && !hotelContext}
           recoveryOfferId={recoveryOfferId}
           returnTo={returnTo}
@@ -81,4 +91,3 @@ export default async function BookPage({ searchParams }: BookPageProps) {
     </div>
   );
 }
-

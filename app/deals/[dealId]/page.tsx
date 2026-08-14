@@ -38,6 +38,12 @@ import type { DealScore, HotelOffer } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
 import { HotelContinuityPrototype } from '@/app/components/research/HotelContinuityPrototype'
 import { createContinuityFixture, parseContinuityFixture } from '@/app/components/research/hotelContinuityFixtures'
+import { WifiEvidenceLedger } from '@/app/components/research/WifiEvidenceLedger'
+import {
+  createWifiFixture,
+  isWifiResearchPrototypeEnabled,
+  parseWifiFixture,
+} from '@/app/components/research/hotelWifiFixtures'
 import { HotelDealCriteriaHandoff, HotelDealCriteriaSummary } from '@/app/components/HotelDealCriteria'
 import {
   buildHotelBackUrl,
@@ -355,6 +361,10 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   const poolEvidence = poolFixtureId
     ? createHotelPoolFixture(poolFixtureId, deal.check_in_date, checkOutIso?.slice(0, 10))
     : null
+  const wifiFixtureId = isWifiResearchPrototypeEnabled()
+    ? parseWifiFixture(researchParams.wifiFixture)
+    : 'control'
+  const wifiEvidence = createWifiFixture(wifiFixtureId)
 
   const priceFreshnessState: HotelDecisionPriceFreshnessState = isExpired
     ? 'expired'
@@ -483,6 +493,8 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             <QuietStayEvidenceLedger evidence={NO_QUIET_STAY_EVIDENCE} />
             <HotelSustainabilityCredentialEvidence />
           </section>
+
+          {wifiEvidence ? <WifiEvidenceLedger evidence={wifiEvidence} idSuffix="deal-detail" /> : null}
 
           <section aria-labelledby="saved-provider-title" data-hotel-decision-section="provider_handoff" data-hotel-decision-position="4" className="rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="saved-provider-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
