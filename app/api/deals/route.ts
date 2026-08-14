@@ -107,8 +107,11 @@ export async function GET(req: NextRequest) {
   const pwCtx = await getPaywallContext()
   const criteriaResolution = resolveHotelSearchCriteria(searchParams)
   const requestedView = resolveHotelResultsView(searchParams)
-  if (criteriaResolution.status === 'invalid' || !requestedView) {
+  if (criteriaResolution.status === 'invalid') {
     return NextResponse.json({ ok: false, reason: 'Invalid hotel search criteria' }, { status: 400 })
+  }
+  if (!requestedView) {
+    return NextResponse.json({ ok: false, reason: 'Invalid hotel result filters' }, { status: 400 })
   }
 
   const requestedLimit = Number(searchParams.get('limit') ?? HOTEL_DEAL_PAGE_SIZE)
