@@ -181,7 +181,10 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: upgradePlan ?? 'annual' }),
+        body: JSON.stringify({
+          plan: upgradePlan ?? 'annual',
+          anonId: window.opinly?.anonId,
+        }),
       })
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string }
       if (!res.ok || !data.url) {

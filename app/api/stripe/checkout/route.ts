@@ -42,11 +42,13 @@ async function createCheckoutUrl({
   email,
   plan,
   cancelPath,
+  anonId,
 }: {
   userId: string
   email?: string | null
   plan: BillingPlan
   cancelPath: string
+  anonId?: string
 }): Promise<string> {
   const priceId = getPriceId(plan)
   assertConfiguredPrice(priceId, plan)
@@ -69,7 +71,11 @@ async function createCheckoutUrl({
     // backstop when the DB hasn't caught up yet -- see DEV-PAYWALL-PREMIUM-NOT-DETECTED-01.
     success_url: `${origin}/account?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}${cancelPath}`,
-    metadata: { user_id: userId, plan },
+    metadata: {
+      user_id: userId,
+      plan,
+      ...(anonId ? { opinly_anon_id: anonId } : {}),
+    },
   }
 
   if (existingCustomerId) {
@@ -132,12 +138,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const body = (await req.json().catch(() => ({}))) as { plan?: string }
+    const body = (await req.json().catch(() => ({}))) as { plan?: string; anonId?: unknown }
+    const anonId = typeof body.anonId === 'string' && body.anonId ? body.anonId : undefined
     const url = await createCheckoutUrl({
       userId: session.user.id,
       email: session.user.email,
       plan: parsePlan(body.plan),
       cancelPath: '/account',
+      anonId,
     })
     return NextResponse.json({ url })
   } catch (err) {

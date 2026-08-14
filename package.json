@@ -17,6 +17,7 @@
     "@auth/pg-adapter": "^1.11.2",
     "@contentful/rich-text-react-renderer": "^16.2.2",
     "@contentful/rich-text-types": "^17.2.7",
+    "@opinly/backend": "^1.4.0",
     "@react-email/components": "^1.0.12",
     "@types/pg": "^8.20.0",
     "ioredis": "^5.11.1",

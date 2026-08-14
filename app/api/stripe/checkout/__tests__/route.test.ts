@@ -74,7 +74,7 @@ describe('POST /api/stripe/checkout', () => {
   })
 
   it('creates a Stripe Checkout session for a signed-in free user from account', async () => {
-    const response = await POST(checkoutRequest({ plan: 'annual' }))
+    const response = await POST(checkoutRequest({ plan: 'annual', anonId: 'anon_visitor_123' }))
     const body = (await response.json()) as { url?: string; error?: string }
 
     expect(response.status).toBe(200)
@@ -88,7 +88,7 @@ describe('POST /api/stripe/checkout', () => {
       },
       success_url: 'https://expaify.com/account?checkout=success&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://expaify.com/account',
-      metadata: { user_id: 'user_123', plan: 'annual' },
+      metadata: { user_id: 'user_123', plan: 'annual', opinly_anon_id: 'anon_visitor_123' },
       customer_email: 'traveler@example.com',
     })
   })

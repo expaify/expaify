@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Space_Grotesk } from "next/font/google";
 import Script from "next/script";
+import { OpinlyIdentify } from "./components/OpinlyIdentify";
 import { Providers } from "./Providers";
 import "./globals.css";
 
@@ -85,7 +86,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
-        <Providers>{children}</Providers>
+        <Providers>
+          <OpinlyIdentify />
+          {children}
+        </Providers>
+        <Script
+          id="opinly-pixel"
+          src="https://static.opinly.ai/p.js"
+          strategy="afterInteractive"
+          data-key="pk-3EnFysSvAHFsb135saxW5BVX4DPLk9FnXnvgQXk"
+        />
         <Script
           src="https://app.zipchat.ai/widget/zipchat.js?id=YsPi3MJVzlI9TOdDBU2D"
           strategy="lazyOnload"

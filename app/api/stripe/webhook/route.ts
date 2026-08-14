@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { createOpinlyClient } from '@opinly/backend'
 import { upsertSubscription, getSubscriptionByStripeCustomer } from '@/lib/subscription'
 import { getStripe, mapStripeStatus, parseStripePlan, getStripeId, getTrialEnd, getPeriodEnd } from '@/lib/stripe/mapping'
 
@@ -51,6 +52,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         } catch {
           // Non-fatal: dates will be updated via subscription.updated webhook
         }
+      }
+      try {
+        const opinly = createOpinlyClient({ apiKey: process.env.OPINLY_API_KEY })
+        // Trial checkouts may have no immediate charge, so preserve Stripe's
+        // authoritative zero/null amount instead of inventing future revenue.
+        const value = (session.amount_total ?? 0) / 100
+        await opinly.track(
+          'purchase',
+          { value, currency: 'USD' },
+          {
+            externalEventId: session.id,
+            anonId: session.metadata?.opinly_anon_id,
+            email: session.customer_email ?? undefined,
+          },
+        )
+      } catch (err) {
+        // Analytics is non-critical and must never trigger Stripe webhook retries.
+        console.warn('Opinly purchase tracking failed', err)
       }
       break
     }

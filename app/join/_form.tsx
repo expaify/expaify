@@ -25,11 +25,12 @@ export default function JoinForm() {
     e.preventDefault()
     if (!email.trim()) return
     setLoading(true)
-    await signIn('resend', {
+    const result = await signIn('resend', {
       email,
       redirect: false,
       callbackUrl: `/api/stripe/checkout?plan=${plan}&redirect=true`,
     })
+    if (!result?.error) window.opinly?.track('sign_up', {})
     setSent(true)
     setLoading(false)
   }
