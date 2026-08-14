@@ -39,6 +39,7 @@ import {
   HotelDocumentReadinessDisclosure,
 } from '@/app/components/HotelDocumentReadiness'
 import HotelFundsPolicyPanel, {
+  type HotelFundsPolicyCapability,
   type HotelFundsPolicyEvidence,
   type HotelFundsPolicyLoadState,
 } from '@/app/components/HotelFundsPolicyPanel'
@@ -291,6 +292,7 @@ type BookingFlowProps = {
   parkingEvidenceMalformed?: boolean
   hasSearchDates?: boolean
   hotelFundsPolicy?: HotelFundsPolicyEvidence | null
+  hotelFundsPolicyCapability?: HotelFundsPolicyCapability
   hotelFundsPolicyLoadState?: HotelFundsPolicyLoadState
   hotelSmokingPolicy?: HotelSmokingPolicyView
   /** Validated fallback for the flight review's "Back to search" links when
@@ -1126,6 +1128,7 @@ function HotelHandoffReview({
   parkingEvidenceMalformed = false,
   hasSearchDates = true,
   fundsPolicy,
+  fundsPolicyCapability,
   fundsPolicyLoadState = 'ready',
   hotelSmokingPolicy,
   hotelWifiEvidence,
@@ -1137,6 +1140,7 @@ function HotelHandoffReview({
   parkingEvidenceMalformed?: boolean
   hasSearchDates?: boolean
   fundsPolicy?: HotelFundsPolicyEvidence | null
+  fundsPolicyCapability?: HotelFundsPolicyCapability
   fundsPolicyLoadState?: HotelFundsPolicyLoadState
   hotelSmokingPolicy?: HotelSmokingPolicyView
   hotelWifiEvidence?: HotelWifiEvidence | null
@@ -1946,6 +1950,7 @@ function HotelHandoffReview({
             offerId={hotelContext.offerId}
             provider={hotelContext.provider}
             rootRef={fundsPolicyExposureRef}
+            capability={fundsPolicyCapability}
           />
         </div>
         <HotelPaymentAcceptanceSection presentation={paymentAcceptancePresentation} />
@@ -1976,6 +1981,7 @@ export default function BookingFlow({
   parkingEvidenceMalformed = false,
   hasSearchDates = true,
   hotelFundsPolicy,
+  hotelFundsPolicyCapability,
   hotelFundsPolicyLoadState = 'ready',
   hotelSmokingPolicy,
   returnTo,
@@ -2007,6 +2013,7 @@ export default function BookingFlow({
         parkingEvidenceMalformed={parkingEvidenceMalformed}
         hasSearchDates={hasSearchDates}
         fundsPolicy={hotelFundsPolicy}
+        fundsPolicyCapability={hotelFundsPolicyCapability}
         fundsPolicyLoadState={hotelFundsPolicyLoadState}
         hotelSmokingPolicy={hotelSmokingPolicy}
         hotelWifiEvidence={hotelWifiEvidence}

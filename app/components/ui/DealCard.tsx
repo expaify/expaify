@@ -24,6 +24,11 @@ import {
   type AccessibilityPresentation,
 } from './HotelAccessibilityFit'
 import { getGuestReviewScanLine } from '../GuestReviewEvidence'
+import {
+  DepositHoldCardSignal,
+  getHotelFundsCardSignal,
+  type ApiDealFundsPolicy,
+} from '../HotelFundsPolicyComparison'
 
 type DealLinks = {
   expedia?: string
@@ -51,6 +56,7 @@ type DealCardDeal = {
   updatedAt?: string | null
   expired?: boolean
   reviewEvidence?: HotelReviewEvidence
+  fundsPolicy?: ApiDealFundsPolicy
 }
 
 type DealCardProps = {
@@ -103,6 +109,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
   const poolCue = getHotelPoolCardSummary(poolEvidence)
   const accessibilityAccessibleText = accessibilityCardAccessibleText(accessibility, deal.expired)
   const reviewScanLine = getGuestReviewScanLine(deal.reviewEvidence)
+  const fundsPolicySignal = getHotelFundsCardSignal(deal.fundsPolicy)
 
   const content = (
     <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
@@ -196,6 +203,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
           ) : null}
         </div>
 
+        <DepositHoldCardSignal policy={deal.fundsPolicy} />
         {deal.expired ? null : deal.isMock ? (
           <p className="text-caption font-medium leading-snug text-[color:var(--ink-faint)]">Sample hotel — not bookable</p>
         ) : href ? (
@@ -234,7 +242,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
         if ((event.target as Element).closest('a') === event.currentTarget) onOpen?.()
       }}
       className="block text-inherit no-underline"
-      aria-label={`View deal: ${deal.hotelName}.${deal.stars === null ? '' : ` ${Math.round(deal.stars)}-star hotel class.`}${reviewScanLine ? ` ${reviewScanLine.accessible}.` : ''}${disruptionCue ? ` Supplier notice: ${disruptionCue}.` : ''}${accessibilityAccessibleText ? ` ${accessibilityAccessibleText}` : ''}${quietEvidenceCue ? ` ${quietEvidenceCue.replace(' · ', ': ')}.` : ''}${poolCue ? ` Pool detail: ${poolCue.copy}.` : ''}`}
+      aria-label={`View deal: ${deal.hotelName}.${deal.stars === null ? '' : ` ${Math.round(deal.stars)}-star hotel class.`}${reviewScanLine ? ` ${reviewScanLine.accessible}.` : ''}${disruptionCue ? ` Supplier notice: ${disruptionCue}.` : ''}${accessibilityAccessibleText ? ` ${accessibilityAccessibleText}` : ''}${quietEvidenceCue ? ` ${quietEvidenceCue.replace(' · ', ': ')}.` : ''}${poolCue ? ` Pool detail: ${poolCue.copy}.` : ''}${fundsPolicySignal ? ` ${fundsPolicySignal.copy}` : ''}`}
     >
       {content}
     </a>

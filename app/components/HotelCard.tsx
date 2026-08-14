@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type MouseEvent as ReactMouseEvent } from 'react'
-import { DealScore, HotelAmenityEvidence, HotelEvidenceFee, HotelOffer, type HotelParkingConflictDimension, type HotelParkingEvidence, type HotelTransportEvidence } from '@/lib/types'
+import { DealScore, HotelAmenityEvidence, HotelEvidenceFee, HotelOffer, type HotelFundsPolicyCapability, type HotelParkingConflictDimension, type HotelParkingEvidence, type HotelTransportEvidence } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
 import {
   buildBookingHotelContext,
@@ -62,6 +62,7 @@ type Props = {
   hasSearchDates?: boolean
   fundsPolicy?: HotelFundsPolicyEvidence | null
   fundsPolicyLoadState?: HotelFundsPolicyLoadState
+  fundsPolicyCapability?: HotelFundsPolicyCapability
   petPolicy?: HotelPetPolicyPresentation
   smokingPolicy?: HotelSmokingPolicyView
   transportEvidence?: HotelTransportEvidence | null
@@ -783,6 +784,7 @@ export default function HotelCard({
   hasSearchDates = true,
   fundsPolicy,
   fundsPolicyLoadState = 'ready',
+  fundsPolicyCapability,
   petPolicy,
   smokingPolicy,
   transportEvidence,
@@ -847,7 +849,8 @@ export default function HotelCard({
     source: hotel.source,
     surface: 'results',
   })
-  const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(resolvedFundsPolicy, fundsPolicyLoadState, providerName)
+  const resolvedFundsPolicyCapability = fundsPolicyCapability ?? hotel.fundsPolicyCapability
+  const policyAriaSuffix = getHotelFundsPolicyAccessibleSuffix(resolvedFundsPolicy, fundsPolicyLoadState, providerName, resolvedFundsPolicyCapability)
   const reviewAriaLabel = `Review ${hotel.name}. Nightly rate ${formattedPrice} per night. ${getHotelPriceCompositionAccessibleSummary(priceComposition)} Rate from ${providerName}. Last-checked time unavailable. Opens expaify review before provider handoff. ${eligibilityAriaSummary} ${providerConfirmationCopy} ${policyAriaSuffix}`
   const unavailableAriaLabel = hasValidPrice
     ? `Provider link unavailable for ${hotel.name}. ${unavailableReason}${hasHotelProviderName ? ` Rate from ${providerName}.` : ''} Last-checked time unavailable.`
@@ -1017,6 +1020,7 @@ export default function HotelCard({
             offerId={hotel.id}
             provider={hotel.source}
             rootRef={fundsPolicyExposureRef}
+            capability={resolvedFundsPolicyCapability}
           />
         ) : null}
 
@@ -1193,6 +1197,7 @@ export default function HotelCard({
                 variant="full"
                 offerId={hotel.id}
                 provider={hotel.source}
+                capability={resolvedFundsPolicyCapability}
               />
             ) : null}
 

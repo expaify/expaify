@@ -209,4 +209,29 @@ describe('HotelFundsPolicyPanel', () => {
     expect(getHotelFundsPolicyAccessibleSuffix(undefined, 'loading')).toContain('still being checked')
     expect(getHotelFundsPolicyAccessibleSuffix(undefined, 'error')).toBe('Deposit and hold policy could not be checked.')
   })
+
+  it('distinguishes provider incapability from capable offer-level absence in full detail', () => {
+    const incapable = HotelFundsPolicyPanel({
+      evidence: undefined,
+      loadState: 'ready',
+      surface: 'book_handoff',
+      sourceLabel: 'Fixture provider',
+      variant: 'full',
+      capability: { policy: false },
+    })
+    expect(collectText(incapable)).toContain('Deposit and hold details unavailable from this provider')
+    expect(collectText(incapable)).toContain('This provider does not supply deposit or incidental-hold details.')
+    expect(collectText(incapable)).toContain('Source checked: Fixture provider · Scope not provided')
+
+    const capable = HotelFundsPolicyPanel({
+      evidence: undefined,
+      loadState: 'ready',
+      surface: 'hotel_detail',
+      sourceLabel: 'Fixture provider',
+      variant: 'full',
+      capability: { policy: true },
+    })
+    expect(collectText(capable)).toContain('Policy not provided for this offer')
+    expect(collectText(capable)).toContain('can supply deposit or incidental-hold details, but did not return a policy for this offer')
+  })
 })

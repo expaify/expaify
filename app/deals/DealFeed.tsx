@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { DealCard } from '../components/ui/DealCard'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
@@ -39,6 +39,11 @@ import {
 } from './hotelFilterRecovery'
 import { ResultCoverageBoundary, type CoverageState, type CoverageFilter } from './ResultCoverageBoundary'
 import { createHotelPoolFixtureForStay, type HotelPoolFixtureId } from '@/app/components/research/hotelPoolFixtures'
+import {
+  DepositHoldSetDisclosure,
+  deriveHotelFundsSetPresentation,
+  type ApiDealFundsPolicy,
+} from '../components/HotelFundsPolicyComparison'
 
 const CITIES = [
   'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
@@ -140,6 +145,8 @@ export type ApiDeal = {
   firstSeen: string | null
   updatedAt: string | null
   locked: boolean
+  /** DEV-owned normalized provider bridge. Absence intentionally suppresses all policy claims. */
+  fundsPolicy?: ApiDealFundsPolicy
 }
 
 type DealFetchOpts = {
@@ -1188,6 +1195,9 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const echoLinkClass = 'font-medium text-[color:var(--primary)] no-underline hover:underline'
 
   const realDealCount = deals.filter(deal => !deal.isMock).length
+  const fundsPolicyPresentation = useMemo(() => deriveHotelFundsSetPresentation(deals), [deals])
+  const fundsPolicyRefreshing = deals.length > 0 && (criteriaUpdating || pendingSort !== null || (loading && !loadingMore))
+  const fundsPolicyQueryKey = `${resultMetadata?.queryId ?? 'query'}:${criteria.criteriaVersion}`
   const isMockFeed = deals.length > 0 && realDealCount === 0
   const trustedMetadata = resultMetadata?.inventoryKind === 'live' && premium && !isMockFeed
     ? resultMetadata
@@ -1785,6 +1795,11 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               undoError={undoError}
               onUndo={undoSnapshot ? undoRecovery : undefined}
             />
+            <DepositHoldSetDisclosure
+              presentation={error ? null : fundsPolicyPresentation}
+              queryKey={fundsPolicyQueryKey}
+              refreshing={fundsPolicyRefreshing}
+            />
 
           {criteriaUpdating && deals.length > 0 ? (
             <>
@@ -1922,6 +1937,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                         isMock: deal.isMock,
                         firstSeen: deal.firstSeen ?? undefined,
                         updatedAt: deal.updatedAt,
+                        fundsPolicy: deal.fundsPolicy,
                       }}
                       poolEvidence={poolFixtureId ? createHotelPoolFixtureForStay(poolFixtureId, deal.checkInDate, deal.nights) : undefined}
                     />

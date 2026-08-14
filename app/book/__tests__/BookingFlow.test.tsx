@@ -293,6 +293,21 @@ describe('BookingFlow fare context review', () => {
     expect(outbound.props['aria-label']).not.toContain('Provider unavailable');
   });
 
+  it('keeps provider incapability neutral at the booking handoff when DEV supplies capability', () => {
+    const text = collectText(BookingFlow({
+      bookingEnabled: false,
+      duffelSandbox: true,
+      fareContext: null,
+      hotelContext,
+      hotelFundsPolicyCapability: { policy: false },
+    }));
+
+    expect(text).toContain('Deposit and hold details unavailable from this provider');
+    expect(text).toContain('This provider does not supply deposit or incidental-hold details.');
+    expect(text).toContain('The property may still require additional available funds.');
+    expect(text).not.toContain('Policy not provided for this offer');
+  });
+
   it('carries a hotel Deal Score through to the booking review when present', () => {
     const scoredHotelContext: BookingHotelContext = {
       ...hotelContext,
