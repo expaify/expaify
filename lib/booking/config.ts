@@ -1478,6 +1478,7 @@ export function buildBookingHotelContext(hotel: HotelOffer, continuity?: Booking
 }
 
 function buildInlineHotelBookingHref(context: BookingHotelContext): string {
+  const defaultDocumentReadiness = notProvidedHotelDocumentReadiness(context.documentReadiness.source.label);
   const params = new URLSearchParams({
     kind: 'hotel',
     offerId: context.offerId,
@@ -1494,8 +1495,12 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
     documentBillingDetailsStep: context.documentReadiness.billingDetailsStep,
     documentSourceLabel: context.documentReadiness.source.label,
   });
-  params.set('documentTaxIdentifierEligibility', JSON.stringify(context.documentReadiness.taxIdentifierEligibility));
-  params.set('documentNameEligibility', JSON.stringify(context.documentReadiness.documentNameEligibility));
+  if (JSON.stringify(context.documentReadiness.taxIdentifierEligibility) !== JSON.stringify(defaultDocumentReadiness.taxIdentifierEligibility)) {
+    params.set('documentTaxIdentifierEligibility', JSON.stringify(context.documentReadiness.taxIdentifierEligibility));
+  }
+  if (JSON.stringify(context.documentReadiness.documentNameEligibility) !== JSON.stringify(defaultDocumentReadiness.documentNameEligibility)) {
+    params.set('documentNameEligibility', JSON.stringify(context.documentReadiness.documentNameEligibility));
+  }
 
   if (context.area) params.set('area', context.area);
   if (context.location?.precision) params.set('locationPrecision', context.location.precision);

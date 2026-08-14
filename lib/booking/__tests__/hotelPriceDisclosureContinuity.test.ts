@@ -16,7 +16,10 @@ const hotel: HotelOffer = {
   source: 'future-provider',
   documentReadiness: {
     status: 'not_provided', scope: 'rate', documentTypes: [], issuerByDocument: {},
-    billingDetailsStep: 'unknown', source: { label: 'Future Provider' },
+    billingDetailsStep: 'unknown',
+    taxIdentifierEligibility: { state: 'not_provided', entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Future Provider', scope: 'rate' } },
+    documentNameEligibility: { state: 'not_provided', allowedAddresseeTypes: [], relationships: { guest: 'not_provided', booker: 'not_provided', cardholder: 'not_provided' }, entryStep: 'not_provided', correction: { rule: 'not_provided' }, source: { label: 'Future Provider', scope: 'rate' } },
+    source: { label: 'Future Provider' },
   },
   fundsPolicy: {
     state: 'not_returned', obligations: [], sourceLabel: 'Future Provider', scope: 'not_returned',
