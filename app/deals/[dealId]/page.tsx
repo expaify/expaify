@@ -66,6 +66,8 @@ import {
   AccessibilityHandoffBoundary,
   createAccessibilityPresentation,
 } from '@/app/components/ui/HotelAccessibilityFit'
+import { HotelClimateEvidenceLedger } from '@/app/components/HotelClimateEvidence'
+import { createUnsupportedHotelClimateEvidence } from '@/lib/hotels/climateEvidence'
 
 type PageProps = {
   params: Promise<{ dealId: string }>
@@ -448,7 +450,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             </dl>
             <p className="mt-4 text-sm leading-6 text-[color:var(--text-2)]">
               {checkInDisplay && checkOutDisplay && deal.nights != null
-                ? 'Rate shown for these dates. No room is selected, and room-level accessibility fit is not confirmed.'
+                ? 'Rate shown for these dates. No room is selected, and room-level accessibility fit is not confirmed. Climate details are confirmed only where the evidence below says “For this room and rate.”'
                 : 'Stay dates are incomplete. Choose or confirm dates with the provider before comparing room options. No room is selected, and room-level accessibility fit is not confirmed.'}
             </p>
           </section>
@@ -493,6 +495,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             <div className="mt-4">
               <GuestReviewEvidence />
             </div>
+            <HotelClimateEvidenceLedger evidence={createUnsupportedHotelClimateEvidence(deal.id, 'saved-deal-contract')} />
             <HotelDisruptionEvidenceLedger
               evidence={disruptionEvidence}
               analyticsKey={deal.id}

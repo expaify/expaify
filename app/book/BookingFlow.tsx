@@ -72,10 +72,16 @@ import { buildHotelPriceComposition } from '@/lib/hotels/priceDisclosure'
 import { WifiEvidenceLedger } from '@/app/components/research/WifiEvidenceLedger'
 import type { HotelWifiEvidence } from '@/app/components/research/hotelWifiFixtures'
 import GuestReviewEvidence from '@/app/components/GuestReviewEvidence'
+import { HotelClimateEvidenceLedger, HotelClimateHandoffCheck } from '@/app/components/HotelClimateEvidence'
+import { getHotelClimateHandoffGuidance } from '@/lib/hotels/climateEvidence'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
 type HotelReturnReason =
+  | 'cooling_missing_or_mismatch'
+  | 'heating_missing_or_mismatch'
+  | 'guest_control_not_confirmed'
+  | 'climate_details_missing_provider'
   | 'smoking_policy_or_room_mismatch'
   | 'tax_amount_changed_or_appeared'
   | 'mandatory_property_charge_changed_or_appeared'
@@ -88,6 +94,10 @@ type HotelReturnReason =
   | 'prefer_not_to_say'
 
 const HOTEL_RETURN_REASONS: ReadonlyArray<{ value: HotelReturnReason; label: string }> = [
+  { value: 'cooling_missing_or_mismatch', label: 'Cooling was missing or did not match' },
+  { value: 'heating_missing_or_mismatch', label: 'Heating was missing or did not match' },
+  { value: 'guest_control_not_confirmed', label: 'Room temperature adjustment was not confirmed' },
+  { value: 'climate_details_missing_provider', label: 'Climate details were missing on the provider' },
   { value: 'smoking_policy_or_room_mismatch', label: 'Smoking policy or room did not match' },
   { value: 'tax_amount_changed_or_appeared', label: 'Tax amount changed or appeared' },
   { value: 'mandatory_property_charge_changed_or_appeared', label: 'Mandatory property charge changed or appeared' },
@@ -517,6 +527,7 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
           includeIdentityRules={false}
         />
         <HotelSustainabilityCredentialEvidence />
+        <HotelClimateEvidenceLedger evidence={hotelContext.climateEvidence} continuityFailed={hotelContext.climateEvidence === undefined} />
       </section>
     </>
   )
@@ -659,6 +670,7 @@ function ReviewShell({
           <HotelDecisionSummary hotelContext={hotelContext} />
           {status}
           {children}
+          {hotelSupplement ? <div className="space-y-3">{hotelSupplement}</div> : null}
         </div>
       </main>
     )
@@ -1700,14 +1712,15 @@ function HotelHandoffReview({
     ? `${partner.label} confirms the final total before you pay.`
     : 'The booking partner confirms the final total before you pay.'
   const transportGuidance = getHotelTransportHandoffGuidance(hotelContext.transportEvidence)
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary(priceComposition)} ${finalTotalBoundary} ${transportGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner. ${getGuestIdentityAccessibleAction(guestIdentity)}`
+  const climateGuidance = getHotelClimateHandoffGuidance(hotelContext.climateEvidence).join(' ')
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary(priceComposition)} ${finalTotalBoundary} ${transportGuidance} ${climateGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner. ${getGuestIdentityAccessibleAction(guestIdentity)}`
   const rebookWarning = `You already told us you booked this stay on ${stub ? formatDeclaredAt(stub.declaredBookedAt) : ''}. Booking again creates a second reservation with ${partnerPhrase(partner)}.`
 
   return (
     <ReviewShell
       eyebrow="Hotel review"
       title={hotelContext.name}
-      message="Review the property, observed nightly rate, hotel fit, and provider handoff."
+      message="Review the property, observed nightly rate, hotel fit, room climate evidence, and provider handoff."
       fareContext={null}
       hotelContext={hotelContext}
       duffelSandbox={duffelSandbox}
@@ -1739,6 +1752,7 @@ function HotelHandoffReview({
         <p className="mt-3 break-words text-sm font-medium leading-6 text-[color:var(--text-2)]">
           {transportGuidance}
         </p>
+        <HotelClimateHandoffCheck evidence={hotelContext.climateEvidence} />
         <HotelBookingOwnershipDisclosure
           partner={verifiedModificationPartner}
           expaifyIssueRoute={null}

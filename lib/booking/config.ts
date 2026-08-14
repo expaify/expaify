@@ -12,6 +12,7 @@ import type {
   HotelLocationAnchorSource,
   HotelLocationEvidenceSource,
   HotelLocationPrecision,
+  HotelClimateEvidence,
   HotelDocumentReadiness,
   HotelDocumentStatus,
   HotelFundsPolicyEvidence,
@@ -62,6 +63,7 @@ import {
   buildHotelPriceComposition,
   normalizeHotelRequiredChargeCapabilities,
 } from '../hotels/priceDisclosure';
+import { createUnsupportedHotelClimateEvidence, validateHotelClimateEvidence } from '../hotels/climateEvidence';
 
 export type BookingFareContext = {
   offerId: string;
@@ -122,6 +124,7 @@ export type BookingHotelContext = {
   mandatoryPropertyChargeEvidence?: HotelRequiredChargeEvidence;
   requiredChargeCapabilities?: HotelRequiredChargeCapabilities;
   priceDisclosureState?: HotelPriceDisclosureState;
+  climateEvidence?: HotelClimateEvidence;
 };
 
 export const BOOKING_FORM_PASSENGER_LIMIT = 1;
@@ -178,6 +181,7 @@ type HotelContextInput = Partial<Record<keyof BookingHotelContext, unknown>> & {
   fundsPolicy?: unknown;
   smokingPolicy?: unknown;
   transportEvidence?: unknown;
+  climateEvidence?: unknown;
 };
 
 export function isBookingEnabled(): boolean {
@@ -1177,6 +1181,9 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     mandatoryPropertyChargeEvidence: input.mandatoryPropertyChargeEvidence,
     capabilities: requiredChargeCapabilities,
   });
+  const climateEvidence = input.climateEvidence === undefined
+    ? undefined
+    : validateHotelClimateEvidence(input.climateEvidence, { offerId });
 
   if (
     kind !== 'hotel' ||
@@ -1235,6 +1242,7 @@ export function validateBookingHotelContext(input: HotelContextInput): BookingHo
     mandatoryPropertyChargeEvidence: priceComposition.mandatoryPropertyCharges,
     requiredChargeCapabilities,
     priceDisclosureState: priceComposition.priceDisclosureState,
+    ...(climateEvidence !== null && climateEvidence !== undefined ? { climateEvidence } : {}),
   };
 }
 
@@ -1360,6 +1368,12 @@ export function parseBookingHotelContext(params: SearchParams): BookingHotelCont
     taxEvidence: parseJsonQueryParam(firstParam(params.taxEvidence)),
     mandatoryPropertyChargeEvidence: parseJsonQueryParam(firstParam(params.mandatoryPropertyChargeEvidence)),
     requiredChargeCapabilities: parseJsonQueryParam(firstParam(params.requiredChargeCapabilities)),
+    climateEvidence: firstParam(params.climateUnsupported) === '1'
+      ? createUnsupportedHotelClimateEvidence(
+          firstParam(params.offerId),
+          firstParam(params.provider),
+        )
+      : parseJsonQueryParam(firstParam(params.climateEvidence)),
   });
 }
 
@@ -1472,6 +1486,8 @@ export function buildBookingHotelContext(hotel: HotelOffer, continuity?: Booking
     mandatoryPropertyChargeEvidence: priceComposition.mandatoryPropertyCharges,
     requiredChargeCapabilities,
     priceDisclosureState: priceComposition.priceDisclosureState,
+    climateEvidence: validateHotelClimateEvidence(hotel.climateEvidence, { offerId: hotel.id })
+      ?? createUnsupportedHotelClimateEvidence(hotel.id, hotel.source),
     ...(continuity?.entrySource !== undefined ? { entrySource: continuity.entrySource } : {}),
     ...(continuity?.returnUrl !== undefined ? { returnUrl: continuity.returnUrl } : {}),
     ...(continuity?.checkIn !== undefined ? { checkIn: continuity.checkIn } : {}),
@@ -1555,6 +1571,11 @@ function buildInlineHotelBookingHref(context: BookingHotelContext): string {
   if (context.taxEvidence) params.set('taxEvidence', JSON.stringify(context.taxEvidence));
   if (context.mandatoryPropertyChargeEvidence) params.set('mandatoryPropertyChargeEvidence', JSON.stringify(context.mandatoryPropertyChargeEvidence));
   if (context.requiredChargeCapabilities) params.set('requiredChargeCapabilities', JSON.stringify(context.requiredChargeCapabilities));
+  // Unsupported is the default adapter fallback and carries no offer-specific facts.
+  // Encode a marker and reconstruct it from the offer/provider contract instead of
+  // spending the inline URL budget on three identical empty rows.
+  if (context.climateEvidence?.capability === 'unsupported') params.set('climateUnsupported', '1');
+  else if (context.climateEvidence) params.set('climateEvidence', JSON.stringify(context.climateEvidence));
   const issuerParams = [
     ['invoice', 'documentInvoiceIssuerRole', 'documentInvoiceIssuerName'],
     ['receipt', 'documentReceiptIssuerRole', 'documentReceiptIssuerName'],

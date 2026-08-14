@@ -939,6 +939,60 @@ export interface HotelRequiredChargeCapabilities {
   mandatoryPropertyCharges: HotelRequiredChargeCapability;
 }
 
+export type HotelClimateDimension = 'cooling' | 'heating' | 'guest_control';
+export type HotelClimateCapability = 'supported' | 'unsupported';
+export type HotelClimateLoadState = 'loading' | 'ready' | 'refreshing' | 'failed';
+export type HotelClimateScope = 'property' | 'room_category' | 'selected_room_rate';
+export type HotelClimateValue =
+  | 'present'
+  | 'explicitly_absent'
+  | 'guest_adjustable'
+  | 'property_controlled'
+  | 'not_provided'
+  | 'check_failed'
+  | 'conflicting';
+
+export type HotelClimateOperatingQualification =
+  | { kind: 'year_round' }
+  | { kind: 'seasonal_period'; label: string }
+  | { kind: 'schedule_not_stated' };
+
+export interface HotelClimateStatement {
+  id: string;
+  value: Exclude<HotelClimateValue, 'not_provided' | 'check_failed' | 'conflicting'>;
+  scope: HotelClimateScope;
+  sourceLabel: string;
+  observedAt: string;
+  sourceWording?: string;
+  roomCategoryId?: string;
+  roomCategoryLabel?: string;
+  roomId?: string;
+  rateId?: string;
+  checkIn?: string;
+  checkOut?: string;
+  operatingQualification?: HotelClimateOperatingQualification;
+}
+
+export interface HotelClimateRow {
+  dimension: HotelClimateDimension;
+  value: HotelClimateValue;
+  mostSpecificScope?: HotelClimateScope;
+  statements: HotelClimateStatement[];
+  isStale: boolean;
+  refreshFailed?: boolean;
+}
+
+export interface HotelClimateEvidence {
+  schemaVersion: 1;
+  capability: HotelClimateCapability;
+  loadState: HotelClimateLoadState;
+  providerId: string;
+  providerPropertyId: string;
+  offerId: string;
+  evidenceRevision: string;
+  rows: readonly [HotelClimateRow, HotelClimateRow, HotelClimateRow];
+}
+
 export type HotelAdmissionRowState = 'restricted' | 'no_rule_reported' | 'unavailable' | 'conflicting';
 
 export interface HotelAdmissionRow {
@@ -999,6 +1053,7 @@ export interface HotelOffer {
   taxEvidence?: HotelRequiredChargeEvidence;
   mandatoryPropertyChargeEvidence?: HotelRequiredChargeEvidence;
   requiredChargeCapabilities?: HotelRequiredChargeCapabilities;
+  climateEvidence?: HotelClimateEvidence;
 }
 
 export type NormalizedHotelOffer = HotelOffer;
