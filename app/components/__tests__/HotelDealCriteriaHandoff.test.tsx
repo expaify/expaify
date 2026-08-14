@@ -4,6 +4,17 @@ import type { HotelCriteriaContextStatus, HotelSearchCriteriaV1 } from '@/lib/ho
 
 type TestElement = ReactElement<Record<string, unknown>>
 
+jest.mock('react', () => {
+  const actual = jest.requireActual('react') as typeof import('react')
+  return {
+    ...actual,
+    useEffect: jest.fn(),
+    useMemo: jest.fn((factory: () => unknown) => factory()),
+    useRef: jest.fn((initialValue: unknown) => ({ current: initialValue })),
+    useState: jest.fn((initialValue: unknown) => [initialValue, jest.fn()]),
+  }
+})
+
 function childrenOf(node: unknown): unknown[] {
   if (!node || typeof node !== 'object') return []
   const children = (node as TestElement).props?.children
@@ -13,7 +24,12 @@ function childrenOf(node: unknown): unknown[] {
 function textContent(node: unknown): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (!node || typeof node !== 'object') return ''
-  return childrenOf(node).map(textContent).join('')
+  if (Array.isArray(node)) return node.map(textContent).join('')
+  const element = node as TestElement
+  if (typeof element.type === 'function') {
+    return textContent((element.type as (props: Record<string, unknown>) => unknown)(element.props))
+  }
+  return childrenOf(element).map(textContent).join('')
 }
 
 const links = { expedia: 'https://www.expedia.com/hotel?affcid=marker' }
@@ -34,7 +50,7 @@ function context(criteria?: HotelSearchCriteriaV1, status: HotelCriteriaContextS
 const deal = { id: 'deal-1', city: 'Paris', checkInDate: '2026-08-01' }
 
 describe('HotelDealCriteriaHandoff saved-deal date boundary copy', () => {
-  it('shows the choose-dates sentence when the saved deal has incomplete dates, even with matched search criteria', () => {
+  it('shows the confirm-dates boundary when the saved deal has incomplete dates, even with matched search criteria', () => {
     const tree = HotelDealCriteriaHandoff({
       context: context(matchedCriteria, 'matched'),
       deal,
@@ -42,10 +58,10 @@ describe('HotelDealCriteriaHandoff saved-deal date boundary copy', () => {
       datesIncomplete: true,
     })
 
-    expect(textContent(tree)).toContain('Choose or confirm your dates there before comparing room options.')
+    expect(textContent(tree)).toContain('Stay dates: confirm with provider')
   })
 
-  it('omits the choose-dates sentence when the saved deal has complete dates and matched search criteria', () => {
+  it('keeps the confirm-dates boundary when display dates are absent', () => {
     const tree = HotelDealCriteriaHandoff({
       context: context(matchedCriteria, 'matched'),
       deal,
@@ -53,16 +69,16 @@ describe('HotelDealCriteriaHandoff saved-deal date boundary copy', () => {
       datesIncomplete: false,
     })
 
-    expect(textContent(tree)).not.toContain('Choose or confirm your dates there before comparing room options.')
+    expect(textContent(tree)).toContain('Stay dates: confirm with provider')
   })
 
-  it('shows the choose-dates sentence when there is no search criteria context at all', () => {
+  it('shows the confirm-dates boundary when there is no search criteria context at all', () => {
     const tree = HotelDealCriteriaHandoff({
       context: context(undefined, 'missing'),
       deal,
       links,
     })
 
-    expect(textContent(tree)).toContain('Choose or confirm your dates there before comparing room options.')
+    expect(textContent(tree)).toContain('Stay dates: confirm with provider')
   })
 })

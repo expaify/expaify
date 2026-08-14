@@ -34,6 +34,7 @@ import {
   HotelDisruptionEvidenceLedger,
   NO_HOTEL_DISRUPTION_EVIDENCE,
 } from '@/app/components/ui/HotelDisruptionNotice'
+import { HotelEvChargingSection, PRODUCTION_EV_CHARGING_UNKNOWN } from '@/app/components/HotelEvCharging'
 import { scoreDeal } from '@/lib/scoring/scoreDeal'
 import type { DealScore, HotelOffer } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
@@ -496,6 +497,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
               <GuestReviewEvidence />
             </div>
             <HotelClimateEvidenceLedger evidence={createUnsupportedHotelClimateEvidence(deal.id, 'saved-deal-contract')} />
+            <HotelEvChargingSection evidence={PRODUCTION_EV_CHARGING_UNKNOWN} offerId={deal.id} />
             <HotelDisruptionEvidenceLedger
               evidence={disruptionEvidence}
               analyticsKey={deal.id}

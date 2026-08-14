@@ -26,6 +26,7 @@ type CompareRowProps = {
   hotelName?: string
   onProviderOpen?: (provider: keyof CompareLinks) => void
   accessibility?: AccessibilityPresentation
+  actionBoundary?: string
 };
 
 const PROVIDERS: Array<{ key: keyof CompareLinks; label: string }> = [
@@ -91,7 +92,7 @@ export function eligibleHotelProviderLinks(links: CompareLinks): CompareLinks {
   ) as CompareLinks
 }
 
-export function CompareRow({ links, size = "compact", handoffContext, hotelName, onProviderOpen, accessibility }: CompareRowProps) {
+export function CompareRow({ links, size = "compact", handoffContext, hotelName, onProviderOpen, accessibility, actionBoundary }: CompareRowProps) {
   const primary = size === "primary";
 
   // Layout only — colour is applied per-state so the unavailable variant can opt
@@ -121,8 +122,8 @@ export function CompareRow({ links, size = "compact", handoffContext, hotelName,
                   data-hotel-provider={key}
                   aria-label={primary && hotelName
                     ? accessibility
-                      ? `Check rooms at ${label} for ${hotelName}. Opens in a new tab.${accessibilityProviderNameSuffix(accessibility) ? ` ${accessibilityProviderNameSuffix(accessibility)}` : ' Confirm room details, live availability, final total, taxes and fees, cancellation policy, and terms on the provider site.'}`
-                      : `Check rooms at ${label} for ${hotelName}. Opens in a new tab. Room availability has not been checked by expaify; the provider will show current rooms and prices.`
+                      ? `Check rooms at ${label} for ${hotelName}. Opens in a new tab.${accessibilityProviderNameSuffix(accessibility) ? ` ${accessibilityProviderNameSuffix(accessibility)}` : ' Confirm room details, live availability, final total, taxes and fees, cancellation policy, and terms on the provider site.'}${actionBoundary ? ` ${actionBoundary}` : ''}`
+                      : `Check rooms at ${label} for ${hotelName}. Opens in a new tab. Room availability has not been checked by expaify; the provider will show current rooms and prices.${actionBoundary ? ` ${actionBoundary}` : ''}`
                     : `Check this deal on ${label}`}
                   onClick={() => {
                     onProviderOpen?.(key)

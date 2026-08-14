@@ -74,6 +74,13 @@ import type { HotelWifiEvidence } from '@/app/components/research/hotelWifiFixtu
 import GuestReviewEvidence from '@/app/components/GuestReviewEvidence'
 import { HotelClimateEvidenceLedger, HotelClimateHandoffCheck } from '@/app/components/HotelClimateEvidence'
 import { getHotelClimateHandoffGuidance } from '@/lib/hotels/climateEvidence'
+import {
+  HotelEvChargingHandoffNotice,
+  HotelEvChargingSection,
+  PRODUCTION_EV_CHARGING_UNKNOWN,
+  hotelEvChargingActionBoundary,
+  trackHotelEvChargingHandoff,
+} from '@/app/components/HotelEvCharging'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -528,6 +535,7 @@ function HotelDecisionSummary({ hotelContext }: { hotelContext: BookingHotelCont
         />
         <HotelSustainabilityCredentialEvidence />
         <HotelClimateEvidenceLedger evidence={hotelContext.climateEvidence} continuityFailed={hotelContext.climateEvidence === undefined} />
+        <HotelEvChargingSection evidence={PRODUCTION_EV_CHARGING_UNKNOWN} offerId={hotelContext.offerId} />
       </section>
     </>
   )
@@ -1528,6 +1536,7 @@ function HotelHandoffReview({
 
   const handleContinue = () => {
     didContinueRef.current = true
+    trackHotelEvChargingHandoff(hotelContext.offerId, PRODUCTION_EV_CHARGING_UNKNOWN, hotelContext.provider)
     returnArmedRef.current = true
     hiddenAfterContinueRef.current = false
     continueStartedAtRef.current = performance.now()
@@ -1713,7 +1722,7 @@ function HotelHandoffReview({
     : 'The booking partner confirms the final total before you pay.'
   const transportGuidance = getHotelTransportHandoffGuidance(hotelContext.transportEvidence)
   const climateGuidance = getHotelClimateHandoffGuidance(hotelContext.climateEvidence).join(' ')
-  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary(priceComposition)} ${finalTotalBoundary} ${transportGuidance} ${climateGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner. ${getGuestIdentityAccessibleAction(guestIdentity)}`
+  const accessibleName = `${continueLabel} for ${hotelContext.name}. Opens ${accessiblePartner} in a new tab. The selected nightly rate is ${formatMoney(hotelContext.priceCents, hotelContext.currency)} per night. ${getHotelPriceCompositionAccessibleSummary(priceComposition)} ${finalTotalBoundary} ${transportGuidance} ${climateGuidance} Confirm the room's smoking status and the property's current smoking rules on the booking partner. ${getGuestIdentityAccessibleAction(guestIdentity)} ${hotelEvChargingActionBoundary(PRODUCTION_EV_CHARGING_UNKNOWN)}`
   const rebookWarning = `You already told us you booked this stay on ${stub ? formatDeclaredAt(stub.declaredBookedAt) : ''}. Booking again creates a second reservation with ${partnerPhrase(partner)}.`
 
   return (
@@ -1781,6 +1790,9 @@ function HotelHandoffReview({
           presentation={guestIdentity}
           headingId="hotel-handoff-guest-identity-title"
         />
+        <div className="mt-3">
+          <HotelEvChargingHandoffNotice evidence={PRODUCTION_EV_CHARGING_UNKNOWN} offerId={hotelContext.offerId} />
+        </div>
         <div className="mt-3 flex flex-col gap-3">
           {isRecognizedHandoff ? (
             <p className={`text-sm font-medium leading-6 text-[color:var(--warning)] ${partnerLabelWrapCls}`}>
