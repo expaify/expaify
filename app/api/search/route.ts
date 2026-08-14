@@ -4,7 +4,7 @@ import { type NextRequest } from 'next/server';
 import { getSearchLinkedAirportAnchor, resolveToIATA } from '../../../lib/airports/resolve';
 import { getNearby } from '../../../lib/airports/nearby';
 import { travelpayouts } from '../../../lib/providers/travelpayouts';
-import { duffel } from '../../../lib/providers/duffel';
+import { skyScrapper } from '../../../lib/providers/skyScrapper';
 import { googleFlights } from '../../../lib/providers/googleFlights';
 import { bookingComHotels } from '../../../lib/providers/bookingComHotelsRapidApi';
 import { query } from '../../../lib/db/client';
@@ -374,7 +374,7 @@ export async function GET(request: NextRequest) {
             sendProviderNotice('Travelpayouts', providerExceptionReason('Travelpayouts', error));
           }
         })(),
-        searchFlightProvider('Duffel', 'duffel', () => duffel.searchFares(originIATA, destIATA ?? '', range)),
+        searchFlightProvider('SkyScrapper', 'skyScrapper', () => skyScrapper.searchFares(originIATA, destIATA ?? '', range)),
         searchFlightProvider('GoogleFlights', 'googleFlights', () => googleFlights.searchFares(originIATA, destIATA ?? '', range)),
       ]);
 

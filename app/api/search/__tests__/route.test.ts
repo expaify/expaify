@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { GET } from '../route';
 import type { HotelOffer, NormalizedFare } from '@/lib/types';
 import { travelpayouts } from '../../../../lib/providers/travelpayouts';
-import { duffel } from '../../../../lib/providers/duffel';
+import { skyScrapper } from '../../../../lib/providers/skyScrapper';
 import { googleFlights } from '../../../../lib/providers/googleFlights';
 import { bookingComHotels } from '../../../../lib/providers/bookingComHotelsRapidApi';
 import { query } from '../../../../lib/db/client';
@@ -11,8 +11,8 @@ jest.mock('../../../../lib/providers/travelpayouts', () => ({
   travelpayouts: { searchFares: jest.fn() },
 }));
 
-jest.mock('../../../../lib/providers/duffel', () => ({
-  duffel: { searchFares: jest.fn() },
+jest.mock('../../../../lib/providers/skyScrapper', () => ({
+  skyScrapper: { searchFares: jest.fn() },
 }));
 
 jest.mock('../../../../lib/providers/googleFlights', () => ({
@@ -27,7 +27,7 @@ jest.mock('../../../../lib/db/client', () => ({
   query: jest.fn(),
 }));
 
-const flightProviders = [travelpayouts, duffel, googleFlights] as unknown as Array<{
+const flightProviders = [travelpayouts, skyScrapper, googleFlights] as unknown as Array<{
   searchFares: jest.Mock;
 }>;
 const mockHotelSearch = bookingComHotels.searchHotels as jest.Mock;
@@ -230,7 +230,7 @@ describe('GET /api/search guardrails and provider failures', () => {
 
   it('streams successful fares with a bounded notice when another provider returns failure', async () => {
     (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [fare] });
-    (duffel.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Duffel /air/offer_requests HTTP 503' });
+    (skyScrapper.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'SkyScrapper HTTP error 503' });
 
     const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
     const messages = parseNdjson(await readNdjson(response));
@@ -243,9 +243,9 @@ describe('GET /api/search guardrails and provider failures', () => {
     });
     expect(messages).toContainEqual({
       type: 'notice',
-      provider: 'Duffel',
+      provider: 'SkyScrapper',
       status: 'unavailable',
-      message: 'Duffel is unavailable for this search.',
+      message: 'SkyScrapper is unavailable for this search.',
     });
     expect(messages).not.toContainEqual(expect.objectContaining({
       message: expect.stringContaining('HTTP 503'),
@@ -254,7 +254,7 @@ describe('GET /api/search guardrails and provider failures', () => {
 
   it('converts an unexpected provider throw into a user-visible notice without dropping successful fares', async () => {
     (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [fare] });
-    (duffel.searchFares as jest.Mock).mockRejectedValueOnce(new Error('socket hang up'));
+    (skyScrapper.searchFares as jest.Mock).mockRejectedValueOnce(new Error('socket hang up'));
 
     const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
     const messages = parseNdjson(await readNdjson(response));
@@ -267,9 +267,9 @@ describe('GET /api/search guardrails and provider failures', () => {
     });
     expect(messages).toContainEqual({
       type: 'notice',
-      provider: 'Duffel',
+      provider: 'SkyScrapper',
       status: 'unavailable',
-      message: 'Duffel is unavailable for this search.',
+      message: 'SkyScrapper is unavailable for this search.',
     });
     expect(messages).not.toContainEqual(expect.objectContaining({
       message: expect.stringContaining('socket hang up'),
@@ -278,7 +278,7 @@ describe('GET /api/search guardrails and provider failures', () => {
 
   it('uses timeout-specific copy while preserving partial provider results', async () => {
     (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [fare] });
-    (duffel.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Duffel timed out' });
+    (skyScrapper.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'SkyScrapper timed out' });
 
     const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
     const messages = parseNdjson(await readNdjson(response));
@@ -291,15 +291,15 @@ describe('GET /api/search guardrails and provider failures', () => {
     });
     expect(messages).toContainEqual({
       type: 'notice',
-      provider: 'Duffel',
+      provider: 'SkyScrapper',
       status: 'unavailable',
-      message: 'Duffel did not respond in time. We could not confirm its inventory for this search.',
+      message: 'SkyScrapper did not respond in time. We could not confirm its inventory for this search.',
     });
   });
 
   it('returns controlled timeout notices when all flight providers time out', async () => {
     (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Travelpayouts timed out' });
-    (duffel.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Duffel timed out' });
+    (skyScrapper.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'SkyScrapper timed out' });
     (googleFlights.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'GoogleFlights timed out' });
 
     const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
@@ -309,7 +309,7 @@ describe('GET /api/search guardrails and provider failures', () => {
     expect(messages.filter(message => message.type === 'flights')).toHaveLength(0);
     expect(messages.filter(message => message.type === 'notice')).toEqual([
       expect.objectContaining({ provider: 'Travelpayouts', message: expect.stringContaining('did not respond in time') }),
-      expect.objectContaining({ provider: 'Duffel', message: expect.stringContaining('did not respond in time') }),
+      expect.objectContaining({ provider: 'SkyScrapper', message: expect.stringContaining('did not respond in time') }),
       expect.objectContaining({ provider: 'GoogleFlights', message: expect.stringContaining('did not respond in time') }),
     ]);
     expect(messages).toContainEqual(expect.objectContaining({ type: 'done' }));
