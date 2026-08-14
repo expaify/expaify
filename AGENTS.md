@@ -30,21 +30,38 @@ AUDIT, REPAIR, DESIGN, PREMIUM tickets from the prior repair sprint remain valid
 
 ## AGENT MODEL ASSIGNMENTS
 
-Each stage runs on a specific model. No substitutions.
+This table defines the *job* each stage does (persona, output bar). It no
+longer hard-binds one model with no substitutions — see **`FLEET.md`** for
+which live agent actually fills each role. The orchestrating session (the
+"brain," per `FLEET.md`) picks the healthiest agent for the job at dispatch
+time, in fleet-registry priority order, and records the substitution.
+Default mapping when the whole fleet is healthy:
 
-| Stage | Model | Why |
+| Stage | Default agent | Why |
 |-------|-------|-----|
-| UXD — Discovery | **Claude Fable 5** (`claude-fable-5`) | Deep user-problem reasoning, no hallucinated solutions |
-| UXR — Research | **Claude Fable 5** (`claude-fable-5`) | Cross-file audit + competitive pattern analysis |
-| UXDES — Design | **Claude Fable 5** (`claude-fable-5`) | Spec-quality output, every state, no placeholders |
-| UI — Implementation | **Claude Fable 5** (`claude-fable-5`) | Nuanced component judgment, accessibility, token usage |
-| DEV — Development | **Codex** (`codex exec`) | Autonomous code execution, test running, file edits |
-| TEST — QA | **Claude Fable 5** (`claude-fable-5`) | Adversarial evaluation, does not rubber-stamp |
+| UXD — Discovery | Gemini (persona-prompted) | Deep user-problem reasoning, no hallucinated solutions; light text generation, doesn't need code-execution tools |
+| UXR — Research | Gemini (persona-prompted) | Cross-file audit + competitive pattern analysis |
+| UXDES — Design | Gemini (persona-prompted) | Spec-quality output, every state, no placeholders |
+| UI — Implementation | Krater (draft) → Codex (apply/verify) | Nuanced component judgment, accessibility, token usage |
+| DEV — Development | Codex (`codex exec`) | Autonomous code execution, test running, file edits |
+| TEST — QA | Codex (runs the real gate) or Gemini (adversarial review of the diff) | Adversarial evaluation, does not rubber-stamp |
+
+Claude Fable 5 subagents remain a valid fallback for any stage but are
+**not the default** — running all five persona stages as `Agent(model:
+"fable")` subagent calls burned ~445k tokens of Claude credit on one ticket
+(2026-08-13 incident), which conflicts with the standing cost-priority
+instruction. Only reach for a Fable subagent when Gemini/Krater/Codex are
+all confirmed dead for the task at hand (live-checked, not assumed).
 
 **How to invoke:**
-- Fable stages: spawn as `claude-fable-5` model with the stage persona as system prompt
-- DEV stages: `codex exec` with `--approval never` in the assigned worktree
-- Both: read this file before starting. Create the next-stage ticket before finishing.
+- Text/persona-stage output (UXD/UXR/UXDES, adversarial TEST review): direct
+  API call to whichever agent `FLEET.md` marks 🟢 for that role — Gemini by
+  default. No subagent overhead.
+- Real file edits + command execution (UI/DEV, and the TEST gate itself):
+  Krater to draft when it's a small diff, `codex exec --sandbox
+  workspace-write` when it's multi-file/mechanical or needs tsc/test run for
+  real. Both: read this file and `FLEET.md` before starting. Create the
+  next-stage ticket before finishing.
 
 ---
 
