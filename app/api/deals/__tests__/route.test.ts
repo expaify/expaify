@@ -101,6 +101,32 @@ describe('GET /api/deals sorting', () => {
     })
   })
 
+  it('places unlocked deals before locked deals while preserving each group order', async () => {
+    mockGetPaywallContext.mockResolvedValue({
+      userId: null,
+      premium: false,
+      freeUnlockedThisWeek: 2,
+      freeUnlockLimit: 3,
+    })
+    mockGetActiveDeals.mockResolvedValue([
+      { ...row, id: 'locked-first', hotel_id: 'hotel-1' },
+      { ...row, id: 'unlocked-first', hotel_id: 'hotel-2' },
+      { ...row, id: 'locked-second', hotel_id: 'hotel-3' },
+      { ...row, id: 'unlocked-second', hotel_id: 'hotel-4' },
+    ])
+    mockGetFreeUnlockedDealIds.mockResolvedValue(new Set(['unlocked-first', 'unlocked-second']))
+
+    const response = await GET(request('limit=4&offset=0'))
+    const body = await response.json() as { deals: Array<{ id: string; locked: boolean }> }
+
+    expect(body.deals).toEqual([
+      expect.objectContaining({ id: 'unlocked-first', locked: false }),
+      expect.objectContaining({ id: 'unlocked-second', locked: false }),
+      expect.objectContaining({ id: 'locked-first', locked: true }),
+      expect.objectContaining({ id: 'locked-second', locked: true }),
+    ])
+  })
+
   it('applies validated destination and date criteria for free requests and echoes the successful version', async () => {
     mockGetPaywallContext.mockResolvedValue({ userId: null, premium: false, freeUnlockedThisWeek: 0, freeUnlockLimit: 3 })
     const version = '785d80de-8954-46c7-90f7-a4a04f719e5f'
