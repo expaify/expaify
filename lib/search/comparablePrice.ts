@@ -6,8 +6,9 @@ import type { NormalizedFare } from '@/lib/types'
  *
  * priceScope varies by provider (travelpayouts tags fares 'per_person';
  * duffel/amadeus/kiwi/googleFlights tag 'party_total') -- comparing raw
- * price.priceCents directly mixes the two bases. This has been invisible so
- * far because the current search UI always requests 1 passenger, where the
+ * price.priceCents directly mixes the two bases (duffel/kiwi/googleFlights
+ * tag 'party_total'). This has been invisible so far because the current
+ * search UI always requests 1 passenger, where the
  * two bases are numerically identical; it stops being invisible the moment
  * party size > 1 is wired up. Fares with no priceScope (or no passengerCount
  * to scale by) are treated as already party-total, matching the majority of

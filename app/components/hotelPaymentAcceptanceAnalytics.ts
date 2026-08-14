@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { track } from '@/lib/analytics'
 import type { HotelPaymentAcceptancePresentation } from '@/lib/types'
 
-const KNOWN_SOURCES = new Set(['hotellook', 'duffel', 'amadeus', 'kiwi', 'travelpayouts'])
+const KNOWN_SOURCES = new Set(['hotellook', 'duffel', 'kiwi', 'travelpayouts'])
 const OPAQUE_VALUE = /^[A-Za-z0-9_-]{1,100}$/
 const viewedKeys = new Set<string>()
 

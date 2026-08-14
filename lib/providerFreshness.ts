@@ -3,7 +3,6 @@ import type { NormalizedFare } from './types'
 const providerLabels: Record<string, string> = {
   travelpayouts: 'Travelpayouts',
   duffel: 'Duffel',
-  amadeus: 'Amadeus',
   kiwi: 'Kiwi',
   hotellook: 'Hotellook',
   bookingcomrapidapi: 'Booking.com',

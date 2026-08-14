@@ -533,7 +533,7 @@ function LegTimeline({
 // No provider in this codebase ever supplies the return flight's
 // departure time, duration, or stop count — only its arrival back at the
 // origin (`fare.return`, confirmed by every provider that sets it — see
-// duffel.ts/amadeus.ts/kiwi.ts, each assigning it from the final return
+// duffel.ts/kiwi.ts, each assigning it from the final return
 // segment's real arrival timestamp). Inventing a fake departure time or
 // duration to mirror LegTimeline's layout would violate this card's
 // no-fabrication rule, so this row deliberately shows less: a muted
