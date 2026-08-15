@@ -74,7 +74,17 @@ describe('POST /api/stripe/checkout', () => {
   })
 
   it('creates a Stripe Checkout session for a signed-in free user from account', async () => {
-    const response = await POST(checkoutRequest({ plan: 'annual', anonId: 'anon_visitor_123' }))
+    const response = await POST(checkoutRequest({
+      plan: 'annual',
+      anonId: 'anon_visitor_123',
+      utm: {
+        utm_source: 'google',
+        utm_medium: 'cpc',
+        utm_campaign: 'summer',
+        utm_content: '',
+        utm_term: 42,
+      },
+    }))
     const body = (await response.json()) as { url?: string; error?: string }
 
     expect(response.status).toBe(200)
@@ -88,9 +98,33 @@ describe('POST /api/stripe/checkout', () => {
       },
       success_url: 'https://expaify.com/account?checkout=success&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://expaify.com/account',
-      metadata: { user_id: 'user_123', plan: 'annual', opinly_anon_id: 'anon_visitor_123' },
+      metadata: {
+        user_id: 'user_123',
+        plan: 'annual',
+        opinly_anon_id: 'anon_visitor_123',
+        utm_source: 'google',
+        utm_medium: 'cpc',
+        utm_campaign: 'summer',
+      },
       customer_email: 'traveler@example.com',
     })
+  })
+
+  it('truncates oversized client UTM values before adding them to Stripe metadata', async () => {
+    const oversizedCampaign = 'x'.repeat(250)
+
+    const response = await POST(checkoutRequest({
+      plan: 'annual',
+      utm: { utm_campaign: oversizedCampaign },
+    }))
+
+    expect(response.status).toBe(200)
+    expect(mockCreateCheckoutSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ utm_campaign: 'x'.repeat(200) }),
+      }),
+    )
+    expect(mockCreateCheckoutSession.mock.calls[0][0].metadata.utm_campaign).toHaveLength(200)
   })
 
   it('uses an existing Stripe customer when the account already has one', async () => {

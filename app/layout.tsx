@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Space_Grotesk } from "next/font/google";
 import Script from "next/script";
+import { AttributionCapture } from "./components/AttributionCapture";
 import { OpinlyIdentify } from "./components/OpinlyIdentify";
 import { Providers } from "./Providers";
 import "./globals.css";
@@ -87,6 +88,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
         <Providers>
+          <AttributionCapture />
           <OpinlyIdentify />
           {children}
         </Providers>
