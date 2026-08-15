@@ -515,7 +515,8 @@ describe('Deal score presentation', () => {
     const withPhoto = LockedDealCard({
       placeholderName: 'Members Hotel',
       placeholderCity: 'Paris',
-      stars: 5,
+      stars: 3,
+      discountPct: 42,
       photoUrl: 'https://example.com/property.jpg',
     })
     const withPhotoText = collectText(withPhoto)
@@ -523,7 +524,10 @@ describe('Deal score presentation', () => {
 
     expect(withPhotoText).toContain('Members')
     expect(withPhotoText).toContain('Deal found today')
-    expect(withPhotoText).toContain('Unlock with Premium')
+    expect(withPhotoText).toContain('Premium Only')
+    expect(withPhotoText).toContain('Save 42%')
+    expect(withPhotoText).toContain('★★★☆☆')
+    expect(findFirstProp(withPhoto, 'href', value => value === '/join?utm_source=deal_page&utm_medium=card_teaser&discount=42')).toBe('/join?utm_source=deal_page&utm_medium=card_teaser&discount=42')
     expect(findFirstProp(withPhoto, 'alt', value => value === '')).toBe('')
     expect(collectText(figure)).toBe('Property photo')
 
@@ -531,6 +535,7 @@ describe('Deal score presentation', () => {
       placeholderName: 'Members Hotel',
       placeholderCity: 'Paris',
       stars: 5,
+      discountPct: 42,
     }))
     expect(withoutPhotoText).toContain('Photo unavailable')
     expect(withoutPhotoText).not.toContain('Property photo')

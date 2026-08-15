@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { DealCard } from '../components/ui/DealCard'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
+import { PremiumHubBar } from '../components/ui/PremiumHubBar'
 import { Icon } from '../components/ui/icons/Icon'
 import { SearchBar } from '../components/ui/SearchBar'
 import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
@@ -528,6 +529,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const viewedCriteriaVersionsRef = useRef(new Set<string>())
   const evChargingImpressionsRef = useRef(new Set<string>())
   const gridRef = useRef<HTMLDivElement>(null)
+  const firstLockedDealRef = useRef<HTMLDivElement>(null)
   const resultStatusRef = useRef<HTMLDivElement>(null)
   const sortControlRef = useRef<HTMLElement>(null)
   const sortTriggerRef = useRef<HTMLButtonElement>(null)
@@ -1229,6 +1231,8 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const echoLinkClass = 'font-medium text-[color:var(--primary)] no-underline hover:underline'
 
   const realDealCount = deals.filter(deal => !deal.isMock).length
+  const lockedDealsCount = deals.filter(deal => deal.locked).length
+  const firstLockedDealIndex = deals.findIndex(deal => deal.locked)
   const fundsPolicyPresentation = useMemo(() => deriveHotelFundsSetPresentation(deals), [deals])
   const fundsPolicyRefreshing = deals.length > 0 && (criteriaUpdating || pendingSort !== null || (loading && !loadingMore))
   const fundsPolicyQueryKey = `${resultMetadata?.queryId ?? 'query'}:${criteria.criteriaVersion}`
@@ -1842,7 +1846,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               </div>
               <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150`}>
                 {deals.map(deal => deal.locked ? (
-                  <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
+                  <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
                   <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
@@ -1859,7 +1863,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               </div>
               <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150`}>
                 {deals.map(deal => deal.locked ? (
-                  <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
+                  <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
                   <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
@@ -1942,14 +1946,16 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               <div ref={gridRef} tabIndex={-1} aria-busy="false" className={`${gridClass} outline-none`}>
                 {deals.map((deal, index) =>
                   deal.locked ? (
-                    <LockedDealCard
-                      key={deal.id}
-                      placeholderName="Members-only deal"
-                      placeholderCity={deal.city}
-                      stars={deal.stars}
-                      photoUrl={deal.photoUrl ?? undefined}
-                      joinHref="/join"
-                    />
+                    <div key={deal.id} ref={index === firstLockedDealIndex ? firstLockedDealRef : undefined}>
+                      <LockedDealCard
+                        placeholderName="Members-only deal"
+                        placeholderCity={deal.city}
+                        stars={deal.stars}
+                        discountPct={deal.discountPct}
+                        photoUrl={deal.photoUrl ?? undefined}
+                        joinHref="/join"
+                      />
+                    </div>
                   ) : (
                     <DealCard
                       key={deal.id}
@@ -1980,6 +1986,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 )}
                 {loadingMore && Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={`more-${i}`} />)}
               </div>
+              <PremiumHubBar lockedDealsCount={lockedDealsCount} firstLockedDealRef={firstLockedDealRef} />
               {!isColdSampleFeed ? (
                 <div ref={sentinelRef} className="w-full">
                   <ResultCoverageBoundary

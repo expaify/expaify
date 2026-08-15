@@ -3,6 +3,7 @@ export * from "./DealCard";
 export * from "./DealChip";
 export * from "./icons/Icon";
 export * from "./LockedDealCard";
+export * from "./PremiumHubBar";
 export * from "./PriceBlock";
 export * from "./StarRow";
 export * from "./TrustLine";

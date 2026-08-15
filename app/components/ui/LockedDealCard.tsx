@@ -1,3 +1,6 @@
+'use client'
+
+import { track } from '@/lib/analytics'
 import { PropertyPhoto } from './PropertyPhoto'
 import { Icon } from './icons/Icon'
 
@@ -5,6 +8,7 @@ type LockedDealCardProps = {
   placeholderName: string
   placeholderCity: string
   stars: number | null
+  discountPct: number
   photoUrl?: string
   joinHref?: string
   accessibilityNeedsSelected?: boolean
@@ -15,16 +19,32 @@ function starChars(stars: number): string {
   return '★'.repeat(n) + '☆'.repeat(5 - n)
 }
 
+function trackingHref(joinHref: string, discountPct: number): string {
+  const separator = joinHref.includes('?') ? '&' : '?'
+  return `${joinHref}${separator}utm_source=deal_page&utm_medium=card_teaser&discount=${discountPct}`
+}
+
 export function LockedDealCard({
   placeholderName,
   placeholderCity,
   stars,
+  discountPct,
   photoUrl,
   joinHref = '/join',
   accessibilityNeedsSelected = false,
 }: LockedDealCardProps) {
   return (
-    <article className="overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]">
+    <a
+      href={trackingHref(joinHref, discountPct)}
+      onClick={() => track('click_card_teaser_unlock', { discount_percent: discountPct })}
+      aria-label={`Locked premium deal. Save ${discountPct}% at a hotel in ${placeholderCity}. Unlock deal with Premium.`}
+      className="group relative block overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-[color:var(--gold-deep)] hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gold-deep)]"
+    >
+      <div className="absolute right-3 top-3 z-30 flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[color:var(--gold-deep)] px-2.5 py-1 font-display text-[11px] font-bold uppercase tracking-wider text-[color:var(--ink)] shadow-md transition-transform duration-200 group-hover:scale-105">
+        <Icon name="premium_unlocked" size={16} className="text-[color:var(--ink)]" />
+        <span>Save {discountPct}%</span>
+      </div>
+
       <div className="flex flex-wrap items-center gap-2 px-4 pt-4">
         <span className="rounded-[var(--radius-pill)] bg-[color:var(--primary)] px-3 py-1 font-display text-body font-bold leading-none text-[color:var(--text-inverse)]">
           Members
@@ -34,22 +54,25 @@ export function LockedDealCard({
         </span>
       </div>
 
-      {/* Blurred, not just decorative filler: an unblurred real hotel photo
-          next to an invented placeholder name/city would read as a specific
-          claim about that property. Blurred, it's honestly just "there's
-          more behind the paywall" texture. */}
-      <div className="px-4 pt-3 blur-[5px]" aria-hidden>
+      <div className="select-none px-4 pt-3 blur-[6px] transition-all duration-300 group-hover:blur-[4px]" aria-hidden="true">
         <PropertyPhoto src={photoUrl} size="card" />
       </div>
 
       <div className="relative space-y-3 px-4 pb-4 pt-3">
-        <div className="pointer-events-none select-none blur-[5px]" aria-hidden>
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[color:var(--bg-overlay)]/10 px-4 py-4 text-center backdrop-blur-[1px] transition-all duration-200 group-hover:backdrop-blur-0" aria-hidden="true">
+          <div className="flex items-center gap-2 rounded-[var(--radius-input)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] px-4 py-2 shadow-sm transition-all duration-200 group-hover:border-[color:var(--gold-deep)] group-hover:shadow-md">
+            <Icon name="premium_unlocked" size={16} className="text-[color:var(--gold-deep)]" />
+            <span className="font-display text-caption font-bold uppercase tracking-wide text-[color:var(--ink)]">Premium Only</span>
+          </div>
+        </div>
+
+        <div className="pointer-events-none select-none blur-[5px]" aria-hidden="true">
           <h3 className="text-body font-display font-bold leading-snug text-[color:var(--ink)]">{placeholderName}</h3>
           <p className="text-caption mt-0.5 leading-snug text-[color:var(--ink-faint)]">
             {stars === null ? 'Not yet rated' : starChars(stars)} · {placeholderCity}
           </p>
         </div>
-        <div className="pointer-events-none select-none space-y-0.5 blur-[5px]" aria-hidden>
+        <div className="pointer-events-none select-none space-y-0.5 blur-[5px]" aria-hidden="true">
           <div className="flex items-baseline gap-2">
             <div className="h-7 w-16 rounded-[var(--radius-pill)] bg-[color:var(--primary)]" />
             <div className="h-4 w-10 rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)]" />
@@ -57,11 +80,11 @@ export function LockedDealCard({
           </div>
         </div>
         {accessibilityNeedsSelected ? (
-          <p className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-2.5 text-caption font-medium leading-5 text-[color:var(--text-2)]">
+          <p className="relative z-20 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-2.5 text-caption font-medium leading-5 text-[color:var(--text-2)]">
             Accessibility fit available after this deal is unlocked.
           </p>
         ) : null}
-        <div className="pointer-events-none select-none blur-[5px]" aria-hidden>
+        <div className="pointer-events-none select-none blur-[5px]" aria-hidden="true">
           <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
             {['Expedia', 'Booking', 'Kiwi', 'Trip.com'].map(name => (
               <div key={name} className="rounded-[var(--radius-input)] border-[0.5px] border-[color:var(--line-white)] py-2 text-center text-caption font-medium text-[color:var(--ink)]">
@@ -70,13 +93,7 @@ export function LockedDealCard({
             ))}
           </div>
         </div>
-
-        <div className="absolute inset-x-4 top-1/2 flex -translate-y-1/2 flex-col items-center gap-3 rounded-[var(--radius-input)] bg-[color:var(--bg-overlay)] px-4 py-4 text-center shadow-[var(--shadow-card-hover)] backdrop-blur-[2px]">
-          <Icon name="premium_unlocked" size={24} className="text-[color:var(--gold-deep)]" />
-          <p className="text-caption font-medium text-[color:var(--ink-soft)]">Members-only deal</p>
-          <a href={joinHref} className="btn btn-conversion btn-sm">Unlock with Premium</a>
-        </div>
       </div>
-    </article>
+    </a>
   )
 }

@@ -168,7 +168,7 @@ describe('hotel accessibility fit presentation', () => {
   })
 
   it('keeps locked evidence hidden while explaining when fit becomes available', () => {
-    const html = renderToStaticMarkup(<LockedDealCard placeholderName="Members-only deal" placeholderCity="Boston" stars={4} accessibilityNeedsSelected />)
+    const html = renderToStaticMarkup(<LockedDealCard placeholderName="Members-only deal" placeholderCity="Boston" stars={4} discountPct={31} accessibilityNeedsSelected />)
     expect(html).toContain('Accessibility fit available after this deal is unlocked.')
     expect(html).not.toContain('Documented for this stay')
   })
