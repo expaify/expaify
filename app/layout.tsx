@@ -75,7 +75,13 @@ const organizationSchema = {
   logo: "https://expaify.com/favicon.svg",
   description:
     "We track 20 destinations daily and alert you the moment a hotel drops 30%+ below its normal price.",
-  sameAs: ["https://x.com/expaify", "https://www.tiktok.com/@expaify"],
+  sameAs: [
+    "https://x.com/expaify",
+    "https://www.tiktok.com/@expaify",
+    "https://www.facebook.com/expaify",
+    "https://www.instagram.com/expaify",
+    "https://www.youtube.com/@expaify",
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
