@@ -72,7 +72,7 @@ describe('hotel pool operating-status research prototype', () => {
     expect(html).not.toMatch(/Open|Available/)
   })
 
-  it('adds the exact pool cue once to the full-card accessible name without a nested control', () => {
+  it('adds the exact pool cue once to the deal link without nesting the destination link', () => {
     const html = renderToStaticMarkup(<DealCard
       href="/deals/deal-1"
       poolEvidence={createHotelPoolFixture('multiple_mixed', checkIn, checkOut)}
@@ -83,7 +83,8 @@ describe('hotel pool operating-status research prototype', () => {
       }}
     />)
     expect(html).toContain('Pool detail: Indoor pool schedule covers your stay · 2 pools disclosed.')
-    expect(html.match(/<a(?: |>)/g)?.length).toBe(1)
+    expect(html).toContain('href="/destinations/miami"')
+    expect(html.match(/<a(?: |>)/g)?.length).toBe(2)
     expect(html).not.toContain('<button')
   })
 

@@ -306,7 +306,7 @@ describe('QuietStayEvidenceLedger', () => {
     expect(html).not.toMatch(/soundproofing/i)
   })
 
-  it('adds the bounded cue inside the existing result link without a new control', () => {
+  it('adds the bounded cue to the deal link alongside the destination link', () => {
     const deal = {
       id: 'hotel-1',
       hotelName: 'Example Hotel',
@@ -330,7 +330,8 @@ describe('QuietStayEvidenceLedger', () => {
     expect(populated.match(/Quiet-stay evidence available · Property/g)).toHaveLength(1)
     expect(populated).toContain('aria-label="View deal: Example Hotel. 4-star hotel class. Quiet-stay evidence available: Property. EV charging: Unknown. This provider did not return usable on-property charging details."')
     expect(unknown).not.toContain('Quiet-stay evidence available')
-    expect(populated.match(/<a /g)).toHaveLength(1)
+    expect(populated).toContain('href="/destinations/london"')
+    expect(populated.match(/<a /g)).toHaveLength(2)
 
     // Exposure-only evidence (nearby context) must never surface a quiet-stay
     // cue on the collapsed card or in its aria-label — the exact overclaim

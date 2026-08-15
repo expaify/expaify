@@ -71,10 +71,10 @@ describe('hotel deposit and hold comparison presentation', () => {
       medianPrice: { priceCents: 15_000, currency: 'USD' }, discountPct: 33,
       checkInWindow: 'Aug 1–3', snapshotCount: 20, links: {}, fundsPolicy: policies.complete,
     }
-    const linked = DealCard({ deal: baseDeal, href: '/deals/1' })
-    expect(linked.props['aria-label']).toBe('View deal: Hotel One. 4-star hotel class. Temporary card hold: $200\u00a0USD per stay. Not part of the stay price. EV charging: Unknown. This provider did not return usable on-property charging details.')
-    const unknown = DealCard({ deal: { ...baseDeal, fundsPolicy: policies.notReturned }, href: '/deals/1' })
-    expect(unknown.props['aria-label']).toBe('View deal: Hotel One. 4-star hotel class. EV charging: Unknown. This provider did not return usable on-property charging details.')
+    const linked = renderToStaticMarkup(<DealCard deal={baseDeal} href="/deals/1" />)
+    expect(linked).toContain('aria-label="View deal: Hotel One. 4-star hotel class. Temporary card hold: $200\u00a0USD per stay. Not part of the stay price. EV charging: Unknown. This provider did not return usable on-property charging details."')
+    const unknown = renderToStaticMarkup(<DealCard deal={{ ...baseDeal, fundsPolicy: policies.notReturned }} href="/deals/1" />)
+    expect(unknown).toContain('aria-label="View deal: Hotel One. 4-star hotel class. EV charging: Unknown. This provider did not return usable on-property charging details."')
   })
 
   it('renders one neutral, non-interactive set disclosure with exact settled copy', () => {

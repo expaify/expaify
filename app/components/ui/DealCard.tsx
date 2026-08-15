@@ -29,6 +29,7 @@ import {
   type ApiDealFundsPolicy,
 } from '../HotelFundsPolicyComparison'
 import { getHotelClimateResultCue } from '@/lib/hotels/climateEvidence'
+import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 import {
   getHotelEvChargingResultCopy,
   HotelEvChargingResultSignal,
@@ -97,6 +98,21 @@ function absoluteCheckedAt(iso: string | null | undefined): string | undefined {
   })
 }
 
+export function DealCardCity({ city }: { city: string }) {
+  const citySlug = CITY_DISPLAY_TO_SLUG[city]
+
+  if (!citySlug) return <>{city}</>
+
+  return (
+    <a
+      href={`/destinations/${citySlug}`}
+      className="relative z-[2] underline-offset-2 hover:underline focus-visible:rounded-sm"
+    >
+      {city}
+    </a>
+  )
+}
+
 export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvidence, poolEvidence, photoLoading = 'lazy', accessibility, climateEvidence, evChargingEvidence = PRODUCTION_EV_CHARGING_UNKNOWN }: DealCardProps) {
   const savings = deal.medianPrice.priceCents - deal.dealPrice.priceCents
   const showSavings = savings >= 2000
@@ -122,7 +138,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
   const evChargingCue = getHotelEvChargingResultCopy(evChargingEvidence)
 
   const content = (
-    <article className={`group overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]'}`}>
+    <article className={`overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 group-hover:-translate-y-1 group-hover:shadow-[var(--shadow-card-hover)]'}`}>
       <div className="px-4 pt-3">
         {deal.isMock ? (
           <span className="mb-2 inline-flex rounded-[var(--radius-pill)] bg-[color:var(--bg-muted)] px-2 py-1 font-display text-caption font-bold leading-none text-[color:var(--ink-soft)]">
@@ -143,7 +159,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
             ) : (
               <span aria-label={`${Math.round(deal.stars)}-star hotel class`} role="img">{starChars(deal.stars)}</span>
             )}
-            {' · '}{deal.city}{' · '}{deal.checkInWindow}
+            {' · '}<DealCardCity city={deal.city} />{' · '}{deal.checkInWindow}
           </p>
           {reviewScanLine ? (
             <p aria-label={reviewScanLine.accessible} className="mt-1 break-words text-caption font-medium leading-5 text-[color:var(--text-2)]">
@@ -252,15 +268,14 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
   if (!href) return content
 
   return (
-    <a
-      href={href}
-      onClick={(event) => {
-        if ((event.target as Element).closest('a') === event.currentTarget) onOpen?.()
-      }}
-      className="block text-inherit no-underline"
-      aria-label={`View deal: ${deal.hotelName}.${deal.stars === null ? '' : ` ${Math.round(deal.stars)}-star hotel class.`}${reviewScanLine ? ` ${reviewScanLine.accessible}.` : ''}${disruptionCue ? ` Supplier notice: ${disruptionCue}.` : ''}${accessibilityAccessibleText ? ` ${accessibilityAccessibleText}` : ''}${quietEvidenceCue ? ` ${quietEvidenceCue.replace(' · ', ': ')}.` : ''}${poolCue ? ` Pool detail: ${poolCue.copy}.` : ''}${climateCue ? ` Room climate: ${climateCue}.` : ''}${fundsPolicySignal ? ` ${fundsPolicySignal.copy}` : ''} ${evChargingCue.accessible}`}
-    >
+    <div className="group relative">
       {content}
-    </a>
+      <a
+        href={href}
+        onClick={onOpen}
+        className="absolute inset-0 z-[1] block text-inherit no-underline"
+        aria-label={`View deal: ${deal.hotelName}.${deal.stars === null ? '' : ` ${Math.round(deal.stars)}-star hotel class.`}${reviewScanLine ? ` ${reviewScanLine.accessible}.` : ''}${disruptionCue ? ` Supplier notice: ${disruptionCue}.` : ''}${accessibilityAccessibleText ? ` ${accessibilityAccessibleText}` : ''}${quietEvidenceCue ? ` ${quietEvidenceCue.replace(' · ', ': ')}.` : ''}${poolCue ? ` Pool detail: ${poolCue.copy}.` : ''}${climateCue ? ` Room climate: ${climateCue}.` : ''}${fundsPolicySignal ? ` ${fundsPolicySignal.copy}` : ''} ${evChargingCue.accessible}`}
+      />
+    </div>
   )
 }
