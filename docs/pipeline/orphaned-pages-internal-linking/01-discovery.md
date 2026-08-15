@@ -12,9 +12,15 @@ means *no other crawled page links to it*. Confirmed by grep, not assumption:
   "destinations/\${"` across every `.tsx` file returns only the destinations page itself
   (a self-link "Start a new search" button and a link back to `/deals`). The homepage, the
   deals feed, and individual deal cards never link to a city page. ~20 pages, fully orphaned.
-- **`/blog/[slug]` pages have zero outbound links of any kind.** `app/blog/[slug]/page.tsx`
-  contains no `Link`/`href` at all — no "back to blog," no related posts, no CTA into the
-  product. Whatever real content exists there is a dead end for both users and crawlers.
+- **CORRECTION (verified 2026-08-15):** the original claim that blog posts have "zero outbound
+  links of any kind" was overstated — `app/blog/[slug]/page.tsx` renders `<LandingNav />`,
+  which does provide baseline links to `/`, `/blog`, `/deals`, `/join`, `/login`. The real,
+  narrower gap: **individual posts never link to each other.** `/blog` only ever points back to
+  the index, not to other specific posts — so a crawler/reader following links between content
+  pages hits a dead end after one post. 5 real posts exist in production today (confirmed via
+  the live sitemap.xml), each with a real `tags` field already available in the Contentful data
+  model (`lib/contentful.ts`'s `BlogPost.tags`) — unused for cross-linking today, a real basis
+  for a tag-matched "related posts" section.
 - **`/deals/[dealId]` pages don't link back to their `/destinations/{city}` page.** Confirmed
   by grep — zero references to `destinations/` in the deal detail page. The deal→city
   relationship exists in the data (`deal.city`) but isn't rendered as a link anywhere.
