@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LandingNav } from '@/app/components/LandingNav';
-import { getBlogPostBySlug } from '@/lib/contentful';
+import { getBlogPostBySlug, getBlogPosts, type BlogPost } from '@/lib/contentful';
 import { documentToReactComponents } from '@contentful/rich-text-react-renderer';
 import { BLOCKS, MARKS, type Document } from '@contentful/rich-text-types';
 
@@ -35,6 +36,38 @@ const renderOptions = {
   },
 };
 
+export function getRelatedPosts(currentPost: BlogPost, posts: BlogPost[]): BlogPost[] {
+  const currentTags = new Set(currentPost.tags);
+  const candidates = posts
+    .filter((post) => post.slug !== currentPost.slug)
+    .map((post) => ({
+      post,
+      sharedTagCount: new Set(post.tags.filter((tag) => currentTags.has(tag))).size,
+    }));
+
+  const byRelevanceThenRecency = [...candidates].sort(
+    (a, b) =>
+      b.sharedTagCount - a.sharedTagCount ||
+      new Date(b.post.publishedDate).getTime() - new Date(a.post.publishedDate).getTime()
+  );
+  const matching = byRelevanceThenRecency.filter(({ sharedTagCount }) => sharedTagCount > 0);
+
+  if (matching.length >= 2) {
+    return matching.slice(0, 3).map(({ post }) => post);
+  }
+
+  const selected = matching.map(({ post }) => post);
+  const selectedSlugs = new Set(selected.map((post) => post.slug));
+  const recentNonMatching = candidates
+    .filter(({ post }) => !selectedSlugs.has(post.slug))
+    .sort(
+      (a, b) =>
+        new Date(b.post.publishedDate).getTime() - new Date(a.post.publishedDate).getTime()
+    );
+
+  return [...selected, ...recentNonMatching.map(({ post }) => post)].slice(0, 3);
+}
+
 export async function generateMetadata({ params }: { params: PageParams }): Promise<Metadata> {
   const { slug } = await params;
   const post = await getBlogPostBySlug(slug);
@@ -56,8 +89,9 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
 
 export default async function BlogPostPage({ params }: { params: PageParams }) {
   const { slug } = await params;
-  const post = await getBlogPostBySlug(slug);
+  const [post, posts] = await Promise.all([getBlogPostBySlug(slug), getBlogPosts()]);
   if (!post) return notFound();
+  const relatedPosts = getRelatedPosts(post, posts);
 
   const formatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'long' });
 
@@ -111,6 +145,39 @@ export default async function BlogPostPage({ params }: { params: PageParams }) {
         <div className="mt-8">
           {documentToReactComponents(post.body as Document, renderOptions)}
         </div>
+
+        {relatedPosts.length > 0 && (
+          <section className="mt-8" aria-labelledby="related-posts-heading">
+            <h2
+              id="related-posts-heading"
+              className="font-display text-h3 font-semibold text-[color:var(--ink)]"
+            >
+              Related posts
+            </h2>
+            <div className="mt-4 space-y-6">
+              {relatedPosts.map((relatedPost) => (
+                <article
+                  key={relatedPost.id}
+                  className="rounded-[var(--radius-card)] border border-[color:var(--ink-faint)] bg-white/40 p-5"
+                >
+                  <h3 className="font-display text-body font-semibold text-[color:var(--ink)]">
+                    <Link
+                      href={`/blog/${relatedPost.slug}`}
+                      className="hover:text-[color:var(--primary)]"
+                    >
+                      {relatedPost.title}
+                    </Link>
+                  </h3>
+                  {relatedPost.excerpt && (
+                    <p className="mt-3 text-body text-[color:var(--ink-soft)]">
+                      {relatedPost.excerpt}
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );
