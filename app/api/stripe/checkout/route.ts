@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { auth } from '@/auth'
 import { getSubscription } from '@/lib/subscription'
-import { UTM_FIELDS, type UtmAttribution } from '@/lib/attribution'
+import { UTM_FIELDS, UTM_VALUE_MAX_LENGTH, type UtmAttribution } from '@/lib/attribution'
 
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY
@@ -148,7 +148,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (body.utm && typeof body.utm === 'object' && !Array.isArray(body.utm)) {
       for (const field of UTM_FIELDS) {
         const value = (body.utm as Record<string, unknown>)[field]
-        if (typeof value === 'string' && value.trim()) utm[field] = value
+        if (typeof value === 'string' && value.trim()) {
+          utm[field] = value.slice(0, UTM_VALUE_MAX_LENGTH)
+        }
       }
     }
     const url = await createCheckoutUrl({

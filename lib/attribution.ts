@@ -8,6 +8,8 @@ export const UTM_FIELDS = [
   'utm_term',
 ] as const
 
+export const UTM_VALUE_MAX_LENGTH = 200
+
 export type UtmAttribution = Partial<Record<(typeof UTM_FIELDS)[number], string>>
 
 function parseStoredUtm(value: string | null): UtmAttribution {
@@ -19,7 +21,9 @@ function parseStoredUtm(value: string | null): UtmAttribution {
   const utm: UtmAttribution = {}
   for (const field of UTM_FIELDS) {
     const candidate = (parsed as Record<string, unknown>)[field]
-    if (typeof candidate === 'string' && candidate.trim()) utm[field] = candidate
+    if (typeof candidate === 'string' && candidate.trim()) {
+      utm[field] = candidate.slice(0, UTM_VALUE_MAX_LENGTH)
+    }
   }
   return utm
 }
@@ -45,7 +49,7 @@ export function captureUtmAttribution(): UtmAttribution {
     const utm: UtmAttribution = {}
     for (const field of UTM_FIELDS) {
       const value = params.get(field)
-      if (value?.trim()) utm[field] = value
+      if (value?.trim()) utm[field] = value.slice(0, UTM_VALUE_MAX_LENGTH)
     }
 
     if (Object.keys(utm).length > 0) {

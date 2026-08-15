@@ -110,6 +110,23 @@ describe('POST /api/stripe/checkout', () => {
     })
   })
 
+  it('truncates oversized client UTM values before adding them to Stripe metadata', async () => {
+    const oversizedCampaign = 'x'.repeat(250)
+
+    const response = await POST(checkoutRequest({
+      plan: 'annual',
+      utm: { utm_campaign: oversizedCampaign },
+    }))
+
+    expect(response.status).toBe(200)
+    expect(mockCreateCheckoutSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ utm_campaign: 'x'.repeat(200) }),
+      }),
+    )
+    expect(mockCreateCheckoutSession.mock.calls[0][0].metadata.utm_campaign).toHaveLength(200)
+  })
+
   it('uses an existing Stripe customer when the account already has one', async () => {
     mockGetSubscription.mockResolvedValue({
       id: 'sub_123',

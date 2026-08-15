@@ -62,6 +62,21 @@ describe('UTM attribution', () => {
     expect(localStorage.setItem).not.toHaveBeenCalled()
   })
 
+  it('truncates oversized UTM values from query parameters before persisting them', () => {
+    const oversizedCampaign = 'x'.repeat(250)
+    const { getStoredValue } = installWindow(`?utm_campaign=${oversizedCampaign}`)
+
+    expect(captureUtmAttribution()).toEqual({ utm_campaign: 'x'.repeat(200) })
+    expect(JSON.parse(getStoredValue() as string)).toEqual({ utm_campaign: 'x'.repeat(200) })
+  })
+
+  it('truncates oversized UTM values read from localStorage', () => {
+    installWindow('', JSON.stringify({ utm_campaign: 'y'.repeat(250) }))
+
+    expect(getStoredUtm()).toEqual({ utm_campaign: 'y'.repeat(200) })
+    expect(captureUtmAttribution()).toEqual({ utm_campaign: 'y'.repeat(200) })
+  })
+
   it('ignores missing, empty, and unknown query parameters', () => {
     const { localStorage } = installWindow('?utm_source=&utm_campaign=launch&ref=partner')
 
