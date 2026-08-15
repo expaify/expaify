@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { auth } from '@/auth'
 import { getSubscription } from '@/lib/subscription'
+import { UTM_FIELDS, type UtmAttribution } from '@/lib/attribution'
 
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY
@@ -43,12 +44,14 @@ async function createCheckoutUrl({
   plan,
   cancelPath,
   anonId,
+  utm,
 }: {
   userId: string
   email?: string | null
   plan: BillingPlan
   cancelPath: string
   anonId?: string
+  utm?: UtmAttribution
 }): Promise<string> {
   const priceId = getPriceId(plan)
   assertConfiguredPrice(priceId, plan)
@@ -75,6 +78,7 @@ async function createCheckoutUrl({
       user_id: userId,
       plan,
       ...(anonId ? { opinly_anon_id: anonId } : {}),
+      ...utm,
     },
   }
 
@@ -138,14 +142,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const body = (await req.json().catch(() => ({}))) as { plan?: string; anonId?: unknown }
+    const body = (await req.json().catch(() => ({}))) as { plan?: string; anonId?: unknown; utm?: unknown }
     const anonId = typeof body.anonId === 'string' && body.anonId ? body.anonId : undefined
+    const utm: UtmAttribution = {}
+    if (body.utm && typeof body.utm === 'object' && !Array.isArray(body.utm)) {
+      for (const field of UTM_FIELDS) {
+        const value = (body.utm as Record<string, unknown>)[field]
+        if (typeof value === 'string' && value.trim()) utm[field] = value
+      }
+    }
     const url = await createCheckoutUrl({
       userId: session.user.id,
       email: session.user.email,
       plan: parsePlan(body.plan),
       cancelPath: '/account',
       anonId,
+      utm,
     })
     return NextResponse.json({ url })
   } catch (err) {

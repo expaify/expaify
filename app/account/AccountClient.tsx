@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { signOut } from 'next-auth/react'
+import { getStoredUtm } from '@/lib/attribution'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 
 type AlertPreference = 'instant' | 'daily' | 'off'
@@ -184,6 +185,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
         body: JSON.stringify({
           plan: upgradePlan ?? 'annual',
           anonId: window.opinly?.anonId,
+          utm: getStoredUtm(),
         }),
       })
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string }

@@ -66,4 +66,30 @@ describe('production analytics', () => {
       expect.objectContaining({ method: 'POST', keepalive: true, credentials: 'omit' }),
     );
   });
+
+  it('merges stored UTM attribution into both analytics sinks', async () => {
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', writable: true, configurable: true });
+    process.env.NEXT_PUBLIC_ANALYTICS_ENDPOINT = 'https://analytics.expaify.test/events';
+    const sendBeacon = jest.fn().mockReturnValue(true);
+    const storage = {
+      getItem: jest.fn((key: string) => key === 'expaify.attribution.v1'
+        ? JSON.stringify({ utm_source: 'google', utm_campaign: 'summer' })
+        : null),
+      setItem: jest.fn(),
+    };
+    Object.defineProperty(globalThis, 'window', {
+      value: { location: { pathname: '/deals' }, localStorage: storage, sessionStorage: storage },
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'navigator', { value: { sendBeacon }, configurable: true });
+    const { track } = require('../analytics') as typeof import('../analytics');
+
+    track('deal_clicked', { utm_campaign: 'explicit-campaign', position: 1 });
+
+    expect(sendBeacon).toHaveBeenCalledTimes(2);
+    const internalBody = JSON.parse(await (sendBeacon.mock.calls[0][1] as Blob).text()) as { props: Record<string, unknown> };
+    const externalBody = JSON.parse(await (sendBeacon.mock.calls[1][1] as Blob).text()) as { properties: Record<string, unknown> };
+    expect(internalBody.props).toEqual({ utm_source: 'google', utm_campaign: 'explicit-campaign', position: 1 });
+    expect(externalBody.properties).toEqual(internalBody.props);
+  });
 });

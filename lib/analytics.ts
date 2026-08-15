@@ -1,3 +1,5 @@
+import { getStoredUtm } from './attribution'
+
 type AnalyticsProps = Record<string, string | number | boolean>
 
 const SESSION_KEY = 'expaify.analytics.session.v1'
@@ -67,13 +69,15 @@ export function track(event: string, props?: AnalyticsProps): void {
 
   if (typeof window === 'undefined' || !EVENT_NAME.test(event)) return
 
+  const attributedProps: AnalyticsProps = { ...getStoredUtm(), ...props }
+
   try {
-    sendToInternalSink(event, props)
+    sendToInternalSink(event, attributedProps)
   } catch {
     // Measurement must never block a search, edit, or provider handoff.
   }
   try {
-    sendToExternalSink(event, props)
+    sendToExternalSink(event, attributedProps)
   } catch {
     // Measurement must never block a search, edit, or provider handoff.
   }

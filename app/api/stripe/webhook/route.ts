@@ -60,7 +60,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         const value = (session.amount_total ?? 0) / 100
         await opinly.track(
           'purchase',
-          { value, currency: 'USD' },
+          {
+            value,
+            currency: 'USD',
+            ...(session.metadata?.utm_source ? { utm_source: session.metadata.utm_source } : {}),
+            ...(session.metadata?.utm_medium ? { utm_medium: session.metadata.utm_medium } : {}),
+            ...(session.metadata?.utm_campaign ? { utm_campaign: session.metadata.utm_campaign } : {}),
+            ...(session.metadata?.utm_content ? { utm_content: session.metadata.utm_content } : {}),
+            ...(session.metadata?.utm_term ? { utm_term: session.metadata.utm_term } : {}),
+          },
           {
             externalEventId: session.id,
             anonId: session.metadata?.opinly_anon_id,
