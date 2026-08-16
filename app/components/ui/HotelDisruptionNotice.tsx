@@ -227,10 +227,28 @@ function useReachedAnalytics({
   return ref
 }
 
+export function useHotelDisruptionResultImpression({
+  evidence,
+  analyticsKey,
+  enabled = true,
+}: {
+  evidence: HotelDisruptionEvidence
+  analyticsKey?: string
+  enabled?: boolean
+}) {
+  return useReachedAnalytics({
+    evidence,
+    event: 'hotel_disruption_notice_impression',
+    surface: 'results',
+    analyticsKey,
+    enabled,
+  })
+}
+
 export function HotelDisruptionResultCue({ evidence, analyticsKey }: { evidence?: HotelDisruptionEvidence; analyticsKey?: string }) {
   const resolved = evidence ?? NO_HOTEL_DISRUPTION_EVIDENCE
   const cue = getHotelDisruptionResultCue(resolved)
-  const ref = useReachedAnalytics({ evidence: resolved, event: 'hotel_disruption_notice_impression', surface: 'results', analyticsKey, enabled: !!cue })
+  const ref = useHotelDisruptionResultImpression({ evidence: resolved, analyticsKey, enabled: !!cue })
   if (!cue) return null
   return (
     <p ref={ref as React.RefObject<HTMLParagraphElement | null>} className="mt-2 flex min-w-0 items-start gap-2 rounded-[var(--radius-control)] border border-[color:var(--border-strong)] bg-[color:var(--warning-soft)] px-3 py-2 text-caption font-medium leading-5 text-[color:var(--text-1)]">

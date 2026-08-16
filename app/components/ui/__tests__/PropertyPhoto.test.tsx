@@ -14,6 +14,21 @@ function triggerImgError(root: TestRenderer.ReactTestRenderer): void {
 }
 
 describe('PropertyPhoto', () => {
+  it('removes card-size chrome while preserving it for other size variants', () => {
+    let card!: TestRenderer.ReactTestRenderer
+    let expanded!: TestRenderer.ReactTestRenderer
+    act(() => {
+      card = TestRenderer.create(<PropertyPhoto src="https://example.com/card.jpg" size="card" />)
+      expanded = TestRenderer.create(<PropertyPhoto src="https://example.com/expanded.jpg" size="expanded" />)
+    })
+
+    expect(card.root.findByType('figure').props.className).not.toContain('border border-')
+    expect(card.root.findAllByType('figcaption')).toHaveLength(0)
+    expect(card.root.findByType('figure').props.className).toContain('rounded-[var(--radius-card)]')
+    expect(expanded.root.findByType('figure').props.className).toContain('border border-')
+    expect(expanded.root.findAllByType('figcaption')).toHaveLength(1)
+  })
+
   it('shows the image (not the unavailable state) for a valid src', () => {
     let root!: TestRenderer.ReactTestRenderer
     act(() => {

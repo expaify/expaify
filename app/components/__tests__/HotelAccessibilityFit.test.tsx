@@ -146,23 +146,23 @@ describe('hotel accessibility fit presentation', () => {
     expect(html.indexOf('Accessible tub: Documented mismatch')).toBeLessThan(html.indexOf('Roll-in shower: Not documented — confirm'))
   })
 
-  it('renders every selected need on the active linked card with matching accessible outcomes', () => {
+  it('resolves selected needs to one bounded card cue while retaining matching accessible outcomes', () => {
     const presentation = createAccessibilityPresentation(['roll_in_shower', 'accessible_tub'], [fact()])
     const html = renderToStaticMarkup(<DealCard deal={deal} href="/deals/hotel-1" accessibility={presentation} />)
 
     expect(html).toContain('Some needs require confirmation')
-    expect(html).toContain('Roll-in shower: Documented for this stay')
-    expect(html).toContain('Accessible tub: Not documented — confirm')
+    expect(html).not.toContain('Roll-in shower: Documented for this stay')
+    expect(html).not.toContain('Accessible tub: Not documented — confirm')
     expect(html).toContain('Accessibility fit. Roll-in shower: Documented for this selected stay.')
     const articleStart = html.indexOf('<article')
-    expect(html.indexOf('Accessibility fit', articleStart)).toBeLessThan(html.indexOf('usually', articleStart))
+    expect(html.indexOf('Some needs require confirmation', articleStart)).toBeLessThan(html.indexOf('usually', articleStart))
   })
 
-  it('degrades expired evidence in both visible and accessible card copy', () => {
+  it('suppresses expired accessibility evidence visually and degrades it in the card link name', () => {
     const presentation = createAccessibilityPresentation(['roll_in_shower'], [fact()])
     const html = renderToStaticMarkup(<DealCard deal={{ ...deal, expired: true }} href="/deals/hotel-1" accessibility={presentation} />)
-    expect(html).toContain('Saved accessibility details may be out of date.')
-    expect(html).toContain('Roll-in shower: Out of date — confirm')
+    expect(html).not.toContain('Saved accessibility details may be out of date.')
+    expect(html).not.toContain('Roll-in shower: Out of date — confirm')
     expect(html).toContain('Roll-in shower: Not documented; confirm before booking.')
     expect(html).not.toContain('Roll-in shower: Documented for this selected stay.')
   })

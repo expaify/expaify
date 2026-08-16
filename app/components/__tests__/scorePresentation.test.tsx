@@ -438,7 +438,7 @@ describe('Deal score presentation', () => {
     expect(countText(text, 'Photo unavailable')).toBe(1)
   })
 
-  it('keeps DealCard price claims and explicit price recency outside its labeled property figure', () => {
+  it('keeps DealCard price claims and explicit price recency outside its card-size property figure', () => {
     const card = DealCard({
       deal: {
         id: 'deal-1',
@@ -458,12 +458,13 @@ describe('Deal score presentation', () => {
     const text = collectText(card)
     const figure = findFirstElement(card, 'figure')
 
-    expect(text).toContain('Property photo')
+    expect(text).not.toContain('Property photo')
     expect(text).toContain('−30% vs usual')
     expect(text).toContain('Price checked 2h ago')
+    expect(text).toContain('Tracked 60 days · 20 checks')
     expect(findFirstProp(card, 'className', value => typeof value === 'string' && value.includes('absolute right-3 top-3'))).toBeUndefined()
     expect(findFirstProp(card, 'alt', value => value === '')).toBe('')
-    expect(collectText(figure)).toBe('Property photo')
+    expect(collectText(figure)).toBe('')
   })
 
   it('leads with the property photo, then keeps DealCard identity and rate evidence in source and DOM order', () => {
@@ -485,10 +486,9 @@ describe('Deal score presentation', () => {
     })
     const text = collectText(card)
 
-    expect(text.indexOf('Property photo')).toBeLessThan(text.indexOf('Identity First Hotel'))
     expect(text.indexOf('Identity First Hotel')).toBeLessThan(text.indexOf('$140 USD'))
     expect(text.indexOf('Lisbon')).toBeLessThan(text.indexOf('$140 USD'))
-    expect(text.indexOf('$140 USD')).toBeLessThan(text.indexOf('43% below usual'))
+    expect(text).not.toContain('43% below usual')
   })
 
   it('uses the honest DealCard no-photo state without a scope caption', () => {
@@ -529,7 +529,8 @@ describe('Deal score presentation', () => {
     expect(withPhotoText).toContain('★★★☆☆')
     expect(findFirstProp(withPhoto, 'href', value => value === '/join?utm_source=deal_page&utm_medium=card_teaser&discount=42')).toBe('/join?utm_source=deal_page&utm_medium=card_teaser&discount=42')
     expect(findFirstProp(withPhoto, 'alt', value => value === '')).toBe('')
-    expect(collectText(figure)).toBe('Property photo')
+    expect(collectText(figure)).toBe('')
+    expect(withPhotoText).not.toContain('Members Hotel')
 
     const withoutPhotoText = collectText(LockedDealCard({
       placeholderName: 'Members Hotel',
@@ -557,7 +558,7 @@ describe('Deal score presentation', () => {
     })
     const onError = findFirstProp(loadingPhoto, 'onError', value => typeof value === 'function') as (() => void) | undefined
 
-    expect(collectText(loadingPhoto)).toBe('Property photo')
+    expect(collectText(loadingPhoto)).toBe('')
     expect(findFirstProp(loadingPhoto, 'aria-busy', value => value === true)).toBe(true)
     expect(findFirstProp(loadingPhoto, 'alt', value => value === '')).toBe('')
     onError?.()

@@ -2,8 +2,9 @@
 @import "tw-animate-css";
 
 @theme inline {
-  --font-display: var(--font-space-grotesk);
-  --font-sans: var(--font-inter);
+  --font-display: var(--font-geist-sans);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 @theme inline {
@@ -154,7 +155,7 @@ body {
   overflow-x: clip;
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 15px;
   line-height: 1.6;
   letter-spacing: 0;
@@ -205,7 +206,7 @@ button:disabled,
 }
 
 .font-display {
-  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+  font-family: var(--font-display), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   letter-spacing: 0;
 }
 
@@ -213,7 +214,7 @@ button:disabled,
    layer so Tailwind weight/leading utilities on the same element still win. */
 @layer components {
   .text-display {
-    font-family: var(--font-space-grotesk), system-ui, sans-serif;
+    font-family: var(--font-display), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 40px;
     font-weight: 700;
     line-height: 1.05;
@@ -222,7 +223,7 @@ button:disabled,
 
   /* Display size, non-responsive — for numerals that sit inline with body copy. */
   .text-stat {
-    font-family: var(--font-space-grotesk), system-ui, sans-serif;
+    font-family: var(--font-display), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 36px;
     font-weight: 700;
     line-height: 1;
@@ -230,7 +231,7 @@ button:disabled,
   }
 
   .text-h2 {
-    font-family: var(--font-space-grotesk), system-ui, sans-serif;
+    font-family: var(--font-display), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 28px;
     font-weight: 600;
     line-height: 1.15;
@@ -238,7 +239,7 @@ button:disabled,
   }
 
   .text-h3 {
-    font-family: var(--font-space-grotesk), system-ui, sans-serif;
+    font-family: var(--font-display), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 20px;
     font-weight: 700;
     line-height: 1.1;
@@ -246,7 +247,7 @@ button:disabled,
   }
 
   .text-numeral {
-    font-family: var(--font-space-grotesk), system-ui, sans-serif;
+    font-family: var(--font-display), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 56px;
     font-weight: 700;
     line-height: 0.9;
@@ -267,6 +268,11 @@ button:disabled,
   .text-caption {
     font-size: 11.5px;
     line-height: 1.6;
+  }
+
+  .text-tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
   }
 }
 
@@ -303,7 +309,7 @@ button:disabled,
   border-radius: var(--radius-pill);
   border: 1.5px solid transparent;
   padding: 8px 16px;
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 15px;
   font-weight: 500;
   line-height: 1;
@@ -681,7 +687,7 @@ button:disabled,
 /* Hero H1 — the one 60-64px moment on the page. Distinct from .text-display
    (44px/700/tracking:0) in size, weight, and tracking. */
 .theme-dark-preview .dp-hero {
-  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+  font-family: var(--font-display), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 36px;
   font-weight: 600;
   line-height: 1.05;
@@ -699,7 +705,7 @@ button:disabled,
    here, AND a full weight step differentiates them (600 vs the light site's
    uniform 700). */
 .theme-dark-preview .dp-h2 {
-  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+  font-family: var(--font-display), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 28px;
   font-weight: 600;
   line-height: 1.15;
@@ -728,7 +734,7 @@ button:disabled,
    (identical to the hero). Now large but receded via opacity/color, not
    competing on weight/size perception even though the raw px is bigger. */
 .theme-dark-preview .dp-numeral {
-  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+  font-family: var(--font-display), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 56px;
   font-weight: 700;
   line-height: 0.9;
@@ -742,7 +748,7 @@ button:disabled,
 /* Pricing stat ($0 / $8) — previously .text-stat, identical size/weight to
    .text-display. Now its own scale, distinct from both hero and numeral. */
 .theme-dark-preview .dp-stat {
-  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+  font-family: var(--font-display), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 40px;
   font-weight: 700;
   line-height: 1;

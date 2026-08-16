@@ -25,7 +25,6 @@ function trackingHref(joinHref: string, discountPct: number): string {
 }
 
 export function LockedDealCard({
-  placeholderName,
   placeholderCity,
   stars,
   discountPct,
@@ -54,37 +53,31 @@ export function LockedDealCard({
         </span>
       </div>
 
-      <div className="select-none px-4 pt-3 blur-[6px] transition-all duration-300 group-hover:blur-[4px]" aria-hidden="true">
+      <div className="px-4 pt-3" aria-hidden="true">
         <PropertyPhoto src={photoUrl} size="card" />
       </div>
 
       <div className="relative space-y-3 px-4 pb-4 pt-3">
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[color:var(--bg-overlay)]/10 px-4 py-4 text-center backdrop-blur-[1px] transition-all duration-200 group-hover:backdrop-blur-0" aria-hidden="true">
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[color:var(--bg-overlay)]/10 px-4 py-4 text-center" aria-hidden="true">
           <div className="flex items-center gap-2 rounded-[var(--radius-input)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] px-4 py-2 shadow-sm transition-all duration-200 group-hover:border-[color:var(--gold-deep)] group-hover:shadow-md">
             <Icon name="premium_unlocked" size={16} className="text-[color:var(--gold-deep)]" />
             <span className="font-display text-caption font-bold uppercase tracking-wide text-[color:var(--ink)]">Premium Only</span>
           </div>
         </div>
 
-        <div className="pointer-events-none select-none blur-[5px]" aria-hidden="true">
-          <h3 className="text-body font-display font-bold leading-snug text-[color:var(--ink)]">{placeholderName}</h3>
+        <div className="space-y-1">
+          <div className="h-5 w-3/5 rounded-[6px] bg-[color:var(--line-ivory)]" aria-hidden="true" />
           <p className="text-caption mt-0.5 leading-snug text-[color:var(--ink-faint)]">
             {stars === null ? 'Not yet rated' : starChars(stars)} · {placeholderCity}
           </p>
         </div>
-        <div className="pointer-events-none select-none space-y-0.5 blur-[5px]" aria-hidden="true">
-          <div className="flex items-baseline gap-2">
-            <div className="h-7 w-16 rounded-[var(--radius-pill)] bg-[color:var(--primary)]" />
-            <div className="h-4 w-10 rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)]" />
-            <div className="h-4 w-20 rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)]" />
-          </div>
-        </div>
+        <div className="h-8 w-28 rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)]" aria-hidden="true" />
         {accessibilityNeedsSelected ? (
           <p className="relative z-20 rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-2.5 text-caption font-medium leading-5 text-[color:var(--text-2)]">
             Accessibility fit available after this deal is unlocked.
           </p>
         ) : null}
-        <div className="pointer-events-none select-none blur-[5px]" aria-hidden="true">
+        <div>
           <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
             {['Expedia', 'Booking', 'Kiwi', 'Trip.com'].map(name => (
               <div key={name} className="rounded-[var(--radius-input)] border-[0.5px] border-[color:var(--line-white)] py-2 text-center text-caption font-medium text-[color:var(--ink)]">

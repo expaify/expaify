@@ -5,7 +5,6 @@ import type { HotelClimateEvidence, HotelDisruptionEvidence, HotelReviewEvidence
 import { timeAgo } from '@/lib/timeAgo'
 import { CompareRow } from './CompareRow'
 import { DealChip } from './DealChip'
-import { Icon } from './icons/Icon'
 import { PropertyPhoto } from './PropertyPhoto'
 import {
   getQuietEvidenceResultCue,
@@ -13,18 +12,17 @@ import {
 } from './QuietStayEvidenceLedger'
 import {
   getHotelDisruptionResultCue,
-  HotelDisruptionResultCue,
+  NO_HOTEL_DISRUPTION_EVIDENCE,
+  useHotelDisruptionResultImpression,
 } from './HotelDisruptionNotice'
 import type { HotelPoolEvidence } from '@/app/components/research/hotelPoolFixtures'
 import { getHotelPoolCardSummary } from './HotelPoolEvidenceLedger'
 import {
-  AccessibilityCardCue,
   accessibilityCardAccessibleText,
   type AccessibilityPresentation,
 } from './HotelAccessibilityFit'
 import { getGuestReviewScanLine } from '../GuestReviewEvidence'
 import {
-  DepositHoldCardSignal,
   getHotelFundsCardSignal,
   type ApiDealFundsPolicy,
 } from '../HotelFundsPolicyComparison'
@@ -32,7 +30,6 @@ import { getHotelClimateResultCue } from '@/lib/hotels/climateEvidence'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 import {
   getHotelEvChargingResultCopy,
-  HotelEvChargingResultSignal,
   PRODUCTION_EV_CHARGING_UNKNOWN,
   type HotelEvChargingEvidence,
 } from '../HotelEvCharging'
@@ -117,17 +114,6 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
   const savings = deal.medianPrice.priceCents - deal.dealPrice.priceCents
   const showSavings = savings >= 2000
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
-  // Trust Resolution Gate: Verify sufficient snapshot volume, fresh updates, and high discount magnitude
-  const isFresh = deal.updatedAt
-    ? (Date.now() - new Date(deal.updatedAt).getTime()) < 36 * 60 * 60 * 1000 // 36 hours in milliseconds
-    : false
-
-  const showVerifiedBadge =
-    !deal.isMock &&
-    !deal.expired &&
-    deal.snapshotCount >= 12 &&
-    deal.discountPct >= 15 &&
-    isFresh
   const quietEvidenceCue = getQuietEvidenceResultCue(quietStayEvidence)
   const disruptionCue = getHotelDisruptionResultCue(disruptionEvidence)
   const poolCue = getHotelPoolCardSummary(poolEvidence)
@@ -136,19 +122,54 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
   const fundsPolicySignal = getHotelFundsCardSignal(deal.fundsPolicy)
   const climateCue = getHotelClimateResultCue(climateEvidence)
   const evChargingCue = getHotelEvChargingResultCopy(evChargingEvidence)
+  const accessibilityCue = !deal.expired && accessibility?.needs.length
+    ? accessibility.rollup === 'all_documented'
+      ? 'All selected needs documented'
+      : accessibility.rollup === 'has_mismatch'
+        ? 'Does not match a selected need'
+        : accessibility.rollup === 'loading'
+          ? 'Checking accessibility details…'
+          : 'Some needs require confirmation'
+    : null
+  const winningCue = disruptionCue
+    ? { kind: 'disruption' as const, copy: disruptionCue, warning: true, accessible: disruptionCue }
+    : poolCue
+      ? { kind: 'pool' as const, ...poolCue, accessible: poolCue.copy }
+      : climateCue
+        ? { kind: 'climate' as const, copy: climateCue, warning: false, accessible: climateCue }
+        : accessibilityCue
+          ? { kind: 'accessibility' as const, copy: accessibilityCue, warning: accessibility?.rollup !== 'all_documented', accessible: accessibilityAccessibleText ?? accessibilityCue }
+          : quietEvidenceCue
+            ? { kind: 'quiet' as const, copy: quietEvidenceCue, warning: false, accessible: quietEvidenceCue }
+            : reviewScanLine
+              ? { kind: 'review' as const, copy: reviewScanLine.visible, warning: false, accessible: reviewScanLine.accessible }
+              : evChargingEvidence.presentationState !== 'unknown'
+                ? { kind: 'ev-charging' as const, copy: evChargingCue.visible, warning: evChargingEvidence.presentationState !== 'confirmed', accessible: evChargingCue.accessible }
+                : fundsPolicySignal
+                  ? { kind: 'funds-policy' as const, copy: fundsPolicySignal.copy, warning: fundsPolicySignal.state === 'partial' || fundsPolicySignal.state === 'conflicting', accessible: fundsPolicySignal.copy }
+                  : null
+  const disruptionImpressionRef = useHotelDisruptionResultImpression({
+    evidence: disruptionEvidence ?? NO_HOTEL_DISRUPTION_EVIDENCE,
+    analyticsKey: deal.id,
+    enabled: winningCue?.kind === 'disruption',
+  })
+  const showTrackingIndicator = !deal.isMock && !deal.expired && deal.medianPrice.priceCents > 0
+  const trackingFillPct = showTrackingIndicator
+    ? Math.max(0, Math.min(100, (deal.dealPrice.priceCents / deal.medianPrice.priceCents) * 100))
+    : 0
 
   const content = (
     <article className={`overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 group-hover:-translate-y-1 group-hover:shadow-[var(--shadow-card-hover)]'}`}>
-      <div className="px-4 pt-3">
+      <div className="relative">
+        <PropertyPhoto src={deal.photoUrl} size="card" loading={photoLoading} />
         {deal.isMock ? (
-          <span className="mb-2 inline-flex rounded-[var(--radius-pill)] bg-[color:var(--bg-muted)] px-2 py-1 font-display text-caption font-bold leading-none text-[color:var(--ink-soft)]">
+          <span className="absolute left-3 top-3 z-[2] inline-flex items-center rounded-[var(--radius-pill)] border border-[color:var(--line-white)] bg-[color:var(--surface)] px-2 py-1 font-display text-caption font-bold leading-none text-[color:var(--ink-soft)] shadow-[var(--shadow-card-rest)]">
             Example
           </span>
         ) : null}
-        <PropertyPhoto src={deal.photoUrl} size="card" loading={photoLoading} />
       </div>
 
-      <div className="space-y-3 px-4 pb-4 pt-3">
+      <div className="flex h-full flex-col px-4 pb-4 pt-3">
         <div>
           <h3 className="text-body line-clamp-2 font-display font-bold leading-snug text-[color:var(--ink)]">
             {deal.hotelName}
@@ -161,39 +182,27 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
             )}
             {' · '}<DealCardCity city={deal.city} />{' · '}{deal.checkInWindow}
           </p>
-          {reviewScanLine ? (
-            <p aria-label={reviewScanLine.accessible} className="mt-1 break-words text-caption font-medium leading-5 text-[color:var(--text-2)]">
-              {reviewScanLine.visible}
+          {winningCue ? (
+            <p
+              ref={winningCue.kind === 'disruption' ? disruptionImpressionRef as React.RefObject<HTMLParagraphElement | null> : undefined}
+              data-ev-charging-signal={winningCue.kind === 'ev-charging' ? 'true' : undefined}
+              data-ev-charging-offer={winningCue.kind === 'ev-charging' ? deal.id : undefined}
+              data-ev-charging-revision={winningCue.kind === 'ev-charging' ? evChargingEvidence.evidenceRevision : undefined}
+              data-ev-charging-state={winningCue.kind === 'ev-charging' ? evChargingEvidence.presentationState : undefined}
+              className={`mt-2 line-clamp-2 break-words text-caption font-medium leading-5 ${winningCue.warning ? 'text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}
+            >
+              {winningCue.copy}
             </p>
           ) : null}
-          <HotelDisruptionResultCue evidence={disruptionEvidence} analyticsKey={deal.id} />
-          {quietEvidenceCue ? (
-            <p className="mt-2 break-words text-caption font-medium leading-5 text-[color:var(--text-2)]">
-              {quietEvidenceCue}
-            </p>
-          ) : null}
-          {poolCue ? (
-            <p className={`mt-2 break-words text-caption font-medium leading-5 ${poolCue.warning ? 'text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
-              {poolCue.copy}
-            </p>
-          ) : null}
-          {climateCue ? (
-            <p className="mt-2 break-words text-caption font-medium leading-5 text-[color:var(--text-2)]">
-              {climateCue}
-            </p>
-          ) : null}
-          <HotelEvChargingResultSignal evidence={evChargingEvidence} offerId={deal.id} />
         </div>
 
-        <AccessibilityCardCue presentation={accessibility} expired={deal.expired} />
-
-        <div className="space-y-2">
+        <div className="mt-auto space-y-2">
           <div className="flex min-w-0 flex-wrap items-baseline gap-2">
-            <span className="text-h2 leading-none text-[color:var(--primary)]">
+            <span className="text-h2 leading-none text-[color:var(--ink)] text-tabular">
               {formatMoney(deal.dealPrice)}
             </span>
             <span className="text-caption self-end pb-0.5 leading-none text-[color:var(--ink-faint)]">/ night</span>
-            <span className="text-small leading-none text-[color:var(--ink-faint)] line-through">
+            <span className="text-small leading-none text-[color:var(--ink-faint)] line-through text-tabular">
               usually {formatMoney(deal.medianPrice)}
             </span>
             {deal.expired ? (
@@ -201,27 +210,11 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
                 Expired
               </span>
             ) : (
-              <>
-                <DealChip discountPct={deal.discountPct} />
-                {showVerifiedBadge && (
-                  <div
-                    className="inline-flex items-center gap-1 rounded-[var(--radius-pill)] bg-[color:var(--bg-muted)] px-2 py-1 text-caption font-bold text-[color:var(--primary)] self-center"
-                    role="status"
-                    title={`Verified savings based on ${deal.snapshotCount} independent price checks.`}
-                    aria-label={`Price verified by expaify. Based on ${deal.snapshotCount} independent price checks over the past 60 days.`}
-                  >
-                    <Icon name="verified_savings" size={16} className="text-[color:var(--primary)]" />
-                    <span>Price Verified</span>
-                  </div>
-                )}
-              </>
+              <DealChip discountPct={deal.discountPct} />
             )}
           </div>
-          {deal.headline ? (
-            <p className="text-caption font-medium leading-snug text-[color:var(--primary)]">{deal.headline}</p>
-          ) : null}
           {showSavings ? (
-            <p className="text-caption font-medium text-[color:var(--primary)]">
+            <p className="text-caption font-medium text-[color:var(--ink-soft)] text-tabular">
               Save {formatMoney({ priceCents: savings, currency: deal.dealPrice.currency })}/night
             </p>
           ) : null}
@@ -235,7 +228,23 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
           ) : null}
         </div>
 
-        <DepositHoldCardSignal policy={deal.fundsPolicy} />
+        {showTrackingIndicator ? (
+          <div className="space-y-1" style={{ opacity: deal.snapshotCount >= 12 ? 1 : 0.6 }}>
+            <div
+              role="img"
+              aria-label={`${formatMoney(deal.dealPrice)} is ${deal.discountPct}% below the 60-day median of ${formatMoney(deal.medianPrice)}, based on ${deal.snapshotCount} price checks.`}
+              className="h-1.5 w-full overflow-hidden rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)]"
+            >
+              <div
+                className="h-full rounded-[var(--radius-pill)] bg-[color:var(--primary)]"
+                style={{ width: `${trackingFillPct}%` }}
+              />
+            </div>
+            <p className="text-caption leading-snug text-[color:var(--ink-faint)] text-tabular">
+              Tracked 60 days · {deal.snapshotCount} checks
+            </p>
+          </div>
+        ) : null}
         {deal.expired ? null : deal.isMock ? (
           <p className="text-caption font-medium leading-snug text-[color:var(--ink-faint)]">Sample hotel — not bookable</p>
         ) : href ? (
@@ -255,12 +264,6 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
             ) : null}
           </div>
         )}
-
-        {!deal.isMock && !deal.expired ? (
-          <p className="text-caption leading-snug text-[color:var(--ink-faint)]">
-            Based on {deal.snapshotCount} price checks over 60 days · expaify never adds fees
-          </p>
-        ) : null}
       </div>
     </article>
   )
