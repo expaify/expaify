@@ -138,7 +138,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
   const evChargingCue = getHotelEvChargingResultCopy(evChargingEvidence)
 
   const content = (
-    <article className={`overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 group-hover:-translate-y-1 group-hover:shadow-[var(--shadow-card-hover)]'}`}>
+    <article className={`overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'transition-[transform,box-shadow] duration-150 group-hover:-translate-y-1 group-hover:shadow-[var(--shadow-card-hover)]'}`}>
       <div className="px-4 pt-3">
         {deal.isMock ? (
           <span className="mb-2 inline-flex rounded-[var(--radius-pill)] bg-[color:var(--bg-muted)] px-2 py-1 font-display text-caption font-bold leading-none text-[color:var(--ink-soft)]">

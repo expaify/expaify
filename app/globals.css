@@ -95,11 +95,15 @@
   --accent-text: #A83019; /* coral as text ON light surfaces; AA 6.3:1 on --bg, 6.0:1 on --error-soft */
   --line-ivory: #E8E2D8;
   --line-white: #D8D2C6;
-  --radius-card: 24px;
+  --radius-card: 16px;
   --radius-pill: 999px;
   --radius-input: 12px;
   --shadow-card-hover: 0 8px 24px rgba(20,18,16,0.08);
   --shadow-header: 0 1px 0 var(--line-ivory);
+  --shadow-card-rest: 0 1px 2px rgba(20, 18, 16, 0.04), 0 1px 1px rgba(20, 18, 16, 0.03);
+  --glass-bg-light: rgba(255, 255, 255, 0.62);
+  --glass-blur-light: 10px;
+  --glass-border-light: 1px solid rgba(255, 255, 255, 0.8);
 
   --bg-base: var(--bg);
   --bg-surface: var(--surface);
@@ -210,10 +214,10 @@ button:disabled,
 @layer components {
   .text-display {
     font-family: var(--font-space-grotesk), system-ui, sans-serif;
-    font-size: 36px;
+    font-size: 40px;
     font-weight: 700;
-    line-height: 1.1;
-    letter-spacing: 0;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
   }
 
   /* Display size, non-responsive — for numerals that sit inline with body copy. */
@@ -221,16 +225,16 @@ button:disabled,
     font-family: var(--font-space-grotesk), system-ui, sans-serif;
     font-size: 36px;
     font-weight: 700;
-    line-height: 1.1;
-    letter-spacing: 0;
+    line-height: 1;
+    letter-spacing: -0.01em;
   }
 
   .text-h2 {
     font-family: var(--font-space-grotesk), system-ui, sans-serif;
-    font-size: 30px;
-    font-weight: 700;
-    line-height: 1.1;
-    letter-spacing: 0;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
   }
 
   .text-h3 {
@@ -239,6 +243,15 @@ button:disabled,
     font-weight: 700;
     line-height: 1.1;
     letter-spacing: 0;
+  }
+
+  .text-numeral {
+    font-family: var(--font-space-grotesk), system-ui, sans-serif;
+    font-size: 56px;
+    font-weight: 700;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    color: var(--line-white);
   }
 
   .text-body {
@@ -254,6 +267,30 @@ button:disabled,
   .text-caption {
     font-size: 11.5px;
     line-height: 1.6;
+  }
+}
+
+.hero-card-glass article,
+.hero-card-glass a[aria-label^="Locked premium deal"] {
+  background: var(--glass-bg-light);
+  backdrop-filter: blur(var(--glass-blur-light));
+  -webkit-backdrop-filter: blur(var(--glass-blur-light));
+  border: var(--glass-border-light);
+}
+
+.hero-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle at 50% 42%, rgba(159, 225, 203, 0.35), transparent 22rem);
+  mask-image: linear-gradient(to bottom, black 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+}
+
+@media (min-width: 900px) {
+  .hero-atmosphere {
+    background-image: radial-gradient(circle at 68% 20%, rgba(159, 225, 203, 0.35), transparent 26rem);
   }
 }
 
@@ -283,6 +320,7 @@ button:disabled,
 .btn-conversion {
   background: var(--accent);
   color: var(--ink); /* white on coral is 2.8:1; ink on coral is 6.6:1 (AA) */
+  border-radius: var(--radius-input);
 }
 
 .btn-outline {
@@ -465,7 +503,10 @@ button:disabled,
 @layer components {
   @media (min-width: 768px) {
     .text-display {
-      font-size: 44px;
+      font-size: 52px;
+    }
+    .text-h2 {
+      font-size: 32px;
     }
   }
 }

@@ -143,8 +143,9 @@ export default async function LandingPage() {
 
       <main>
         {/* ── Hero ──────────────────────────────────────── */}
-        <section className="mx-auto max-w-[1140px] px-5 pb-20 pt-16">
-          <div className="flex flex-col items-center gap-12 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-16">
+        <section className="relative mx-auto max-w-[1140px] px-5 pb-20 pt-16">
+          <div className="hero-atmosphere" aria-hidden />
+          <div className="relative z-[1] flex flex-col items-center gap-12 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-16">
             {/* Left */}
             <div className="flex max-w-[440px] flex-col items-start gap-6">
               <h1 className="text-display text-[color:var(--ink)]">
@@ -172,7 +173,7 @@ export default async function LandingPage() {
 
             {/* Right — deal cards stack */}
             <div className="flex w-full max-w-[360px] justify-center">
-              <div className="relative w-full">
+              <div className="relative w-full hero-card-glass">
                 {/* Peeking card behind — hidden on very small screens */}
                 <div
                   className="absolute -inset-x-4 -top-4 hidden opacity-60 min-[380px]:block min-[900px]:-inset-x-6 min-[900px]:-top-6"
@@ -298,8 +299,7 @@ export default async function LandingPage() {
               ].map(({ n, title, body }) => (
                 <div key={n} className="flex flex-col gap-4">
                   <span
-                    className="text-display leading-none"
-                    style={{ color: 'var(--line-ivory)' }}
+                    className="text-numeral"
                     aria-hidden
                   >
                     {n}
@@ -348,7 +348,7 @@ export default async function LandingPage() {
 
           <div className="mx-auto grid max-w-[760px] gap-6 min-[640px]:grid-cols-2">
             {/* Free */}
-            <div className="flex flex-col gap-6 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-7">
+            <div className="flex flex-col gap-6 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] p-7">
               <div>
                 <p className="text-small font-medium uppercase tracking-wider text-[color:var(--ink-faint)]">
                   Free
@@ -386,7 +386,7 @@ export default async function LandingPage() {
 
             {/* Premium — annual highlight */}
             <div
-              className="flex flex-col gap-6 rounded-[var(--radius-card)] border-2 bg-[color:var(--surface)] p-7"
+              className="flex flex-col gap-6 rounded-[var(--radius-card)] border-2 bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] p-7"
               style={{ borderColor: 'var(--primary)' }}
             >
               <div>

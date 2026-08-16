@@ -38,7 +38,7 @@ export function LockedDealCard({
       href={trackingHref(joinHref, discountPct)}
       onClick={() => track('click_card_teaser_unlock', { discount_percent: discountPct })}
       aria-label={`Locked premium deal. Save ${discountPct}% at a hotel in ${placeholderCity}. Unlock deal with Premium.`}
-      className="group relative block overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-[color:var(--gold-deep)] hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gold-deep)]"
+      className="group relative block overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-[color:var(--gold-deep)] hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gold-deep)]"
     >
       <div className="absolute right-3 top-3 z-30 flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[color:var(--gold-deep)] px-2.5 py-1 font-display text-[11px] font-bold uppercase tracking-wider text-[color:var(--ink)] shadow-md transition-transform duration-200 group-hover:scale-105">
         <Icon name="premium_unlocked" size={16} className="text-[color:var(--ink)]" />
