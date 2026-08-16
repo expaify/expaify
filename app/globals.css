@@ -1,8 +1,56 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @theme inline {
   --font-display: var(--font-space-grotesk);
   --font-sans: var(--font-inter);
+}
+
+@theme inline {
+  --color-background: var(--bg-base);
+  --color-foreground: var(--text-1);
+  --color-card: var(--bg-surface);
+  --color-card-foreground: var(--text-1);
+  --color-popover: var(--bg-raised);
+  --color-popover-foreground: var(--text-1);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--text-inverse);
+  --color-secondary: var(--brand-soft);
+  --color-secondary-foreground: var(--text-1);
+  --color-muted: var(--bg-muted);
+  --color-muted-foreground: var(--text-2);
+  --color-accent: var(--bg-muted);
+  --color-accent-foreground: var(--text-1);
+  --color-destructive: var(--error);
+  --color-destructive-foreground: var(--text-1);
+  --color-border: var(--border);
+  --color-input: var(--border-strong);
+  --color-ring: var(--focus-outline);
+  --radius: var(--radius-control);
+  --radius-sm: calc(var(--radius-control) - 4px);
+  --radius-md: calc(var(--radius-control) - 2px);
+  --radius-lg: var(--radius-control);
+  --radius-xl: var(--radius-card);
+  --animate-marquee: marquee var(--duration) infinite linear;
+  --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+  }
+}
+
+@keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+  }
 }
 
 /* Tailwind's default font sizes are remapped onto the expaify type scale so that
