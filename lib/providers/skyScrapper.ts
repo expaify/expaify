@@ -149,7 +149,7 @@ export class SkyScrapperProvider implements FlightProvider {
         return rightScore - leftScore;
       })[0];
 
-      if (!match) return null;
+      if (!match || match.skyId !== normalizedIata) return null;
       await cache.set(cacheKey, match.entityId, ENTITY_CACHE_TTL);
       return match.entityId;
     } catch {

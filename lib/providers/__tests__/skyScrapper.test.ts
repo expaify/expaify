@@ -63,14 +63,23 @@ function mockFetch(body: unknown, status = 200): void {
       }],
     }),
   } as unknown as Response);
-  global.fetch = jest.fn()
-    .mockResolvedValueOnce(airportResponse('JFK', '95565058'))
-    .mockResolvedValueOnce(airportResponse('CDG', '95565041'))
-    .mockResolvedValue({
-    ok: status >= 200 && status < 300,
-    status,
-    json: jest.fn().mockResolvedValue(body),
-  } as unknown as Response);
+  global.fetch = jest.fn().mockImplementation((input: string | URL | Request) => {
+    const url = new URL(String(input));
+    if (url.pathname.endsWith('/searchAirport')) {
+      const skyId = url.searchParams.get('query') ?? '';
+      const entityIds: Record<string, string> = {
+        JFK: '95565058',
+        CDG: '95565041',
+        LAX: '95565047',
+      };
+      return Promise.resolve(airportResponse(skyId, entityIds[skyId] ?? `entity-${skyId}`));
+    }
+    return Promise.resolve({
+      ok: status >= 200 && status < 300,
+      status,
+      json: jest.fn().mockResolvedValue(body),
+    } as unknown as Response);
+  });
 }
 
 beforeEach(() => {
@@ -233,12 +242,20 @@ describe('SkyScrapperProvider', () => {
     errorSpy.mockRestore();
   });
 
-  it('returns a Result error without searching when one entity id cannot be resolved', async () => {
+  it('returns a Result error without searching or caching when no exact IATA match exists', async () => {
     global.fetch = jest.fn()
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: jest.fn().mockResolvedValue({ status: true, data: [] }),
+        json: jest.fn().mockResolvedValue({
+          status: true,
+          data: [{
+            navigation: {
+              entityType: 'AIRPORT',
+              relevantFlightParams: { skyId: 'JFK', entityId: '95565058' },
+            },
+          }],
+        }),
       } as unknown as Response)
       .mockResolvedValueOnce({
         ok: true,
@@ -267,6 +284,11 @@ describe('SkyScrapperProvider', () => {
     expect(global.fetch).not.toHaveBeenCalledWith(
       expect.stringContaining('/api/v1/flights/searchFlights?'),
       expect.anything(),
+    );
+    expect(cache.set).not.toHaveBeenCalledWith(
+      'skyscrapper:entity:XXX',
+      expect.anything(),
+      2592000,
     );
   });
 });
