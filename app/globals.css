@@ -492,7 +492,9 @@ button:disabled,
 .theme-dark-preview {
   color-scheme: dark;
   --bg: #0B0A0A;
-  --surface: #171512;
+  /* D2 — surface becomes a translucent layer, not a flat hex, so the atmosphere
+     glow (D4) genuinely shows through section bands and card rest-states. */
+  --surface: rgba(255, 255, 255, 0.035);
   --ink: #FFFFFF;
   --ink-soft: #A1A1AA;
   --ink-faint: #7E7E87;
@@ -503,12 +505,52 @@ button:disabled,
   --border: var(--line-ivory);
   --border-strong: var(--line-white);
   --text-inverse: #FFFFFF;
-  --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba(14, 90, 84, 0.08);
+  /* D5 — dark-route corner radius, independent of the shared --radius-card token
+     (24px) used by the light marketplace theme. */
+  --radius-card: 16px;
+  /* D2 — resting-state elevation (NEW token — nothing in a shared component
+     hardcodes this name, safe to introduce). Cards get this at rest; hover
+     keeps using --shadow-card-hover, which IS hardcoded inside DealCard.tsx /
+     LockedDealCard.tsx as `shadow-[var(--shadow-card-hover)]` — do not rename
+     that token, only its value changes below. */
+  --shadow-card-rest: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  /* D2 hover tier — brighten the border-equivalent term and (D6) commit harder
+     to teal as the glow color: 0.08 → 0.12 opacity on the ambient teal term. */
+  --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba(14, 90, 84, 0.12);
+  /* D3 — glass treatment values for the two "hero panel" moments. */
+  --dp-glass-bg: rgba(23, 21, 18, 0.55);
+  --dp-glass-blur: 20px;
+  --dp-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  /* D5 — primary CTA shape, independent of --radius-pill (which .btn-outline
+     keeps, preserving a primary/secondary shape distinction that doesn't
+     exist today — right now both are the same pill). */
+  --dp-radius-cta: 12px;
+  /* D4 — decorative numeral color, dimmer than --line-ivory (0.1) so it reads
+     as pure background texture, not a competing headline (Finding 1). */
+  --dp-numeral-color: rgba(255, 255, 255, 0.06);
+  /* Accessibility fix found during this pass, not in the original 7 findings:
+     the base :focus-visible outline is `3px solid var(--primary)` (globals.css:181)
+     and the box-shadow ring uses --focus-ring built from --primary
+     (#0E5A54). Computed WCAG contrast of #0E5A54 against this route's
+     --bg (#0B0A0A) is ≈2.46:1 — fails the 3:1 minimum for non-text focus
+     indicators (WCAG 2.4.11 / 1.4.11). --primary-soft (#9FE1CB, the
+     underused mint Finding 5 calls out as never given a job) computes to
+     ≈13.3:1 on --bg and ≈12.3:1 on --surface — pin it as this route's focus
+     color. This also gives --primary-soft the "deliberate job" Finding 5
+     says it's missing. */
+  --focus-outline: var(--primary-soft);
+  --focus-ring: 0 0 0 4px color-mix(in srgb, var(--primary-soft) 32%, transparent);
   position: relative;
   isolation: isolate;
   min-height: 100vh;
   overflow: clip;
   background: var(--bg);
+}
+
+/* The base rule hardcodes var(--primary) directly (not --focus-outline), so
+   it needs an explicit scoped override — --focus-outline alone won't reach it. */
+.theme-dark-preview :focus-visible {
+  outline-color: var(--primary-soft);
 }
 
 .theme-dark-preview main {
@@ -526,12 +568,29 @@ button:disabled,
   inset: 0;
   pointer-events: none;
   background-image:
-    radial-gradient(circle at 78% 7%, rgba(14, 90, 84, 0.18), transparent 28rem),
-    radial-gradient(circle at 12% 46%, rgba(255, 107, 74, 0.055), transparent 24rem),
+    /* D4 + D6 — moved from an arbitrary top-right corner (78% 7%) to
+       originate behind the hero CTA/deal-card cluster (roughly where the
+       card stack sits in the two-column layout at ≥900px). Coral gradient
+       removed entirely — commit to teal as the single ambient color
+       (D6: "a single confidently-used accent beats two timid ones"). */
+    radial-gradient(circle at 66% 22%, rgba(14, 90, 84, 0.22), transparent 30rem),
     linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
-  background-size: auto, auto, 48px 48px, 48px 48px;
-  mask-image: linear-gradient(to bottom, black 0%, rgba(0, 0, 0, 0.75) 45%, transparent 88%);
+  background-size: auto, 48px 48px, 48px 48px;
+  /* D4 — was a hard fade to fully transparent by 88%, leaving the back half
+     of the page (pricing/FAQ/footer) flat #0B0A0A. Now the grid/glow never
+     fully disappears — it settles at 35% strength for the remainder of the
+     scroll, so every section has *some* ambient treatment, satisfying D4
+     without new per-section markup for the mid-page sections (the
+     now-translucent --surface bands, §2/§4, let this layer read through
+     their section backgrounds too). */
+  mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    rgba(0, 0, 0, 0.75) 30%,
+    rgba(0, 0, 0, 0.45) 55%,
+    rgba(0, 0, 0, 0.35) 100%
+  );
 }
 
 .theme-dark-preview .btn-outline {
@@ -541,13 +600,16 @@ button:disabled,
 }
 
 .theme-dark-preview .btn-conversion {
-  color: #141210;
+  color: #141210; /* existing override, unchanged */
+  border-radius: var(--dp-radius-cta); /* 12px — NEW, D5 */
 }
 
-.theme-dark-preview .btn-outline:hover {
+.theme-dark-preview .btn-outline:hover,
+.theme-dark-preview .btn-outline:focus-visible {
   border-color: var(--primary);
   color: var(--ink);
-  box-shadow: 0 0 24px rgba(14, 90, 84, 0.14);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  box-shadow: 0 0 32px rgba(14, 90, 84, 0.35);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -568,4 +630,192 @@ button:disabled,
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* ── D1 — dark-route-only type scale ─────────────────────────────────────
+   Additive classes used only in app/preview/dark-home/page.tsx — they do
+   not replace or alias .text-display/.text-h2/etc., which remain fully
+   intact for the light site and for any shared component. */
+
+/* Hero H1 — the one 60-64px moment on the page. Distinct from .text-display
+   (44px/700/tracking:0) in size, weight, and tracking. */
+.theme-dark-preview .dp-hero {
+  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+@media (min-width: 768px) {
+  .theme-dark-preview .dp-hero { font-size: 56px; }
+}
+@media (min-width: 1280px) {
+  .theme-dark-preview .dp-hero { font-size: 64px; }
+}
+
+/* Section H2 — six usages (live teaser, destinations, how-it-works, dark band,
+   pricing, FAQ). Stepped down clearly from the hero: 36→64px hero vs 28→38px
+   here, AND a full weight step differentiates them (600 vs the light site's
+   uniform 700). */
+.theme-dark-preview .dp-h2 {
+  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+@media (min-width: 768px) {
+  .theme-dark-preview .dp-h2 { font-size: 34px; }
+}
+@media (min-width: 1280px) {
+  .theme-dark-preview .dp-h2 { font-size: 38px; }
+}
+
+/* Eyebrow/label — pricing tier names ("Free"/"Premium"), footer column
+   headers ("Product"/"Account"/"Legal"), and the "2 months free" badge
+   label. Real tracking (0.08em) instead of the sitewide 0, smaller and
+   dimmer so it reads as metadata, not a competing headline. */
+.theme-dark-preview .dp-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+/* Decorative "01/02/03" numerals in How It Works — previously .text-display
+   (identical to the hero). Now large but receded via opacity/color, not
+   competing on weight/size perception even though the raw px is bigger. */
+.theme-dark-preview .dp-numeral {
+  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  color: var(--dp-numeral-color);
+}
+@media (min-width: 768px) {
+  .theme-dark-preview .dp-numeral { font-size: 80px; }
+}
+
+/* Pricing stat ($0 / $8) — previously .text-stat, identical size/weight to
+   .text-display. Now its own scale, distinct from both hero and numeral. */
+.theme-dark-preview .dp-stat {
+  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+@media (min-width: 640px) {
+  .theme-dark-preview .dp-stat { font-size: 48px; }
+}
+
+/* ── D2 — elevation (3-tier) ──────────────────────────────────────────────
+   Tier 1 — resting elevation for both shared card components, reached via
+   stable tag/attribute selectors (see mechanism note, §0 of the design
+   spec) — no component file is edited. */
+.theme-dark-preview main article {
+  box-shadow: var(--shadow-card-rest);
+  transition: box-shadow 200ms ease-out, border-color 200ms ease-out;
+}
+.theme-dark-preview main a[aria-label^="Locked premium deal"] {
+  box-shadow: var(--shadow-card-rest);
+  transition: box-shadow 200ms ease-out, border-color 200ms ease-out;
+}
+
+/* Tier 2 — hover border brightening. DealCard/LockedDealCard both render
+   border-[color:var(--line-ivory)] at rest (0.1 alpha); on hover the
+   article's computed border color should read closer to 0.24. Since the
+   component hardcodes --line-ivory as its border source, brighten it
+   locally on the interactive ancestor via a scoped custom property nudge
+   rather than fighting specificity on the Tailwind arbitrary class. */
+.theme-dark-preview main .group:hover article,
+.theme-dark-preview main a[aria-label^="Locked premium deal"]:hover {
+  --line-ivory: rgba(255, 255, 255, 0.24);
+}
+
+/* ── D3 — glass panels ────────────────────────────────────────────────── */
+
+/* Hero deal-card stack — front card + peeking card both become translucent. */
+.theme-dark-preview .dp-glass-scope article,
+.theme-dark-preview .dp-glass-scope a[aria-label^="Locked premium deal"] {
+  background: var(--dp-glass-bg);
+  backdrop-filter: blur(var(--dp-glass-blur));
+  -webkit-backdrop-filter: blur(var(--dp-glass-blur));
+  box-shadow: var(--dp-glass-highlight), var(--shadow-card-rest);
+}
+.theme-dark-preview .dp-glass-scope .group:hover article,
+.theme-dark-preview .dp-glass-scope a[aria-label^="Locked premium deal"]:hover {
+  box-shadow: var(--dp-glass-highlight), var(--shadow-card-hover);
+}
+
+/* Pricing cards — plain route-local divs, class applied directly in JSX. */
+.theme-dark-preview .dp-glass-panel {
+  background: var(--dp-glass-bg);
+  backdrop-filter: blur(var(--dp-glass-blur));
+  -webkit-backdrop-filter: blur(var(--dp-glass-blur));
+  box-shadow: var(--dp-glass-highlight), var(--shadow-card-rest);
+}
+
+/* ── D4 — section-local glows ─────────────────────────────────────────── */
+
+/* Pricing section — ambient glow behind the heading. */
+.theme-dark-preview .dp-glow-pricing {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 40rem;
+  height: 18rem;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(14, 90, 74, 0.09), transparent 70%);
+  z-index: 0;
+}
+
+/* Premium card — tighter, stronger glow reinforcing "recommended" (D6 ties
+   this to teal, not a border alone). */
+.theme-dark-preview .dp-glass-premium {
+  position: relative;
+}
+.theme-dark-preview .dp-glass-premium::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 0%, rgba(14, 90, 84, 0.18), transparent 65%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ── D6 — coral's one job: "2 months free" badge glow ────────────────── */
+.theme-dark-preview .dp-badge-glow {
+  box-shadow: 0 0 16px rgba(255, 107, 74, 0.3);
+}
+
+/* ── D7 — dark band rebuilt as a distinct, elevated glass panel ─────────
+   Elevated (tier 2 baseline, brighter than a resting card since this is
+   the page's single strongest proof point), inset within the section
+   rather than full-bleed, with its own border. */
+.theme-dark-preview .dp-hero-panel {
+  position: relative;
+  background: var(--dp-glass-bg);
+  backdrop-filter: blur(var(--dp-glass-blur));
+  -webkit-backdrop-filter: blur(var(--dp-glass-blur));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: var(--dp-glass-highlight), 0 12px 48px rgba(0, 0, 0, 0.55);
+}
+
+/* Strongest glow on the page — unambiguous "this is the hero proof point"
+   signal, per D7's own framing. Wide ellipse centered behind the panel. */
+.theme-dark-preview .dp-glow-band {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 60rem;
+  height: 30rem;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(14, 90, 84, 0.24), transparent 70%);
+  z-index: 0;
 }

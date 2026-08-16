@@ -150,7 +150,7 @@ export default async function LandingPage() {
           <div className="flex flex-col items-center gap-12 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-16">
             {/* Left */}
             <div className="flex max-w-[440px] flex-col items-start gap-6">
-              <h1 className="text-display text-[color:var(--ink)]">
+              <h1 className="dp-hero text-[color:var(--ink)]">
                 Never overpay for a hotel again.
               </h1>
               <p className="text-body text-[color:var(--ink-soft)]">
@@ -175,7 +175,7 @@ export default async function LandingPage() {
 
             {/* Right — deal cards stack */}
             <div className="flex w-full max-w-[360px] justify-center">
-              <div className="relative w-full">
+              <div className="relative w-full dp-glass-scope">
                 {/* Peeking card behind — hidden on very small screens */}
                 <div
                   className="absolute -inset-x-4 -top-4 hidden opacity-60 min-[380px]:block min-[900px]:-inset-x-6 min-[900px]:-top-6"
@@ -219,7 +219,7 @@ export default async function LandingPage() {
         {/* ── Live teaser ─────────────────────────────── */}
         <section className="dark-preview-reveal mx-auto max-w-[1140px] px-5 py-20">
           <div className="mb-8 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-            <h2 className="text-h2 text-[color:var(--ink)]">
+            <h2 className="dp-h2 text-[color:var(--ink)]">
               {hasReal ? 'Live deals right now' : 'Caught this week'}
             </h2>
             <a
@@ -255,7 +255,7 @@ export default async function LandingPage() {
         {/* ── Destinations ────────────────────────────── */}
         <section className="border-y border-[color:var(--line-ivory)] bg-[color:var(--surface)] py-20">
           <div className="mx-auto max-w-[1140px] px-5">
-            <h2 className="text-h2 mb-3 text-center text-[color:var(--ink)]">
+            <h2 className="dp-h2 mb-3 text-center text-[color:var(--ink)]">
               Browse by destination
             </h2>
             <p className="text-body mb-12 text-center text-[color:var(--ink-soft)]">
@@ -278,7 +278,7 @@ export default async function LandingPage() {
         {/* ── How it works ────────────────────────────── */}
         <section id="how-it-works" className="dark-preview-reveal bg-[color:var(--surface)] py-20">
           <div className="mx-auto max-w-[1140px] px-5">
-            <h2 className="text-h2 mb-12 text-center text-[color:var(--ink)]">
+            <h2 className="dp-h2 mb-12 text-center text-[color:var(--ink)]">
               How it works
             </h2>
             <div className="grid gap-10 min-[640px]:grid-cols-3">
@@ -301,8 +301,7 @@ export default async function LandingPage() {
               ].map(({ n, title, body }) => (
                 <div key={n} className="flex flex-col gap-4">
                   <span
-                    className="text-display leading-none"
-                    style={{ color: 'var(--line-ivory)' }}
+                    className="dp-numeral leading-none"
                     aria-hidden
                   >
                     {n}
@@ -318,12 +317,13 @@ export default async function LandingPage() {
         </section>
 
         {/* ── Dark band ───────────────────────────────── */}
-        <section className="dark-preview-reveal border-y border-[color:var(--line-ivory)] bg-[color:var(--bg)] py-20">
+        <section className="dark-preview-reveal relative py-20">
+          <div className="dp-glow-band" aria-hidden="true" />
           <div className="mx-auto max-w-[1140px] px-5">
-            <div className="flex flex-col items-center gap-12 min-[900px]:flex-row min-[900px]:items-center">
-              {/* Text */}
+            <div className="dp-hero-panel flex flex-col items-center gap-12 rounded-[var(--radius-card)] p-8 min-[900px]:flex-row min-[900px]:items-center min-[900px]:p-14">
+              {/* Text — unchanged content */}
               <div className="max-w-[440px] flex-shrink-0">
-                <h2 className="text-display text-[color:var(--text-inverse)]">
+                <h2 className="dp-h2 text-[color:var(--text-inverse)]">
                   One deal.{' '}
                   <span className="text-[color:var(--primary-soft)]">Four marketplaces.</span>{' '}
                   Zero tabs.
@@ -332,7 +332,7 @@ export default async function LandingPage() {
                   You always book directly with the marketplace — we just find the moment to strike.
                 </p>
               </div>
-              {/* Deal card on dark */}
+              {/* Deal card on dark — unchanged content */}
               <div className="w-full max-w-[360px] flex-shrink-0">
                 <DealCard deal={heroCard} href={hasReal ? '/deals' : undefined} />
               </div>
@@ -341,8 +341,9 @@ export default async function LandingPage() {
         </section>
 
         {/* ── Pricing ─────────────────────────────────── */}
-        <section id="pricing" className="dark-preview-reveal mx-auto max-w-[1140px] px-5 py-20">
-          <h2 className="text-h2 mb-3 text-center text-[color:var(--ink)]">
+        <section id="pricing" className="dark-preview-reveal relative mx-auto max-w-[1140px] px-5 py-20">
+          <div className="dp-glow-pricing" aria-hidden="true" />
+          <h2 className="dp-h2 mb-3 text-center text-[color:var(--ink)]">
             Simple pricing
           </h2>
           <p className="text-body mb-12 text-center text-[color:var(--ink-soft)]">
@@ -351,13 +352,13 @@ export default async function LandingPage() {
 
           <div className="mx-auto grid max-w-[760px] gap-6 min-[640px]:grid-cols-2">
             {/* Free */}
-            <div className="flex flex-col gap-6 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-7">
+            <div className="flex flex-col gap-6 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] dp-glass-panel p-7">
               <div>
-                <p className="text-small font-medium uppercase tracking-wider text-[color:var(--ink-faint)]">
+                <p className="dp-eyebrow uppercase text-[color:var(--ink-faint)]">
                   Free
                 </p>
                 <div className="mt-2 flex flex-wrap items-baseline gap-1">
-                  <span className="text-stat text-[color:var(--ink)]">$0</span>
+                  <span className="dp-stat text-[color:var(--ink)]">$0</span>
                   <span className="text-body text-[color:var(--ink-faint)]">/ month</span>
                 </div>
               </div>
@@ -389,20 +390,20 @@ export default async function LandingPage() {
 
             {/* Premium — annual highlight */}
             <div
-              className="flex flex-col gap-6 rounded-[var(--radius-card)] border-2 bg-[color:var(--surface)] p-7"
+              className="flex flex-col gap-6 rounded-[var(--radius-card)] border-2 dp-glass-panel dp-glass-premium p-7"
               style={{ borderColor: 'var(--primary)' }}
             >
               <div>
                 <div className="mb-2 flex items-center gap-2">
-                  <p className="text-small font-medium uppercase tracking-wider text-[color:var(--ink-faint)]">
+                  <p className="dp-eyebrow uppercase text-[color:var(--ink-faint)]">
                     Premium
                   </p>
-                  <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-2 py-0.5 font-display text-caption font-bold leading-none text-[color:var(--gold-text)]">
+                  <span className="rounded-[var(--radius-pill)] bg-[color:var(--accent)] px-2 py-0.5 font-display dp-eyebrow leading-none text-[#141210] dp-badge-glow">
                     2 months free
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap items-baseline gap-1">
-                  <span className="text-stat text-[color:var(--ink)]">$8</span>
+                  <span className="dp-stat text-[color:var(--ink)]">$8</span>
                   <span className="text-body text-[color:var(--ink-faint)]">/ month, billed annually</span>
                 </div>
               </div>
@@ -453,7 +454,7 @@ export default async function LandingPage() {
         {/* ── FAQ ─────────────────────────────────────── */}
         <section id="faq" className="bg-[color:var(--surface)] py-20">
           <div className="mx-auto max-w-[720px] px-5">
-            <h2 className="text-h2 mb-10 text-center text-[color:var(--ink)]">
+            <h2 className="dp-h2 mb-10 text-center text-[color:var(--ink)]">
               Questions
             </h2>
             <FaqAccordion />
@@ -539,7 +540,7 @@ export default async function LandingPage() {
 
             {/* Product */}
             <div>
-              <p className="text-caption mb-3 font-medium uppercase tracking-wider text-[color:var(--ink-faint-on-dark)]">
+              <p className="dp-eyebrow mb-3 uppercase text-[color:var(--ink-faint-on-dark)]">
                 Product
               </p>
               <ul className="flex flex-col gap-2">
@@ -559,7 +560,7 @@ export default async function LandingPage() {
 
             {/* Account */}
             <div>
-              <p className="text-caption mb-3 font-medium uppercase tracking-wider text-[color:var(--ink-faint-on-dark)]">
+              <p className="dp-eyebrow mb-3 uppercase text-[color:var(--ink-faint-on-dark)]">
                 Account
               </p>
               <ul className="flex flex-col gap-2">
@@ -579,7 +580,7 @@ export default async function LandingPage() {
 
             {/* Legal */}
             <div>
-              <p className="text-caption mb-3 font-medium uppercase tracking-wider text-[color:var(--ink-faint-on-dark)]">
+              <p className="dp-eyebrow mb-3 uppercase text-[color:var(--ink-faint-on-dark)]">
                 Legal
               </p>
               <ul className="flex flex-col gap-2">
