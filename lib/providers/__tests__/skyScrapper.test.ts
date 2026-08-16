@@ -49,7 +49,24 @@ const REAL_SHAPED_FIXTURE = {
 };
 
 function mockFetch(body: unknown, status = 200): void {
-  global.fetch = jest.fn().mockResolvedValue({
+  const airportResponse = (skyId: string, entityId: string) => ({
+    ok: true,
+    status: 200,
+    json: jest.fn().mockResolvedValue({
+      status: true,
+      data: [{
+        navigation: {
+          entityId,
+          entityType: 'AIRPORT',
+          relevantFlightParams: { skyId, entityId },
+        },
+      }],
+    }),
+  } as unknown as Response);
+  global.fetch = jest.fn()
+    .mockResolvedValueOnce(airportResponse('JFK', '95565058'))
+    .mockResolvedValueOnce(airportResponse('CDG', '95565041'))
+    .mockResolvedValue({
     ok: status >= 200 && status < 300,
     status,
     json: jest.fn().mockResolvedValue(body),
@@ -108,6 +125,14 @@ describe('SkyScrapperProvider', () => {
         signal: expect.any(AbortSignal),
       }),
     );
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('originEntityId=95565058'),
+      expect.any(Object),
+    );
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('destinationEntityId=95565041'),
+      expect.any(Object),
+    );
     expect(cache.set).toHaveBeenCalledWith(
       'skyscrapper:search:origin:JFK:dest:CDG:depart:2026-09-15:return:2026-09-22:pax:2:cabin:economy',
       result.data,
@@ -157,7 +182,7 @@ describe('SkyScrapperProvider', () => {
       ok: false,
       reason: 'SkyScrapper response failed schema validation',
     });
-    expect(cache.set).not.toHaveBeenCalled();
+    expect(cache.set).not.toHaveBeenCalledWith(expect.any(String), expect.anything(), 21600);
   });
 
   it('returns an error without caching when validation discards every raw itinerary', async () => {
@@ -184,7 +209,7 @@ describe('SkyScrapperProvider', () => {
       '[SkyScrapper] Parsing validation discarded all results',
       { rawCount: 2 },
     );
-    expect(cache.set).not.toHaveBeenCalled();
+    expect(cache.set).not.toHaveBeenCalledWith(expect.any(String), expect.anything(), 21600);
     errorSpy.mockRestore();
   });
 
@@ -204,7 +229,44 @@ describe('SkyScrapperProvider', () => {
       ok: false,
       reason: 'SkyScrapper parsing validation discarded all results',
     });
-    expect(cache.set).not.toHaveBeenCalled();
+    expect(cache.set).not.toHaveBeenCalledWith(expect.any(String), expect.anything(), 21600);
     errorSpy.mockRestore();
+  });
+
+  it('returns a Result error without searching when one entity id cannot be resolved', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: jest.fn().mockResolvedValue({ status: true, data: [] }),
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: jest.fn().mockResolvedValue({
+          status: true,
+          data: [{
+            navigation: {
+              entityType: 'AIRPORT',
+              relevantFlightParams: { skyId: 'LAX', entityId: '95565047' },
+            },
+          }],
+        }),
+      } as unknown as Response);
+
+    const result = await new SkyScrapperProvider().searchFares('XXX', 'LAX', {
+      depart: '2026-09-15',
+      passengers: 1,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'SkyScrapper could not resolve airport entity id for XXX',
+    });
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/flights/searchFlights?'),
+      expect.anything(),
+    );
   });
 });

@@ -13,6 +13,7 @@ import { fetchWithProviderTimeout } from './timeout';
 const API_HOST = 'sky-scrapper.p.rapidapi.com';
 const BASE_URL = `https://${API_HOST}`;
 const CACHE_TTL = 21600;
+const ENTITY_CACHE_TTL = 2592000;
 const DEFAULT_CABIN_CLASS = 'economy';
 
 interface SkyScrapperLeg {
@@ -100,6 +101,62 @@ export class SkyScrapperProvider implements FlightProvider {
     return process.env.RAPIDAPI_KEY_SKYSCRAPPER ?? '';
   }
 
+  private async resolveEntityId(iata: string): Promise<string | null> {
+    const normalizedIata = iata.toUpperCase();
+    const cacheKey = `skyscrapper:entity:${normalizedIata}`;
+
+    try {
+      const cached = await cache.get<string>(cacheKey);
+      if (cached !== null) return cached;
+
+      const params = new URLSearchParams({
+        query: normalizedIata,
+        locale: 'en-US',
+      });
+      const response = await fetchWithProviderTimeout(
+        'SkyScrapper',
+        `${BASE_URL}/api/v1/flights/searchAirport?${params.toString()}`,
+        {
+          headers: {
+            'x-rapidapi-key': this.apiKey,
+            'x-rapidapi-host': API_HOST,
+          },
+        },
+      );
+
+      if (!response.ok) return null;
+
+      const payload: unknown = await response.json();
+      if (!isRecord(payload) || !Array.isArray(payload.data)) return null;
+
+      const candidates = payload.data.flatMap(item => {
+        if (!isRecord(item) || !isRecord(item.navigation)) return [];
+        const flightParams = item.navigation.relevantFlightParams;
+        if (!isRecord(flightParams)) return [];
+        const { skyId, entityId } = flightParams;
+        if (typeof skyId !== 'string' || typeof entityId !== 'string' || !entityId) return [];
+        return [{
+          skyId,
+          entityId,
+          entityType: item.navigation.entityType,
+        }];
+      });
+      const match = candidates.sort((left, right) => {
+        const leftScore = (left.skyId === normalizedIata ? 2 : 0) +
+          (left.entityType === 'AIRPORT' ? 1 : 0);
+        const rightScore = (right.skyId === normalizedIata ? 2 : 0) +
+          (right.entityType === 'AIRPORT' ? 1 : 0);
+        return rightScore - leftScore;
+      })[0];
+
+      if (!match) return null;
+      await cache.set(cacheKey, match.entityId, ENTITY_CACHE_TTL);
+      return match.entityId;
+    } catch {
+      return null;
+    }
+  }
+
   async priceTrends(_origin: string, _dest: string): Promise<Result<PricePoint[]>> {
     return { ok: true, data: [] };
   }
@@ -130,9 +187,22 @@ export class SkyScrapperProvider implements FlightProvider {
       const cached = await cache.get<NormalizedFare[]>(cacheKey);
       if (cached !== null) return { ok: true, data: cached };
 
+      const [originEntityId, destinationEntityId] = await Promise.all([
+        this.resolveEntityId(origin),
+        this.resolveEntityId(dest),
+      ]);
+      if (originEntityId === null) {
+        return { ok: false, reason: `SkyScrapper could not resolve airport entity id for ${origin}` };
+      }
+      if (destinationEntityId === null) {
+        return { ok: false, reason: `SkyScrapper could not resolve airport entity id for ${dest}` };
+      }
+
       const params = new URLSearchParams({
         originSkyId: origin,
+        originEntityId,
         destinationSkyId: dest,
+        destinationEntityId,
         date: range.depart,
         cabinClass: DEFAULT_CABIN_CLASS,
         adults: String(range.passengers),
