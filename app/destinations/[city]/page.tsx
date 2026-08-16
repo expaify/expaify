@@ -140,6 +140,13 @@ export default async function CityPage({ params, searchParams }: PageProps) {
   const watchlist = sub?.watchlist ?? []
   const watchTier = !session?.user?.id ? 'anonymous' : premium ? 'premium' : 'free'
   const isWatching = watchlist.includes(displayName)
+  const cityEntries = Object.entries(CITY_SLUGS)
+  const currentCityIndex = cityEntries.findIndex(([slug]) => slug === city)
+  const nearbyDestinations = [
+    ...cityEntries.slice(currentCityIndex + 1),
+    ...cityEntries.slice(0, currentCityIndex),
+  ].slice(0, 4)
+
   return (
     <main className="mx-auto max-w-[1200px] px-4 pb-24 pt-8 sm:px-6 lg:px-8">
       <nav aria-label="breadcrumb" className="hidden md:flex items-center mb-6">
@@ -180,6 +187,23 @@ export default async function CityPage({ params, searchParams }: PageProps) {
           <WatchCityCta city={displayName} tier={watchTier} watching={isWatching} watchlist={watchlist} />
         </div>
       ) : null}
+
+      <section className="mt-10 border-t border-[color:var(--border)] pt-8" aria-labelledby="nearby-destinations-heading">
+        <h2 id="nearby-destinations-heading" className="text-body font-bold text-[color:var(--text-1)]">
+          Explore more destinations
+        </h2>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {nearbyDestinations.map(([slug, name]) => (
+            <Link
+              key={slug}
+              href={`/destinations/${slug}`}
+              className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 py-3 text-sm font-medium text-[color:var(--text-1)] transition-colors hover:bg-[color:var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--text-3)]"
+            >
+              {name}
+            </Link>
+          ))}
+        </div>
+      </section>
     </main>
   )
 }
