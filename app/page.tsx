@@ -453,7 +453,7 @@ export default async function LandingPage() {
               </p>
               <div className="flex items-center gap-3">
                 <a
-                  href="https://x.com/expaify"
+                  href="https://x.com/Expaifycom"
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="expaify on X"

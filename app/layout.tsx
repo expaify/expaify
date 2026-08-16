@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    site: "@expaify",
+    site: "@Expaifycom",
     title: "expaify Deal Desk",
     description:
       "Search live flight and hotel pricing, compare each option to recent route baselines, and review deal confidence before booking.",
@@ -76,7 +76,7 @@ const organizationSchema = {
   description:
     "We track 20 destinations daily and alert you the moment a hotel drops 30%+ below its normal price.",
   sameAs: [
-    "https://x.com/expaify",
+    "https://x.com/Expaifycom",
     "https://www.tiktok.com/@expaify",
     "https://www.facebook.com/expaify",
     "https://www.instagram.com/expaify",
