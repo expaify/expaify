@@ -24,6 +24,10 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function isValidUuid(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
 // ─── POST /api/alerts — create a price alert ──────────────────────────────────
 
 export async function POST(request: Request) {
@@ -134,6 +138,14 @@ export async function DELETE(request: NextRequest) {
 
   if (!email || !id) {
     return resultJson({ ok: false, reason: 'email and id are required' }, 400);
+  }
+
+  if (!isValidEmail(email)) {
+    return resultJson({ ok: false, reason: 'Invalid email address' }, 400);
+  }
+
+  if (!isValidUuid(id)) {
+    return resultJson({ ok: false, reason: 'id must be a valid UUID' }, 400);
   }
 
   try {

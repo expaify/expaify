@@ -1,4 +1,5 @@
-import { POST } from '../route';
+import { NextRequest } from 'next/server';
+import { DELETE, POST } from '../route';
 import { query } from '../../../../lib/db/client';
 
 jest.mock('../../../../lib/db/client', () => ({
@@ -12,6 +13,12 @@ function postRequest(body: unknown): Request {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: typeof body === 'string' ? body : JSON.stringify(body),
+  });
+}
+
+function deleteRequest(queryString: string): NextRequest {
+  return new NextRequest(`https://expaify.test/api/alerts?${queryString}`, {
+    method: 'DELETE',
   });
 }
 
@@ -113,5 +120,62 @@ describe('POST /api/alerts', () => {
       },
     });
     expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('DELETE /api/alerts', () => {
+  beforeEach(() => {
+    mockQuery.mockReset();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('rejects a malformed UUID before querying the database', async () => {
+    const response = await DELETE(deleteRequest(
+      'email=traveler%40example.com&id=not-a-uuid',
+    ));
+    const body = await response.json() as { ok: boolean; reason: string };
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({ ok: false, reason: 'id must be a valid UUID' });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid email before querying the database', async () => {
+    const response = await DELETE(deleteRequest(
+      'email=not-an-email&id=9869ebcc-2c37-4e12-ae31-fac36f4b21ec',
+    ));
+    const body = await response.json() as { ok: boolean; reason: string };
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({ ok: false, reason: 'Invalid email address' });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('deactivates only the exact UUID and email pair', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [],
+      rowCount: 1,
+      command: 'UPDATE',
+      oid: 0,
+      fields: [],
+    });
+
+    const response = await DELETE(deleteRequest(
+      'email=traveler%40example.com&id=9869ebcc-2c37-4e12-ae31-fac36f4b21ec',
+    ));
+    const body = await response.json() as {
+      ok: boolean;
+      data: { message: string };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ ok: true, data: { message: 'Alert cancelled.' } });
+    expect(mockQuery).toHaveBeenCalledWith(
+      'UPDATE price_alerts SET active = false WHERE id = $1 AND email = $2',
+      ['9869ebcc-2c37-4e12-ae31-fac36f4b21ec', 'traveler@example.com'],
+    );
   });
 });
