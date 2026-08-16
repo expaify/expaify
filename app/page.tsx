@@ -3,6 +3,7 @@ import { DealCard } from './components/ui/DealCard'
 import { LockedDealCard } from './components/ui/LockedDealCard'
 import { LandingNav } from './components/LandingNav'
 import { FaqAccordion } from './components/FaqAccordion'
+import { CITY_SLUGS } from '@/lib/cities'
 import { getActiveDeals, getTrackedHotels, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DEAL_THRESHOLD, MIN_SNAPSHOTS } from '@/lib/pipeline/dealRules'
 
@@ -245,6 +246,29 @@ export default async function LandingPage() {
               discountPct={lockedTeaserPool[2]?.discountPct ?? MOCK_HERO.discountPct}
               photoUrl={lockedTeaserPool[2]?.photoUrl ?? undefined}
             />
+          </div>
+        </section>
+
+        {/* ── Destinations ────────────────────────────── */}
+        <section className="border-y border-[color:var(--line-ivory)] bg-[color:var(--surface)] py-20">
+          <div className="mx-auto max-w-[1140px] px-5">
+            <h2 className="text-h2 mb-3 text-center text-[color:var(--ink)]">
+              Browse by destination
+            </h2>
+            <p className="text-body mb-12 text-center text-[color:var(--ink-soft)]">
+              Explore the destinations expaify tracks for hotel price drops.
+            </p>
+            <div className="grid grid-cols-2 gap-3 min-[640px]:grid-cols-4 min-[1024px]:grid-cols-5">
+              {Object.entries(CITY_SLUGS).map(([slug, name]) => (
+                <a
+                  key={slug}
+                  href={`/destinations/${slug}`}
+                  className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] px-5 py-3 text-center text-small font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--primary)]"
+                >
+                  {name}
+                </a>
+              ))}
+            </div>
           </div>
         </section>
 
