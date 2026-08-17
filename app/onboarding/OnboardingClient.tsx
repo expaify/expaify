@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Ref } from 'react'
 import { TRACKED_MARKETS, TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
+import { FREE_WATCHLIST_CAP, PREMIUM_WATCHLIST_CAP } from '@/lib/alertLimits'
 import { track } from '@/lib/analytics'
 
 type AlertPreference = 'instant' | 'daily' | 'off'
@@ -63,7 +64,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
   const [success, setSuccess] = useState<SuccessState | null>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const lastAttemptRef = useRef<SavePayload | null>(null)
-  const maxCities = premium ? 10 : 1
+  const maxCities = premium ? PREMIUM_WATCHLIST_CAP : FREE_WATCHLIST_CAP
 
   const selectedLabel = useMemo(() => {
     if (watchlist.length === 0) return 'Everywhere'

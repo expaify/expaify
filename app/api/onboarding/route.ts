@@ -1,8 +1,10 @@
 export const dynamic = 'force-dynamic'
 
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
+import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
+import { syncFreeSubscriber } from '@/lib/mailchimp'
 import {
   getSubscription,
   isPremium,
@@ -52,6 +54,18 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     watchlist,
     onboardingDone: true,
   })
+
+  const email = session.user.email
+  if (!premium && email) {
+    const city = watchlist[0] ? (CITY_DISPLAY_TO_SLUG[watchlist[0]] ?? 'everywhere') : 'everywhere'
+    after(async () => {
+      try {
+        await syncFreeSubscriber({ email, city, source: 'onboarding' })
+      } catch (error) {
+        console.warn('Mailchimp free subscriber sync failed', error)
+      }
+    })
+  }
 
   return NextResponse.json({ ok: true, alertPreference, minDiscountPct, watchlist })
 }
