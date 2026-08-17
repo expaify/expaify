@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   description:
     "We track 20 destinations daily and alert you the moment a hotel drops 30%+ below its normal price.",
   applicationName: "expaify",
-  keywords: ["flights", "hotels", "flight deals", "cheap flights", "hotel deals", "travel deals"],
+  keywords: ["hotels", "hotel deals", "cheap hotels", "hotel price tracking", "travel deals"],
   authors: [{ name: "expaify" }],
   creator: "expaify",
   publisher: "expaify",

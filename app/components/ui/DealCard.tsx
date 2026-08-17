@@ -26,7 +26,7 @@ import {
   getHotelFundsCardSignal,
   type ApiDealFundsPolicy,
 } from '../HotelFundsPolicyComparison'
-import { getHotelClimateResultCue } from '@/lib/hotels/climateEvidence'
+import { getHotelClimateResultCue, validateHotelClimateEvidence } from '@/lib/hotels/climateEvidence'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 import {
   getHotelEvChargingResultCopy,
@@ -120,7 +120,11 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
   const accessibilityAccessibleText = accessibilityCardAccessibleText(accessibility, deal.expired)
   const reviewScanLine = getGuestReviewScanLine(deal.reviewEvidence)
   const fundsPolicySignal = getHotelFundsCardSignal(deal.fundsPolicy)
-  const climateCue = getHotelClimateResultCue(climateEvidence)
+  const validatedClimateEvidence = validateHotelClimateEvidence(climateEvidence)
+  const climateCue = validatedClimateEvidence?.capability === 'unsupported'
+    || validatedClimateEvidence?.rows.every(row => row.value === 'not_provided')
+    ? null
+    : getHotelClimateResultCue(validatedClimateEvidence)
   const evChargingCue = getHotelEvChargingResultCopy(evChargingEvidence)
   const accessibilityCue = !deal.expired && accessibility?.needs.length
     ? accessibility.rollup === 'all_documented'
