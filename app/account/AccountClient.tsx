@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { signOut } from 'next-auth/react'
 import { getStoredUtm } from '@/lib/attribution'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
@@ -106,6 +106,14 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
   const [pref, setPref] = useState<AlertPreference>(alertPreference ?? 'daily')
   const [discountPct, setDiscountPct] = useState<MinDiscountPct>(minDiscountPct)
   const [cities, setCities] = useState<string[]>(watchlist)
+  const [citySearch, setCitySearch] = useState('')
+  const sortedFilteredCities = useMemo(
+    () =>
+      [...TRACKED_MARKET_NAMES]
+        .sort((a, b) => a.localeCompare(b))
+        .filter(city => city.toLowerCase().includes(citySearch.trim().toLowerCase())),
+    [citySearch],
+  )
   const [groupStatus, setGroupStatus] = useState<Record<GroupName, GroupStatus>>({
     pref: 'idle',
     min: 'idle',
@@ -342,29 +350,40 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">
             Cities I&apos;m watching ({cities.length}/10)
           </p>
+          <input
+            type="text"
+            value={citySearch}
+            onChange={e => setCitySearch(e.target.value)}
+            placeholder="Search cities"
+            className="mb-2 w-full rounded-[var(--radius-control)] border border-[color:var(--line-ivory)] bg-white px-3 py-2 text-xs text-[color:var(--ink)] placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-soft)]"
+          />
           <div className="flex flex-wrap gap-2">
-            {TRACKED_MARKET_NAMES.map(city => {
-              const selected = cities.includes(city)
-              const capped = !selected && atCap
-              return (
-                <button
-                  key={city}
-                  type="button"
-                  onClick={() => toggleCity(city)}
-                  aria-pressed={selected}
-                  aria-disabled={capped || undefined}
-                  className={`rounded-[var(--radius-pill)] px-3 py-1.5 text-xs font-medium transition-colors duration-100 ${
-                    capped ? 'opacity-55' : ''
-                  } ${
-                    selected
-                      ? 'bg-[color:var(--primary)] text-white'
-                      : 'border border-[color:var(--line-ivory)] bg-white text-[color:var(--ink)] hover:border-[color:var(--primary-soft)]'
-                  }`}
-                >
-                  {city}
-                </button>
-              )
-            })}
+            {sortedFilteredCities.length === 0 ? (
+              <p className="text-xs text-[color:var(--ink-faint)]">No matching cities.</p>
+            ) : (
+              sortedFilteredCities.map(city => {
+                const selected = cities.includes(city)
+                const capped = !selected && atCap
+                return (
+                  <button
+                    key={city}
+                    type="button"
+                    onClick={() => toggleCity(city)}
+                    aria-pressed={selected}
+                    aria-disabled={capped || undefined}
+                    className={`rounded-[var(--radius-pill)] px-3 py-1.5 text-xs font-medium transition-colors duration-100 ${
+                      capped ? 'opacity-55' : ''
+                    } ${
+                      selected
+                        ? 'bg-[color:var(--primary)] text-white'
+                        : 'border border-[color:var(--line-ivory)] bg-white text-[color:var(--ink)] hover:border-[color:var(--primary-soft)]'
+                    }`}
+                  >
+                    {city}
+                  </button>
+                )
+              })
+            )}
           </div>
           <StatusLine status={groupStatus.city} />
           <p className="mt-1 text-xs text-[color:var(--ink-faint)]">

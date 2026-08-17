@@ -95,82 +95,104 @@ export default async function AccountPage({ searchParams }: PageProps) {
         <h1 className="mb-6 font-display text-2xl font-bold text-[color:var(--ink)]">Account</h1>
 
         {/* Plan status */}
-        <section className={`mb-5 rounded-[var(--radius-card)] p-6 ${
-          premium
-            ? 'border-2 border-[color:var(--primary)] bg-[color:var(--surface)]'
-            : 'border-[1.5px] border-dashed border-[color:var(--line-ivory)] bg-[color:var(--surface)]'
-        }`}>
-          <div className="mb-3 flex items-center gap-2">
-            {premium ? (
-              <>
-                <span className="rounded-[var(--radius-pill)] bg-[color:var(--primary-soft)] px-3 py-1 font-display text-xs font-bold text-[color:var(--primary)]">
-                  {sub?.status === 'trialing' ? 'Premium trial' : 'Premium'}
-                </span>
-                {sub?.status === 'active' && (
-                  <span className="h-2 w-2 rounded-full bg-[color:var(--primary)]" aria-hidden />
+        <section
+          className={`mb-5 rounded-[var(--radius-card)] p-6 ${
+            premium
+              ? 'border-2 border-[color:var(--primary)] bg-[color:var(--surface)]'
+              : 'border-[1.5px] border-dashed border-[color:var(--line-ivory)] bg-[color:var(--surface)]'
+          }`}
+        >
+          {/* Facts block (R2) */}
+          <dl className="mb-4 grid gap-4 sm:grid-cols-3">
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">
+                Plan
+              </dt>
+              <dd className="mt-1 text-sm font-semibold text-[color:var(--ink)]">
+                {sub?.status === 'trialing'
+                  ? 'Premium trial'
+                  : premium
+                  ? 'Premium'
+                  : sub?.status === 'canceled'
+                  ? 'Premium (canceled)'
+                  : 'Free plan'}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">
+                Price
+              </dt>
+              <dd className="mt-1 text-sm font-semibold text-[color:var(--ink)]">
+                {sub?.status === 'trialing'
+                  ? sub?.plan === 'annual' ? '$8/mo' : '$12/mo'
+                  : '—'}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">
+                Renewal
+              </dt>
+              <dd className="mt-1 text-sm font-semibold text-[color:var(--ink)]">
+                {sub?.status === 'trialing' && sub.trialEndsAt
+                  ? `Trial ends ${formatDate(sub.trialEndsAt)}`
+                  : sub?.status === 'active' && sub.currentPeriodEnd
+                  ? `Renews ${formatDate(sub.currentPeriodEnd)}`
+                  : sub?.status === 'canceled' && sub.currentPeriodEnd
+                  ? `Access ends ${formatDate(sub.currentPeriodEnd)}`
+                  : '—'}
+              </dd>
+            </div>
+          </dl>
+
+          {/* Callout slot (R2 + R3) */}
+          <div className="mb-4">
+            {sub?.status === 'trialing' && sub.trialEndsAt && daysLeft !== null && (
+              <div className="flex items-center gap-4 rounded-[var(--radius-control)] border border-[color:var(--gold)] bg-[color:var(--warning-soft)] px-4 py-3">
+                <div className="shrink-0 text-center">
+                  <div className="text-h2 text-[color:var(--gold-text)]">{daysLeft}</div>
+                  <div className="text-caption font-medium uppercase tracking-wide text-[color:var(--gold-text)]">
+                    {daysLeft === 1 ? 'day' : 'days'} left
+                  </div>
+                </div>
+                <p className="text-small text-[color:var(--gold-text)]">
+                  Trial ends <strong>{formatDate(sub.trialEndsAt)}</strong>. You&apos;ll be charged{' '}
+                  {sub.plan === 'annual' ? '$8/mo' : '$12/mo'} unless you cancel before then.
+                </p>
+              </div>
+            )}
+
+            {sub?.status === 'canceled' && sub.currentPeriodEnd && (
+              <p className="text-sm text-[color:var(--ink-soft)]">
+                Premium access ends <strong>{formatDate(sub.currentPeriodEnd)}</strong>. Renew to keep getting alerts.
+              </p>
+            )}
+
+            {(!sub || sub.status === 'free') && (
+              <div>
+                {activeDealCount > 3 && (
+                  <div className="mb-3 rounded-[var(--radius-control)] border border-[color:var(--primary-soft)] bg-[color:var(--primary-soft)] px-4 py-3">
+                    <p className="text-sm text-[color:var(--primary)]">
+                      <strong>{activeDealCount} hotel deals</strong> live right now — you can see 3.
+                      Upgrade to unlock all of them.
+                    </p>
+                  </div>
                 )}
-                {sub?.plan && (
-                  <span className="text-xs capitalize text-[color:var(--ink-faint)]">{sub.plan}</span>
-                )}
-              </>
-            ) : sub?.status === 'canceled' ? (
-              <span className="rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)] px-3 py-1 font-display text-xs font-bold text-[color:var(--ink-soft)]">
-                Canceled
-              </span>
-            ) : (
-              <span className="rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)] px-3 py-1 font-display text-xs font-bold text-[color:var(--ink-faint)]">
-                Free plan
-              </span>
+                <p className="text-sm text-[color:var(--ink-soft)]">
+                  Free plan gives you 3 unlocked deals. Upgrade for unlimited deals + email alerts.
+                </p>
+              </div>
             )}
           </div>
 
-          {/* Trial countdown — prominent */}
-          {sub?.status === 'trialing' && sub.trialEndsAt && daysLeft !== null && (
-            <div className="mb-4 flex items-center gap-4 rounded-[var(--radius-control)] border border-[color:var(--gold)] bg-[color:var(--warning-soft)] px-4 py-3">
-              <div className="shrink-0 text-center">
-                <div className="text-h2 text-[color:var(--gold-text)]">{daysLeft}</div>
-                <div className="text-caption font-medium uppercase tracking-wide text-[color:var(--gold-text)]">
-                  {daysLeft === 1 ? 'day' : 'days'} left
-                </div>
-              </div>
-              <p className="text-small text-[color:var(--gold-text)]">
-                Trial ends <strong>{formatDate(sub.trialEndsAt)}</strong>.
-                {' '}You&apos;ll be charged ${sub.plan === 'annual' ? '8' : '12'}/mo unless you cancel before then.
-              </p>
-            </div>
-          )}
-
-          {sub?.status === 'active' && sub.currentPeriodEnd && (
-            <p className="mb-3 text-sm text-[color:var(--ink-soft)]">
-              Next billing: <strong>{formatDate(sub.currentPeriodEnd)}</strong>
-            </p>
-          )}
-          {sub?.status === 'canceled' && sub.currentPeriodEnd && (
-            <p className="mb-3 text-sm text-[color:var(--ink-soft)]">
-              Premium access ends <strong>{formatDate(sub.currentPeriodEnd)}</strong>. Renew to keep getting alerts.
-            </p>
-          )}
-
-          {/* Free user — show deals they're missing */}
-          {(!sub || sub.status === 'free') && (
-            <div className="mb-4">
-              {activeDealCount > 3 && (
-                <div className="mb-3 rounded-[var(--radius-control)] border border-[color:var(--primary-soft)] bg-[color:var(--primary-soft)] px-4 py-3">
-                  <p className="text-sm text-[color:var(--primary)]">
-                    <strong>{activeDealCount} hotel deals</strong> live right now — you can see 3.
-                    Upgrade to unlock all of them.
-                  </p>
-                </div>
-              )}
-              <p className="text-sm text-[color:var(--ink-soft)]">
-                Free plan gives you 3 unlocked deals. Upgrade for unlimited deals + email alerts.
-              </p>
-            </div>
-          )}
-
+          {/* Actions slot */}
           <div className="mt-4 flex flex-wrap items-center gap-3">
             {premium && (
-              <a href="/deals" className="btn btn-outline self-start">
+              <a
+                href="/deals"
+                className="btn btn-outline self-start focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--primary)] focus-visible:outline-offset-2"
+              >
                 Browse live deals
               </a>
             )}
@@ -179,16 +201,6 @@ export default async function AccountPage({ searchParams }: PageProps) {
             ) : (
               <AccountClient userId={session.user.id} upgradePlan="annual" />
             )}
-          </div>
-        </section>
-
-        {/* Profile */}
-        <section className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
-          <h2 className="mb-3 font-display text-base font-bold text-[color:var(--ink)]">Profile</h2>
-          <p className="text-sm text-[color:var(--ink-soft)] [overflow-wrap:anywhere]">{session.user.email}</p>
-          <p className="mt-1 text-sm text-[color:var(--ink-faint)]">{signInMethod}</p>
-          <div className="mt-3 border-t border-[color:var(--line-ivory)] pt-3">
-            <AccountClient userId={session.user.id} signOutOnly />
           </div>
         </section>
 
@@ -209,6 +221,16 @@ export default async function AccountPage({ searchParams }: PageProps) {
             />
           </section>
         )}
+
+        {/* Profile */}
+        <section className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
+          <h2 className="mb-3 font-display text-base font-bold text-[color:var(--ink)]">Profile</h2>
+          <p className="text-sm text-[color:var(--ink-soft)] [overflow-wrap:anywhere]">{session.user.email}</p>
+          <p className="mt-1 text-sm text-[color:var(--ink-faint)]">{signInMethod}</p>
+          <div className="mt-3 border-t border-[color:var(--line-ivory)] pt-3">
+            <AccountClient userId={session.user.id} signOutOnly />
+          </div>
+        </section>
 
         {/* Privacy (all authenticated users) */}
         <section className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
