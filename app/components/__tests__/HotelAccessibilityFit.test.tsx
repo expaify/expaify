@@ -158,12 +158,13 @@ describe('hotel accessibility fit presentation', () => {
     expect(html.indexOf('Some needs require confirmation', articleStart)).toBeLessThan(html.indexOf('usually', articleStart))
   })
 
-  it('suppresses expired accessibility evidence visually and degrades it in the card link name', () => {
+  it('suppresses expired accessibility evidence visually and in the card link name', () => {
     const presentation = createAccessibilityPresentation(['roll_in_shower'], [fact()])
     const html = renderToStaticMarkup(<DealCard deal={{ ...deal, expired: true }} href="/deals/hotel-1" accessibility={presentation} />)
     expect(html).not.toContain('Saved accessibility details may be out of date.')
     expect(html).not.toContain('Roll-in shower: Out of date — confirm')
-    expect(html).toContain('Roll-in shower: Not documented; confirm before booking.')
+    expect(html).toContain('aria-label="View deal: Example Hotel. 4-star hotel class."')
+    expect(html).not.toContain('Roll-in shower: Not documented; confirm before booking.')
     expect(html).not.toContain('Roll-in shower: Documented for this selected stay.')
   })
 

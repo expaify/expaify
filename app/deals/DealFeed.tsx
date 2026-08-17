@@ -53,7 +53,7 @@ const CITIES = [
   'Tulum', 'Amsterdam', 'Athens', 'Punta Cana', 'Charlotte', 'Nashville',
 ]
 
-const DEFAULT_MIN_DISCOUNT = 20
+const DEFAULT_MIN_DISCOUNT = 30
 
 type SortKey = HotelDealSort
 type SortAnalyticsValue = 'recently_found' | 'biggest_discount' | 'lowest_nightly_price'
@@ -1582,7 +1582,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
           className={
             activeTab === 'flights'
               ? 'rounded-[var(--radius-pill)] bg-[color:var(--primary)] px-5 py-2 text-small font-medium text-[color:var(--text-inverse)]'
-              : 'rounded-[var(--radius-pill)] px-5 py-2 text-small font-medium text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]'
+              : 'rounded-[var(--radius-pill)] px-5 py-2 text-small font-medium text-[color:var(--ink-faint)] opacity-60 hover:text-[color:var(--ink)]'
           }
         >
           Flights

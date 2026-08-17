@@ -82,7 +82,7 @@ describe('hotel pool operating-status research prototype', () => {
         discountPct: 31, checkInWindow: 'Aug 10–14', snapshotCount: 20, links: {}, updatedAt: '2026-08-03T12:00:00Z',
       }}
     />)
-    expect(html).toContain('Pool detail: Indoor pool schedule covers your stay · 2 pools disclosed.')
+    expect(html).toContain('aria-label="View deal: Harbor Hotel. 4-star hotel class. Indoor pool schedule covers your stay · 2 pools disclosed."')
     expect(html).toContain('href="/destinations/miami"')
     expect(html.match(/<a(?: |>)/g)?.length).toBe(2)
     expect(html).not.toContain('<button')

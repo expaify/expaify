@@ -277,7 +277,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
         href={href}
         onClick={onOpen}
         className="absolute inset-0 z-[1] block text-inherit no-underline"
-        aria-label={`View deal: ${deal.hotelName}.${deal.stars === null ? '' : ` ${Math.round(deal.stars)}-star hotel class.`}${reviewScanLine ? ` ${reviewScanLine.accessible}.` : ''}${disruptionCue ? ` Supplier notice: ${disruptionCue}.` : ''}${accessibilityAccessibleText ? ` ${accessibilityAccessibleText}` : ''}${quietEvidenceCue ? ` ${quietEvidenceCue.replace(' · ', ': ')}.` : ''}${poolCue ? ` Pool detail: ${poolCue.copy}.` : ''}${climateCue ? ` Room climate: ${climateCue}.` : ''}${fundsPolicySignal ? ` ${fundsPolicySignal.copy}` : ''} ${evChargingCue.accessible}`}
+        aria-label={`View deal: ${deal.hotelName}.${deal.stars === null ? '' : ` ${Math.round(deal.stars)}-star hotel class.`}${winningCue?.accessible ? ` ${winningCue.accessible}.` : ''}`}
       />
     </div>
   )

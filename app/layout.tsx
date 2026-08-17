@@ -21,9 +21,9 @@ export const metadata: Metadata = {
   publisher: "expaify",
   metadataBase: new URL("https://expaify.com"),
   openGraph: {
-    title: "expaify Deal Desk",
+    title: "Never overpay for a hotel again | expaify",
     description:
-      "Search live flight and hotel pricing, compare each option to recent route baselines, and review deal confidence before booking.",
+      "We track 20 destinations daily and flag hotels 30%+ below their 60-day median. Book direct on Expedia, Booking.com, Kiwi, or Trip.com. Zero fees from us.",
     url: "https://expaify.com",
     siteName: "expaify",
     type: "website",
@@ -33,9 +33,9 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     site: "@Expaifycom",
-    title: "expaify Deal Desk",
+    title: "Never overpay for a hotel again | expaify",
     description:
-      "Search live flight and hotel pricing, compare each option to recent route baselines, and review deal confidence before booking.",
+      "We track 20 destinations daily and flag hotels 30%+ below their 60-day median. Book direct on Expedia, Booking.com, Kiwi, or Trip.com. Zero fees from us.",
     images: ["https://expaify.com/og.svg"],
   },
   robots: { index: true, follow: true },

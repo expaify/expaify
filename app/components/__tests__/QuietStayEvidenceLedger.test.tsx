@@ -327,8 +327,8 @@ describe('QuietStayEvidenceLedger', () => {
       <DealCard deal={deal} href="/deals/hotel-1" quietStayEvidence={NO_QUIET_STAY_EVIDENCE} />,
     )
 
-    expect(populated.match(/Quiet-stay evidence available · Property/g)).toHaveLength(1)
-    expect(populated).toContain('aria-label="View deal: Example Hotel. 4-star hotel class. Quiet-stay evidence available: Property. EV charging: Unknown. This provider did not return usable on-property charging details."')
+    expect(populated.match(/Quiet-stay evidence available · Property/g)).toHaveLength(2)
+    expect(populated).toContain('aria-label="View deal: Example Hotel. 4-star hotel class. Quiet-stay evidence available · Property."')
     expect(unknown).not.toContain('Quiet-stay evidence available')
     expect(populated).toContain('href="/destinations/london"')
     expect(populated.match(/<a /g)).toHaveLength(2)
