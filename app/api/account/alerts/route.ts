@@ -13,10 +13,11 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const sub = await getSubscription(session.user.id)
-  if (!sub || !isPremium(sub.status)) {
-    return NextResponse.json({ error: 'Premium required' }, { status: 403 })
+  const sub = await getSubscription(session.user.id).catch(() => null)
+  if (!sub) {
+    return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
   }
+  const premium = isPremium(sub.status)
 
   const body = await req.json().catch(() => null) as {
     alertPreference?: string
@@ -40,7 +41,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   }
 
   const patch: Parameters<typeof upsertSubscription>[1] = {}
-  if (pref) patch.alertPreference = pref
+  if (pref) patch.alertPreference = !premium && pref === 'instant' ? 'daily' : pref
   if (hasMinDiscount) {
     const min = Number(body.alertMinDiscount)
     if (!Number.isInteger(min) || min < 0 || min > 90) {

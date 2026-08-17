@@ -180,7 +180,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
                   </div>
                 )}
                 <p className="text-sm text-[color:var(--ink-soft)]">
-                  Free plan gives you 3 unlocked deals. Upgrade for unlimited deals + email alerts.
+                  Free plan gives you 3 unlocked deals. Upgrade for unlimited deals + instant email alerts.
                 </p>
               </div>
             )}
@@ -204,9 +204,8 @@ export default async function AccountPage({ searchParams }: PageProps) {
           </div>
         </section>
 
-        {/* Alerts + Watchlist (premium only) */}
-        {premium && (
-          <section id="alerts" className="mb-5 scroll-mt-20 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
+        {/* Alerts + Watchlist */}
+        <section id="alerts" className="mb-5 scroll-mt-20 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
             <h2 className="mb-1 font-display text-base font-bold text-[color:var(--ink)]">Email alerts</h2>
             <p className="mb-5 text-sm text-[color:var(--ink-faint)]">
               Choose how often we email you when a deal appears. Changes save instantly.
@@ -217,10 +216,10 @@ export default async function AccountPage({ searchParams }: PageProps) {
               alertPreference={sub?.alertPreference}
               watchlist={sub?.watchlist}
               minDiscountPct={sub?.minDiscountPct as 30 | 40 | 50 | undefined}
+              premium={premium}
               showAlerts
             />
-          </section>
-        )}
+        </section>
 
         {/* Profile */}
         <section className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">

@@ -2,15 +2,18 @@ import { render } from '@react-email/components'
 import { getResend, FROM } from './resend'
 import { DailyDigest } from './templates/DailyDigest'
 import { query } from '../db/client'
+import { isPremium, type SubscriptionStatus } from '../subscription'
 
 const BASE_URL = process.env.AUTH_URL ?? 'https://expaify.com'
 const DEFAULT_MIN_DISCOUNT = 40
-const MAX_DIGEST_DEALS = 8
+const MAX_DIGEST_DEALS_FREE = 2
+const MAX_DIGEST_DEALS_PREMIUM = 8
 
 type DigestRecipient = {
   userId: string
   email: string
   unsubscribeToken: string
+  status: SubscriptionStatus
 }
 
 type DigestDealRow = {
@@ -32,12 +35,16 @@ export async function runDailyDigest(): Promise<{ recipients: number; skipped: n
   const res = await query<DigestRecipient>(
     `SELECT s.user_id AS "userId",
             u.email,
-            s.alert_unsubscribe_token::TEXT AS "unsubscribeToken"
+            s.alert_unsubscribe_token::TEXT AS "unsubscribeToken",
+            s.status
      FROM subscriptions s
      JOIN users u ON u.id = s.user_id
      WHERE s.alert_preference IN ('daily', 'instant')
        AND u.email IS NOT NULL
-       AND s.status IN ('trialing', 'active')
+       AND (
+         s.status IN ('trialing', 'active')
+         OR (s.status = 'free' AND s.alert_preference = 'daily')
+       )
        AND EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.alert_timezone, 'America/New_York'))) = 9
        AND (
          s.last_alerted_at IS NULL OR
@@ -56,6 +63,9 @@ export async function runDailyDigest(): Promise<{ recipients: number; skipped: n
 
   for (const recipient of res.rows) {
     try {
+      const maxDeals = isPremium(recipient.status)
+        ? MAX_DIGEST_DEALS_PREMIUM
+        : MAX_DIGEST_DEALS_FREE
       const deals = await query<DigestDealRow>(
         `SELECT
            d.id,
@@ -84,7 +94,7 @@ export async function runDailyDigest(): Promise<{ recipients: number; skipped: n
            )
          ORDER BY d.discount_pct DESC, d.first_seen DESC
          LIMIT $3`,
-        [recipient.userId, DEFAULT_MIN_DISCOUNT, MAX_DIGEST_DEALS]
+        [recipient.userId, DEFAULT_MIN_DISCOUNT, maxDeals]
       )
 
       const digestDeals = deals.rows.map(d => ({

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { signOut } from 'next-auth/react'
 import { getStoredUtm } from '@/lib/attribution'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
+import { FREE_WATCHLIST_CAP, PREMIUM_WATCHLIST_CAP } from '@/lib/alertLimits'
 
 type AlertPreference = 'instant' | 'daily' | 'off'
 type MinDiscountPct = 30 | 40 | 50
@@ -15,6 +16,7 @@ type Props = {
   minDiscountPct?: MinDiscountPct
   userId?: string
   showAlerts?: boolean
+  premium?: boolean
   showPrivacy?: boolean
   signOutOnly?: boolean
   upgradePlan?: 'monthly' | 'annual'
@@ -31,7 +33,7 @@ type PersistResult = {
   data: { watchlist?: unknown; error?: unknown } | null
 }
 
-function StatusLine({ status }: { status: GroupStatus }) {
+function StatusLine({ status, maxCities }: { status: GroupStatus; maxCities?: number }) {
   return (
     <p aria-live="polite" className="mt-1.5 min-h-[18px] text-xs leading-[18px]">
       {status === 'saving' && <span className="text-[color:var(--ink-faint)]">Saving…</span>}
@@ -43,7 +45,7 @@ function StatusLine({ status }: { status: GroupStatus }) {
       )}
       {status === 'cap' && (
         <span className="text-[color:var(--ink-faint)]">
-          You&rsquo;re watching 10 cities — the maximum. Unwatch one first.
+          You&rsquo;re watching {maxCities} {maxCities === 1 ? 'city' : 'cities'} — the maximum. Unwatch one first.
         </span>
       )}
     </p>
@@ -96,16 +98,19 @@ function PillRadioGroup<T extends string | number>({ label, options, value, onCh
   )
 }
 
-export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [], minDiscountPct = 40, showAlerts, showPrivacy, signOutOnly, upgradePlan }: Props) {
+export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [], minDiscountPct = 40, showAlerts, premium = false, showPrivacy, signOutOnly, upgradePlan }: Props) {
   const [portalLoading, setPortalLoading] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [privacyLoading, setPrivacyLoading] = useState<'export' | 'deletion' | null>(null)
   const [privacySuccess, setPrivacySuccess] = useState<Record<'export' | 'deletion', boolean>>({ export: false, deletion: false })
   const [privacyError, setPrivacyError] = useState<string | null>(null)
-  const [pref, setPref] = useState<AlertPreference>(alertPreference ?? 'daily')
+  const [pref, setPref] = useState<AlertPreference>(
+    !premium && alertPreference === 'instant' ? 'daily' : (alertPreference ?? 'daily')
+  )
   const [discountPct, setDiscountPct] = useState<MinDiscountPct>(minDiscountPct)
   const [cities, setCities] = useState<string[]>(watchlist)
+  const maxCities = premium ? PREMIUM_WATCHLIST_CAP : FREE_WATCHLIST_CAP
   const [citySearch, setCitySearch] = useState('')
   const sortedFilteredCities = useMemo(
     () =>
@@ -257,7 +262,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
 
   function toggleCity(city: string) {
     const selected = cities.includes(city)
-    if (!selected && cities.length >= 10) {
+    if (!selected && cities.length >= maxCities) {
       setStatus('city', 'cap')
       return
     }
@@ -310,7 +315,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
   }
 
   if (showAlerts) {
-    const atCap = cities.length >= 10
+    const atCap = cities.length >= maxCities
     return (
       <div className="flex flex-col gap-5">
         {/* Alert frequency */}
@@ -318,11 +323,16 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Frequency</p>
           <PillRadioGroup<AlertPreference>
             label="Alert frequency"
-            options={[
-              { value: 'instant', label: 'Instant' },
-              { value: 'daily', label: 'Daily digest' },
-              { value: 'off', label: 'Off' },
-            ]}
+            options={premium
+              ? [
+                  { value: 'instant', label: 'Instant' },
+                  { value: 'daily', label: 'Daily digest' },
+                  { value: 'off', label: 'Off' },
+                ]
+              : [
+                  { value: 'daily', label: 'Daily digest' },
+                  { value: 'off', label: 'Off' },
+                ]}
             value={pref}
             onChange={saveFrequency}
           />
@@ -348,7 +358,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
         {/* Watchlist */}
         <div>
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">
-            Cities I&apos;m watching ({cities.length}/10)
+            Cities I&apos;m watching ({cities.length}/{maxCities})
           </p>
           <input
             type="text"
@@ -385,7 +395,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
               })
             )}
           </div>
-          <StatusLine status={groupStatus.city} />
+          <StatusLine status={groupStatus.city} maxCities={maxCities} />
           <p className="mt-1 text-xs text-[color:var(--ink-faint)]">
             Select none to watch every destination.
           </p>

@@ -3,7 +3,12 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
-import { upsertSubscription } from '@/lib/subscription'
+import {
+  getSubscription,
+  isPremium,
+  upsertSubscription,
+} from '@/lib/subscription'
+import { FREE_WATCHLIST_CAP, PREMIUM_WATCHLIST_CAP } from '@/lib/alertLimits'
 
 const VALID_ALERT_PREFS = ['instant', 'daily', 'off'] as const
 const VALID_DISCOUNTS = [30, 40, 50] as const
@@ -17,6 +22,9 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const sub = await getSubscription(session.user.id).catch(() => null)
+  const premium = isPremium(sub?.status ?? 'free')
+
   const body = (await req.json()) as {
     alertPreference?: unknown
     minDiscountPct?: unknown
@@ -24,13 +32,19 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     everywhere?: unknown
   }
 
-  const alertPreference = parseAlertPreference(body.alertPreference)
+  let alertPreference = parseAlertPreference(body.alertPreference)
   const minDiscountPct = parseMinDiscountPct(body.minDiscountPct)
   if (!alertPreference || !minDiscountPct) {
     return NextResponse.json({ error: 'Invalid onboarding preferences' }, { status: 400 })
   }
 
-  const watchlist = normalizeWatchlist(body.watchlist, body.everywhere === true)
+  if (!premium && alertPreference === 'instant') alertPreference = 'daily'
+
+  const watchlist = normalizeWatchlist(
+    body.watchlist,
+    body.everywhere === true,
+    premium ? PREMIUM_WATCHLIST_CAP : FREE_WATCHLIST_CAP
+  )
 
   await upsertSubscription(session.user.id, {
     alertPreference,
@@ -52,7 +66,7 @@ function parseMinDiscountPct(value: unknown): MinDiscountPct | null {
   return VALID_DISCOUNTS.includes(value as MinDiscountPct) ? (value as MinDiscountPct) : null
 }
 
-function normalizeWatchlist(value: unknown, everywhere: boolean): string[] {
+function normalizeWatchlist(value: unknown, everywhere: boolean, maxCities: number): string[] {
   if (everywhere) return []
   if (!Array.isArray(value)) return []
 
@@ -60,5 +74,5 @@ function normalizeWatchlist(value: unknown, everywhere: boolean): string[] {
     (city): city is string => typeof city === 'string' && TRACKED_MARKET_NAMES.includes(city)
   )
 
-  return selected.length > 0 ? Array.from(new Set(selected)).slice(0, 10) : []
+  return selected.length > 0 ? Array.from(new Set(selected)).slice(0, maxCities) : []
 }

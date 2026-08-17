@@ -3,7 +3,11 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { query } from '@/lib/db/client'
-import { getSubscription, isPremium } from '@/lib/subscription'
+import {
+  getSubscription,
+  isPremium,
+} from '@/lib/subscription'
+import { FREE_WATCHLIST_CAP, PREMIUM_WATCHLIST_CAP } from '@/lib/alertLimits'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 
 const TRACKED_CITIES = new Set(TRACKED_MARKET_NAMES)
@@ -13,9 +17,10 @@ export async function PATCH(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const sub = await getSubscription(session.user.id).catch(() => null)
-  if (!sub || !isPremium(sub.status)) {
-    return NextResponse.json({ error: 'premium required' }, { status: 403 })
+  if (!sub) {
+    return NextResponse.json({ error: 'subscription not found' }, { status: 404 })
   }
+  const maxCities = isPremium(sub.status) ? PREMIUM_WATCHLIST_CAP : FREE_WATCHLIST_CAP
 
   const body = await req.json().catch(() => null) as {
     watchlist?: unknown
@@ -37,7 +42,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'watchlist must be an array' }, { status: 400 })
     }
     if (
-      body.watchlist.length > 10 ||
+      body.watchlist.length > maxCities ||
       body.watchlist.some(city => typeof city !== 'string' || !TRACKED_CITIES.has(city)) ||
       new Set(body.watchlist).size !== body.watchlist.length
     ) {
@@ -65,9 +70,9 @@ export async function PATCH(req: NextRequest) {
              END,
              updated_at = NOW()
          WHERE user_id = $2
-           AND ($1 = ANY(watchlist) OR COALESCE(array_length(watchlist, 1), 0) < 10)
+           AND ($1 = ANY(watchlist) OR COALESCE(array_length(watchlist, 1), 0) < $3)
          RETURNING watchlist`,
-        [body.city, session.user.id]
+        [body.city, session.user.id, maxCities]
       )
     : await query<{ watchlist: string[] }>(
         `UPDATE subscriptions

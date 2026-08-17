@@ -49,7 +49,7 @@ describe('runDailyDigest', () => {
     else process.env.RESEND_API_KEY = originalKey
   })
 
-  it('selects due premium recipients at 9 AM local time from users', async () => {
+  it('selects due premium recipients and daily-only free recipients at 9 AM local time', async () => {
     mockQuery.mockResolvedValueOnce(qr([]))
 
     await expect(runDailyDigest()).resolves.toEqual({ recipients: 0, skipped: 0 })
@@ -58,11 +58,12 @@ describe('runDailyDigest', () => {
     expect(mockQuery.mock.calls[0][0]).toContain("s.alert_preference IN ('daily', 'instant')")
     expect(mockQuery.mock.calls[0][0]).toContain('EXTRACT(HOUR')
     expect(mockQuery.mock.calls[0][0]).toContain("s.status IN ('trialing', 'active')")
+    expect(mockQuery.mock.calls[0][0]).toContain("s.status = 'free' AND s.alert_preference = 'daily'")
   })
 
   it('sends only matching, active, undelivered digest deals and records delivery', async () => {
     mockQuery
-      .mockResolvedValueOnce(qr([{ userId: 'user-1', email: 'a@example.com', unsubscribeToken: 'token-1' }]))
+      .mockResolvedValueOnce(qr([{ userId: 'user-1', email: 'a@example.com', unsubscribeToken: 'token-1', status: 'active' as const }]))
       .mockResolvedValueOnce(qr([{
         id: '22222222-2222-2222-2222-222222222222',
         hotel_name: 'Central Stay',
@@ -91,5 +92,20 @@ describe('runDailyDigest', () => {
     expect(mockDailyDigest).toHaveBeenCalledWith(expect.objectContaining({
       manageUrl: 'https://expaify.com/account#alerts',
     }))
+  })
+
+  it('caps a free recipient digest at two deals', async () => {
+    mockQuery
+      .mockResolvedValueOnce(qr([{
+        userId: 'user-free',
+        email: 'free@example.com',
+        unsubscribeToken: 'token-free',
+        status: 'free' as const,
+      }]))
+      .mockResolvedValueOnce(qr([]))
+
+    await expect(runDailyDigest()).resolves.toEqual({ recipients: 0, skipped: 1 })
+
+    expect(mockQuery.mock.calls[1][1]).toEqual(['user-free', 40, 2])
   })
 })

@@ -362,7 +362,7 @@ export default async function LandingPage() {
                 {[
                   '3 unlocked deals per week',
                   'Browse full feed (blurred)',
-                  'No email alerts',
+                  'Daily digest for 1 watchlist city',
                 ].map((f) => (
                   <li key={f} className="text-small flex items-start gap-2.5 text-[color:var(--ink-soft)]">
                     <svg

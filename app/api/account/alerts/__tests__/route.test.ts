@@ -28,14 +28,25 @@ describe('PATCH /api/account/alerts', () => {
     mockUpsert.mockReset().mockResolvedValue(undefined)
   })
 
-  it('requires authentication and premium', async () => {
+  it('requires authentication and an existing subscription', async () => {
     mockAuth.mockResolvedValueOnce(null)
     expect((await PATCH(request({ alertPreference: 'daily' }) as never)).status).toBe(401)
 
     mockAuth.mockResolvedValueOnce({ user: { id: 'user-1' } })
-    mockGetSubscription.mockResolvedValueOnce({ status: 'free' })
-    expect((await PATCH(request({ alertPreference: 'daily' }) as never)).status).toBe(403)
+    mockGetSubscription.mockResolvedValueOnce(null)
+    expect((await PATCH(request({ alertPreference: 'daily' }) as never)).status).toBe(404)
     expect(mockUpsert).not.toHaveBeenCalled()
+  })
+
+  it('allows free alert settings and coerces instant cadence to daily', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'user-free' } })
+    mockGetSubscription.mockResolvedValue({ status: 'free' })
+
+    expect((await PATCH(request({ alertPreference: 'instant' }) as never)).status).toBe(200)
+    expect((await PATCH(request({ alertMinDiscount: 50 }) as never)).status).toBe(200)
+
+    expect(mockUpsert).toHaveBeenNthCalledWith(1, 'user-free', { alertPreference: 'daily' })
+    expect(mockUpsert).toHaveBeenNthCalledWith(2, 'user-free', { alertMinDiscount: 50 })
   })
 
   it('accepts each supported partial patch and combined patches', async () => {
