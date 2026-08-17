@@ -5,9 +5,10 @@ import { signIn } from 'next-auth/react'
 import { useState } from 'react'
 
 const FEATURES = [
-  'Unlimited hotel deal alerts across 19 destinations',
+  'Unlimited hotel deal alerts across 20 destinations',
   'Email the moment prices drop below your target',
   'Full price history — know if a deal is real',
+  'Every alert is 30%+ below its 60-day median price',
   'Cancel anytime, no questions asked',
 ]
 
@@ -71,6 +72,14 @@ export default function JoinForm() {
             <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
               We sent a sign-in link to <strong>{email}</strong>. After you confirm, we&apos;ll take you to checkout.
             </p>
+            <div className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--line-ivory)] bg-[color:var(--bg)] px-4 py-3">
+              <p className="text-sm font-medium text-[color:var(--ink)]">
+                {plan === 'annual' ? 'Annual' : 'Monthly'} plan — {plan === 'annual' ? '$8/mo, billed $96/year' : '$12/mo'}
+              </p>
+              <p className="mt-1 text-xs text-[color:var(--ink-faint)]">
+                7-day free trial — no charge until day 8
+              </p>
+            </div>
           </div>
         ) : (
           <>
@@ -110,6 +119,10 @@ export default function JoinForm() {
                 7-day free trial — no charge until day 8
               </p>
             </div>
+
+            <p className="mb-4 text-center text-xs text-[color:var(--ink-faint)]">
+              Secure checkout via Stripe · 7-day free trial · cancel anytime, no charge until day 8
+            </p>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
