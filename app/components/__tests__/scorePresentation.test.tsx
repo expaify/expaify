@@ -538,7 +538,8 @@ describe('Deal score presentation', () => {
       stars: 5,
       discountPct: 42,
     }))
-    expect(withoutPhotoText).toContain('Photo unavailable')
+    expect(withoutPhotoText).toContain('Paris')
+    expect(withoutPhotoText).not.toContain('Photo unavailable')
     expect(withoutPhotoText).not.toContain('Property photo')
   })
 

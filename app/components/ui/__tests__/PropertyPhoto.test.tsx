@@ -90,6 +90,19 @@ describe('PropertyPhoto', () => {
     expect(hasUnavailableMessage(root)).toBe(true)
   })
 
+  it('shows the branded city fallback when requested without changing the default missing state', () => {
+    let root!: TestRenderer.ReactTestRenderer
+    act(() => {
+      root = TestRenderer.create(
+        <PropertyPhoto src={undefined} size="card" brandedFallback={{ cityLabel: 'Paris' }} />,
+      )
+    })
+
+    expect(hasUnavailableMessage(root)).toBe(false)
+    expect(root.root.findAllByType('p').some(node => node.children.join('') === 'Paris')).toBe(true)
+    expect(root.root.findAllByType('div').some(node => node.children.join('') === 'e')).toBe(true)
+  })
+
   it('resets loading state too, so a new src does not inherit a stale loaded=true skeleton-hidden state', () => {
     let root!: TestRenderer.ReactTestRenderer
     act(() => {

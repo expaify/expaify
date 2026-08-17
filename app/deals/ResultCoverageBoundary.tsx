@@ -127,8 +127,8 @@ export function ResultCoverageBoundary({
     case 'coverage_unconfirmed':
     case 'filtered_nonempty':
       body = isDeals
-        ? `${visibleCount} ${visibleCount === 1 ? 'deal' : 'deals'} shown. expaify can’t confirm whether this is the full ${filtered ? 'matching ' : 'current '}set.`
-        : `${visibleCount} ${visibleCount === 1 ? 'result' : 'results'} shown. expaify can’t confirm whether this is the full set for these dates.`
+        ? `${visibleCount} ${visibleCount === 1 ? 'deal' : 'deals'} shown.`
+        : `${visibleCount} ${visibleCount === 1 ? 'result' : 'results'} shown.`
       actions = isDeals
         ? showFilterActions ? filterActions : null
         : (

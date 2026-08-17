@@ -94,7 +94,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
     'destination_page',
   )
   const pwCtx = await getPaywallContext()
-  const effectiveView = pwCtx.premium ? requestedView : { minDiscount: 20, maxPriceCents: null, minStars: 0, sort: 'newest' as const }
+  const effectiveView = pwCtx.premium ? requestedView : { minDiscount: 30, maxPriceCents: null, minStars: 0, sort: 'newest' as const }
   let initialError = false
 
   const marketRes = await query<{ id: number }>(

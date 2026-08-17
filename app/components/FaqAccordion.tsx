@@ -18,7 +18,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "What's included in the free plan?",
-    a: 'Free members see 3 unlocked deals per week. The rest are blurred. You can browse the feed but need a Premium membership to see prices, hotel names, and marketplace links for members-only deals.',
+    a: 'Free members get 3 unlocked deals per week, plus a daily email digest for 1 watchlist city. The rest of the feed is blurred — Premium unlocks unlimited deals, instant alerts, and up to 10 watchlist cities.',
   },
   {
     q: 'How does the free trial work?',

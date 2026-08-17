@@ -708,7 +708,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         } else if (coverage?.state === 'more_available') {
           setCoverageAnnouncement(`${liveDeals.length} ${liveDeals.length === 1 ? 'deal' : 'deals'} shown. More ${filteredRequest ? 'matching ' : ''}expaify deals are available.`)
         } else {
-          setCoverageAnnouncement(`${liveDeals.length} ${liveDeals.length === 1 ? 'deal' : 'deals'} shown. expaify can’t confirm whether this is the full ${filteredRequest ? 'matching ' : 'current '}set.`)
+          setCoverageAnnouncement(`${liveDeals.length} ${liveDeals.length === 1 ? 'deal' : 'deals'} shown.`)
         }
       }
       if (!append) setResultMetadata(parsedMetadata)
@@ -1553,8 +1553,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         </>
       ) : null}
 
-      {/* Tab bar: Hotels active, Flights faint */}
-      <div className="mb-6 mt-6 flex items-center gap-1">
+      <div className="mb-6 mt-6">
         <button
           type="button"
           aria-pressed={activeTab === 'hotels'}
@@ -1570,22 +1569,6 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
           }
         >
           Hotels
-        </button>
-        <button
-          type="button"
-          aria-pressed={activeTab === 'flights'}
-          onClick={() => {
-            setUndoSnapshot(null)
-            setUndoError(false)
-            setActiveTab('flights')
-          }}
-          className={
-            activeTab === 'flights'
-              ? 'rounded-[var(--radius-pill)] bg-[color:var(--primary)] px-5 py-2 text-small font-medium text-[color:var(--text-inverse)]'
-              : 'rounded-[var(--radius-pill)] px-5 py-2 text-small font-medium text-[color:var(--ink-faint)] opacity-60 hover:text-[color:var(--ink)]'
-          }
-        >
-          Flights
         </button>
       </div>
 

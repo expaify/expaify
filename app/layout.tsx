@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     siteName: "expaify",
     type: "website",
     locale: "en_US",
-    images: [{ url: "https://expaify.com/og.svg", width: 1200, height: 630, alt: "expaify" }],
+    images: [{ url: "https://expaify.com/og.png", width: 1200, height: 628, alt: "expaify — Never overpay for a hotel again" }],
   },
   twitter: {
     card: "summary_large_image",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     title: "Never overpay for a hotel again | expaify",
     description:
       "We track 20 destinations daily and flag hotels 30%+ below their 60-day median. Book direct on Expedia, Booking.com, Kiwi, or Trip.com. Zero fees from us.",
-    images: ["https://expaify.com/og.svg"],
+    images: ["https://expaify.com/og.png"],
   },
   robots: { index: true, follow: true },
   formatDetection: { email: false, address: false, telephone: false },

@@ -21,7 +21,8 @@ describe('ResultCoverageBoundary', () => {
       />,
     )
 
-    expect(markup).toContain('12 deals shown. expaify can’t confirm whether this is the full matching set.')
+    expect(markup).toContain('12 deals shown.')
+    expect(markup).not.toContain('can’t confirm')
     expect(markup).toContain('Remove “Under $150”')
     expect(markup).toContain('Clear all filters')
     expect(markup).not.toContain('Load more deals')
@@ -113,7 +114,8 @@ describe('ResultCoverageBoundary', () => {
       />,
     )
 
-    expect(markup).toContain('20 results shown. expaify can’t confirm whether this is the full set for these dates.')
+    expect(markup).toContain('20 results shown.')
+    expect(markup).not.toContain('can’t confirm')
     expect(markup).not.toContain('Load more hotels')
     expect(markup).not.toContain('reached the end')
   })

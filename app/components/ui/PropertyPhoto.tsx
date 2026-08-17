@@ -7,6 +7,7 @@ type PropertyPhotoProps = {
   size: 'thumbnail' | 'card' | 'expanded' | 'detail'
   loading?: 'eager' | 'lazy'
   onFailure?: () => void
+  brandedFallback?: { cityLabel: string }
 }
 
 const sizeClasses = {
@@ -16,7 +17,7 @@ const sizeClasses = {
   detail: { container: 'w-full rounded-[var(--radius-card)]', viewport: 'h-[200px] min-[680px]:h-[280px]', missing: 'min-h-[225px] min-[680px]:min-h-[305px]' },
 } as const
 
-export function PropertyPhoto({ src, size, loading = 'lazy', onFailure }: PropertyPhotoProps) {
+export function PropertyPhoto({ src, size, loading = 'lazy', onFailure, brandedFallback }: PropertyPhotoProps) {
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState(false)
   // `loaded`/`failed` describe one specific `src`, not this component instance
@@ -60,6 +61,21 @@ export function PropertyPhoto({ src, size, loading = 'lazy', onFailure }: Proper
   }, [src])
 
   if (!src || failed) {
+    if (brandedFallback?.cityLabel) {
+      return (
+        <div
+          className={`flex flex-col items-center justify-center gap-2 bg-[color:var(--bg-muted)] px-4 text-center ${size === 'card' ? '' : 'border border-[color:var(--border)]'} ${classes.container} ${classes.missing}`}
+          {...(failed ? { role: 'status' as const } : {})}
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-control)] bg-[color:var(--accent)] font-display text-lg font-bold leading-none text-[color:var(--ink)]">
+            e
+          </div>
+          <p className="text-caption font-medium leading-5 text-[color:var(--ink-soft)]">
+            {brandedFallback.cityLabel}
+          </p>
+        </div>
+      )
+    }
     return (
       <div
         className={`flex items-center justify-center bg-[color:var(--bg-muted)] px-4 text-center ${size === 'card' ? '' : 'border border-[color:var(--border)]'} ${classes.container} ${classes.missing}`}

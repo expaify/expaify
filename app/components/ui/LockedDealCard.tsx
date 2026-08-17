@@ -54,7 +54,22 @@ export function LockedDealCard({
       </div>
 
       <div className="px-4 pt-3" aria-hidden="true">
-        <PropertyPhoto src={photoUrl} size="card" />
+        <div className="relative">
+          <div className={photoUrl ? 'blur-sm' : ''}>
+            <PropertyPhoto
+              src={photoUrl}
+              size="card"
+              brandedFallback={{ cityLabel: placeholderCity }}
+            />
+          </div>
+          {photoUrl ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--line-ivory)] bg-[color:var(--surface)]/90 shadow-sm">
+                <Icon name="premium_unlocked" size={20} className="text-[color:var(--gold-deep)]" />
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="relative space-y-3 px-4 pb-4 pt-3">
