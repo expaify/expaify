@@ -108,7 +108,7 @@ export async function runDailyDigest(): Promise<{ recipients: number; skipped: n
         medianPriceCents: d.median_price_cents,
         checkInWindow: d.check_in_window,
         snapshotCount: d.snapshot_count,
-        dealUrl: `${BASE_URL}/deals/${d.id}`,
+        dealUrl: `${BASE_URL}/deals/${d.id}?ref=digest`,
       }))
 
       if (digestDeals.length === 0) {
@@ -125,12 +125,35 @@ export async function runDailyDigest(): Promise<{ recipients: number; skipped: n
         })
       )
 
-      await resend.emails.send({
+      const sendResult = await resend.emails.send({
         from: FROM,
         to: recipient.email,
         subject: `Your expaify deals for ${date} — ${digestDeals.length} hotel drops`,
         html,
       })
+      if ('error' in sendResult && sendResult.error) {
+        throw new Error('Digest email delivery was rejected')
+      }
+
+      try {
+        const cities = [...new Set(digestDeals.map(deal => deal.city))].sort().join(',')
+        await query(
+          `INSERT INTO analytics_events
+            (event_id, session_id, event_name, occurred_at, path, properties)
+           VALUES ($1, $2, 'alert_sent', NOW(), '/cron/daily-digest', $3::jsonb)`,
+          [
+            crypto.randomUUID(),
+            crypto.randomUUID(),
+            JSON.stringify({
+              tier: isPremium(recipient.status) ? 'premium' : 'free',
+              cities,
+              deal_count: digestDeals.length,
+            }),
+          ],
+        )
+      } catch (error) {
+        console.warn('Daily digest analytics unavailable', error)
+      }
 
       await query(
         `INSERT INTO deal_alert_deliveries (user_id, deal_id, delivery_type)

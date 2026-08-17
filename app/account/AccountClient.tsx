@@ -5,6 +5,7 @@ import { signOut } from 'next-auth/react'
 import { getStoredUtm } from '@/lib/attribution'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { FREE_WATCHLIST_CAP, PREMIUM_WATCHLIST_CAP } from '@/lib/alertLimits'
+import { track } from '@/lib/analytics'
 
 type AlertPreference = 'instant' | 'daily' | 'off'
 type MinDiscountPct = 30 | 40 | 50
@@ -271,6 +272,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
     void persist('city', '/api/account/watchlist', { op: selected ? 'remove' : 'add', city }).then(r => {
       if (r.stale) return
       if (r.ok) {
+        if (!selected) track('city_set', { city })
         // Reconcile from the server's resulting list when provided.
         if (Array.isArray(r.data?.watchlist)) {
           setCities((r.data.watchlist as unknown[]).filter((c): c is string => typeof c === 'string'))

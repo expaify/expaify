@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { useState } from 'react'
+import { track } from '@/lib/analytics'
 
 const FEATURES = [
   'Unlimited hotel deal alerts across 20 destinations',
@@ -31,7 +32,10 @@ export default function JoinForm() {
       redirect: false,
       callbackUrl: `/api/stripe/checkout?plan=${plan}&redirect=true`,
     })
-    if (!result?.error) window.opinly?.track('sign_up', {})
+    if (!result?.error) {
+      window.opinly?.track('sign_up', {})
+      track('trial_start', { plan })
+    }
     setSent(true)
     setLoading(false)
   }

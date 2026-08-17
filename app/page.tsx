@@ -158,6 +158,9 @@ export default async function LandingPage() {
                 <a href="/join" className="btn btn-conversion btn-lg">
                   Join for free
                 </a>
+                <a href="/login?intent=free" className="btn btn-outline btn-lg">
+                  Get free alerts
+                </a>
                 <a
                   href="/deals"
                   className="text-body font-medium text-[color:var(--ink-soft)] underline decoration-[color:var(--line-white)] underline-offset-2 transition-colors hover:text-[color:var(--ink)] hover:decoration-[color:var(--ink-soft)]"
@@ -382,6 +385,9 @@ export default async function LandingPage() {
               <a href="/join" className="btn btn-conversion mt-auto w-full justify-center">
                 Get started free
               </a>
+              <a href="/login?intent=free" className="text-center text-sm font-medium text-[color:var(--primary)] underline underline-offset-2">
+                Get free alerts — no card
+              </a>
             </div>
 
             {/* Premium — annual highlight */}
@@ -563,6 +569,7 @@ export default async function LandingPage() {
                 {[
                   { label: 'Login', href: '/login' },
                   { label: 'Join free', href: '/join' },
+                  { label: 'Get free alerts', href: '/login?intent=free' },
                   { label: 'FAQ', href: '#faq' },
                 ].map(({ label, href }) => (
                   <li key={label}>

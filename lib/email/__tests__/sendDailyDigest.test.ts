@@ -78,6 +78,7 @@ describe('runDailyDigest', () => {
       }]))
       .mockResolvedValueOnce(qr([]))
       .mockResolvedValueOnce(qr([]))
+      .mockResolvedValueOnce(qr([]))
 
     await expect(runDailyDigest()).resolves.toEqual({ recipients: 1, skipped: 0 })
 
@@ -87,10 +88,15 @@ describe('runDailyDigest', () => {
     expect(mockQuery.mock.calls[1][0]).toContain('NOT EXISTS')
     expect(mockQuery.mock.calls[1][0]).toContain('LIMIT $3')
     expect(mockQuery.mock.calls[1][1]).toEqual(['user-1', 40, 8])
-    expect(mockQuery.mock.calls[2][0]).toContain('INSERT INTO deal_alert_deliveries')
-    expect(mockQuery.mock.calls[2][1]).toEqual(['user-1', ['22222222-2222-2222-2222-222222222222']])
+    expect(mockQuery.mock.calls[2][0]).toContain("'alert_sent'")
+    expect(mockQuery.mock.calls[2][1]?.[2]).toEqual(expect.stringContaining('"tier":"premium"'))
+    expect(mockQuery.mock.calls[3][0]).toContain('INSERT INTO deal_alert_deliveries')
+    expect(mockQuery.mock.calls[3][1]).toEqual(['user-1', ['22222222-2222-2222-2222-222222222222']])
     expect(mockDailyDigest).toHaveBeenCalledWith(expect.objectContaining({
       manageUrl: 'https://expaify.com/account#alerts',
+      deals: [expect.objectContaining({
+        dealUrl: 'https://expaify.com/deals/22222222-2222-2222-2222-222222222222?ref=digest',
+      })],
     }))
   })
 

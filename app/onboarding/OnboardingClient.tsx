@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Ref } from 'react'
 import { TRACKED_MARKETS, TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
+import { track } from '@/lib/analytics'
 
 type AlertPreference = 'instant' | 'daily' | 'off'
 type MinDiscountPct = 30 | 40 | 50
@@ -14,7 +15,7 @@ const DRAFT_KEY = 'expaify.onboarding.draft.v1'
 
 const SAVE_ERROR = 'We couldn’t save your preferences — nothing was lost. Check your connection and try again.'
 
-const PREMIUM_DISCLOSURE = 'Email alerts are included with Premium — your pick is saved for when you upgrade.'
+const PREMIUM_DISCLOSURE = 'Instant alerts are included with Premium — free alerts arrive as a daily digest.'
 
 const DISCOUNT_OPTIONS: Array<{ value: MinDiscountPct; label: string; detail: string }> = [
   { value: 50, label: '50%+', detail: 'Only the steepest drops' },
@@ -24,7 +25,7 @@ const DISCOUNT_OPTIONS: Array<{ value: MinDiscountPct; label: string; detail: st
 
 const REACH_OPTIONS: Array<{ value: AlertPreference; label: string; detail: string; premiumGated: boolean }> = [
   { value: 'instant', label: 'Instant', detail: 'Email me as soon as a match appears.', premiumGated: true },
-  { value: 'daily', label: 'Daily digest', detail: 'Send one clean roundup each day.', premiumGated: true },
+  { value: 'daily', label: 'Daily digest', detail: 'Send one clean roundup each day.', premiumGated: false },
   { value: 'off', label: 'Just the website', detail: 'Keep deals in my account only.', premiumGated: false },
 ]
 
@@ -35,6 +36,22 @@ type SavePayload = {
   everywhere: boolean
 }
 
+type SuccessDeal = {
+  id: string
+  city: string
+  hotelName: string
+  discountPct: number
+  checkInWindow: string
+  locked: boolean
+  isMock: boolean
+}
+
+type SuccessState = {
+  cityLabel: string
+  minDiscountPct: MinDiscountPct
+  deal: SuccessDeal | null
+}
+
 export function OnboardingClient({ premium }: { premium: boolean }) {
   const router = useRouter()
   const [step, setStep] = useState(0)
@@ -43,13 +60,15 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
   const [alertPreference, setAlertPreference] = useState<AlertPreference>('daily')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<SuccessState | null>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const lastAttemptRef = useRef<SavePayload | null>(null)
+  const maxCities = premium ? 10 : 1
 
   const selectedLabel = useMemo(() => {
     if (watchlist.length === 0) return 'Everywhere'
-    return `${watchlist.length}/10 selected`
-  }, [watchlist.length])
+    return `${watchlist.length}/${maxCities} selected`
+  }, [maxCities, watchlist.length])
 
   // Restore draft. Declared before the persist effect so the stored draft is
   // read before the first write. Runs in an effect, not a state initializer —
@@ -78,7 +97,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
         const cities = draft.watchlist.filter(
           (city): city is string => typeof city === 'string' && TRACKED_MARKET_NAMES.includes(city)
         )
-        setWatchlist([...new Set(cities)].slice(0, 10))
+        setWatchlist([...new Set(cities)].slice(0, maxCities))
       }
       if (draft.minDiscountPct === 30 || draft.minDiscountPct === 40 || draft.minDiscountPct === 50) {
         setMinDiscountPct(draft.minDiscountPct)
@@ -89,7 +108,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
     } catch {
       // Storage unavailable (private mode, quota) — the flow works without drafts.
     }
-  }, [])
+  }, [maxCities])
 
   // Persist draft on every answer or step change.
   useEffect(() => {
@@ -115,7 +134,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
   function toggleCity(city: string) {
     setWatchlist((prev) => {
       if (prev.includes(city)) return prev.filter((item) => item !== city)
-      if (prev.length >= 10) return prev
+      if (prev.length >= maxCities) return prev
       return [...prev, city]
     })
   }
@@ -143,7 +162,24 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
         return
       }
       clearDraft()
-      router.replace('/deals')
+      if (!premium) track('free_signup', { source: 'onboarding' })
+      payload.watchlist.forEach(city => track('city_set', { city }))
+
+      const city = payload.watchlist[0]
+      const dealParams = new URLSearchParams({ limit: '1' })
+      if (city) dealParams.set('city', city)
+      let deal: SuccessDeal | null = null
+      try {
+        const dealResponse = await fetch(`/api/deals?${dealParams.toString()}`)
+        if (dealResponse.ok) {
+          const data = (await dealResponse.json()) as { deals?: SuccessDeal[] }
+          const candidate = data.deals?.[0]
+          if (candidate && !candidate.isMock && candidate.discountPct >= payload.minDiscountPct) deal = candidate
+        }
+      } catch {
+        // Deal preview is optional; onboarding itself has already succeeded.
+      }
+      setSuccess({ cityLabel: city ?? 'Everywhere', minDiscountPct: payload.minDiscountPct, deal })
     } catch {
       setError(SAVE_ERROR)
     } finally {
@@ -178,6 +214,52 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
       })),
     [premium]
   )
+
+  if (success) {
+    return (
+      <div className="mx-auto flex min-h-screen w-full max-w-[680px] items-center px-5 py-10">
+        <section className="w-full rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-card-rest)] sm:p-9" aria-labelledby="onboarding-success-heading">
+          <p className="text-sm font-medium uppercase tracking-wide text-[color:var(--primary)]">Alerts are on</p>
+          <h1 id="onboarding-success-heading" className="mt-2 font-display text-2xl font-bold text-[color:var(--ink)] sm:text-4xl">
+            You’re watching {success.cityLabel}.
+          </h1>
+          <p className="mt-3 text-base text-[color:var(--ink-soft)]">
+            We’ll email your next {success.minDiscountPct}%+ hotel price drop.
+          </p>
+
+          {success.deal ? (
+            <div className="mt-7 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--bg)] p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-display text-lg font-bold text-[color:var(--ink)]">
+                    {success.deal.locked ? `A live ${success.deal.city} deal` : success.deal.hotelName}
+                  </p>
+                  <p className="mt-1 text-sm text-[color:var(--ink-soft)]">{success.deal.checkInWindow}</p>
+                </div>
+                <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-3 py-1 font-display text-sm font-bold text-[color:var(--gold-text)]">
+                  Save {success.deal.discountPct}%
+                </span>
+              </div>
+              <a href={`/deals/${success.deal.id}`} className="btn btn-conversion mt-5 w-full justify-center">
+                View this deal
+              </a>
+            </div>
+          ) : null}
+
+          <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row">
+            {!success.deal ? (
+              <button type="button" onClick={() => router.replace('/deals')} className="btn btn-primary w-full justify-center sm:w-auto">
+                Browse live deals
+              </button>
+            ) : null}
+            <a href="/join" className="text-sm font-medium text-[color:var(--ink-soft)] underline underline-offset-2 hover:text-[color:var(--ink)]">
+              Upgrade to Premium
+            </a>
+          </div>
+        </section>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[1120px] flex-col px-5 py-6 sm:py-8">
@@ -222,7 +304,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
                   Where do you dream of going?
                 </h1>
                 <p className="mt-3 max-w-[620px] text-base text-[color:var(--ink-soft)]">
-                  Pick up to 10 destinations. Leaving this open watches every expaify market.
+                  Pick up to {maxCities} {maxCities === 1 ? 'destination' : 'destinations'}. Leaving this open watches every expaify market.
                 </p>
               </div>
               <p className="hidden text-sm font-medium text-[color:var(--primary)] sm:block">{selectedLabel}</p>
@@ -231,7 +313,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {TRACKED_MARKETS.map((market, index) => {
                 const selected = watchlist.includes(market.city)
-                const disabled = !selected && watchlist.length >= 10
+                const disabled = !selected && watchlist.length >= maxCities
                 return (
                   <button
                     key={`${market.city}-${market.iata}`}

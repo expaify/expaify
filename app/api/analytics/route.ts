@@ -8,6 +8,7 @@ const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 const EVENT = /^[a-z][a-z0-9_]{1,79}$/
 const PATH = /^\/[A-Za-z0-9_\-./]{0,299}$/
 const OPAQUE_VALUE = /^[A-Za-z0-9_-]{1,100}$/
+const ATTRIBUTION_PROPERTIES = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const
 
 const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries(
   Object.entries({
@@ -62,7 +63,12 @@ const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries
     hotel_return_outcome_declared: ['handoffAttemptId', 'outcome', 'awayDurationBucket'],
     hotel_stay_stub_written: ['offerId', 'hasStayDates', 'storageAvailable'],
     hotel_repeat_offer_recognized: ['offerId', 'entryPath', 'rebooked'],
-  }).map(([event, keys]) => [event, new Set(keys)]),
+    free_signup: ['source'],
+    city_set: ['city'],
+    trial_start: ['plan'],
+    alert_sent: ['tier', 'cities', 'deal_count'],
+    alert_click: [],
+  }).map(([event, keys]) => [event, new Set([...keys, ...ATTRIBUTION_PROPERTIES])]),
 )
 
 type Primitive = string | number | boolean
@@ -120,6 +126,10 @@ const REQUIRED_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntr
     hotel_return_outcome_declared: ['handoffAttemptId', 'outcome', 'awayDurationBucket'],
     hotel_stay_stub_written: ['offerId', 'hasStayDates', 'storageAvailable'],
     hotel_repeat_offer_recognized: ['offerId', 'entryPath', 'rebooked'],
+    free_signup: ['source'],
+    city_set: ['city'],
+    trial_start: ['plan'],
+    alert_sent: ['tier', 'cities', 'deal_count'],
   }).map(([event, keys]) => [event, new Set(keys)]),
 )
 
@@ -156,6 +166,16 @@ function validFilterState(value: Primitive): boolean {
 }
 
 function validPropertyValue(event: string, key: string, value: Primitive): boolean {
+  if (ATTRIBUTION_PROPERTIES.includes(key as (typeof ATTRIBUTION_PROPERTIES)[number])) {
+    return typeof value === 'string' && value.length > 0 && value.length <= 200
+  }
+  if (key === 'plan') return oneOf(value, ['monthly', 'annual'])
+  if (key === 'deal_count') return boundedInteger(value, 100)
+  if (key === 'cities') {
+    if (typeof value !== 'string') return false
+    const cities = value.split(',')
+    return cities.length > 0 && cities.length <= 10 && cities.every(city => TRACKED_MARKET_NAMES.includes(city))
+  }
   if (key === 'handoffAttemptId' || key === 'handoffSessionId') return typeof value === 'string' && ID.test(value)
   if (key === 'priceDisclosureState') return oneOf(value, ['fully_itemized', 'provider_total_breakdown_unknown', 'partially_itemized', 'incomplete', 'unavailable'])
   if (key === 'stayCostState') return oneOf(value, ['provider_total', 'partial_total', 'expaify_estimate', 'nightly_only'])
@@ -213,6 +233,7 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
   if (key === 'tier') return oneOf(value, ['anonymous', 'free', 'premium'])
   if (key === 'filter') return oneOf(value, ['city', 'minDiscount', 'minStars', 'maxPrice', 'dateFrom', 'dateTo'])
   if (key === 'source') {
+    if (event === 'free_signup') return value === 'onboarding'
     if (event === 'feed_filter_chip_removed') return oneOf(value, ['promoted', 'review_filters'])
     return oneOf(value, ['hotellook', 'duffel', 'kiwi', 'travelpayouts', 'other'])
   }

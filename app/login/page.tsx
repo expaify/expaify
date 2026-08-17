@@ -1,12 +1,22 @@
 'use client'
 
 import { signIn, useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useState, useEffect } from 'react'
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
+  )
+}
+
+function LoginContent() {
   const { status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const freeIntent = searchParams.get('intent') === 'free'
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -37,9 +47,13 @@ export default function LoginPage() {
           expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
         </a>
 
-        <h1 className="mb-2 font-display text-2xl font-bold text-[color:var(--ink)]">Sign in to your expaify account</h1>
+        <h1 className="mb-2 font-display text-2xl font-bold text-[color:var(--ink)]">
+          {freeIntent ? 'Get free hotel deal alerts' : 'Sign in to your expaify account'}
+        </h1>
         <p className="mb-8 text-base text-[color:var(--ink-soft)]">
-          We&apos;ll email you a magic link — no password needed.
+          {freeIntent
+            ? 'Enter your email — no card, no password. We’ll email you when a deal drops.'
+            : 'We’ll email you a magic link — no password needed.'}
         </p>
 
         {sent ? (
@@ -94,9 +108,9 @@ export default function LoginPage() {
         )}
 
         <p className="mt-8 text-center text-sm text-[color:var(--ink-faint)]">
-          No account?{' '}
-          <a href="/join" className="text-[color:var(--primary)] no-underline hover:underline">
-            Join free
+          {freeIntent ? 'Want unlimited alerts? ' : 'No account? '}
+          <a href={freeIntent ? '/join' : '/login?intent=free'} className="text-[color:var(--primary)] no-underline hover:underline">
+            {freeIntent ? 'Try Premium' : 'Get free alerts'}
           </a>
         </p>
       </div>
