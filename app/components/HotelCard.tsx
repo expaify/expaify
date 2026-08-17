@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type MouseEvent as ReactMouseEvent } from 'react'
+import { useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { DealScore, HotelAmenityEvidence, HotelEvidenceFee, HotelOffer, type HotelFundsPolicyCapability, type HotelParkingConflictDimension, type HotelParkingEvidence, type HotelTransportEvidence } from '@/lib/types'
 import { formatMoney, isValidMoney } from '@/lib/money'
 import {
@@ -19,7 +19,12 @@ import {
   trackHotelFundsPolicyDetailsOpened,
   useHotelFundsPolicyExposure,
 } from './hotelFundsPolicyAnalytics'
-import { getHotelLocationDisplay } from './hotelLocationContext'
+import { getHotelLocationAnalytics, getHotelLocationDisplay } from './hotelLocationContext'
+import {
+  trackHotelLocationDetailsOpened,
+  trackHotelLocationImpression,
+  trackHotelLocationPinOpened,
+} from './hotelLocationAnalytics'
 import { PropertyPhoto } from './ui/PropertyPhoto'
 import { ParkingSection, ParkingSummary } from './HotelParking'
 import {
@@ -794,6 +799,7 @@ export default function HotelCard({
   const [photoFailed, setPhotoFailed] = useState(false)
   const [reviewState, setReviewState] = useState<'idle' | 'loading' | 'error'>('idle')
   const location = getHotelLocationDisplay(hotel)
+  const locationAnalytics = getHotelLocationAnalytics(hotel.id, location)
   const hasBookingUrl = isValidBookingUrl(hotel.deeplink)
   const hasValidPrice = isValidMoney(hotel.pricePerNight)
   const canBook = hasBookingUrl && hasValidPrice
@@ -881,7 +887,19 @@ export default function HotelCard({
     surface: 'hotel_card',
   })
 
+  useEffect(() => {
+    trackHotelLocationImpression(locationAnalytics)
+  }, [
+    locationAnalytics.anchorId,
+    locationAnalytics.anchorKind,
+    locationAnalytics.distanceBucket,
+    locationAnalytics.evidenceState,
+    locationAnalytics.hasDistance,
+    locationAnalytics.hotelId,
+  ])
+
   const handleDetailsToggle = () => {
+    if (!isExpanded) trackHotelLocationDetailsOpened(locationAnalytics)
     if (!isExpanded && canBook) {
       trackHotelFundsPolicyDetailsOpened({
         evidence: resolvedFundsPolicy,
@@ -977,6 +995,9 @@ export default function HotelCard({
                 {location.label}
               </p>
               <p className="break-words font-medium text-[color:var(--text-2)]">{location.value}</p>
+              {location.distanceText ? (
+                <p className="break-words font-medium text-[color:var(--text-1)]">{location.distanceText}</p>
+              ) : null}
             </div>
           </div>
 
@@ -1113,13 +1134,28 @@ export default function HotelCard({
               </p>
               {location.distanceText ? (
                 <div className="mt-2">
-                  <p className="break-words text-[color:var(--text-2)]">{location.distanceText}</p>
+                  <p className="break-words font-medium text-[color:var(--text-1)]">{location.distanceText}</p>
+                  <p className="mt-1 break-words text-[color:var(--text-3)]">
+                    Straight-line distance; travel distance and time may differ.
+                  </p>
                   {isAirportLinked ? (
                     <p className="mt-1 break-words text-[color:var(--text-3)]">
                       {getAirportDistanceTransportCaveat(resolvedTransportEvidence)}
                     </p>
                   ) : null}
                 </div>
+              ) : null}
+              {location.mapUrl ? (
+                <a
+                  href={location.mapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`View property pin for ${hotel.name}. Opens map in a new tab.`}
+                  onClick={() => trackHotelLocationPinOpened(locationAnalytics)}
+                  className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 text-sm font-medium text-[color:var(--text-1)] transition-colors hover:border-[color:var(--border-hover)] hover:bg-[color:var(--brand-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] sm:w-auto"
+                >
+                  View property pin
+                </a>
               ) : null}
             </div>
 
