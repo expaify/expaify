@@ -77,6 +77,8 @@ jobs:
                 "STRIPE_PRICE_ANNUAL=${{ secrets.STRIPE_PRICE_ANNUAL }}" \
                 "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" \
                 "EMAIL_FROM=${{ secrets.EMAIL_FROM }}" \
+                "MAILCHIMP_API_KEY=${{ secrets.MAILCHIMP_API_KEY }}" \
+                "MAILCHIMP_LIST_ID=${{ secrets.MAILCHIMP_LIST_ID }}" \
                 "PIPELINE_SECRET=${{ secrets.PIPELINE_SECRET }}" \
                 "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" \
                 "RAPIDAPI_KEY=${{ secrets.RAPIDAPI_KEY }}" \
@@ -112,6 +114,8 @@ jobs:
                 "STRIPE_PRICE_ANNUAL=${{ secrets.STRIPE_PRICE_ANNUAL }}" \
                 "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" \
                 "EMAIL_FROM=${{ secrets.EMAIL_FROM }}" \
+                "MAILCHIMP_API_KEY=${{ secrets.MAILCHIMP_API_KEY }}" \
+                "MAILCHIMP_LIST_ID=${{ secrets.MAILCHIMP_LIST_ID }}" \
                 "PIPELINE_SECRET=${{ secrets.PIPELINE_SECRET }}" \
                 "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" \
                 "RAPIDAPI_KEY=${{ secrets.RAPIDAPI_KEY }}" \
