@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { HotelCheckinTimeFitResearchHarness } from '@/app/components/research/HotelCheckinTimeFitPrototype'
 
 export const metadata: Metadata = {
-  title: 'Hotel time-fit research prototype',
+  title: 'Hotel time-fit research prototype — expaify',
   description: 'A synthetic, non-production hotel arrival and departure time-fit prototype.',
   robots: { index: false, follow: false },
 }

@@ -72,10 +72,10 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   const { slug } = await params;
   const post = await getBlogPostBySlug(slug);
   if (!post) {
-    return { title: 'Post not found' };
+    return { title: 'Post not found — expaify' };
   }
   return {
-    title: post.title,
+    title: `${post.title} — expaify`,
     description: post.excerpt ?? undefined,
     openGraph: {
       title: post.title,

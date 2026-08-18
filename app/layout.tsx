@@ -8,10 +8,7 @@ import { Providers } from "./Providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: {
-    default: "expaify — Never overpay for a hotel again",
-    template: "%s | expaify",
-  },
+  title: "expaify — Never overpay for a hotel again",
   description:
     "We track 20 destinations daily and alert you the moment a hotel drops 30%+ below its normal price.",
   applicationName: "expaify",
