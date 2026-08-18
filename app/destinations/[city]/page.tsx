@@ -180,7 +180,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
           : `Updated daily · ${initialDeals.length} deal${initialDeals.length !== 1 ? 's' : ''} found`}
       </p>
 
-      <DealFeed key={criteria.criteriaVersion} initialDeals={initialDeals} defaultCity={displayName} premium={pwCtx.premium} initialCriteria={criteria} initialView={effectiveView} initialError={initialError} />
+      <DealFeed key={criteria.criteriaVersion} initialDeals={initialDeals} defaultCity={displayName} premium={pwCtx.premium} signedIn={Boolean(pwCtx.userId)} freeUnlockedThisWeek={pwCtx.freeUnlockedThisWeek} freeUnlockLimit={pwCtx.freeUnlockLimit} initialCriteria={criteria} initialView={effectiveView} initialError={initialError} />
       {initialDeals.length === 0 && !initialError ? (
         <div className="mt-6 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] px-6 py-8 text-center">
           <p className="mb-4 text-sm text-[color:var(--text-2)]">Get notified when a current {displayName} deal appears.</p>
