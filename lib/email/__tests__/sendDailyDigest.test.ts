@@ -41,7 +41,7 @@ describe('runDailyDigest', () => {
     process.env.RESEND_API_KEY = 'resend-test'
     mockQuery.mockReset()
     mockDailyDigest.mockClear()
-    mockGetResend.mockReturnValue({ emails: { send: jest.fn().mockResolvedValue({ id: 'email-1' }) } })
+    mockGetResend.mockReturnValue({ emails: { send: jest.fn().mockResolvedValue({ data: { id: '<digest-1@email.amazonses.com>' }, error: null }) } })
   })
 
   afterEach(() => {
@@ -90,6 +90,9 @@ describe('runDailyDigest', () => {
     expect(mockQuery.mock.calls[1][1]).toEqual(['user-1', 40, 8])
     expect(mockQuery.mock.calls[2][0]).toContain("'alert_sent'")
     expect(mockQuery.mock.calls[2][1]?.[3]).toEqual(expect.stringContaining('"tier":"premium"'))
+    expect(JSON.parse(String(mockQuery.mock.calls[2][1]?.[3]))).toEqual(expect.objectContaining({
+      resend_message_id: '<digest-1@email.amazonses.com>',
+    }))
     expect(mockQuery.mock.calls[3][0]).toContain('INSERT INTO deal_alert_deliveries')
     expect(mockQuery.mock.calls[3][1]).toEqual(['user-1', ['22222222-2222-2222-2222-222222222222']])
     expect(mockDailyDigest).toHaveBeenCalledWith(expect.objectContaining({

@@ -145,8 +145,9 @@ describe('POST /api/analytics', () => {
     ['free_signup', { source: 'onboarding' }],
     ['city_set', { city: 'Paris' }],
     ['trial_start', { plan: 'annual' }],
-    ['alert_sent', { tier: 'free', cities: 'Paris', deal_count: 2 }],
+    ['alert_sent', { tier: 'free', cities: 'Paris', deal_count: 2, resend_message_id: '<digest-1@email.amazonses.com>' }],
     ['alert_skipped', { tier: 'free', cities: 'everywhere', reason: 'no_qualifying_deals' }],
+    ['welcome_sent', { resend_message_id: '<welcome-1@email.amazonses.com>', city: 'Everywhere' }],
     ['alert_click', {}],
     ['unlock_used', { deal_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', remaining: 2 }],
   ])('accepts free-alert funnel event %s', async (event, props) => {

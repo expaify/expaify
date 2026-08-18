@@ -66,8 +66,9 @@ const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries
     free_signup: ['source'],
     city_set: ['city'],
     trial_start: ['plan'],
-    alert_sent: ['tier', 'cities', 'deal_count'],
+    alert_sent: ['tier', 'cities', 'deal_count', 'resend_message_id'],
     alert_skipped: ['tier', 'cities', 'reason'],
+    welcome_sent: ['resend_message_id', 'city'],
     unlock_used: ['deal_id', 'remaining'],
     alert_click: [],
   }).map(([event, keys]) => [event, new Set([...keys, ...ATTRIBUTION_PROPERTIES])]),
@@ -133,6 +134,7 @@ const REQUIRED_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntr
     trial_start: ['plan'],
     alert_sent: ['tier', 'cities', 'deal_count'],
     alert_skipped: ['tier', 'cities', 'reason'],
+    welcome_sent: ['resend_message_id', 'city'],
     unlock_used: ['deal_id', 'remaining'],
   }).map(([event, keys]) => [event, new Set(keys)]),
 )
@@ -176,6 +178,9 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
   if (key === 'plan') return oneOf(value, ['monthly', 'annual'])
   if (key === 'deal_count') return boundedInteger(value, 100)
   if (key === 'remaining') return boundedInteger(value, 3)
+  if (key === 'resend_message_id') {
+    return typeof value === 'string' && /^[A-Za-z0-9@._+<>=:-]{1,255}$/.test(value)
+  }
   if (key === 'cities') {
     if (typeof value !== 'string') return false
     if (event === 'alert_skipped' && value === 'everywhere') return true
@@ -236,7 +241,9 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
     return fields.length <= 3 && fields.every(field => ['date_from', 'date_to', 'destination'].includes(field)) &&
       fields.join(',') === [...fields].sort().join(',')
   }
-  if (key === 'city') return typeof value === 'string' && TRACKED_MARKET_NAMES.includes(value)
+  if (key === 'city') {
+    return typeof value === 'string' && (TRACKED_MARKET_NAMES.includes(value) || (event === 'welcome_sent' && value === 'Everywhere'))
+  }
   if (key === 'tier') return oneOf(value, ['anonymous', 'free', 'premium'])
   if (key === 'filter') return oneOf(value, ['city', 'minDiscount', 'minStars', 'maxPrice', 'dateFrom', 'dateTo'])
   if (key === 'source') {

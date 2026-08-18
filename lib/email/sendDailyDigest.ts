@@ -111,6 +111,7 @@ export async function sendDigest(input: DigestDelivery): Promise<void> {
         tier: isPremium(input.status) ? 'premium' : 'free',
         cities: cityProperty(digestDeals.map(deal => deal.city)),
         deal_count: digestDeals.length,
+        resend_message_id: sendResult.data?.id,
       })],
     )
   } catch (error) {

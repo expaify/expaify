@@ -24,4 +24,20 @@ export async function sendFreeWelcome({ email, city, unsubscribeToken }: { email
   const html = await render(FreeWelcome({ city, deal, premiumUrl: `${BASE_URL}/join?utm_source=free_welcome&utm_medium=email`, manageUrl: `${BASE_URL}/account#alerts`, unsubscribeUrl: `${BASE_URL}/api/alerts/unsubscribe?token=${unsubscribeToken}` }))
   const sent = await getResend().emails.send({ from: FROM, to: email, subject: `You're watching ${city}. Here's how drops work.`, html })
   if ('error' in sent && sent.error) throw new Error('Free welcome email delivery was rejected')
+
+  if (sent.data?.id) {
+    try {
+      await query(
+        `INSERT INTO analytics_events
+          (event_id, session_id, event_name, occurred_at, path, properties)
+         VALUES ($1, $2, 'welcome_sent', NOW(), $3, $4::jsonb)`,
+        [crypto.randomUUID(), crypto.randomUUID(), '/api/onboarding', JSON.stringify({
+          resend_message_id: sent.data.id,
+          city,
+        })],
+      )
+    } catch (error) {
+      console.warn('Free welcome analytics unavailable', error)
+    }
+  }
 }
