@@ -338,7 +338,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   // free/anonymous visitors when this deal is outside the weekly unlock set.
   const pwCtx = await getPaywallContext()
   if (!pwCtx.premium) {
-    const unlockedIds = await getFreeUnlockedDealIds()
+    const unlockedIds = await getFreeUnlockedDealIds(pwCtx.userId)
     if (!unlockedIds.has(deal.id)) {
       return <LockedDealDetail city={deal.city} checkInDate={deal.check_in_date} checkInWindow={deal.check_in_window} criteriaContext={criteriaContext} />
     }

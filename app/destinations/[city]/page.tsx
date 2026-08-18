@@ -126,7 +126,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
           return [] as DealRow[]
         })
       : Promise.resolve([] as DealRow[]),
-    getFreeUnlockedDealIds(),
+    getFreeUnlockedDealIds(pwCtx.userId),
     session?.user?.id ? getSubscription(session.user.id).catch(() => null) : Promise.resolve(null),
   ])
 

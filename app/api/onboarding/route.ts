@@ -5,6 +5,7 @@ import { auth } from '@/auth'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 import { syncFreeSubscriber } from '@/lib/mailchimp'
+import { sendFreeWelcome } from '@/lib/email/sendFreeWelcome'
 import {
   getSubscription,
   isPremium,
@@ -23,8 +24,10 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  const userId = session.user.id
 
-  const sub = await getSubscription(session.user.id).catch(() => null)
+  const sub = await getSubscription(userId).catch(() => null)
+  const firstCompletion = !sub?.onboardingDone
   const premium = isPremium(sub?.status ?? 'free')
 
   const body = (await req.json()) as {
@@ -48,7 +51,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     premium ? PREMIUM_WATCHLIST_CAP : FREE_WATCHLIST_CAP
   )
 
-  await upsertSubscription(session.user.id, {
+  await upsertSubscription(userId, {
     alertPreference,
     minDiscountPct,
     watchlist,
@@ -56,13 +59,19 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   })
 
   const email = session.user.email
-  if (!premium && email) {
+  if (!premium && email && firstCompletion) {
     const city = watchlist[0] ? (CITY_DISPLAY_TO_SLUG[watchlist[0]] ?? 'everywhere') : 'everywhere'
     after(async () => {
       try {
         await syncFreeSubscriber({ email, city, source: 'onboarding' })
       } catch (error) {
         console.warn('Mailchimp free subscriber sync failed', error)
+      }
+      try {
+        const saved = await getSubscription(userId)
+        if (saved) await sendFreeWelcome({ email, city: watchlist[0] ?? 'Everywhere', unsubscribeToken: saved.alertUnsubscribeToken })
+      } catch (error) {
+        console.warn('Free welcome email failed', error)
       }
     })
   }

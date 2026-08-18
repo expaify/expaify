@@ -463,6 +463,9 @@ type DealFeedProps = {
   initialResultMetadata?: HotelResultMetadata | null
   defaultCity?: string
   premium?: boolean
+  signedIn?: boolean
+  freeUnlockedThisWeek?: number
+  freeUnlockLimit?: number
   personalization?: Personalization
   initialCriteria?: HotelSearchCriteriaV1
   initialView?: HotelResultsViewState
@@ -471,7 +474,7 @@ type DealFeedProps = {
   poolFixtureId?: HotelPoolFixtureId | null
 }
 
-export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, personalization, initialCriteria, initialView, initialError = false, initialCoverage = null, poolFixtureId = null }: DealFeedProps = {}) {
+export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, signedIn = false, freeUnlockedThisWeek = 0, freeUnlockLimit = 3, personalization, initialCriteria, initialView, initialError = false, initialCoverage = null, poolFixtureId = null }: DealFeedProps = {}) {
   const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
   const [confirmedCoverage, setConfirmedCoverage] = useState<ConfirmedCoverage | null>(initialCoverage)
@@ -501,6 +504,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const [filterExplanationKey, setFilterExplanationKey] = useState<FilterPillKey | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
   const [premium, setPremium] = useState(premiumProp)
+  const personalUnlocksRemaining = signedIn && !premium ? Math.max(0, freeUnlockLimit - freeUnlockedThisWeek) : 0
   const [resultMetadata, setResultMetadata] = useState<HotelResultMetadata | null>(() => {
     if (!initialResultMetadata) return null
     return parseHotelResultMetadata(initialResultMetadata, {
@@ -1583,6 +1587,11 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       ) : (
         <>
           <SearchBar premium={premium} onResult={handleAiSearchResult} onClear={handleAiSearchClear} />
+          {signedIn && !premium ? (
+            <p className="mb-4 text-small font-medium text-[color:var(--text-2)]" aria-live="polite">
+              {personalUnlocksRemaining} of {freeUnlockLimit} unlocks left this week
+            </p>
+          ) : null}
           <section aria-labelledby="hotel-filter-label" className="mb-5">
             <span id="hotel-filter-label" className="mb-1.5 block font-display text-caption font-bold leading-5 text-[var(--text-1)]">
               Filter hotel deals
@@ -1829,7 +1838,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               </div>
               <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150`}>
                 {deals.map(deal => deal.locked ? (
-                  <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
+                  <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
                   <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
@@ -1846,7 +1855,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               </div>
               <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150`}>
                 {deals.map(deal => deal.locked ? (
-                  <LockedDealCard key={deal.id} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
+                  <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
                   <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
@@ -1931,6 +1940,8 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                   deal.locked ? (
                     <div key={deal.id} ref={index === firstLockedDealIndex ? firstLockedDealRef : undefined}>
                       <LockedDealCard
+                        dealId={deal.id}
+                        canSelfUnlock={personalUnlocksRemaining > 0}
                         placeholderName="Members-only deal"
                         placeholderCity={deal.city}
                         stars={deal.stars}

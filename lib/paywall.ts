@@ -9,7 +9,7 @@ export type PaywallContext = {
   freeUnlockLimit: number
 }
 
-const FREE_WEEKLY_LIMIT = 3
+export const FREE_WEEKLY_LIMIT = 3
 
 export async function getPaywallContext(): Promise<PaywallContext> {
   const session = await auth()
@@ -22,13 +22,15 @@ export async function getPaywallContext(): Promise<PaywallContext> {
     return { userId: session.user.id, premium: true, freeUnlockedThisWeek: 0, freeUnlockLimit: FREE_WEEKLY_LIMIT }
   }
 
-  // Count how many free unlocks already used this week (tracked client-side cookie for MVP,
-  // can be server-tracked in a future sprint — free plan paywall is enforced by not returning
-  // price data beyond the limit in the API)
+  const unlocks = await query<{ count: number }>(
+    `SELECT COUNT(*)::INT AS count FROM deal_unlocks
+     WHERE user_id = $1 AND unlocked_at >= date_trunc('week', NOW())`,
+    [session.user.id],
+  ).catch(() => ({ rows: [{ count: 0 }] }))
   return {
     userId: session.user.id,
     premium: false,
-    freeUnlockedThisWeek: 0,
+    freeUnlockedThisWeek: unlocks.rows[0]?.count ?? 0,
     freeUnlockLimit: FREE_WEEKLY_LIMIT,
   }
 }
@@ -39,7 +41,15 @@ export async function getPaywallContext(): Promise<PaywallContext> {
 // before the week started, newest first, topped up with the earliest deals of the
 // current week when the pre-week pool is thin. Both halves are stable for the
 // whole week, so the set only changes at the week boundary.
-export async function getFreeUnlockedDealIds(): Promise<Set<string>> {
+export async function getFreeUnlockedDealIds(userId?: string | null): Promise<Set<string>> {
+  if (userId) {
+    const personal = await query<{ id: string }>(
+      `SELECT deal_id AS id FROM deal_unlocks
+       WHERE user_id = $1 AND unlocked_at >= date_trunc('week', NOW())`,
+      [userId],
+    ).catch(() => ({ rows: [] as { id: string }[] }))
+    return new Set(personal.rows.map((row) => row.id))
+  }
   const res = await query<{ id: string }>(
     `SELECT id
      FROM deals

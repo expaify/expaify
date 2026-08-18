@@ -157,7 +157,7 @@ export async function GET(req: NextRequest) {
   // without relying on an expensive count or guessing from a full page.
   const [rowsWithLookahead, unlockedIds] = await Promise.all([
     getActiveDeals({ limit: limit + 1, offset, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, marketId, sort, includeMock: false }),
-    pwCtx.premium ? Promise.resolve(new Set<string>()) : getFreeUnlockedDealIds(),
+    pwCtx.premium ? Promise.resolve(new Set<string>()) : getFreeUnlockedDealIds(pwCtx.userId),
   ])
 
   // Fall back to mock deals when DB has no real data yet
@@ -175,6 +175,8 @@ export async function GET(req: NextRequest) {
       deals,
       total: deals.length,
       premium: pwCtx.premium,
+      freeUnlockedThisWeek: pwCtx.freeUnlockedThisWeek,
+      freeUnlockLimit: pwCtx.freeUnlockLimit,
       coverage: 'confirmed_end',
       page: { nextOffset: null, hasMore: false },
       criteriaVersion: criteriaResolution.status === 'valid' ? criteriaResolution.criteria.criteriaVersion : undefined,
@@ -184,6 +186,8 @@ export async function GET(req: NextRequest) {
   if (!source) {
     return NextResponse.json({
       deals: [], total: 0, premium: pwCtx.premium,
+      freeUnlockedThisWeek: pwCtx.freeUnlockedThisWeek,
+      freeUnlockLimit: pwCtx.freeUnlockLimit,
       coverage: 'confirmed_end',
       page: { nextOffset: null, hasMore: false },
       criteriaVersion: criteriaResolution.status === 'valid' ? criteriaResolution.criteria.criteriaVersion : undefined,
@@ -201,6 +205,8 @@ export async function GET(req: NextRequest) {
     deals: paywalled,
     total: paywalled.length,
     premium: pwCtx.premium,
+    freeUnlockedThisWeek: pwCtx.freeUnlockedThisWeek,
+    freeUnlockLimit: pwCtx.freeUnlockLimit,
     coverage: source.coverage,
     page: source.page,
     criteriaVersion: criteriaResolution.status === 'valid' ? criteriaResolution.criteria.criteriaVersion : undefined,

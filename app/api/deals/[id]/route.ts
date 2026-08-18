@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // free caller could fetch every locked price directly by ID.
   const pwCtx = await getPaywallContext()
   if (!pwCtx.premium) {
-    const unlockedIds = await getFreeUnlockedDealIds()
+    const unlockedIds = await getFreeUnlockedDealIds(pwCtx.userId)
     if (!unlockedIds.has(deal.id)) {
       return NextResponse.json({
         deal: {

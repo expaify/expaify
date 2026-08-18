@@ -67,6 +67,7 @@ const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries
     city_set: ['city'],
     trial_start: ['plan'],
     alert_sent: ['tier', 'cities', 'deal_count'],
+    unlock_used: ['deal_id', 'remaining'],
     alert_click: [],
   }).map(([event, keys]) => [event, new Set([...keys, ...ATTRIBUTION_PROPERTIES])]),
 )
@@ -130,6 +131,7 @@ const REQUIRED_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntr
     city_set: ['city'],
     trial_start: ['plan'],
     alert_sent: ['tier', 'cities', 'deal_count'],
+    unlock_used: ['deal_id', 'remaining'],
   }).map(([event, keys]) => [event, new Set(keys)]),
 )
 
@@ -171,6 +173,7 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
   }
   if (key === 'plan') return oneOf(value, ['monthly', 'annual'])
   if (key === 'deal_count') return boundedInteger(value, 100)
+  if (key === 'remaining') return boundedInteger(value, 3)
   if (key === 'cities') {
     if (typeof value !== 'string') return false
     const cities = value.split(',')

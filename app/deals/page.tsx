@@ -118,7 +118,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     })
   const [rows, unlockedIds] = await Promise.all([
     rowsRequest,
-    getFreeUnlockedDealIds(),
+    getFreeUnlockedDealIds(pwCtx.userId),
   ])
 
   const initialPage = buildDealPage(rows, 0, HOTEL_DEAL_PAGE_SIZE)
@@ -174,6 +174,9 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           key={criteria.criteriaVersion}
           initialDeals={initialDeals}
           premium={pwCtx.premium}
+          signedIn={Boolean(pwCtx.userId)}
+          freeUnlockedThisWeek={pwCtx.freeUnlockedThisWeek}
+          freeUnlockLimit={pwCtx.freeUnlockLimit}
           initialCriteria={criteria}
           initialView={effectiveView}
           initialError={initialError}

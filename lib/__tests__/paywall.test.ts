@@ -67,4 +67,11 @@ describe('getFreeUnlockedDealIds', () => {
     mockQuery.mockRejectedValue(new Error('db down'))
     await expect(getFreeUnlockedDealIds()).resolves.toEqual(new Set())
   })
+
+  it('selects the signed-in free user personal rows instead of the shared pool', async () => {
+    mockQuery.mockResolvedValue({ rows: [{ id: 'personal-deal' }] })
+    await expect(getFreeUnlockedDealIds('user-1')).resolves.toEqual(new Set(['personal-deal']))
+    expect(mockQuery.mock.calls[0][1]).toEqual(['user-1'])
+    expect(String(mockQuery.mock.calls[0][0])).toContain('FROM deal_unlocks')
+  })
 })

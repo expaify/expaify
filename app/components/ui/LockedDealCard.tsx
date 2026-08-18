@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { track } from '@/lib/analytics'
 import { PropertyPhoto } from './PropertyPhoto'
 import { Icon } from './icons/Icon'
@@ -12,6 +13,8 @@ type LockedDealCardProps = {
   photoUrl?: string
   joinHref?: string
   accessibilityNeedsSelected?: boolean
+  dealId?: string
+  canSelfUnlock?: boolean
 }
 
 function starChars(stars: number): string {
@@ -31,12 +34,40 @@ export function LockedDealCard({
   photoUrl,
   joinHref = '/join',
   accessibilityNeedsSelected = false,
+  dealId,
+  canSelfUnlock = false,
 }: LockedDealCardProps) {
+  const [unlocking, setUnlocking] = useState(false)
+  const [unlockError, setUnlockError] = useState('')
+
+  async function activate(event: React.MouseEvent<HTMLAnchorElement>) {
+    if (!canSelfUnlock || !dealId) {
+      track('click_card_teaser_unlock', { discount_percent: discountPct })
+      return
+    }
+    event.preventDefault()
+    if (unlocking) return
+    setUnlocking(true)
+    setUnlockError('')
+    try {
+      const response = await fetch(`/api/deals/${encodeURIComponent(dealId)}/unlock`, { method: 'POST' })
+      const body = await response.json() as { ok?: boolean; error?: string }
+      if (!response.ok || !body.ok) {
+        setUnlockError(body.error === 'weekly_limit_reached' ? 'Your 3 weekly unlocks are already used.' : 'Could not unlock this deal. Try again.')
+        setUnlocking(false)
+        return
+      }
+      window.location.reload()
+    } catch {
+      setUnlockError('Could not unlock this deal. Try again.')
+      setUnlocking(false)
+    }
+  }
   return (
     <a
-      href={trackingHref(joinHref, discountPct)}
-      onClick={() => track('click_card_teaser_unlock', { discount_percent: discountPct })}
-      aria-label={`Locked premium deal. Save ${discountPct}% at a hotel in ${placeholderCity}. Unlock deal with Premium.`}
+      href={canSelfUnlock ? '#' : trackingHref(joinHref, discountPct)}
+      onClick={activate}
+      aria-label={`Locked deal. Save ${discountPct}% at a hotel in ${placeholderCity}. ${canSelfUnlock ? 'Use one weekly unlock to reveal this deal.' : 'Unlock deal with Premium.'}`}
       className="group relative block overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-[color:var(--gold-deep)] hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gold-deep)]"
     >
       <div className="absolute right-3 top-3 z-30 flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[color:var(--gold-deep)] px-2.5 py-1 font-display text-[11px] font-bold uppercase tracking-wider text-[color:var(--ink)] shadow-md transition-transform duration-200 group-hover:scale-105">
@@ -76,7 +107,7 @@ export function LockedDealCard({
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-[color:var(--bg-overlay)]/10 px-4 py-4 text-center" aria-hidden="true">
           <div className="flex items-center gap-2 rounded-[var(--radius-input)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] px-4 py-2 shadow-sm transition-all duration-200 group-hover:border-[color:var(--gold-deep)] group-hover:shadow-md">
             <Icon name="premium_unlocked" size={16} className="text-[color:var(--gold-deep)]" />
-            <span className="font-display text-caption font-bold uppercase tracking-wide text-[color:var(--ink)]">Premium Only</span>
+            <span className="font-display text-caption font-bold uppercase tracking-wide text-[color:var(--ink)]">{canSelfUnlock ? (unlocking ? 'Unlocking…' : 'Unlock this deal') : 'Premium Only'}</span>
           </div>
         </div>
 
@@ -92,6 +123,7 @@ export function LockedDealCard({
             Accessibility fit available after this deal is unlocked.
           </p>
         ) : null}
+        {unlockError ? <p className="relative z-20 text-caption font-medium text-[color:var(--error)]" role="alert">{unlockError}</p> : null}
         <div>
           <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
             {['Expedia', 'Booking', 'Kiwi', 'Trip.com'].map(name => (

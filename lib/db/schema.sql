@@ -270,6 +270,16 @@ CREATE TABLE IF NOT EXISTS deal_alert_deliveries (
 CREATE INDEX IF NOT EXISTS idx_deal_alert_deliveries_user_day
   ON deal_alert_deliveries (user_id, delivered_at DESC);
 
+CREATE TABLE IF NOT EXISTS deal_unlocks (
+  id          BIGSERIAL   PRIMARY KEY,
+  user_id     TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  deal_id     UUID        NOT NULL REFERENCES deals(id) ON DELETE CASCADE,
+  unlocked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT deal_unlocks_unique UNIQUE (user_id, deal_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_deal_unlocks_user_week ON deal_unlocks (user_id, unlocked_at DESC);
+
 -- First-party, privacy-bounded product analytics. session_id is generated per
 -- browser tab and is intentionally not tied to an account or raw search text.
 CREATE TABLE IF NOT EXISTS analytics_events (
