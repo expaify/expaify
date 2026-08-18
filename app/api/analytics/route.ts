@@ -67,6 +67,7 @@ const EVENT_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntries
     city_set: ['city'],
     trial_start: ['plan'],
     alert_sent: ['tier', 'cities', 'deal_count'],
+    alert_skipped: ['tier', 'cities', 'reason'],
     unlock_used: ['deal_id', 'remaining'],
     alert_click: [],
   }).map(([event, keys]) => [event, new Set([...keys, ...ATTRIBUTION_PROPERTIES])]),
@@ -131,6 +132,7 @@ const REQUIRED_PROPERTIES: Record<string, ReadonlySet<string>> = Object.fromEntr
     city_set: ['city'],
     trial_start: ['plan'],
     alert_sent: ['tier', 'cities', 'deal_count'],
+    alert_skipped: ['tier', 'cities', 'reason'],
     unlock_used: ['deal_id', 'remaining'],
   }).map(([event, keys]) => [event, new Set(keys)]),
 )
@@ -176,6 +178,7 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
   if (key === 'remaining') return boundedInteger(value, 3)
   if (key === 'cities') {
     if (typeof value !== 'string') return false
+    if (event === 'alert_skipped' && value === 'everywhere') return true
     const cities = value.split(',')
     return cities.length > 0 && cities.length <= 10 && cities.every(city => TRACKED_MARKET_NAMES.includes(city))
   }
@@ -186,6 +189,7 @@ function validPropertyValue(event: string, key: string, value: Primitive): boole
     return oneOf(value, ['itemized', 'included_unitemized', 'applies_amount_unknown', 'explicit_none', 'not_returned', 'conflicting'])
   }
   if (key === 'reason') {
+    if (event === 'alert_skipped') return value === 'no_qualifying_deals'
     return oneOf(value, [
       'tax_amount_changed_or_appeared', 'mandatory_property_charge_changed_or_appeared',
       'displayed_total_other_mismatch', 'pay_at_property_amount_unexpected',

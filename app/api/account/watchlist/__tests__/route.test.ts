@@ -2,6 +2,12 @@ import { PATCH } from '../route'
 import { auth } from '@/auth'
 import { query } from '@/lib/db/client'
 import { getSubscription } from '@/lib/subscription'
+import { updateFreeSubscriberCity } from '@/lib/mailchimp'
+
+jest.mock('next/server', () => {
+  const actual = jest.requireActual('next/server')
+  return { ...actual, after: jest.fn((callback: () => unknown) => callback()) }
+})
 
 jest.mock('@/auth', () => ({ auth: jest.fn() }))
 jest.mock('@/lib/db/client', () => ({ query: jest.fn() }))
@@ -9,10 +15,12 @@ jest.mock('@/lib/subscription', () => ({
   getSubscription: jest.fn(),
   isPremium: jest.fn((status: string) => status === 'active' || status === 'trialing'),
 }))
+jest.mock('@/lib/mailchimp', () => ({ updateFreeSubscriberCity: jest.fn() }))
 
 const mockAuth = auth as jest.Mock
 const mockQuery = query as jest.MockedFunction<typeof query>
 const mockGetSubscription = getSubscription as jest.Mock
+const mockSyncFreeSubscriber = updateFreeSubscriberCity as jest.Mock
 
 function request(body: unknown) {
   return new Request('https://expaify.test/api/account/watchlist', {
@@ -35,6 +43,7 @@ describe('PATCH /api/account/watchlist', () => {
     mockAuth.mockReset()
     mockQuery.mockReset()
     mockGetSubscription.mockReset()
+    mockSyncFreeSubscriber.mockReset()
   })
 
   it('requires authentication and an existing subscription', async () => {
@@ -64,7 +73,7 @@ describe('PATCH /api/account/watchlist', () => {
   })
 
   it('allows free users with a one-city cap', async () => {
-    mockAuth.mockResolvedValue({ user: { id: 'user-free' } })
+    mockAuth.mockResolvedValue({ user: { id: 'user-free', email: 'free@example.com' } })
     mockGetSubscription.mockResolvedValue({ status: 'free' })
     mockQuery.mockResolvedValueOnce(result(['Paris']) as never)
 
@@ -73,6 +82,20 @@ describe('PATCH /api/account/watchlist', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ ok: true, watchlist: ['Paris'] })
     expect(mockQuery.mock.calls[0][1]).toEqual(['Paris', 'user-free', 1])
+    expect(mockSyncFreeSubscriber).toHaveBeenCalledWith({ email: 'free@example.com', city: 'paris', source: 'watchlist' })
+  })
+
+  it('does not fail a successful free watchlist save when Mailchimp rejects', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'user-free', email: 'free@example.com' } })
+    mockGetSubscription.mockResolvedValue({ status: 'free' })
+    mockQuery.mockResolvedValueOnce(result([]) as never)
+    mockSyncFreeSubscriber.mockRejectedValueOnce(new Error('Mailchimp unavailable'))
+
+    const response = await PATCH(request({ watchlist: [] }) as never)
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true, watchlist: [] })
+    expect(mockSyncFreeSubscriber).toHaveBeenCalledWith({ email: 'free@example.com', city: null, source: 'watchlist' })
   })
 
   it('reports the cap without changing the row', async () => {

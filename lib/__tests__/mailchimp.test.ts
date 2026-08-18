@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { syncFreeSubscriber } from '@/lib/mailchimp'
+import { syncFreeSubscriber, updateFreeSubscriberCity } from '@/lib/mailchimp'
 
 describe('syncFreeSubscriber', () => {
   const originalFetch = global.fetch
@@ -13,7 +13,10 @@ describe('syncFreeSubscriber', () => {
     process.env.MAILCHIMP_API_KEY = 'test-key-us16'
     delete process.env.MAILCHIMP_DC
     process.env.MAILCHIMP_LIST_ID = 'audience-1'
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200 })
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200 })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ tags: [{ name: 'city:rome' }, { name: 'plan:free' }] }) })
+      .mockResolvedValueOnce({ ok: true, status: 204 })
   })
 
   afterAll(() => {
@@ -41,6 +44,40 @@ describe('syncFreeSubscriber', () => {
         }),
       })
     )
+  })
+
+  it('replaces existing city tags through the dedicated tags endpoint', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ tags: [{ name: 'city:rome' }, { name: 'plan:free' }] }) })
+      .mockResolvedValueOnce({ ok: true, status: 204 })
+    await updateFreeSubscriberCity({ email: ' Traveler@Example.com ', city: 'new-york', source: 'watchlist' })
+    const hash = createHash('md5').update('traveler@example.com').digest('hex')
+    expect(fetch).toHaveBeenNthCalledWith(2,
+      `https://us16.api.mailchimp.com/3.0/lists/audience-1/members/${hash}/tags`,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ tags: [
+          { name: 'city:rome', status: 'inactive' },
+          { name: 'plan:free', status: 'active' },
+          { name: 'source:watchlist', status: 'active' },
+          { name: 'city:new-york', status: 'active' },
+        ] }),
+      }),
+    )
+  })
+
+  it('deactivates every city tag when the watchlist becomes empty', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ tags: [{ name: 'city:rome' }, { name: 'plan:free' }] }) })
+      .mockResolvedValueOnce({ ok: true, status: 204 })
+    await updateFreeSubscriberCity({ email: 'traveler@example.com', city: null, source: 'watchlist' })
+    expect(fetch).toHaveBeenNthCalledWith(2, expect.stringContaining('/tags'), expect.objectContaining({
+      body: JSON.stringify({ tags: [
+        { name: 'city:rome', status: 'inactive' },
+        { name: 'plan:free', status: 'active' },
+        { name: 'source:watchlist', status: 'active' },
+      ] }),
+    }))
   })
 
   it('rejects a non-successful Mailchimp response', async () => {

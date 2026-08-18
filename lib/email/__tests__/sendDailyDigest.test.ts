@@ -89,7 +89,7 @@ describe('runDailyDigest', () => {
     expect(mockQuery.mock.calls[1][0]).toContain('LIMIT $3')
     expect(mockQuery.mock.calls[1][1]).toEqual(['user-1', 40, 8])
     expect(mockQuery.mock.calls[2][0]).toContain("'alert_sent'")
-    expect(mockQuery.mock.calls[2][1]?.[2]).toEqual(expect.stringContaining('"tier":"premium"'))
+    expect(mockQuery.mock.calls[2][1]?.[3]).toEqual(expect.stringContaining('"tier":"premium"'))
     expect(mockQuery.mock.calls[3][0]).toContain('INSERT INTO deal_alert_deliveries')
     expect(mockQuery.mock.calls[3][1]).toEqual(['user-1', ['22222222-2222-2222-2222-222222222222']])
     expect(mockDailyDigest).toHaveBeenCalledWith(expect.objectContaining({
@@ -107,11 +107,15 @@ describe('runDailyDigest', () => {
         email: 'free@example.com',
         unsubscribeToken: 'token-free',
         status: 'free' as const,
+        watchlist: ['Paris'],
       }]))
+      .mockResolvedValueOnce(qr([]))
       .mockResolvedValueOnce(qr([]))
 
     await expect(runDailyDigest()).resolves.toEqual({ recipients: 0, skipped: 1 })
 
     expect(mockQuery.mock.calls[1][1]).toEqual(['user-free', 40, 2])
+    expect(mockQuery.mock.calls[2][0]).toContain("'alert_skipped'")
+    expect(mockQuery.mock.calls[2][1]?.[3]).toEqual(expect.stringContaining('no_qualifying_deals'))
   })
 })

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { query } from '@/lib/db/client'
 import {
@@ -9,6 +9,8 @@ import {
 } from '@/lib/subscription'
 import { FREE_WATCHLIST_CAP, PREMIUM_WATCHLIST_CAP } from '@/lib/alertLimits'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
+import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
+import { updateFreeSubscriberCity } from '@/lib/mailchimp'
 
 const TRACKED_CITIES = new Set(TRACKED_MARKET_NAMES)
 
@@ -21,6 +23,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'subscription not found' }, { status: 404 })
   }
   const maxCities = isPremium(sub.status) ? PREMIUM_WATCHLIST_CAP : FREE_WATCHLIST_CAP
+  const premium = isPremium(sub.status)
 
   const body = await req.json().catch(() => null) as {
     watchlist?: unknown
@@ -54,6 +57,7 @@ export async function PATCH(req: NextRequest) {
       `UPDATE subscriptions SET watchlist = $1, updated_at = NOW() WHERE user_id = $2`,
       [watchlist, session.user.id]
     )
+    scheduleFreeCitySync(premium, session.user.email, watchlist)
     return NextResponse.json({ ok: true, watchlist })
   }
 
@@ -90,5 +94,19 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'subscription not found' }, { status: 404 })
   }
 
+  scheduleFreeCitySync(premium, session.user.email, watchlist)
+
   return NextResponse.json({ ok: true, watchlist })
+}
+
+function scheduleFreeCitySync(premium: boolean, email: string | null | undefined, watchlist: string[]): void {
+  if (premium || !email) return
+  const city = watchlist[0] ? (CITY_DISPLAY_TO_SLUG[watchlist[0]] ?? null) : null
+  after(async () => {
+    try {
+      await updateFreeSubscriberCity({ email, city, source: 'watchlist' })
+    } catch (error) {
+      console.warn('Mailchimp watchlist city sync failed', error)
+    }
+  })
 }
