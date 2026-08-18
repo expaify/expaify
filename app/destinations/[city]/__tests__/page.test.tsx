@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { auth } from '@/auth'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { getActiveDeals } from '@/lib/pipeline/dealDetection'
@@ -11,6 +12,7 @@ jest.mock('@/lib/paywall', () => ({ getPaywallContext: jest.fn(), getFreeUnlocke
 jest.mock('@/lib/pipeline/dealDetection', () => ({ getActiveDeals: jest.fn() }))
 jest.mock('@/lib/db/client', () => ({ query: jest.fn() }))
 jest.mock('@/lib/subscription', () => ({ getSubscription: jest.fn(), isPremium: jest.fn(() => false) }))
+jest.mock('@/app/deals/DealFeed', () => ({ DealFeed: jest.fn(() => <div data-testid="deal-feed" />) }))
 
 const mockAuth = auth as jest.MockedFunction<typeof auth>
 const mockGetPaywallContext = getPaywallContext as jest.MockedFunction<typeof getPaywallContext>
@@ -64,5 +66,37 @@ describe('destination criteria continuity', () => {
 
     expect(feed).toBeUndefined()
     expect(mockGetActiveDeals).not.toHaveBeenCalled()
+  })
+
+  it('renders Wave A H1, intro, visible FAQs, and matching FAQPage JSON-LD', async () => {
+    const tree = await CityPage({ params: Promise.resolve({ city: 'orlando' }), searchParams: Promise.resolve({}) })
+    const html = renderToStaticMarkup(tree)
+
+    expect(html).toContain('Orlando hotel deals below the usual rate')
+    expect(html).toContain('In Orlando, &quot;usual&quot; is not the number printed on a package page.')
+    expect(html).toContain('What makes a room an Orlando deal here?')
+    expect(html).toContain('The listed nightly rate has to fall to 30% or more below that same hotel')
+
+    const jsonLdMatch = html.match(/<script type="application\/ld\+json">([^<]+)<\/script>/)
+    expect(jsonLdMatch).not.toBeNull()
+    const jsonLd = JSON.parse(jsonLdMatch![1]) as { '@graph': Array<{ '@type': string; mainEntity?: Array<{ name: string; acceptedAnswer: { text: string } }> }> }
+    const faqPage = jsonLd['@graph'].find((entry) => entry['@type'] === 'FAQPage')
+    expect(faqPage?.mainEntity?.[0]).toEqual({
+      '@type': 'Question',
+      name: 'What makes a room an Orlando deal here?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'The listed nightly rate has to fall to 30% or more below that same hotel\'s own 60-day median, with at least eight price checks recorded so a single odd snapshot cannot invent a bargain.',
+      },
+    })
+  })
+
+  it('keeps a non-Wave-A destination on the existing fallback without SEO placeholders', async () => {
+    const tree = await CityPage({ params: Promise.resolve({ city: 'barcelona' }), searchParams: Promise.resolve({}) })
+    const html = renderToStaticMarkup(tree)
+
+    expect(html).toContain('Hotel deals in Barcelona today')
+    expect(html).not.toContain('How expaify scores a Barcelona deal')
+    expect(html).not.toContain('application/ld+json')
   })
 })

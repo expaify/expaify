@@ -150,6 +150,9 @@ describe('POST /api/analytics', () => {
     ['welcome_sent', { resend_message_id: '<welcome-1@email.amazonses.com>', city: 'Everywhere' }],
     ['alert_click', {}],
     ['unlock_used', { deal_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', remaining: 2 }],
+    ['destination_hub_view', { city: 'Orlando' }],
+    ['destination_cta_free_alerts', { city: 'Orlando' }],
+    ['destination_cta_premium', { city: 'Orlando' }],
   ])('accepts free-alert funnel event %s', async (event, props) => {
     const response = await POST(request({
       eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',

@@ -17,6 +17,10 @@ import { getSubscription, isPremium } from '@/lib/subscription'
 import { WatchCityCta } from '@/app/components/WatchCityCta'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { WatchCityPill } from '@/app/components/ui/WatchCityPill'
+import { DESTINATION_CONTENT } from '@/lib/destinationContent'
+import { DestinationSeoContent } from './DestinationSeoContent'
+import { TrackOnMount } from '@/app/components/TrackOnMount'
+import { TrackedLink } from '@/app/components/TrackedLink'
 
 function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
   if (locked) {
@@ -52,14 +56,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { city } = await params
   const displayName = CITY_SLUGS[city]
   if (!displayName) return {}
+  const content = DESTINATION_CONTENT[city]
+  const title = content?.seo_title ?? `Hotel deals in ${displayName} — expaify`
+  const description = content?.seo_description ?? `expaify tracks hotels in ${displayName} daily and surfaces deals at least 30% below their 60-day median price.`
   return {
-    title: `Hotel deals in ${displayName} — expaify`,
-    description: `expaify tracks hotels in ${displayName} daily and surfaces deals at least 30% below their 60-day median price.`,
+    title,
+    description,
     openGraph: {
-      title: `Hotel deals in ${displayName}`,
-      description: `Track hotel deals in ${displayName} — updated daily.`,
+      title,
+      description,
       url: `https://expaify.com/destinations/${city}`,
+      type: 'website',
+      images: [{ url: '/og.png', alt: `${displayName} hotel deals from expaify` }],
     },
+    twitter: { card: 'summary_large_image', title, description, images: ['/og.png'] },
     alternates: { canonical: `https://expaify.com/destinations/${city}` },
   }
 }
@@ -69,6 +79,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
   const requestedParams = await searchParams
   const displayName = CITY_SLUGS[city]
   if (!displayName) notFound()
+  const content = DESTINATION_CONTENT[city]
 
   const criteriaResolution = resolveHotelSearchCriteria(requestedParams)
   const requestedView = resolveHotelResultsView(requestedParams)
@@ -147,14 +158,58 @@ export default async function CityPage({ params, searchParams }: PageProps) {
     ...cityEntries.slice(0, currentCityIndex),
   ].slice(0, 4)
 
+  const structuredData = content ? {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebPage',
+        '@id': `https://expaify.com/destinations/${city}#webpage`,
+        url: `https://expaify.com/destinations/${city}`,
+        name: content.seo_title,
+        description: content.seo_description,
+      },
+      {
+        '@type': 'FAQPage',
+        '@id': `https://expaify.com/destinations/${city}#faq`,
+        mainEntity: content.faqs.map((faq) => ({
+          '@type': 'Question',
+          name: faq.question,
+          acceptedAnswer: { '@type': 'Answer', text: faq.answer },
+        })),
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://expaify.com/' },
+          { '@type': 'ListItem', position: 2, name: 'Destinations', item: 'https://expaify.com/deals' },
+          { '@type': 'ListItem', position: 3, name: displayName, item: `https://expaify.com/destinations/${city}` },
+        ],
+      },
+    ],
+  } : null
+
   return (
     <main className="mx-auto max-w-[1200px] px-4 pb-24 pt-8 sm:px-6 lg:px-8">
+      {content ? <TrackOnMount event="destination_hub_view" props={{ city: displayName }} /> : null}
+      {structuredData ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}
+        />
+      ) : null}
       <nav aria-label="breadcrumb" className="hidden md:flex items-center mb-6">
+        <Link
+          href="/"
+          className="text-sm text-[color:var(--text-2)] hover:text-[color:var(--text-1)] transition-colors"
+        >
+          Home
+        </Link>
+        <span className="mx-2 text-[color:var(--text-3)]" aria-hidden="true">›</span>
         <Link
           href="/deals"
           className="text-sm text-[color:var(--text-2)] hover:text-[color:var(--text-1)] transition-colors"
         >
-          All destinations
+          Destinations
         </Link>
         <span className="mx-2 text-[color:var(--text-3)]" aria-hidden="true">›</span>
         <span className="text-sm text-[color:var(--text-1)] font-medium" aria-current="page">
@@ -163,7 +218,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
       </nav>
 
       <h1 className="text-h2 text-[color:var(--ink)] font-display mb-1">
-        Hotel deals in {displayName} today
+        {content?.h1 ?? `Hotel deals in ${displayName} today`}
       </h1>
       {showWatchPill && sub && (
         <div className="mb-3 mt-2">
@@ -179,14 +234,27 @@ export default async function CityPage({ params, searchParams }: PageProps) {
           ? 'Checked daily — no active deals right now'
           : `Updated daily · ${initialDeals.length} deal${initialDeals.length !== 1 ? 's' : ''} found`}
       </p>
+      {content ? (
+        <p className="mb-10 max-w-[820px] text-body leading-7 text-[color:var(--text-2)]">{content.intro}</p>
+      ) : null}
 
       <DealFeed key={criteria.criteriaVersion} initialDeals={initialDeals} defaultCity={displayName} premium={pwCtx.premium} signedIn={Boolean(pwCtx.userId)} freeUnlockedThisWeek={pwCtx.freeUnlockedThisWeek} freeUnlockLimit={pwCtx.freeUnlockLimit} initialCriteria={criteria} initialView={effectiveView} initialError={initialError} />
       {initialDeals.length === 0 && !initialError ? (
         <div className="mt-6 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] px-6 py-8 text-center">
           <p className="mb-4 text-sm text-[color:var(--text-2)]">Get notified when a current {displayName} deal appears.</p>
+          <TrackedLink
+            href="/login?intent=free"
+            analyticsEvent="destination_cta_free_alerts"
+            analyticsProps={{ city: displayName }}
+            className="btn btn-conversion min-h-11 px-5"
+          >
+            Get free alerts for {displayName}
+          </TrackedLink>
           <WatchCityCta city={displayName} tier={watchTier} watching={isWatching} watchlist={watchlist} />
         </div>
       ) : null}
+
+      {content ? <DestinationSeoContent city={displayName} content={content} relatedDestinations={nearbyDestinations} /> : null}
 
       <section className="mt-10 border-t border-[color:var(--border)] pt-8" aria-labelledby="nearby-destinations-heading">
         <h2 id="nearby-destinations-heading" className="text-body font-bold text-[color:var(--text-1)]">

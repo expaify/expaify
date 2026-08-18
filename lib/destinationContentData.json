@@ -1,0 +1,274 @@
+[
+  {
+    "slug": "orlando",
+    "seo_title": "Orlando Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Orlando hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their own 60-day median price. Book direct, zero fees.",
+    "h1": "Orlando hotel deals below the usual rate",
+    "intro": "In Orlando, \"usual\" is not the number printed on a package page. It is the 60-day median price of one specific hotel, built from daily snapshots on Expedia, Booking.com, Kiwi and Trip.com. That distinction matters more here than almost anywhere, because room-and-ticket bundles blur what the bed alone costs, and a $119 International Drive rate can be completely ordinary. expaify keeps a separate price history for each property and flags a room only when the listed rate sits 30% or more below that median, with at least eight recorded price checks behind it. You book direct on the OTA. expaify adds no fees of its own.",
+    "seasonality": "Orlando rates follow the park calendar more closely than the weather. Christmas week, spring break, and major race or conference weeks lift floors across the International Drive and Universal corridor and the Disney-area properties to the south. Those are exactly the weeks when a sale badge is most likely to still sit above a hotel's quiet-week median. Shoulder midweeks clear the 30% threshold far more often. Downtown, Lake Nona and airport hotels run on a different rhythm, priced against weekday business demand rather than leisure demand, so a Sunday-to-Tuesday downtown stay can behave nothing like the same nights near the parks. Because every property is compared only against itself, a cheap-looking I-Drive room is not automatically flagged, and an expensive Disney-area room is not automatically ruled out.",
+    "faqs": [
+      {
+        "question": "What makes a room an Orlando deal here?",
+        "answer": "The listed nightly rate has to fall to 30% or more below that same hotel's own 60-day median, with at least eight price checks recorded so a single odd snapshot cannot invent a bargain."
+      },
+      {
+        "question": "Do you track vacation homes and condo rentals?",
+        "answer": "No. Only hotel products listed on Expedia, Booking.com, Kiwi and Trip.com are tracked and flagged. Orlando has a huge short-term rental market, but it sits outside what we measure."
+      },
+      {
+        "question": "Are theme park tickets part of the discount?",
+        "answer": "No. Ticket value never enters the calculation. We compare room rate to room rate, which is the only way to tell whether a bundled offer is actually cheap."
+      },
+      {
+        "question": "Will I always find qualifying Orlando hotels?",
+        "answer": "Not always. During peak park weeks the usual price is already elevated, so fewer hotels break the 30% line. Volume rises again on shoulder midweeks."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "On the OTA that posted the drop. You click through to Expedia, Booking.com, Kiwi or Trip.com and complete checkout there at their listed rate. expaify charges you nothing."
+      },
+      {
+        "question": "Do cheaper neighborhoods get flagged more often?",
+        "answer": "Not by default. A lower median simply means the same 30% cut is a smaller dollar saving. Center-of-the-action hotels near the parks tend to produce the largest dollar drops when they do qualify."
+      }
+    ]
+  },
+  {
+    "slug": "miami",
+    "seo_title": "Miami Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Miami hotel rates tracked daily on Expedia, Booking.com, Kiwi and Trip.com. Flags only when a room sits 30%+ under its 60-day median. No expaify fees.",
+    "h1": "Miami hotel deals below the usual rate",
+    "intro": "Miami is a city where two hotels a few miles apart can have completely different normal prices, so a citywide average tells you nothing. Here, \"usual\" means one property's 60-day rolling median, drawn from daily snapshots on Expedia, Booking.com, Kiwi and Trip.com. People overpay because sponsored maps and red sale labels get attached to peak-weekend rooms that were never cheap. A $280 Art Deco room can be a genuine drop or a trap, depending entirely on the last 60 nights of data for that address. expaify only flags a room at 30% or more below its own median, backed by at least eight checks, and you book direct on the OTA with zero fees from us.",
+    "seasonality": "Greater Miami mixes beach leisure, festival and art-fair demand, cruise turnarounds, and weekday business travel, so the same calendar hits neighborhoods differently. South Beach hotels within walking distance of the sand price like event lodging on holiday weekends. Mid-Beach and North Beach carry softer medians and more often break 30% in the shoulder weeks right after a big festival clears out. Brickell and Downtown fill on weeknights with corporate demand and leave gaps at the edges, which is why Sunday-to-Tuesday check-ins are worth watching there. Coconut Grove and Coral Gables sit on fewer beach comps and more independent inventory. Peak Art Basel dates, New Year's, and Super Bowl-adjacent weekends rarely clear the rule because the usual price is already inflated. Late-summer weekdays and midweek stays outside spring break tend to produce the most flags.",
+    "faqs": [
+      {
+        "question": "Are the flagged Miami hotels only budget properties?",
+        "answer": "No. Three- and four-star hotels appear whenever the math clears 30% below their own 60-day median. The rating never decides eligibility; the price history does."
+      },
+      {
+        "question": "Does expaify add a booking fee?",
+        "answer": "No. You pay the rate the marketplace lists. Booking happens on Expedia, Booking.com, Kiwi or Trip.com, and expaify takes no payment at any point."
+      },
+      {
+        "question": "How current is the price I see?",
+        "answer": "Each card shows when the hotel was last checked, usually within the past day, plus how many of the possible 60-day samples exist behind that median."
+      },
+      {
+        "question": "Why does one OTA show a lower rate than another?",
+        "answer": "Expedia, Booking.com, Kiwi and Trip.com can list the same Miami hotel at three different nightly rates on the same morning. We keep one history per property and point at whichever marketplace currently posts the drop."
+      },
+      {
+        "question": "Should I aim for South Beach or Mid-Beach?",
+        "answer": "If the goal is a percentage drop, Mid-Beach and North Beach medians are typically softer and break the threshold more often. South Beach produces bigger dollar savings when it does qualify."
+      },
+      {
+        "question": "Do flexible dates help in Miami?",
+        "answer": "Considerably. Being able to shift two or three nights beats hunting one fixed Saturday, because midweek and post-event nights are where the 30% breaks cluster."
+      }
+    ]
+  },
+  {
+    "slug": "las-vegas",
+    "seo_title": "Las Vegas Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Las Vegas hotel prices checked daily across Expedia, Booking.com, Kiwi and Trip.com. Flagged at 30%+ below the hotel's 60-day median. Book on the OTA.",
+    "h1": "Las Vegas hotel deals below the usual rate",
+    "intro": "Las Vegas always looks like it is on sale, which is exactly the problem. A \"from Sunday\" tile and a discount badge tell you nothing about whether tonight's rate is low for that specific resort. expaify snapshots Las Vegas hotels daily on Expedia, Booking.com, Kiwi and Trip.com, builds a 60-day rolling median for each property, and flags a room only when the listed rate drops 30% or more below that median with at least eight checks behind it. Resort fees are a separate line and still appear at OTA checkout, so confirm them there. Booking happens on the marketplace that posted the drop, and expaify charges nothing.",
+    "seasonality": "Vegas floors move with the event calendar rather than the season. CES-scale convention weeks, headline residencies, championship fight nights and three-day holiday weekends push usual prices up citywide, and those are the weeks when a percentage-off label most often sits above a hotel's quiet-week median. The midweek gaps between those events are where rooms most often break 30%. Center Strip megaresorts carry the highest usual prices, so they deliver the largest dollar savings when a convention clears and rates reset. Downtown and Fremont hotels price against a different set of comps entirely and should never be judged against a Strip tower. Off-Strip and airport properties start from lower medians, which means the same 30% rule still applies but the absolute saving is smaller.",
+    "faqs": [
+      {
+        "question": "There are no Las Vegas hotels flagged today. Why?",
+        "answer": "Because nothing currently sits 30% or more below its own 60-day median with eight or more checks. During convention and fight weeks the usual price is already high, so fewer hotels break the line. Volume returns on quieter midweek stretches."
+      },
+      {
+        "question": "Is the resort fee included in the median?",
+        "answer": "The tracked figure follows the listed OTA product, so the median reflects the rate as the marketplace displays it. Always confirm resort fees and parking at checkout on Expedia, Booking.com, Kiwi or Trip.com."
+      },
+      {
+        "question": "Do you track casino comps or player offers?",
+        "answer": "No. Only public rates on the four marketplaces are recorded. Loyalty and host offers sit outside anything expaify can measure or verify."
+      },
+      {
+        "question": "Why not just trust the OTA sale badge?",
+        "answer": "A badge compares a room to a rack rate or a peak week, not to what that resort has actually been charging for 60 days. Our flag only fires against the property's own recent history."
+      },
+      {
+        "question": "Does a cheap off-Strip room qualify automatically?",
+        "answer": "No. Off-Strip and airport hotels have lower medians, so a low nightly figure can still be perfectly normal for that address. It has to fall 30% below its own baseline."
+      },
+      {
+        "question": "Can I be told when Vegas hotels break the rule?",
+        "answer": "Yes. A Las Vegas watchlist with alerts is a Premium feature, so you do not have to sit refreshing four marketplaces during a quiet week."
+      }
+    ]
+  },
+  {
+    "slug": "new-york",
+    "seo_title": "New York Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "New York hotel rates from 60-day median tracking on Expedia, Booking.com, Kiwi and Trip.com. We list rooms only at 30%+ below usual. Zero added fees.",
+    "h1": "New York hotel deals below the usual rate",
+    "intro": "New York punishes inflexible dates. The same Midtown king can post three different nightly rates on three marketplaces the same morning, and none of them tells you whether the room is cheap. expaify answers a narrower question: has this specific hotel fallen 30% or more below its own 60-day median? That median comes from daily snapshots on Expedia, Booking.com, Kiwi and Trip.com, and a flag requires at least eight recorded checks. People overpay in NYC because sponsored listings and cosmetic sale labels crowd the results during the exact weeks when floors are highest. Checkout happens on the marketplace itself, and expaify never adds a booking fee.",
+    "seasonality": "New York floors rise with the calendar rather than the weather. Fashion Week, UN General Assembly week, the stretch from Thanksgiving to New Year, and major marathon or parade weekends lift usual prices across the boroughs, and World Cup 2026 planning adds another layer of pressure to certain dates. A 20% off badge during those weeks is often still above the hotel's quiet-week median. Midtown and the Theater District carry the highest usual prices, so a midweek gap there produces the biggest dollar saving. Downtown and FiDi swing between weekday corporate and weekend leisure demand, which makes Sunday arrivals look very different from Friday ones. Brooklyn hotels in Williamsburg and Downtown Brooklyn run on their own comps, and Queens inventory near transit starts from a lower median entirely.",
+    "faqs": [
+      {
+        "question": "No New York hotels are flagged right now. What does that mean?",
+        "answer": "It means no tracked property is currently at or below 70% of its own 60-day median with at least eight checks. In event-heavy weeks that is normal. The rule does not loosen to fill the page."
+      },
+      {
+        "question": "Is a $189 Midtown room automatically a deal?",
+        "answer": "Only if it is 30% or more below that hotel's own 60-day median. A low-looking Midtown number during a quiet January week can be entirely typical for that property."
+      },
+      {
+        "question": "Do you include the outer boroughs?",
+        "answer": "Yes, whenever those hotels appear in the four-OTA snapshots. Brooklyn and Queens properties are compared to their own histories, never to a Times Square tower."
+      },
+      {
+        "question": "Can I get alerts instead of checking back?",
+        "answer": "Yes. Instant and daily email alerts plus a New York watchlist are Premium features, which matters in a city where a rate can crack for an hour."
+      },
+      {
+        "question": "Why do you track four marketplaces instead of one?",
+        "answer": "Because Expedia, Booking.com, Kiwi and Trip.com frequently disagree on the same room. We hold one price history per hotel and identify which marketplace currently lists the drop."
+      },
+      {
+        "question": "Does expaify take a cut of my booking?",
+        "answer": "No. You complete the booking on the OTA at its listed rate. expaify never handles the payment and adds no fee to what you pay."
+      }
+    ]
+  },
+  {
+    "slug": "paris",
+    "seo_title": "Paris Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Paris hotel deals tracked daily on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their own 60-day median price. No fees from expaify.",
+    "h1": "Paris hotel deals below the usual rate",
+    "intro": "In Paris, \"usual\" is not a citywide average. It is one hotel's own 60-day median rate, built from at least 8 separate price checks. A 2-star near Gare du Nord and a 4-star in the 8th never shared an average, so travellers overpay by comparing a room to a neighbourhood instead of to itself, or by trusting a 15% promo badge during a week when floors are already lifted. expaify snapshots hotel rates daily across Expedia, Booking.com, Kiwi and Trip.com, and only flags a room once it sits 30% or more below that median. You book direct on the OTA that posted the drop. expaify charges nothing.",
+    "seasonality": "Paris prices follow the map before the calendar. The 1st to 4th, covering the centre, the Marais and H\u00f4tel de Ville, carry the highest tourist floors, and midweek gaps are where the rule most often clears there. The 5th and 6th, the Latin Quarter and Saint-Germain, mix academic and leisure demand. The 8th and 9th, around the Champs and Op\u00e9ra, spike on fashion and business weeks. Fashion Week, the Christmas markets, New Year and major museum-adjacent holidays all lift central floors, and a discount that looks generous in those weeks is often still expensive for that specific hotel. The 10th, 11th, 18th and 19th usually run softer medians, but a softer median is not a deal on its own: the 30% break still has to happen.",
+    "faqs": [
+      {
+        "question": "What counts as a Paris hotel deal here?",
+        "answer": "A hotel rate listed at or below 70% of that hotel's 60-day median, which is a drop of 30% or more. The median has to be built from at least 8 price checks before anything is flagged, so a brand-new listing with two data points will not appear."
+      },
+      {
+        "question": "Do you track Paris apartments and aparthotels?",
+        "answer": "Only hotel products that appear in the OTA snapshots. If a property is listed as a hotel on Expedia, Booking.com, Kiwi or Trip.com, it is tracked. Private apartment inventory is not."
+      },
+      {
+        "question": "Are prices in euros or dollars?",
+        "answer": "Cards show the currency and amount as the OTA listed it at check time. Your final charge depends on the OTA and your card issuer, not on expaify."
+      },
+      {
+        "question": "Should I book on the hotel's own site instead?",
+        "answer": "Sometimes a direct rate undercuts the OTAs and sometimes it does not. expaify's job is the four-OTA history, so when a drop is flagged you book on the marketplace that actually posted it."
+      },
+      {
+        "question": "What if no Paris hotels are 30% below median today?",
+        "answer": "Then nothing shows for Paris, and that is the point of a fixed threshold. Rates move daily, so a watchlist is more useful than checking a hub once. If your dates can shift, London and Rome are tracked the same way."
+      },
+      {
+        "question": "Does expaify add a booking fee or markup?",
+        "answer": "No. There is no expaify fee at any point. You transact with the OTA at the rate it published."
+      }
+    ]
+  },
+  {
+    "slug": "rome",
+    "seo_title": "Rome Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Rome hotel deals checked daily across Expedia, Booking.com, Kiwi and Trip.com \u2014 flagged only at 30%+ below the hotel's own 60-day median. Zero expaify fees.",
+    "h1": "Rome hotel deals below the usual rate",
+    "intro": "Rome shows the widest gaps we track, which is exactly why \"from \u20ac89 near Termini\" is a useless number. The benchmark that matters is each hotel's 60-day median, calculated from at least 8 price checks, and a room only qualifies when it falls 30% or more under that figure. One published example: Leonardo Boutique Hotel Rome Monti at $225.24 a night against a $634.87 usual rate. Travellers overpay because OTA badges rarely explain what a rate is being discounted from. expaify watches Expedia, Booking.com, Kiwi and Trip.com daily, then hands you the link to book direct on whichever one dropped. No expaify fee.",
+    "seasonality": "The historic centre and Monti hold the highest usual prices in the city, which is also where a qualifying break produces the biggest dollar saving. Trastevere runs on evening demand, so weekend floors sit well above a Tuesday. Vatican and Prati rates move with pilgrimage and tour-bus calendars rather than ordinary leisure patterns. Termini offers transit convenience across a very wide quality spread, so comparing each property to itself matters more there than anywhere else. Easter, Christmas and major jubilee or canonisation weekends lift floors across the board. August heat can soften real leisure demand even while sticker prices stay high, which is another reason to trust the median rather than the headline. Only the 30%-or-better break gets flagged.",
+    "faqs": [
+      {
+        "question": "Are the Rome prices you show guaranteed tonight?",
+        "answer": "No. Every card reflects the last price check, not a locked rate. Reconfirm the number on the OTA before you book, since Rome inventory in the centre turns over quickly."
+      },
+      {
+        "question": "Do you add a fee to the Rome rate?",
+        "answer": "No. expaify takes nothing from you. The price you see is the OTA's listed rate at check time, and you complete the booking on that OTA."
+      },
+      {
+        "question": "How is the Rome discount percentage calculated?",
+        "answer": "Against the hotel's own 60-day median, built from a minimum of 8 price checks across Expedia, Booking.com, Kiwi and Trip.com. Anything at or below 70% of that median clears the rule; a 15% sale does not."
+      },
+      {
+        "question": "Why does a cheap Termini hotel sometimes not qualify?",
+        "answer": "Because a low sticker price is not a discount. A budget property near Termini may already sit at or above its own median, while a centre hotel at three times the nightly rate can be the genuine 30%+ drop."
+      },
+      {
+        "question": "Which neighbourhoods produce the largest savings?",
+        "answer": "The historic centre and Monti, simply because their usual rates are highest, so the same percentage break returns more money per night. Trastevere and Prati qualify too, usually on off-peak weekdays."
+      },
+      {
+        "question": "Can I track Rome alongside other Mediterranean cities?",
+        "answer": "Yes. Athens and Barcelona run on the identical rule, so if the itinerary can move you can compare which city is actually breaking below its medians."
+      }
+    ]
+  },
+  {
+    "slug": "london",
+    "seo_title": "London Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "London hotel deals from daily price checks on Expedia, Booking.com, Kiwi and Trip.com. We flag rates 30%+ under the hotel's 60-day median. No expaify fees.",
+    "h1": "London hotel deals below the usual rate",
+    "intro": "London stickers stay high because of VAT, service charges and plain Zone 1 scarcity, so a room can look discounted and still cost more than that hotel normally charges. A 12% member rate frequently sits above the hotel's own 60-day median. That median, drawn from at least 8 price checks, is the only benchmark used here, and a room is flagged only when it lands 30% or more beneath it. expaify snapshots Expedia, Booking.com, Kiwi and Trip.com every day, hotels only, and points you to the marketplace that posted the drop. You book there direct, and expaify adds nothing to the price.",
+    "seasonality": "Westminster and the West End carry the highest usual prices, so off-event weeks there deliver the largest cash saving when a rate breaks. South Bank and Waterloo track theatre schedules and weekend leisure demand. Kings Cross and Paddington trade on rail convenience across a wide quality spread, which means two neighbouring hotels can have very different medians. Zone 2 often runs softer medians, but softness alone is not a discount and the 30% rule still applies. Bank holidays, Wimbledon, big concert runs and New Year all lift floors across central London, and promo pricing in those weeks tends to stay above median. Midweek nights inside school terms are where the rule clears most often, which also makes them the sensible dates for a Eurostar pairing with Paris.",
+    "faqs": [
+      {
+        "question": "Do you track Premier Inn and other budget chains?",
+        "answer": "If they appear in the four-OTA snapshots on Expedia, Booking.com, Kiwi or Trip.com, yes. Budget chains qualify on the same terms as anyone else: 30% or more below their own 60-day median, with at least 8 checks behind it."
+      },
+      {
+        "question": "Is breakfast included in the rate you show?",
+        "answer": "Only if the OTA rate plan says so. expaify reports the listed price, not the inclusions, so read the rate plan on the OTA before booking."
+      },
+      {
+        "question": "Does the rate include VAT and service charges?",
+        "answer": "It shows what the OTA displayed at check time. Because London stickers already carry tax and service in many rate plans, always confirm the total on the OTA's checkout page."
+      },
+      {
+        "question": "Why does a 20% London sale not appear as a deal?",
+        "answer": "The threshold is fixed at 30% or more below the hotel's 60-day median. Anything shallower stays out, even when the marketing looks aggressive."
+      },
+      {
+        "question": "What happens when nothing in London qualifies?",
+        "answer": "The city shows no cards. That is normal in a market with persistent Zone 1 scarcity, and a watchlist is the practical way to catch a break the day it appears rather than checking manually."
+      },
+      {
+        "question": "Do you charge for the booking link?",
+        "answer": "No. Zero fees from expaify. The reservation is made on the OTA that dropped the rate, under that OTA's terms."
+      }
+    ]
+  },
+  {
+    "slug": "tokyo",
+    "seo_title": "Tokyo Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Tokyo hotel deals tracked on Expedia, Booking.com, Kiwi and Trip.com, flagged only when a room sits 30%+ below its own 60-day median. expaify charges nothing.",
+    "h1": "Tokyo hotel deals below the usual rate",
+    "intro": "Tokyo's calendar resets what \"usual\" means several times a year, so a hotel that looks cheap against last October can still be expensive against its last 60 nights. That rolling 60-day median, built from a minimum of 8 price checks, is the only comparison used here, and a room is flagged only at 30% or more below it. Cherry-blossom \"from\" prices are where most travellers overpay. expaify takes daily snapshots on Expedia, Booking.com, Kiwi and Trip.com so you can see which global marketplace actually dropped, then book direct there. Hotels only, and no fee from expaify.",
+    "seasonality": "Cherry blossom season, Golden Week and year-end travel lift floors for weeks at a time, and they lift the median with them, which is why a spring rate that feels reasonable often fails the rule. Post-holiday gaps are the more productive window, especially in Shinjuku, Shibuya and Ginza, where usual prices are highest and a qualifying break returns the most per night. Ueno and Asakusa move with leisure and museum demand, so weekday nights there behave differently from weekends. Northeast and quieter wards carry lower medians and longer train rides, so the honest test is still each hotel against itself rather than against the ward next door. Domestic Japanese booking sites sometimes undercut the global OTAs; expaify covers the four-marketplace history only.",
+    "faqs": [
+      {
+        "question": "Do you track capsule hotels in Tokyo?",
+        "answer": "Only if they are listed as hotel products on the tracked OTAs. When they are, they follow the same rule: at least 8 price checks, then a flag at 30% or more below the 60-day median."
+      },
+      {
+        "question": "Are rates shown in yen or US dollars?",
+        "answer": "Cards follow the OTA listing at check time, so the currency matches whatever Expedia, Booking.com, Kiwi or Trip.com displayed. Conversion is handled by the OTA and your card, not by expaify."
+      },
+      {
+        "question": "Japanese domestic sites are sometimes cheaper. Why only four OTAs?",
+        "answer": "Because a discount claim needs a price history, and expaify keeps that history on Expedia, Booking.com, Kiwi and Trip.com. You are welcome to cross-check a domestic site; the flag tells you which global tab dropped below median."
+      },
+      {
+        "question": "Will cherry-blossom dates ever qualify?",
+        "answer": "Occasionally, but the median rises during those weeks too, so a headline sale during peak bloom frequently sits above the hotel's own usual rate and never gets flagged."
+      },
+      {
+        "question": "How current is the price on a Tokyo card?",
+        "answer": "It reflects the most recent check, not a held rate. Reconfirm on the OTA before booking, since Tokyo availability shifts quickly around holiday weeks."
+      },
+      {
+        "question": "Is there any cost to using the Tokyo tracker?",
+        "answer": "No fee from expaify at any stage. You book on the OTA that posted the drop and pay that OTA directly."
+      }
+    ]
+  }
+]
