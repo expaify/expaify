@@ -52,11 +52,11 @@ describe('LandingNav', () => {
     await act(async () => root.unmount())
   })
 
-  async function renderNav() {
+  async function renderNav(homepageRedesign = false) {
     const { act } = require('react') as typeof import('react')
     const { LandingNav } = require('../LandingNav') as typeof import('../LandingNav')
     await act(async () => {
-      root.render((require('react') as typeof import('react')).createElement(LandingNav) as ReactElement)
+      root.render((require('react') as typeof import('react')).createElement(LandingNav, { homepageRedesign }) as ReactElement)
     })
   }
 
@@ -85,5 +85,14 @@ describe('LandingNav', () => {
 
     const dealsLink = Array.from(document.querySelectorAll('a')).find(a => a.textContent?.trim() === 'Deals')
     expect(dealsLink?.getAttribute('href')).toBe('/deals')
+  })
+
+  it('makes free alerts the only filled homepage action in the redesigned anonymous nav', async () => {
+    await renderNav(true)
+
+    expect(Array.from(document.querySelectorAll('a')).some(a => a.textContent?.trim() === 'Join the club')).toBe(false)
+    const freeAlerts = Array.from(document.querySelectorAll('a')).find(a => a.textContent?.trim() === 'Get free alerts')
+    expect(freeAlerts?.getAttribute('href')).toBe('/login?intent=free&utm_source=homepage&utm_medium=nav&utm_campaign=free_alerts')
+    expect(freeAlerts?.className).toContain('btn-conversion')
   })
 })

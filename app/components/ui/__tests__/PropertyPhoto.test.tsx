@@ -100,7 +100,8 @@ describe('PropertyPhoto', () => {
 
     expect(hasUnavailableMessage(root)).toBe(false)
     expect(root.root.findAllByType('p').some(node => node.children.join('') === 'Paris')).toBe(true)
-    expect(root.root.findAllByType('div').some(node => node.children.join('') === 'e')).toBe(true)
+    expect(root.root.findAllByType('div').some(node => node.children.join('') === 'e')).toBe(false)
+    expect(root.root.findByType('div').props.className).toContain('linear-gradient')
   })
 
   it('resets loading state too, so a new src does not inherit a stale loaded=true skeleton-hidden state', () => {

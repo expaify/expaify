@@ -7,6 +7,7 @@ import { TrackedLink } from './components/TrackedLink'
 import { CITY_SLUGS } from '@/lib/cities'
 import { getActiveDeals, getTrackedHotels, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DEAL_THRESHOLD, MIN_SNAPSHOTS } from '@/lib/pipeline/dealRules'
+import { HomepageRedesign } from './components/HomepageRedesign'
 
 export const metadata: Metadata = {
   title: 'expaify — Never overpay for a hotel again',
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
 // without this the page renders once at build time and never reflects new deals.
 export const revalidate = 300
 
-type DealCardDeal = {
+export type DealCardDeal = {
   id: string
   hotelName: string
   city: string
@@ -111,6 +112,7 @@ const MOCK_TEASER: DealCardDeal = {
 }
 
 export default async function LandingPage() {
+  const homepageRedesign = process.env.NEXT_PUBLIC_P9_1_HOMEPAGE === '1' || process.env.NEXT_PUBLIC_P9_1_HOMEPAGE === 'true'
   const rows = await getActiveDeals({
     limit: 3,
     sort: 'discount',
@@ -129,7 +131,7 @@ export default async function LandingPage() {
   let lockedTeaserPool: Array<{ photoUrl: string | null; discountPct: number }> = []
   if (combinedRows.length < 3) {
     const tracked = await getTrackedHotels({ limit: 5 }).catch(() => [] as DealRow[])
-    const needed = Math.max(0, 2 - combinedRows.length)
+    const needed = Math.max(0, (homepageRedesign ? 3 : 2) - combinedRows.length)
     combinedRows = [...combinedRows, ...tracked.slice(0, needed)]
     lockedTeaserPool = tracked.slice(needed).map(row => ({ photoUrl: row.photo_url, discountPct: row.discount_pct }))
   }
@@ -138,6 +140,7 @@ export default async function LandingPage() {
   const heroCard = realDeals[0] ?? MOCK_HERO
   const teaserCard = realDeals[1] ?? MOCK_TEASER
   const hasReal = realDeals.length > 0
+  if (homepageRedesign) return <HomepageRedesign deals={realDeals} />
   return (
     <>
       <LandingNav />

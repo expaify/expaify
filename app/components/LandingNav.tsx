@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
 
-export function LandingNav() {
+export function LandingNav({ homepageRedesign = false }: { homepageRedesign?: boolean }) {
   const [scrolled, setScrolled] = useState(false)
   const { data: session, status } = useSession()
   const pathname = usePathname()
@@ -66,40 +66,45 @@ export function LandingNav() {
             </>
           ) : (
             <>
+              {homepageRedesign ? (
+                <>
+                  <a href="/deals" className="hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block">Deals</a>
+                  <a href="/destinations" className="hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block">Destinations</a>
+                </>
+              ) : null}
               {isHomepage && (
                 <>
                   <a
                     href="#pricing"
-                    className="hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block"
+                    className={homepageRedesign ? 'hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]' : 'hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block'}
                   >
                     Pricing
                   </a>
                   <a
                     href="#faq"
-                    className="hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block"
+                    className={homepageRedesign ? 'hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]' : 'hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block'}
                   >
                     FAQ
                   </a>
                 </>
               )}
-              <a
+              {!homepageRedesign ? <a
                 href="/blog"
                 className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
               >
                 Blog
-              </a>
+              </a> : null}
               <a
                 href="/login"
                 className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
               >
                 Login
               </a>
-              <a
-                href="/join"
-                className="btn btn-conversion btn-sm ml-1"
-              >
-                Join the club
-              </a>
+              {homepageRedesign ? (
+                <a href="/login?intent=free&utm_source=homepage&utm_medium=nav&utm_campaign=free_alerts" className="btn btn-conversion btn-sm ml-1">Get free alerts</a>
+              ) : (
+                <a href="/join" className="btn btn-conversion btn-sm ml-1">Join the club</a>
+              )}
             </>
           )}
         </nav>

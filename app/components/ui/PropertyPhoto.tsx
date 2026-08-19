@@ -64,13 +64,10 @@ export function PropertyPhoto({ src, size, loading = 'lazy', onFailure, brandedF
     if (brandedFallback?.cityLabel) {
       return (
         <div
-          className={`flex flex-col items-center justify-center gap-2 bg-[color:var(--bg-muted)] px-4 text-center ${size === 'card' ? '' : 'border border-[color:var(--border)]'} ${classes.container} ${classes.missing}`}
+          className={`flex flex-col items-center justify-center bg-[linear-gradient(145deg,var(--primary-soft),var(--primary))] px-4 text-center ${size === 'card' ? '' : 'border border-[color:var(--border)]'} ${classes.container} ${classes.missing}`}
           {...(failed ? { role: 'status' as const } : {})}
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-control)] bg-[color:var(--accent)] font-display text-lg font-bold leading-none text-[color:var(--ink)]">
-            e
-          </div>
-          <p className="text-caption font-medium leading-5 text-[color:var(--ink-soft)]">
+          <p className="font-display text-body font-bold leading-5 text-[color:var(--ink)]">
             {brandedFallback.cityLabel}
           </p>
         </div>
