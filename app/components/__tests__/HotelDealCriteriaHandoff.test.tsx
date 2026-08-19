@@ -32,6 +32,17 @@ function textContent(node: unknown): string {
   return childrenOf(element).map(textContent).join('')
 }
 
+function findAnchor(node: unknown, label: string): TestElement | undefined {
+  if (!node || typeof node !== 'object') return undefined
+  const element = node as TestElement
+  if (element.type === 'a' && textContent(element) === label) return element
+  for (const child of childrenOf(element)) {
+    const match = findAnchor(child, label)
+    if (match) return match
+  }
+  return undefined
+}
+
 const links = { expedia: 'https://www.expedia.com/hotel?affcid=marker' }
 
 const matchedCriteria: HotelSearchCriteriaV1 = {
@@ -80,5 +91,22 @@ describe('HotelDealCriteriaHandoff saved-deal date boundary copy', () => {
     })
 
     expect(textContent(tree)).toContain('Stay dates: confirm with provider')
+  })
+
+  it('uses the Booking.com search fallback when no attributed provider link is eligible', () => {
+    const bookingSearchUrl = 'https://www.booking.com/searchresults.html?ss=Hotel+Paris&checkin=2026-08-01&checkout=2026-08-03'
+    const tree = HotelDealCriteriaHandoff({
+      context: context(matchedCriteria, 'matched'),
+      deal,
+      links: { bookingSearchUrl },
+    })
+    const html = textContent(tree)
+    const fallback = findAnchor(tree, 'Search on Booking.com')
+
+    expect(html).toContain('Search on Booking.com')
+    expect(html).not.toContain('Provider link unavailable')
+    expect(fallback?.props.href).toBe(bookingSearchUrl)
+    expect(fallback?.props.target).toBe('_blank')
+    expect(fallback?.props.rel).toBe('noopener noreferrer')
   })
 })

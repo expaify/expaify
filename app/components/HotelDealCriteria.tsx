@@ -330,6 +330,7 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
 
   const eligibleLinks = eligibleHotelProviderLinks(links)
   const hasLinks = !providerLinkUnavailable && Object.values(eligibleLinks).some(Boolean)
+  const bookingSearchUrl = links.bookingSearchUrl
   const restorable = status === 'matched' && Boolean(criteria)
   const resultsHref = restorable ? context.backHref : '/deals'
   const resultsLabel = restorable ? 'Back to matching hotels' : 'Search current hotel deals'
@@ -427,11 +428,26 @@ export function HotelDealCriteriaHandoff({ context, deal, links, hotelName, date
       ) : (
         <div>
           {disruptionNotice}
-          <div className="mt-4" role="status">
-            <p className="text-sm font-medium text-[color:var(--text-1)]">Provider link unavailable</p>
-            <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">You can review this hotel here, but expaify does not have a valid provider link for checking rooms.</p>
-            <a href={resultsHref} className="btn btn-outline mt-4 inline-flex min-h-11 w-full items-center justify-center text-center sm:w-auto">{resultsLabel}</a>
-          </div>
+          {bookingSearchUrl ? (
+            <div className="mt-4">
+              <a
+                href={bookingSearchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => track('deal_cta_fallback_booking_search', { deal_id: deal.id })}
+                className="btn btn-primary inline-flex min-h-11 w-full items-center justify-center text-center sm:w-auto"
+              >
+                Search on Booking.com
+              </a>
+              <p className="mt-2 text-xs text-[color:var(--text-3)]">Opens Booking.com in a new tab. Room availability has not been checked by expaify.</p>
+            </div>
+          ) : (
+            <div className="mt-4" role="status">
+              <p className="text-sm font-medium text-[color:var(--text-1)]">Provider link unavailable</p>
+              <p className="mt-1 text-sm leading-6 text-[color:var(--text-2)]">You can review this hotel here, but expaify does not have a valid provider link for checking rooms.</p>
+              <a href={resultsHref} className="btn btn-outline mt-4 inline-flex min-h-11 w-full items-center justify-center text-center sm:w-auto">{resultsLabel}</a>
+            </div>
+          )}
         </div>
       )}
     </div>

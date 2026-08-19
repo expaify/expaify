@@ -19,9 +19,21 @@ export function DealDetailProviderHandoff({ dealId, city, links, backHref, expir
 }) {
   const eligible = eligibleHotelProviderLinks(links)
   const provider = expired ? undefined : PROVIDERS.find(item => eligible[item.key])
+  const bookingSearchUrl = links.bookingSearchUrl
   const freeAlertsHref = `/login?intent=free&city=${encodeURIComponent(city)}&utm_source=deal_detail&utm_medium=secondary&utm_campaign=free_alerts`
 
   if (!provider) {
+    if (bookingSearchUrl) {
+      return (
+        <div>
+          <a href={bookingSearchUrl} target="_blank" rel="noopener noreferrer" onClick={() => track('deal_cta_fallback_booking_search', { deal_id: dealId })} className="btn btn-primary inline-flex min-h-12 w-full items-center justify-center text-center sm:w-auto sm:min-w-64">
+            Search on Booking.com
+          </a>
+          <p className="mt-2 text-xs text-[color:var(--text-3)]">Opens Booking.com in a new tab. You pay Booking.com, not expaify.</p>
+          <a href={freeAlertsHref} onClick={() => track('deal_detail_cta_free_alerts', { deal_id: dealId, city })} className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--brand)] underline underline-offset-2">Get free alerts for {city}</a>
+        </div>
+      )
+    }
     return (
       <div className="rounded-[var(--radius-control)] border border-[color:var(--error)] bg-[color:var(--error-soft)] p-4" role="status">
         <p className="font-medium text-[color:var(--text-1)]">Booking link unavailable for this snapshot</p>
