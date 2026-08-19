@@ -35,7 +35,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
     // used to be indistinguishable from "the pipeline is broken." Now the
     // reason for each provider's failure must be visible.
     expect(result.providerErrors).toBeDefined()
-    expect(result.providerErrors).toHaveLength(4)
+    expect(result.providerErrors).toHaveLength(5)
     expect(result.providerErrors?.some(e => e.includes('500 Internal Server Error'))).toBe(true)
     expect(result.providerErrors?.some(e => e.includes('ECONNRESET'))).toBe(true)
     expect(result.providerErrors?.some(e => e.includes('403 Forbidden'))).toBe(true)
@@ -51,8 +51,8 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
     const [result] = await runSnapshotsForMarket(MIA, 0)
 
     expect(result.hotelsProcessed).toBe(0)
-    expect(result.providerErrors).toHaveLength(4)
-    expect(result.providerErrors?.filter(e => e.includes('returned 0 results'))).toHaveLength(4)
+    expect(result.providerErrors).toHaveLength(5)
+    expect(result.providerErrors?.filter(e => e.includes('returned 0 results'))).toHaveLength(5)
   })
 
   it('omits providerErrors entirely once any provider succeeds -- a normal night stays quiet', async () => {

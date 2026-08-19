@@ -64,6 +64,17 @@ const PL_CITY: Record<string, string> = {
   ATH: '3000035889', PUJ: '5000494493', CLT: '3000012874', BNA: '3000020633',
 }
 
+// Agoda city ids (agoda-com provider) -- resolved via /hotels/auto-complete
+// for every active tracked market (2026-08-19). The API's `1_` city type
+// prefix is added only when constructing the search request below.
+const AG_CITY: Record<string, string> = {
+  MIA: '15289', NYC: '318', CUN: '5954', PAR: '15470', ROM: '16594', BCN: '2002',
+  LIS: '16364', LON: '233', TYO: '5085', BKK: '9395', DXB: '2994', LAS: '17072',
+  MCO: '10757', SJU: '17823', AMS: '13868', ATH: '16571', PUJ: '3332', CLT: '12113',
+  BNA: '2703', TUL: '19741', CAI: '7923', HRG: '6700', SSH: '15897', AYT: '7493',
+  IST: '14932', BJV: '3253',
+}
+
 // ── Normalised hotel type ────────────────────────────────────────────────────
 
 type HotelEntry = {
@@ -281,6 +292,66 @@ async function fetchPricelineComProvider(iata: string, checkIn: string, checkOut
   })
 }
 
+// ── Provider 5: agoda-com (city id search) ───────────────────────────────────
+
+async function fetchAgoda(iata: string, checkIn: string, checkOut: string): Promise<HotelEntry[]> {
+  const key = process.env.RAPIDAPI_KEY_3 ?? ''
+  const cityId = AG_CITY[iata]
+  if (!key || !cityId) return []
+
+  const url =
+    `https://agoda-com.p.rapidapi.com/hotels/search-overnight` +
+    `?id=1_${cityId}&checkinDate=${checkIn}&checkoutDate=${checkOut}` +
+    `&adults=2&rooms=1&currency=USD`
+
+  const res = await fetch(url, {
+    headers: { 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': 'agoda-com.p.rapidapi.com' },
+    signal: AbortSignal.timeout(18_000),
+  })
+  if (res.status === 429) throw new RateLimitError()
+  if (!res.ok) return []
+
+  const json = await res.json() as { data?: { citySearch?: { properties?: unknown[] } } }
+  return (json?.data?.citySearch?.properties ?? []).flatMap((h: unknown) => {
+    const property = h as {
+      propertyId?: string | number
+      propertyResultType?: string
+      content?: {
+        informationSummary?: { localeName?: string; defaultName?: string; rating?: unknown }
+        images?: { hotelImages?: { urls?: { value?: string }[] }[] }
+      }
+      pricing?: {
+        offers?: { roomOffers?: { room?: { pricing?: {
+          price?: {
+            perRoomPerNight?: { inclusive?: { display?: unknown } }
+            perNight?: { inclusive?: { display?: unknown } }
+          }
+        }[] } }[] }[]
+      }
+    }
+    if (property.propertyResultType === 'SoldOutProperty') return []
+
+    const id = String(property.propertyId ?? '')
+    const summary = property.content?.informationSummary
+    const name = summary?.localeName || summary?.defaultName || ''
+    const rawRating = summary?.rating
+    const parsedRating = typeof rawRating === 'number' ? rawRating : Number(rawRating)
+    const stars = rawRating !== null && rawRating !== undefined && rawRating !== ''
+      && Number.isFinite(parsedRating) && parsedRating >= 0 && parsedRating <= 5
+      ? parsedRating
+      : null
+    const price = property.pricing?.offers?.[0]?.roomOffers?.[0]?.room?.pricing?.[0]?.price
+    const inclusiveDisplay = price?.perRoomPerNight?.inclusive?.display
+      ?? price?.perNight?.inclusive?.display
+    const priceValue = Number(inclusiveDisplay ?? 0)
+    const priceCents = Number.isFinite(priceValue) ? Math.round(priceValue * 100) : 0
+    const rawPhoto = property.content?.images?.hotelImages?.[0]?.urls?.[0]?.value
+    const photo = rawPhoto?.startsWith('//') ? `https:${rawPhoto}` : rawPhoto ?? null
+    if (!id || !name || priceCents <= 0) return []
+    return [{ hotelId: `ag_${id}`, hotelName: name, stars, priceCents, photoUrl: photo }]
+  })
+}
+
 // ── Rotation ──────────────────────────────────────────────────────────────────
 
 type ProviderFn = (iata: string, ci: string, co: string, key: string) => Promise<HotelEntry[]>
@@ -292,7 +363,7 @@ function fetchPricelineCom(iata: string, ci: string, co: string): Promise<HotelE
   return fetchPricelineComProvider(iata, ci, co)
 }
 
-const PROVIDERS: ProviderFn[] = [fetchBookingCom15, fetchBookingComCoords, fetchTripAdvisor, fetchPricelineCom]
+const PROVIDERS: ProviderFn[] = [fetchBookingCom15, fetchBookingComCoords, fetchTripAdvisor, fetchPricelineCom, fetchAgoda]
 
 type RotationResult = { hotels: HotelEntry[]; providerErrors: string[] }
 
