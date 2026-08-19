@@ -27,6 +27,12 @@ export const TRACKED_MARKETS: TrackedMarket[] = [
   { city: 'Punta Cana', country: 'DO', iata: 'PUJ', photoUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=640&q=80', photoAlt: 'Caribbean beach with palm trees' },
   { city: 'Charlotte', country: 'US', iata: 'CLT', photoUrl: 'https://images.unsplash.com/photo-1578439231583-9eca0a363860?auto=format&fit=crop&w=640&q=80', photoAlt: 'Charlotte skyline' },
   { city: 'Nashville', country: 'US', iata: 'BNA', photoUrl: 'https://images.unsplash.com/photo-1545419913-775eac5dfdc5?auto=format&fit=crop&w=640&q=80', photoAlt: 'Nashville street with music venues' },
+  { city: 'Cairo', country: 'EG', iata: 'CAI', photoUrl: 'https://images.unsplash.com/photo-1539768942893-daf53e448371?auto=format&fit=crop&w=640&q=80', photoAlt: 'Camels beside the Pyramids of Giza' },
+  { city: 'Hurghada', country: 'EG', iata: 'HRG', photoUrl: 'https://images.unsplash.com/photo-1667852976264-880d2d6ff8e5?auto=format&fit=crop&w=640&q=80', photoAlt: 'Red Sea waterfront tower' },
+  { city: 'Sharm El Sheikh', country: 'EG', iata: 'SSH', photoUrl: 'https://images.unsplash.com/photo-1651871756929-09d7bde4e97d?auto=format&fit=crop&w=640&q=80', photoAlt: 'Red Sea coral reef with fish' },
+  { city: 'Antalya', country: 'TR', iata: 'AYT', photoUrl: 'https://images.unsplash.com/photo-1648325129746-abcc1b872380?auto=format&fit=crop&w=640&q=80', photoAlt: 'Antalya old harbor with boats' },
+  { city: 'Istanbul', country: 'TR', iata: 'IST', photoUrl: 'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=640&q=80', photoAlt: 'Galata Tower over the Istanbul skyline' },
+  { city: 'Bodrum', country: 'TR', iata: 'BJV', photoUrl: 'https://images.unsplash.com/photo-1564166489229-dfb970a591bf?auto=format&fit=crop&w=640&q=80', photoAlt: 'Boat on the water near Bodrum' },
 ]
 
 export const TRACKED_MARKET_NAMES = TRACKED_MARKETS.map((market) => market.city)

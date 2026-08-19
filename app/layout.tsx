@@ -10,7 +10,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "expaify — Never overpay for a hotel again",
   description:
-    "We track 20 destinations daily and alert you the moment a hotel drops 30%+ below its normal price.",
+    "We track 26 destinations daily and alert you the moment a hotel drops 30%+ below its normal price.",
   applicationName: "expaify",
   keywords: ["hotels", "hotel deals", "cheap hotels", "hotel price tracking", "travel deals"],
   authors: [{ name: "expaify" }],
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Never overpay for a hotel again | expaify",
     description:
-      "We track 20 destinations daily and flag hotels 30%+ below their 60-day median. Book direct on Expedia, Booking.com, Kiwi, or Trip.com. Zero fees from us.",
+      "We track 26 destinations daily and flag hotels 30%+ below their 60-day median. Book direct on Expedia, Booking.com, Kiwi, or Trip.com. Zero fees from us.",
     url: "https://expaify.com",
     siteName: "expaify",
     type: "website",
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     site: "@Expaifycom",
     title: "Never overpay for a hotel again | expaify",
     description:
-      "We track 20 destinations daily and flag hotels 30%+ below their 60-day median. Book direct on Expedia, Booking.com, Kiwi, or Trip.com. Zero fees from us.",
+      "We track 26 destinations daily and flag hotels 30%+ below their 60-day median. Book direct on Expedia, Booking.com, Kiwi, or Trip.com. Zero fees from us.",
     images: ["https://expaify.com/og.png"],
   },
   robots: { index: true, follow: true },
@@ -57,7 +57,7 @@ const organizationSchema = {
   url: "https://expaify.com",
   logo: "https://expaify.com/favicon.svg",
   description:
-    "We track 20 destinations daily and alert you the moment a hotel drops 30%+ below its normal price.",
+    "We track 26 destinations daily and alert you the moment a hotel drops 30%+ below its normal price.",
   sameAs: [
     "https://x.com/Expaifycom",
     "https://www.tiktok.com/@expaify",

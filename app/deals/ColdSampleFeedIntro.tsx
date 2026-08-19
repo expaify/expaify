@@ -6,7 +6,7 @@ export function ColdSampleFeedIntro() {
           We&apos;re building your feed.
         </h3>
         <p className="mt-2 text-body leading-6 text-[color:var(--ink-soft)]">
-          Our tracker sweeps hotel prices across 20 destinations once a day. Real deals appear here after the next sweep — check back soon.
+          Our tracker sweeps hotel prices across 26 destinations once a day. Real deals appear here after the next sweep — check back soon.
         </p>
       </section>
       <div className="border-t border-[color:var(--line-ivory)] pt-6">

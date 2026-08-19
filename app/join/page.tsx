@@ -7,7 +7,7 @@ import JoinForm from './_form'
 
 export const metadata: Metadata = {
   title: 'Join expaify — never overpay for a hotel again',
-  description: 'Get daily hotel deal alerts across 20 destinations, each one 30%+ below its 60-day median price. Start your trial.',
+  description: 'Get daily hotel deal alerts across 26 destinations, each one 30%+ below its 60-day median price. Start your trial.',
   alternates: { canonical: 'https://expaify.com/join' },
 }
 

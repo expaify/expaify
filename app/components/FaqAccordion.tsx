@@ -30,7 +30,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: 'Which cities do you track?',
-    a: 'We currently track 20 markets: Miami, New York, Cancún, Paris, Rome, Barcelona, Lisbon, London, Tokyo, Bangkok, Dubai, Las Vegas, Orlando, San Juan, Tulum, Amsterdam, Athens, Punta Cana, Charlotte, and Nashville. More coming soon.',
+    a: 'We currently track 26 markets: Miami, New York, Cancún, Paris, Rome, Barcelona, Lisbon, London, Tokyo, Bangkok, Dubai, Las Vegas, Orlando, San Juan, Tulum, Amsterdam, Athens, Punta Cana, Charlotte, Nashville, Cairo, Hurghada, Sharm El Sheikh, Antalya, Istanbul, and Bodrum. More coming soon.',
   },
 ]
 

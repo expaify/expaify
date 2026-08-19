@@ -98,7 +98,13 @@ INSERT INTO tracked_markets (city, country, iata) VALUES
   ('Athens',        'GR', 'ATH'),
   ('Punta Cana',    'DO', 'PUJ'),
   ('Charlotte',     'US', 'CLT'),
-  ('Nashville',     'US', 'BNA')
+  ('Nashville',     'US', 'BNA'),
+  ('Cairo',         'EG', 'CAI'),
+  ('Hurghada',      'EG', 'HRG'),
+  ('Sharm El Sheikh', 'EG', 'SSH'),
+  ('Antalya',       'TR', 'AYT'),
+  ('Istanbul',      'TR', 'IST'),
+  ('Bodrum',        'TR', 'BJV')
 ON CONFLICT (iata) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS price_snapshots (

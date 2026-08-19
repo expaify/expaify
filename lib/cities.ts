@@ -19,6 +19,12 @@ export const CITY_SLUGS: Record<string, string> = {
   'punta-cana': 'Punta Cana',
   'charlotte':  'Charlotte',
   'nashville':  'Nashville',
+  'cairo':      'Cairo',
+  'hurghada':   'Hurghada',
+  'sharm-el-sheikh': 'Sharm El Sheikh',
+  'antalya':    'Antalya',
+  'istanbul':   'Istanbul',
+  'bodrum':     'Bodrum',
 }
 
 export const CITY_DISPLAY_TO_SLUG: Record<string, string> = Object.fromEntries(
