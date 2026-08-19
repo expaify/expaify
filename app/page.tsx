@@ -3,6 +3,7 @@ import { DealCard } from './components/ui/DealCard'
 import { LockedDealCard } from './components/ui/LockedDealCard'
 import { LandingNav } from './components/LandingNav'
 import { FaqAccordion } from './components/FaqAccordion'
+import { TrackedLink } from './components/TrackedLink'
 import { CITY_SLUGS } from '@/lib/cities'
 import { getActiveDeals, getTrackedHotels, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DEAL_THRESHOLD, MIN_SNAPSHOTS } from '@/lib/pipeline/dealRules'
@@ -155,17 +156,22 @@ export default async function LandingPage() {
                 We watch prices across Expedia, Booking.com, Kiwi, and Trip.com — and tell you the moment a hotel drops 30%+ below normal.
               </p>
               <div className="flex flex-wrap items-center gap-3">
-                <a href="/join" className="btn btn-conversion btn-lg">
-                  Join for free
-                </a>
-                <a href="/login?intent=free" className="btn btn-outline btn-lg">
+                <TrackedLink
+                  href="/login?intent=free&utm_source=homepage&utm_medium=hero&utm_campaign=free_alerts"
+                  analyticsEvent="free_alert_cta_click"
+                  analyticsProps={{ placement: 'homepage_hero' }}
+                  className="btn btn-conversion btn-lg"
+                >
                   Get free alerts
+                </TrackedLink>
+                <a href="/deals" className="btn btn-outline btn-lg">
+                  See live deals
                 </a>
                 <a
-                  href="/deals"
+                  href="/join"
                   className="text-body font-medium text-[color:var(--ink-soft)] underline decoration-[color:var(--line-white)] underline-offset-2 transition-colors hover:text-[color:var(--ink)] hover:decoration-[color:var(--ink-soft)]"
                 >
-                  See live deals
+                  Start Premium trial
                 </a>
               </div>
               <p className="flex items-center gap-1.5 text-small font-semibold text-[color:var(--ink)]">
@@ -382,12 +388,14 @@ export default async function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <a href="/join" className="btn btn-conversion mt-auto w-full justify-center">
-                Get started free
-              </a>
-              <a href="/login?intent=free" className="text-center text-sm font-medium text-[color:var(--primary)] underline underline-offset-2">
+              <TrackedLink
+                href="/login?intent=free&utm_source=homepage&utm_medium=pricing_free_card&utm_campaign=free_alerts"
+                analyticsEvent="free_alert_cta_click"
+                analyticsProps={{ placement: 'homepage_pricing_free' }}
+                className="btn btn-conversion mt-auto w-full justify-center"
+              >
                 Get free alerts — no card
-              </a>
+              </TrackedLink>
             </div>
 
             {/* Premium — annual highlight */}

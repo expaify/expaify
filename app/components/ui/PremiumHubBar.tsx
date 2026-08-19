@@ -2,12 +2,14 @@
 
 import { useEffect, useState, type RefObject } from 'react'
 import { track } from '@/lib/analytics'
+import { TrackedLink } from '@/app/components/TrackedLink'
 import { Icon } from './icons/Icon'
 
 type PremiumHubBarProps = {
   lockedDealsCount: number
   firstLockedDealRef: RefObject<HTMLElement | null>
   joinHref?: string
+  city?: string
 }
 
 function trackingHref(joinHref: string, lockedDealsCount: number): string {
@@ -15,7 +17,7 @@ function trackingHref(joinHref: string, lockedDealsCount: number): string {
   return `${joinHref}${separator}utm_source=deal_page&utm_medium=sticky_hub&deals_count=${lockedDealsCount}`
 }
 
-export function PremiumHubBar({ lockedDealsCount, firstLockedDealRef, joinHref = '/join' }: PremiumHubBarProps) {
+export function PremiumHubBar({ lockedDealsCount, firstLockedDealRef, joinHref = '/join', city }: PremiumHubBarProps) {
   const [revealed, setRevealed] = useState(false)
 
   useEffect(() => {
@@ -65,6 +67,17 @@ export function PremiumHubBar({ lockedDealsCount, firstLockedDealRef, joinHref =
           <div>
             <p className="text-body font-display font-bold leading-tight text-[color:var(--ink)]">{summaryText}</p>
             <p className="text-caption mt-0.5 hidden text-[color:var(--ink-soft)] md:block">Unlock every members-only deal on this page, verified daily.</p>
+            <p className="text-caption mt-1 text-[color:var(--ink-soft)]">
+              {city ? `Just want email when ${city} drops? ` : 'Just want email when a deal drops? '}
+              <TrackedLink
+                href="/login?intent=free&utm_source=deal_page&utm_medium=sticky_hub_free_strip&utm_campaign=free_alerts"
+                analyticsEvent="free_alert_cta_click"
+                analyticsProps={{ placement: 'deals_sticky_strip' }}
+                className="font-semibold text-[color:var(--primary)] underline underline-offset-2"
+              >
+                Get free alerts
+              </TrackedLink>
+            </p>
           </div>
         </div>
         <a

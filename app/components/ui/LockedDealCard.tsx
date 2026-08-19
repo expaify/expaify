@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { track } from '@/lib/analytics'
+import { TrackedLink } from '@/app/components/TrackedLink'
 import { PropertyPhoto } from './PropertyPhoto'
 import { Icon } from './icons/Icon'
 
@@ -64,12 +65,13 @@ export function LockedDealCard({
     }
   }
   return (
-    <a
-      href={canSelfUnlock ? '#' : trackingHref(joinHref, discountPct)}
-      onClick={activate}
-      aria-label={`Locked deal. Save ${discountPct}% at a hotel in ${placeholderCity}. ${canSelfUnlock ? 'Use one weekly unlock to reveal this deal.' : 'Unlock deal with Premium.'}`}
-      className="group relative block overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-[color:var(--gold-deep)] hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gold-deep)]"
-    >
+    <div className="group relative block overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-[color:var(--gold-deep)] hover:shadow-[var(--shadow-card-hover)]">
+      <a
+        href={canSelfUnlock ? '#' : trackingHref(joinHref, discountPct)}
+        onClick={activate}
+        aria-label={`Locked deal. Save ${discountPct}% at a hotel in ${placeholderCity}. ${canSelfUnlock ? 'Use one weekly unlock to reveal this deal.' : 'Unlock deal with Premium.'}`}
+        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--gold-deep)]"
+      >
       <div className="absolute right-3 top-3 z-30 flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[color:var(--gold-deep)] px-2.5 py-1 font-display text-[11px] font-bold uppercase tracking-wider text-[color:var(--ink)] shadow-md transition-transform duration-200 group-hover:scale-105">
         <Icon name="premium_unlocked" size={16} className="text-[color:var(--ink)]" />
         <span>Save {discountPct}%</span>
@@ -134,6 +136,15 @@ export function LockedDealCard({
           </div>
         </div>
       </div>
-    </a>
+      </a>
+      <TrackedLink
+        href={`/login?intent=free&city=${encodeURIComponent(placeholderCity)}&utm_source=deal_page&utm_medium=card_teaser_free&utm_campaign=free_alerts`}
+        analyticsEvent="free_alert_cta_click"
+        analyticsProps={{ placement: 'locked_card', discount_percent: discountPct }}
+        className="relative z-30 mx-4 mb-4 block text-center text-caption font-semibold text-[color:var(--primary)] underline underline-offset-2"
+      >
+        Get free alerts for {placeholderCity} (3 unlocks/week)
+      </TrackedLink>
+    </div>
   )
 }
