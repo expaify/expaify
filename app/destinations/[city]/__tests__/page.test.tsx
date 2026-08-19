@@ -91,12 +91,12 @@ describe('destination criteria continuity', () => {
     })
   })
 
-  it('keeps a non-Wave-A destination on the existing fallback without SEO placeholders', async () => {
+  it('renders full SEO hub content and JSON-LD for a Wave B/C destination', async () => {
     const tree = await CityPage({ params: Promise.resolve({ city: 'barcelona' }), searchParams: Promise.resolve({}) })
     const html = renderToStaticMarkup(tree)
 
-    expect(html).toContain('Hotel deals in Barcelona today')
-    expect(html).not.toContain('How expaify scores a Barcelona deal')
-    expect(html).not.toContain('application/ld+json')
+    expect(html).toContain('Barcelona hotel deals below the usual rate')
+    expect(html).toContain('In Barcelona, “usual” cannot be a citywide average.')
+    expect(html).toContain('application/ld+json')
   })
 })

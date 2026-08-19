@@ -270,5 +270,413 @@
         "answer": "No fee from expaify at any stage. You book on the OTA that posted the drop and pay that OTA directly."
       }
     ]
+  },
+  {
+    "slug": "barcelona",
+    "seo_title": "Barcelona Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Barcelona hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their 60-day median. Book direct, zero fees.",
+    "h1": "Barcelona hotel deals below the usual rate",
+    "intro": "In Barcelona, \u201cusual\u201d cannot be a citywide average. A beachside Barceloneta hotel, an Eixample business property, and a Gothic Quarter boutique all move on different demand curves tied to weekends, trade shows, and cruise traffic. expaify defines \u201cusual\u201d as one hotel\u2019s own 60-day median price, built from daily snapshots across Expedia, Booking.com, Kiwi and Trip.com. We flag a room only when its listed rate drops 30% or more below that hotel\u2019s median, with at least eight recorded price checks behind it. You book on the OTA; expaify charges zero fees.",
+    "seasonality": "Barcelona pricing is strongly event- and weekend-driven. Summer brings the highest baseline as beach season and European school holidays fill the city, while shoulder months can swing quickly depending on conference calendars. Mobile World Congress typically spikes late winter demand, and large music weeks like Primavera Sound can lift prices across central neighborhoods. Weekends often price higher than midweek in leisure-heavy areas (G\u00f2tic, El Born, Barceloneta), while Fira-area and Eixample hotels can behave more like business markets, with softer Sundays and stronger weekdays during trade shows. Because each property is compared only against itself, a \u201ccheap\u201d rate during a busy week may not qualify, and a central hotel can still flag when it dips below its own normal.",
+    "faqs": [
+      {
+        "question": "What makes a room a Barcelona deal here?",
+        "answer": "A hotel qualifies only when the current nightly rate is 30% or more below that same hotel\u2019s own 60-day median, and we have at least eight price checks recorded. That prevents a single odd snapshot from being mislabeled as a bargain."
+      },
+      {
+        "question": "Do you track tourist apartments or hostels?",
+        "answer": "No. expaify tracks hotel products listed on Expedia, Booking.com, Kiwi and Trip.com. Barcelona has a large market of licensed tourist apartments and small pensiones/hostels, but those are outside what we measure and flag."
+      },
+      {
+        "question": "Are city tax, breakfast, or other extras part of the discount?",
+        "answer": "No. The deal signal is based on the displayed room rate compared to that property\u2019s own history. Local tourist taxes, breakfast add-ons, and other extras can be priced or collected separately and are not used to decide whether a rate qualifies."
+      },
+      {
+        "question": "Will I always find qualifying Barcelona hotels?",
+        "answer": "Not always. During peak summer weeks or major event periods, many hotels\u2019 \u201cusual\u201d level rises, so fewer listings fall 30% below their own median. More qualifying drops tend to appear in shoulder periods and quieter midweeks."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You pay on the OTA that posted the rate. expaify links you out to Expedia, Booking.com, Kiwi or Trip.com for checkout at their listed price. expaify does not add any fees or collect payment."
+      },
+      {
+        "question": "Do cheaper neighborhoods get flagged more often?",
+        "answer": "Not by default. A lower-priced area simply means the same 30% cut is a smaller absolute saving. Higher-median central hotels can produce larger euro drops when they qualify, even if their starting price looks higher."
+      }
+    ]
+  },
+  {
+    "slug": "lisbon",
+    "seo_title": "Lisbon Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Lisbon hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their 60-day median. Book direct, zero fees.",
+    "h1": "Lisbon hotel deals below the usual rate",
+    "intro": "In Lisbon, \u201cusual\u201d depends on where you are in the city\u2019s steep geography and demand mix. Baixa/Chiado and the riverfront can price like pure leisure markets, while Parque das Na\u00e7\u00f5es and parts of Avenidas Novas move with conference and corporate travel. expaify avoids generic \u201cfrom\u201d prices by defining \u201cusual\u201d as each hotel\u2019s own 60-day median rate, built from daily checks on Expedia, Booking.com, Kiwi and Trip.com. We flag only rates that land 30% or more below that property\u2019s median, backed by at least eight price checks. You book direct on the OTA; expaify adds zero fees.",
+    "seasonality": "Lisbon\u2019s higher-rate periods cluster around warm-weather travel and major city events. Late spring through early autumn generally carries stronger leisure demand, with especially busy weekends around popular festival dates in June (including the city\u2019s Santo Ant\u00f3nio celebrations). Autumn can stay elevated when conferences return, including Web Summit in November, which often lifts prices across central and modern business districts. Winter is typically calmer outside holiday periods, though short weekend spikes still happen with low-cost flight demand. Neighborhoods also behave differently: central historic areas can peak on weekends, while business-oriented zones may soften on Fridays and Sundays unless a large event is in town. Because expaify compares each hotel only to itself, it can surface true drops even when the city overall feels expensive.",
+    "faqs": [
+      {
+        "question": "What makes a room a Lisbon deal here?",
+        "answer": "A listing is flagged only if the nightly rate is 30% or more below that same hotel\u2019s 60-day median price, and we have at least eight recorded price checks. It\u2019s a property-by-property comparison, not a citywide average."
+      },
+      {
+        "question": "Do you track AL apartments or guesthouses?",
+        "answer": "No. We only track hotel products available on Expedia, Booking.com, Kiwi and Trip.com. Lisbon\u2019s \u201cAlojamento Local\u201d apartment rentals and many small guesthouses operate outside the hotel inventory we monitor."
+      },
+      {
+        "question": "Is the deal based on breakfast, view rooms, or city tax?",
+        "answer": "No. The signal is based on the room rate we capture for that hotel compared to its own history. Breakfast packages, upgrade choices (like river view), and municipal taxes can change the total and are not used in the 30% calculation."
+      },
+      {
+        "question": "Will I always find qualifying Lisbon hotels?",
+        "answer": "Not always. When seasonal demand is strong or a major conference week fills rooms, hotels\u2019 typical rates rise and fewer listings fall 30% below their own median. You\u2019ll usually see more qualifying drops on quieter midweeks and shoulders."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "On the OTA that listed the rate. You click through to Expedia, Booking.com, Kiwi or Trip.com and complete booking there. expaify does not take payment and charges zero additional fees."
+      },
+      {
+        "question": "Do cheaper neighborhoods get flagged more often?",
+        "answer": "No. Flags are based on percentage drop versus each hotel\u2019s own baseline. Lower-median areas may show smaller euro savings even when they qualify, while central hotels can generate larger absolute discounts when they dip below their norm."
+      }
+    ]
+  },
+  {
+    "slug": "amsterdam",
+    "seo_title": "Amsterdam Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Amsterdam hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their 60-day median. Book direct, zero fees.",
+    "h1": "Amsterdam hotel deals below the usual rate",
+    "intro": "In Amsterdam, \u201cusual\u201d is a moving target because the city\u2019s hotel market is constrained and highly event-sensitive. A canal-ring boutique, a Zuid business hotel, and an airport property near Schiphol can show totally different \u201cnormal\u201d prices in the same week. expaify defines \u201cusual\u201d at the hotel level: the property\u2019s own 60-day median nightly rate, built from daily snapshots across Expedia, Booking.com, Kiwi and Trip.com. We flag a room only when it drops 30% or more below that median, with at least eight recorded price checks to support the call. You book on the OTA; expaify charges zero fees.",
+    "seasonality": "Amsterdam rates often jump around the calendar more than the weather. Spring demand rises with tulip-season travel and holiday weekends, and King\u2019s Day (late April) can lift prices citywide. Summer stays busy with European vacation traffic, while early autumn brings major conferences and cultural events, including IBC and Amsterdam Dance Event, which can tighten availability quickly. Winter can be calmer outside Christmas and New Year, but short spikes still happen around school breaks and popular weekends. Submarkets behave differently: Central and Canal Belt hotels are weekend-heavy, while Zuidas and some Schiphol-area hotels track weekday business demand and can soften on weekends. expaify\u2019s property-by-property median helps separate a real dip from a rate that only looks low compared to the city\u2019s famously high baseline.",
+    "faqs": [
+      {
+        "question": "What makes a room an Amsterdam deal here?",
+        "answer": "The nightly rate must be at least 30% below the same hotel\u2019s 60-day median, and we require a minimum of eight price checks. That way, a temporary glitch or one-off listing doesn\u2019t get mislabeled as a deal."
+      },
+      {
+        "question": "Do you track houseboats or short-stay apartments?",
+        "answer": "No. expaify flags only hotel products listed on Expedia, Booking.com, Kiwi and Trip.com. Amsterdam\u2019s houseboats and many short-stay apartment rentals are a separate category and are not included in our tracking."
+      },
+      {
+        "question": "Are museum tickets, canal cruises, or city tax included in the discount?",
+        "answer": "No. We compare room rate to room rate for the same property. Bundled extras like museum tickets, canal cruises, breakfast, or local taxes may change what you pay overall, but they are not part of the deal calculation."
+      },
+      {
+        "question": "Will I always find qualifying Amsterdam hotels?",
+        "answer": "Not always. During peak weekends and big event weeks, hotels\u2019 normal prices rise and fewer rates fall 30% below their own medians. More qualifying drops typically appear on quieter dates, especially outside major event periods."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You pay on the OTA you choose\u2014Expedia, Booking.com, Kiwi or Trip.com\u2014at their checkout. expaify only tracks and flags price drops and does not add fees or handle payment."
+      },
+      {
+        "question": "Do cheaper neighborhoods get flagged more often?",
+        "answer": "No. Because the threshold is a percentage versus each hotel\u2019s own baseline, lower-priced areas are not automatically favored. When a higher-median central hotel qualifies, the absolute euro savings can be larger even at the same 30% cut."
+      }
+    ]
+  },
+  {
+    "slug": "dubai",
+    "seo_title": "Dubai Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Dubai hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their 60-day median. Book direct, zero fees.",
+    "h1": "Dubai hotel deals below the usual rate",
+    "intro": "In Dubai, \u201cusual\u201d is not the glossy headline price you see next to a skyline photo. Rates can swing based on whether a hotel is selling as a pure room, a half-board package, or a weekend staycation, and beachfront resorts price differently from business hotels on Sheikh Zayed Road. expaify pins \u201cusual\u201d to one property at a time: its own 60-day median nightly rate, built from daily snapshots on Expedia, Booking.com, Kiwi and Trip.com. We flag a room only when the listed rate drops 30% or more below that median, supported by at least eight price checks. You book on the OTA; expaify adds zero fees.",
+    "seasonality": "Dubai\u2019s hotel year follows the temperature and the events calendar. Cooler months (roughly November through March) typically bring the strongest leisure demand, while the hottest summer months often see more promotions and resident staycation pricing. Major citywide draws can tighten availability, including New Year\u2019s week and large trade shows and exhibitions at Dubai World Trade Centre (such as GITEX and Gulfood). Ramadan can also shift travel patterns and package structures, with some hotels changing what\u2019s bundled and when restaurants operate. Beachfront resorts and Marina/JBR properties often peak on weekends and holidays, while DIFC and Downtown business hotels can hold firmer midweek when conferences are in town. expaify\u2019s hotel-specific median helps you see when a \u201csale\u201d is truly below that property\u2019s own normal rather than just a repackaged package rate.",
+    "faqs": [
+      {
+        "question": "What makes a room a Dubai deal here?",
+        "answer": "A rate qualifies only when it is 30% or more below that same hotel\u2019s 60-day median, and we have at least eight price checks recorded. It\u2019s a comparison against the hotel\u2019s own history, not against other Dubai hotels."
+      },
+      {
+        "question": "Do you track serviced apartments or long-stay residences?",
+        "answer": "No. expaify flags hotel products listed on Expedia, Booking.com, Kiwi and Trip.com. Dubai has many serviced apartments and residence-style stays; those listings are not consistently comparable to hotels and are not part of our tracked set."
+      },
+      {
+        "question": "Are taxes, Tourism Dirham, or meal plans included in the discount?",
+        "answer": "No. We base the flag on the room rate we capture for the hotel versus its own median. Mandatory local charges, resort fees, and optional meal plans (like half board) can change the final total, but they do not drive the deal calculation."
+      },
+      {
+        "question": "Will I always find qualifying Dubai hotels?",
+        "answer": "Not always. During peak winter weeks and major exhibition periods, many hotels\u2019 typical rates rise, so fewer listings fall 30% below their own median. You\u2019ll often see more qualifying drops in hotter months and on quieter dates."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "On the OTA that listed the price. expaify links you to Expedia, Booking.com, Kiwi or Trip.com to complete checkout at their rate. expaify does not charge fees or take payment."
+      },
+      {
+        "question": "Do cheaper areas get flagged more often?",
+        "answer": "No. A lower median just means a 30% drop is a smaller AED saving. Premium areas like Downtown or beachfront resorts can still flag if their own rates dip far enough, and those can create the largest absolute savings."
+      }
+    ]
+  },
+  {
+    "slug": "bangkok",
+    "seo_title": "Bangkok Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Bangkok hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their 60-day median. Book direct, zero fees.",
+    "h1": "Bangkok hotel deals below the usual rate",
+    "intro": "In Bangkok, \u201cusual\u201d varies sharply by neighborhood and travel purpose. Sukhumvit and Riverside hotels can price around international leisure waves, while Silom and Siam properties often feel the pull of corporate travel and conventions, and airport-area hotels behave differently again. expaify defines \u201cusual\u201d for Bangkok at the property level: each hotel\u2019s own 60-day median nightly rate, built from daily snapshots across Expedia, Booking.com, Kiwi and Trip.com. We flag a room only when the current listing drops 30% or more below that median, with at least eight recorded price checks behind it. You book directly on the OTA; expaify adds zero fees.",
+    "seasonality": "Bangkok\u2019s broad demand shifts with weather, holidays, and event weeks. The cooler, drier season (roughly November through February) is generally the most popular for international visitors, while the rainy season can bring softer demand and more frequent promotions, especially on leisure-heavy corridors. Thai holiday periods can change patterns too: Songkran in April often affects both domestic travel and how long visitors stay, and year-end holidays can tighten central inventory. Weekday vs weekend behavior differs by area\u2014CBD hotels may soften on weekends, while leisure zones can hold firmer Friday and Saturday nights. Because expaify compares each hotel only to itself, it can surface genuine dips even when Bangkok\u2019s overall prices look \u201ccheap\u201d compared to other global cities, and it avoids calling a normal low-season rate a special deal.",
+    "faqs": [
+      {
+        "question": "What makes a room a Bangkok deal here?",
+        "answer": "We flag a Bangkok hotel only when the nightly rate is at least 30% below that same hotel\u2019s own 60-day median, supported by at least eight price checks. It\u2019s a hotel-by-hotel baseline, not a neighborhood average."
+      },
+      {
+        "question": "Do you track serviced apartments or condo rentals?",
+        "answer": "No. expaify tracks hotel products listed on Expedia, Booking.com, Kiwi and Trip.com. Bangkok has many condo-style rentals and long-stay serviced apartments, but those are not included in our deal tracking."
+      },
+      {
+        "question": "Are breakfast, airport transfers, or club lounge access part of the discount?",
+        "answer": "No. The qualifying drop is based on the room rate we observe versus that property\u2019s own median. Breakfast inclusion, transfer bundles, and access perks can vary by rate plan and are not used to decide whether it\u2019s 30% below usual."
+      },
+      {
+        "question": "Will I always find qualifying Bangkok hotels?",
+        "answer": "Not always. When demand is strong in peak season or during large convention weeks, fewer hotels dip 30% below their own medians. You\u2019ll typically see more qualifying drops on quieter dates and in softer travel periods."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You complete payment on the OTA that posted the rate\u2014Expedia, Booking.com, Kiwi or Trip.com. expaify simply highlights the drop and sends you to the provider; we do not add fees or take payment."
+      },
+      {
+        "question": "Do cheaper neighborhoods get flagged more often?",
+        "answer": "No. A lower baseline does not make a hotel more likely to qualify; it only changes the size of the savings in baht. Higher-median riverside and central hotels can still flag, and those often produce the biggest absolute drops."
+      }
+    ]
+  },
+  {
+    "slug": "cancun",
+    "seo_title": "Canc\u00fan Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Canc\u00fan hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their 60-day median. Book direct, zero fees.",
+    "h1": "Canc\u00fan hotel deals below the usual rate",
+    "intro": "In Canc\u00fan, \u201cusual\u201d is especially easy to misread because many properties sell multiple rate types\u2014room-only, breakfast, and all-inclusive\u2014and the Hotel Zone behaves differently from downtown. A headline price can look like a steal while actually being normal for that hotel\u2019s current plan and season. expaify defines \u201cusual\u201d per property: the hotel\u2019s own 60-day median nightly rate, built from daily snapshots on Expedia, Booking.com, Kiwi and Trip.com. We flag a room only when the listed rate drops 30% or more below that hotel\u2019s median, with at least eight recorded price checks to back it up. You book on the OTA; expaify charges zero fees.",
+    "seasonality": "Canc\u00fan demand follows North American vacation calendars and the Caribbean weather pattern. Winter and early spring are typically the busiest, with strong holiday travel around Christmas and New Year and heavy demand during spring break weeks. Summer can stay active with family travel, but pricing often depends on heat and storm risk, and late summer into early fall overlaps with the Atlantic hurricane season, when demand can soften and promotions become more common. Semana Santa can also create short, sharp spikes. Resort areas in the Hotel Zone and along the coast often move together, while downtown hotels may track different demand tied to short stays, business travel, and airport timing. Because expaify compares each hotel only against itself, it can identify true drops even when an all-inclusive \u201csale\u201d is just the normal package price for that resort.",
+    "faqs": [
+      {
+        "question": "What makes a room a Canc\u00fan deal here?",
+        "answer": "A hotel is flagged only when its nightly rate is 30% or more below that same hotel\u2019s 60-day median, with at least eight recorded price checks. The comparison is property-specific, so it doesn\u2019t rely on broad \u201cCanc\u00fan averages.\u201d"
+      },
+      {
+        "question": "Do you track vacation rentals or villas?",
+        "answer": "No. expaify tracks hotel products listed on Expedia, Booking.com, Kiwi and Trip.com. Canc\u00fan has many villas and short-term rentals, but those are not included in our tracking or deal flags."
+      },
+      {
+        "question": "Are all-inclusive meals, wristbands, or resort fees part of the discount?",
+        "answer": "No. We base the flag on the displayed room rate versus the hotel\u2019s own median. All-inclusive inclusions, meal plans, and any mandatory fees or taxes can change the total cost, but they are not used to determine the 30% drop."
+      },
+      {
+        "question": "Will I always find qualifying Canc\u00fan hotels?",
+        "answer": "Not always. In peak winter weeks and high-demand spring break periods, many resorts\u2019 typical prices rise, so fewer rates fall 30% below their own median. You\u2019ll often see more qualifying drops in shoulder periods and quieter weeks."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "On the OTA that lists the deal. expaify links you to Expedia, Booking.com, Kiwi or Trip.com to book at their rate and rules. expaify does not charge any additional fees or handle payment."
+      },
+      {
+        "question": "Do cheaper areas get flagged more often?",
+        "answer": "No. A lower-priced downtown hotel is not automatically more likely to qualify; it still has to drop 30% versus its own baseline. When a higher-median beachfront resort qualifies, the absolute savings can be much larger."
+      }
+    ]
+  },
+  {
+    "slug": "punta-cana",
+    "seo_title": "Punta Cana Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Punta Cana hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their 60-day median. Book direct, zero fees.",
+    "h1": "Punta Cana hotel deals below the usual rate",
+    "intro": "In Punta Cana, \u201cusual\u201d is hard to read from a headline price because many stays are sold as all-inclusive and the same resort can publish very different rates depending on meal plans, cancellation rules, and room types. expaify defines \u201cusual\u201d as the 60-day median nightly price for one specific hotel, built from daily snapshots on Expedia, Booking.com, Kiwi and Trip.com. That property-by-property history matters in a market where a low-looking rate can simply be a different board basis, not a true drop. We flag a room only when it\u2019s 30%+ below that hotel\u2019s median, backed by at least eight price checks. You book on the OTA; expaify charges zero fees.",
+    "seasonality": "Punta Cana\u2019s pricing is driven by North America and Europe\u2019s vacation calendar more than by local weekdays. Winter sun season (especially around Christmas, New Year\u2019s, and Presidents\u2019 Day periods) tends to lift resort-wide floors, and spring break weeks can keep availability tight across B\u00e1varo and Cap Cana. Late summer and early fall often see softer demand in the Caribbean because it overlaps hurricane season and the back-to-school reset, so qualifying drops are more common\u2014though they can be choppy around long weekends. Another pattern: large all-inclusive resorts can reprice quickly when flights and package demand shift, while smaller boutique properties may move more slowly. Because expaify compares each resort only to itself, a \u201ccheap\u201d all-inclusive headline won\u2019t be flagged unless it\u2019s truly low versus its own recent history.",
+    "faqs": [
+      {
+        "question": "What makes a room a Punta Cana deal here?",
+        "answer": "A listing qualifies only when its nightly rate is 30% or more below the same hotel\u2019s own 60-day median price, and we have at least eight recorded price checks so a one-off glitch doesn\u2019t create a fake bargain."
+      },
+      {
+        "question": "Do you track villas, private rentals, or condo stays?",
+        "answer": "No. expaify tracks hotel products listed on Expedia, Booking.com, Kiwi and Trip.com. Standalone villas, Airbnb-style homes, and many condo rentals aren\u2019t part of what we measure or flag."
+      },
+      {
+        "question": "Is the discount based on all-inclusive inclusions or resort fees?",
+        "answer": "No. We compare the listed room rate to the same hotel\u2019s own rate history, not the value of meals, drinks, wristbands, or credits. Also note that some properties add mandatory charges that are disclosed during checkout on the OTA."
+      },
+      {
+        "question": "Will I always find qualifying Punta Cana hotels?",
+        "answer": "Not always. During peak holiday and spring break windows, many resorts\u2019 \u201cusual\u201d prices are already elevated, so fewer listings fall 30% below their own median. More deals tend to appear in quieter shoulder periods."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You pay on the OTA that posted the rate\u2014Expedia, Booking.com, Kiwi or Trip.com\u2014when you click through and complete checkout. expaify doesn\u2019t take payment and adds no fees."
+      },
+      {
+        "question": "Do cheaper areas get flagged more often?",
+        "answer": "Not automatically. A lower-priced resort can still be \u201cusual\u201d for itself, and a higher-priced Cap Cana or beachfront property can still qualify if it drops far enough versus its own median. The flag is relative to each hotel\u2019s history."
+      }
+    ]
+  },
+  {
+    "slug": "tulum",
+    "seo_title": "Tulum Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Tulum hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their 60-day median. Book direct, zero fees.",
+    "h1": "Tulum hotel deals below the usual rate",
+    "intro": "In Tulum, \u201cusual\u201d pricing varies sharply by zone and style: beach road boutique hotels can jump with weekend demand, while town (Tulum Pueblo) properties often price more like practical base-camps for day trips. That\u2019s why expaify doesn\u2019t use a citywide average. \u201cUsual\u201d is the 60-day median price of one specific hotel, built from daily snapshots on Expedia, Booking.com, Kiwi and Trip.com. This matters in a market where rates can look \u201cdiscounted\u201d simply because you\u2019re comparing different neighborhoods, cancellation terms, or room categories. expaify flags a listing only when it\u2019s 30%+ below that hotel\u2019s own median, with at least eight price checks behind it. You book direct on the OTA; expaify adds zero fees.",
+    "seasonality": "Tulum demand is strongly seasonal: winter through early spring is the classic Riviera Maya high season, and rates often spike around Christmas/New Year\u2019s and spring break travel. Summer brings more family travel to the region, but Tulum\u2019s pricing can soften midweek and outside long weekends, especially for smaller hotels that depend on shorter stays. Late summer and early fall can see more volatility due to heat, rain, and seaweed (sargassum) conditions that affect beach sentiment; some properties respond with sharper, shorter-lived price drops. Another consistent pattern is the neighborhood split: the beach zone can behave like a weekend destination, while town hotels can be more stable. expaify\u2019s hotel-by-hotel baseline helps keep those apples-to-oranges comparisons out of the \u201cdeal\u201d label.",
+    "faqs": [
+      {
+        "question": "What makes a room a Tulum deal here?",
+        "answer": "We flag a rate only if it\u2019s 30% or more below the same hotel\u2019s own 60-day median price, and only after at least eight price checks. That keeps the comparison tied to that specific property\u2019s normal pricing."
+      },
+      {
+        "question": "Do you track villas, eco-lodges, or vacation rentals?",
+        "answer": "No. expaify tracks hotel products listed on Expedia, Booking.com, Kiwi and Trip.com. Many Tulum stays are villas, short-term rentals, or off-grid rentals that don\u2019t appear consistently as hotel listings and aren\u2019t tracked."
+      },
+      {
+        "question": "Is the discount based on beach access, breakfast, or added fees?",
+        "answer": "No. The calculation is rate-to-rate for the same property over time. Amenities like breakfast, beach club access, minimum-spend policies, or mandatory charges are set by the property/OTA and aren\u2019t converted into the discount metric."
+      },
+      {
+        "question": "Will I always find qualifying Tulum hotels?",
+        "answer": "Not always. Peak holiday weeks and popular weekends can pull prices up across both the beach zone and town, which makes 30% drops less common. You\u2019ll generally see more qualifying rates on quieter midweeks and shoulder periods."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You pay on Expedia, Booking.com, Kiwi or Trip.com\u2014the site that shows the drop\u2014after clicking through from expaify. expaify doesn\u2019t process payment and charges no booking fees."
+      },
+      {
+        "question": "Do cheaper neighborhoods get flagged more often?",
+        "answer": "No. Town hotels often have lower medians, but that doesn\u2019t guarantee a deal. A beach hotel with a higher median can still qualify if it falls 30% below its own history, while a cheap-looking town rate may be completely normal."
+      }
+    ]
+  },
+  {
+    "slug": "san-juan",
+    "seo_title": "San Juan Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track San Juan hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their 60-day median. Book direct, zero fees.",
+    "h1": "San Juan hotel deals below the usual rate",
+    "intro": "In San Juan, \u201cusual\u201d isn\u2019t a single city number because pricing can swing between resort-style beachfront properties in Condado/Isla Verde, historic Old San Juan hotels with limited inventory, and airport-adjacent business stays. A headline rate that looks low may simply be from a different neighborhood or may exclude common add-ons like resort fees and parking. expaify defines \u201cusual\u201d as the 60-day median price for one specific hotel, based on daily snapshots from Expedia, Booking.com, Kiwi and Trip.com. That property-level baseline is the only fair way to judge drops in a market shaped by cruise traffic, winter escapes, and weekend getaways. We flag only 30%+ below-median rates with at least eight price checks. You book on the OTA; expaify charges zero fees.",
+    "seasonality": "San Juan tends to run hottest during winter escape season, when travelers from colder climates fill beachfront and resort-style hotels, and holiday periods like Christmas and New Year\u2019s can push prices higher across Condado and Isla Verde. Spring break weeks often stay busy, while late summer and early fall can soften due to heat, rain, and the broader Atlantic hurricane season\u2014though demand can rebound around long weekends and event-heavy dates. The city also has a split rhythm: weekends can be strong for leisure, while some properties price around weekday business and group demand tied to meetings and conventions. Old San Juan\u2019s smaller hotel inventory can amplify spikes when ships and festivals bring extra visitors. Because expaify benchmarks each hotel against itself, it can surface true drops whether you\u2019re looking at a beach resort or a more practical airport stay.",
+    "faqs": [
+      {
+        "question": "What makes a room a San Juan deal here?",
+        "answer": "A rate is flagged only when it\u2019s 30% or more below that same hotel\u2019s own 60-day median price, with at least eight recorded price checks. We don\u2019t compare one hotel to another neighborhood\u2019s typical price."
+      },
+      {
+        "question": "Do you track guesthouses or short-term rentals?",
+        "answer": "No. expaify tracks hotel products listed on Expedia, Booking.com, Kiwi and Trip.com. Many San Juan stays are guesthouses, apartments, or vacation rentals that aren\u2019t reliably listed as hotel inventory and aren\u2019t included."
+      },
+      {
+        "question": "Does the discount account for resort fees, parking, or taxes?",
+        "answer": "No. The flag is based on the listed nightly rate versus the property\u2019s own recent median. Mandatory fees, taxes, and parking policies are disclosed by the OTA/property during checkout and can change the all-in total."
+      },
+      {
+        "question": "Will I always find qualifying San Juan hotels?",
+        "answer": "Not always. In peak winter and holiday periods, many hotels\u2019 \u201cusual\u201d is already high, so fewer listings break 30% below their own median. Qualifying drops are more common in shoulder periods and some midweeks."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You pay on Expedia, Booking.com, Kiwi or Trip.com after clicking through from expaify. expaify doesn\u2019t handle payment and adds no fees."
+      },
+      {
+        "question": "Do cheaper areas get flagged more often?",
+        "answer": "No. A lower median in one area simply means a 30% drop is a smaller dollar amount. A high-median beachfront hotel can still qualify if it falls far enough, and a cheap-looking rate can be normal for that property."
+      }
+    ]
+  },
+  {
+    "slug": "athens",
+    "seo_title": "Athens Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Athens hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their 60-day median. Book direct, zero fees.",
+    "h1": "Athens hotel deals below the usual rate",
+    "intro": "In Athens, \u201cusual\u201d depends heavily on whether a hotel is priced for Acropolis-and-museum sightseeing, for quick stopovers on the way to the islands, or for business travel around Syntagma and the commercial districts. A low number can be misleading if you\u2019re comparing a boutique in Plaka to a modern property near Kifisia or the airport. expaify avoids citywide averages and defines \u201cusual\u201d as the 60-day median price of one specific hotel, built from daily snapshots on Expedia, Booking.com, Kiwi and Trip.com. That matters in a city where summer tourism surges, shoulder-season bargains appear, and weekends behave differently by neighborhood. We only flag rates that are 30%+ below that hotel\u2019s median with at least eight checks. You book direct on the OTA; expaify charges zero fees.",
+    "seasonality": "Athens has a classic Mediterranean pattern: late spring through early fall is the busiest sightseeing window, with summer bringing sustained demand as travelers pair Athens with island hopping. Prices often rise around major holiday periods (including Easter, which can shift between March and May depending on calendars) and during peak summer weeks when flights and ferry connections are packed. Shoulder seasons\u2014especially November and parts of late winter\u2014can produce more frequent drops, though Athens remains a year-round city with business travel and conferences that can firm up weekday rates. Another split is location: central hotels near the Acropolis and Syntagma can hold higher floors in tourist season, while airport-area and outer-neighborhood properties may track more with weekday corporate demand. Because expaify compares each hotel only to its own recent history, it can identify true discounts whether you\u2019re staying central or using Athens as a transit night.",
+    "faqs": [
+      {
+        "question": "What makes a room an Athens deal here?",
+        "answer": "A listing must be 30% or more below that same hotel\u2019s own 60-day median nightly price, and we require at least eight price checks before flagging it. This keeps the \u201cdeal\u201d tied to the property\u2019s real pricing behavior."
+      },
+      {
+        "question": "Do you track apartments, serviced flats, or Airbnb-style stays?",
+        "answer": "No. expaify tracks hotel products listed on Expedia, Booking.com, Kiwi and Trip.com. Athens has a large apartment and short-term rental market, but those listings aren\u2019t what we measure or flag."
+      },
+      {
+        "question": "Is the discount based on breakfast, view rooms, or Acropolis tickets?",
+        "answer": "No. The calculation compares the listed rate to that hotel\u2019s own past rates. Inclusions like breakfast, a balcony/view category, or bundled tours and museum tickets aren\u2019t converted into the discount, and they vary by listing."
+      },
+      {
+        "question": "Will I always find qualifying Athens hotels?",
+        "answer": "Not always. During peak summer and major holiday periods, \u201cusual\u201d prices rise and fewer hotels drop 30% below their own median. Deal volume generally increases in shoulder months and on certain midweeks."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You pay on the OTA that shows the price\u2014Expedia, Booking.com, Kiwi or Trip.com\u2014after clicking through. expaify doesn\u2019t process the booking and charges no fees."
+      },
+      {
+        "question": "Do cheaper neighborhoods get flagged more often?",
+        "answer": "No. Lower-priced areas can still be at their normal level, while central hotels can still qualify if they fall sharply versus their own median. The flag is relative to the specific property, not the district."
+      }
+    ]
+  },
+  {
+    "slug": "charlotte",
+    "seo_title": "Charlotte Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Charlotte hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their 60-day median. Book direct, zero fees.",
+    "h1": "Charlotte hotel deals below the usual rate",
+    "intro": "In Charlotte, \u201cusual\u201d pricing is shaped more by business calendars than by weather. Uptown hotels can surge with banking, convention, and arena schedules, while airport and suburban properties often behave like steady weekday corporate inventory. That makes generic \u201cdeals\u201d unreliable: a $179 Uptown night can be cheap during a big convention but expensive on a quiet weekend, and comparing it to an airport hotel doesn\u2019t help. expaify defines \u201cusual\u201d as the 60-day median nightly price for one specific hotel, using daily snapshots from Expedia, Booking.com, Kiwi and Trip.com. We flag only rates that are 30%+ below that hotel\u2019s median, backed by at least eight price checks. You book direct on the OTA; expaify charges zero fees.",
+    "seasonality": "Charlotte\u2019s rate swings are event- and weekday-driven. Weekdays often price higher in Uptown when offices, meetings, and conventions are active, while many hotels soften on weekends unless there\u2019s a major draw at Bank of America Stadium, Spectrum Center, or a citywide festival. NASCAR-related weekends and race activity tied to Charlotte Motor Speedway can tighten availability in the region, and large trade shows at the Charlotte Convention Center can lift prices across nearby inventory. Summer can be mixed: leisure weekends can spike around concerts and sports, but some business-heavy hotels see softer mid-summer weekdays when corporate travel dips. Airport-area hotels and certain suburban corridors tend to follow a different rhythm than Uptown, with fewer dramatic peaks. Because expaify compares each hotel only against its own recent history, it can flag true drops whether you\u2019re staying in Uptown, SouthPark, or near CLT.",
+    "faqs": [
+      {
+        "question": "What makes a room a Charlotte deal here?",
+        "answer": "The nightly rate has to be 30% or more below that same hotel\u2019s own 60-day median price, and we require at least eight recorded price checks before flagging it. We don\u2019t label a deal based on a citywide average."
+      },
+      {
+        "question": "Do you track corporate apartments or short-term rentals?",
+        "answer": "No. expaify tracks hotel products listed on Expedia, Booking.com, Kiwi and Trip.com. Corporate housing, furnished apartments, and most Airbnb-style rentals aren\u2019t part of what we track or flag."
+      },
+      {
+        "question": "Is the discount based on game tickets, concert access, or parking bundles?",
+        "answer": "No. We compare room rate to room rate for the same property over time. Tickets, parking packages, breakfast add-ons, and similar bundles can change the total value, but they don\u2019t change whether the room rate is 30% below median."
+      },
+      {
+        "question": "Will I always find qualifying Charlotte hotels?",
+        "answer": "Not always. During big convention weeks or major sports and concert weekends, many hotels raise rates and fewer will drop 30% below their own median. Quieter weekends and some midweeks tend to produce more qualifying dips."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You pay on the OTA that shows the price drop\u2014Expedia, Booking.com, Kiwi or Trip.com\u2014after clicking through from expaify. expaify doesn\u2019t handle payment and adds zero fees."
+      },
+      {
+        "question": "Do cheaper areas get flagged more often?",
+        "answer": "No. A lower-priced airport or suburban hotel can be \u201cusual\u201d at that rate, while an Uptown hotel can qualify if it drops sharply relative to its own median. The flag is relative to each specific property\u2019s history."
+      }
+    ]
+  },
+  {
+    "slug": "nashville",
+    "seo_title": "Nashville Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Nashville hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below their 60-day median. Book direct, zero fees.",
+    "h1": "Nashville hotel deals below the usual rate",
+    "intro": "In Nashville, \u201cusual\u201d pricing is often set by the weekend calendar. Downtown and SoBro hotels can surge around concerts, bachelorette-heavy weekends, and convention traffic, while the same properties may soften midweek when leisure demand thins. That\u2019s why expaify doesn\u2019t label a deal by comparing one hotel to another or by using a city average. \u201cUsual\u201d means the 60-day median nightly price of one specific hotel, built from daily snapshots on Expedia, Booking.com, Kiwi and Trip.com. This matters in a market where a rate that looks high can be a real drop for that exact hotel during an event week. We flag only rates 30%+ below that hotel\u2019s median, with at least eight price checks. You book on the OTA; expaify charges zero fees.",
+    "seasonality": "Nashville is busy much of the year, but its peaks are strongly tied to events and weekends. Spring and fall are especially competitive because the weather is pleasant and the city\u2019s live-music and tourism calendar is full; rates often jump around major downtown conventions and headline events like CMA Fest. Summer stays active with concerts and travel, while midwinter can see more frequent dips outside of special event weekends and holiday travel. Another consistent pattern is geography: downtown/SoBro and Gulch properties behave like event-driven inventory, while airport hotels and some suburban corridors track more with weekday business demand. Sports schedules (Titans games, plus major arena shows) can create sharp, short-lived spikes. expaify\u2019s hotel-by-hotel baseline helps distinguish a true discount from a \u201cnormal for this weekend\u201d price, because the comparison is always against that specific property\u2019s own recent median.",
+    "faqs": [
+      {
+        "question": "What makes a room a Nashville deal here?",
+        "answer": "A room is flagged only when the listed nightly rate is 30% or more below that same hotel\u2019s own 60-day median price, and we have at least eight price checks recorded. It\u2019s a property-specific comparison, not a citywide claim."
+      },
+      {
+        "question": "Do you track Airbnbs, vacation rentals, or loft apartments?",
+        "answer": "No. expaify tracks hotel products listed on Expedia, Booking.com, Kiwi and Trip.com. Nashville has lots of short-term rentals, but they\u2019re outside the hotel listings we monitor and flag."
+      },
+      {
+        "question": "Is the discount based on concert tickets, Broadway access, or party packages?",
+        "answer": "No. We compare the room rate to the same hotel\u2019s own rate history. Bundles like ticket packages, parking, or drink credits may be offered by the property or OTA, but they don\u2019t affect whether the room rate is 30% below median."
+      },
+      {
+        "question": "Will I always find qualifying Nashville hotels?",
+        "answer": "Not always. On major event weekends and during heavy convention periods, many hotels\u2019 \u201cusual\u201d prices are already elevated, so fewer listings fall 30% below their own median. More qualifying rates often appear on quieter midweeks."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You pay on Expedia, Booking.com, Kiwi or Trip.com when you click through and complete checkout at their listed rate. expaify doesn\u2019t take payment and charges zero fees."
+      },
+      {
+        "question": "Do cheaper neighborhoods get flagged more often?",
+        "answer": "No. A lower-priced area can still be priced at its normal level, and downtown hotels can still qualify if they drop far enough versus their own median. expaify flags deals relative to each hotel\u2019s history, not the neighborhood."
+      }
+    ]
   }
 ]
