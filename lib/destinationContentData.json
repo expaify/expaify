@@ -678,5 +678,210 @@
         "answer": "No. A lower-priced area can still be priced at its normal level, and downtown hotels can still qualify if they drop far enough versus their own median. expaify flags deals relative to each hotel\u2019s history, not the neighborhood."
       }
     ]
+  },
+  {
+    "slug": "cairo",
+    "seo_title": "Cairo Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Cairo hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below each hotel's 60-day median. Book direct, zero fees.",
+    "h1": "Cairo hotel deals below the usual rate",
+    "intro": "Cairo pricing can look inconsistent because the city sells very different stays under one label: Nile-view towers in Zamalek and Garden City, business hotels around Heliopolis, and quick-stop airport properties. A \u201cgood price\u201d depends on what that same hotel usually charges, not what the market feels like that week. expaify builds a per-property price history from daily snapshots on Expedia, Booking.com, Kiwi and Trip.com, then flags a room only when it is 30%+ below that hotel\u2019s own 60-day median with at least eight recorded price checks. You book on the OTA; expaify adds zero fees.",
+    "seasonality": "Cairo demand follows sightseeing season, regional travel patterns, and the event calendar more than any beach-style high/low switch. Cooler months generally draw more leisure visitors for museums, Old Cairo, and day trips toward Giza, which can lift rates across central neighborhoods. Weekends and public-holiday periods in the region can also nudge pricing, especially for Nile-front and downtown hotels. Ramadan and the Eid breaks can reshape travel timing and compress demand into fewer peak nights depending on the year. Separately, major exhibitions and conference weeks pull up weekday rates in business areas, while shoulder periods between big holiday blocks are when deeper drops tend to appear.",
+    "faqs": [
+      {
+        "question": "What makes a room a Cairo deal here?",
+        "answer": "A deal is flagged only when the listed nightly rate is 30% or more below that same hotel\u2019s own 60-day median, and we have at least eight price checks recorded to support the comparison."
+      },
+      {
+        "question": "Do you track vacation rentals or serviced apartments?",
+        "answer": "No. expaify tracks hotel products listed on Expedia, Booking.com, Kiwi and Trip.com, and does not include private rentals or most apartment-style listings."
+      },
+      {
+        "question": "How should I think about Nile-view vs airport-area hotels?",
+        "answer": "Treat them as separate markets with different \u201cusual\u201d prices. Nile-view and central districts often move with leisure demand, while airport and Heliopolis properties can behave more like weekday business hotels. expaify compares each property only against its own history, so a deal is based on that specific hotel\u2019s normal range."
+      },
+      {
+        "question": "Will I always find qualifying Cairo hotels?",
+        "answer": "Not always. During peak sightseeing periods or large exhibition weeks, many hotels\u2019 typical rates rise together, so fewer rooms fall 30% below their own median. Shoulder periods usually produce more qualifiers."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You pay on the OTA that shows the price drop\u2014Expedia, Booking.com, Kiwi or Trip.com\u2014at their checkout. expaify does not take payment or add fees."
+      },
+      {
+        "question": "Do cheaper Cairo hotels get flagged more often?",
+        "answer": "Not automatically. Because the baseline is each hotel\u2019s own median, a budget hotel needs the same 30% relative drop as a luxury one. Cheaper properties may show smaller absolute savings even when they qualify."
+      }
+    ]
+  },
+  {
+    "slug": "hurghada",
+    "seo_title": "Hurghada Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Hurghada hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below each hotel's 60-day median. Book direct, zero fees.",
+    "h1": "Hurghada hotel deals below the usual rate",
+    "intro": "Hurghada is dominated by resort inventory, and a \u201ccheap\u201d headline rate can be misleading when board basis changes from room-only to half board or all-inclusive. The only consistent way to judge a drop is to compare a hotel to itself over time. expaify keeps a price history for each Hurghada property using daily snapshots from Expedia, Booking.com, Kiwi and Trip.com. We flag a room only when the listed rate is 30%+ below that same hotel\u2019s 60-day median, backed by at least eight recorded price checks. You book on the OTA; expaify adds zero fees.",
+    "seasonality": "Hurghada\u2019s demand is closely tied to European \u201cwinter sun\u201d travel and package charter cycles. When northern Europe cools down, resort occupancy and pricing tend to firm up, especially around major holiday weeks that are popular with charter schedules. In the hottest summer period, some visitors shift toward pools and water activities, but extreme heat can soften demand for certain traveler segments, creating more uneven pricing between resorts. Dive travel adds its own rhythm: strong underwater interest can buoy mid-season weeks even outside school holidays, while windy or shoulder periods can see more discounting. Because many resorts sell all-inclusive in volume, sudden price moves often reflect package availability rather than a true change in a hotel\u2019s usual room rate.",
+    "faqs": [
+      {
+        "question": "What makes a room a Hurghada deal here?",
+        "answer": "We flag a deal only when a hotel\u2019s listed nightly rate is 30% or more below that same hotel\u2019s own 60-day median, with at least eight price checks recorded."
+      },
+      {
+        "question": "Do you track villas, vacation homes, or resort apartments?",
+        "answer": "No. expaify tracks hotel listings on Expedia, Booking.com, Kiwi and Trip.com, not private rentals or standalone villas."
+      },
+      {
+        "question": "Is the discount based on all-inclusive inclusions or resort fees?",
+        "answer": "No. expaify compares the listed rate to that same hotel\u2019s own rate history. Meal plans, inclusions, mandatory resort fees, and local taxes are not \u201cvalued\u201d in the calculation; any mandatory charges are shown in the OTA\u2019s price breakdown at checkout."
+      },
+      {
+        "question": "Will I always find qualifying Hurghada hotels?",
+        "answer": "Not always. During peak charter and holiday weeks, many resorts\u2019 usual prices rise, so fewer rates fall 30% below their own medians. Qualifying drops are more common on shoulders and less-packed weeks."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You complete booking and payment on Expedia, Booking.com, Kiwi or Trip.com. expaify only flags the drop and sends you to the OTA; we charge zero fees."
+      },
+      {
+        "question": "Do cheaper Hurghada resorts get flagged more often?",
+        "answer": "No. The threshold is relative to each property\u2019s own median. A low-cost resort and a premium resort both need the same 30%+ drop to qualify; the difference is the absolute currency savings."
+      }
+    ]
+  },
+  {
+    "slug": "sharm-el-sheikh",
+    "seo_title": "Sharm El Sheikh Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Sharm El Sheikh hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below each hotel's 60-day median. Book direct, zero fees.",
+    "h1": "Sharm El Sheikh hotel deals below the usual rate",
+    "intro": "Sharm El Sheikh rates are shaped by resort compounds, flight availability, and board basis\u2014so a price that looks \u201con sale\u201d can simply be a different meal plan than yesterday. expaify avoids comparing one resort to another and instead tracks each property\u2019s own price history using daily snapshots from Expedia, Booking.com, Kiwi and Trip.com. A room is flagged only when its listed rate sits 30%+ below that hotel\u2019s own 60-day median, and only after at least eight recorded price checks so one odd listing cannot create a false bargain. You book on the OTA; expaify adds zero fees.",
+    "seasonality": "Sharm follows a Red Sea resort calendar, with stronger demand when travelers are escaping colder weather and when holiday charter programs are most active. Peak weeks around major holidays typically lift resort floors across areas like Naama Bay and Sharks Bay, and \u201csale\u201d labels in those windows can still be above a resort\u2019s quieter-week baseline. Summer can be busy, but intense heat changes the mix of demand and can make pricing more variable between family-focused all-inclusive resorts and smaller properties. Shoulder periods between the big holiday blocks are often when larger percentage drops show up. Dive and snorkeling interest supports demand year-round, but the deepest discounts usually appear when flights and packages are less dense.",
+    "faqs": [
+      {
+        "question": "What makes a room a Sharm El Sheikh deal here?",
+        "answer": "A deal is flagged when the listed nightly rate is 30% or more below that same hotel\u2019s own 60-day median, with a minimum of eight price checks recorded."
+      },
+      {
+        "question": "Do you track vacation rentals or private villas?",
+        "answer": "No. expaify tracks hotel products on Expedia, Booking.com, Kiwi and Trip.com, not private villa rentals or peer-to-peer listings."
+      },
+      {
+        "question": "Is the discount based on all-inclusive value, perks, or taxes?",
+        "answer": "No. The comparison is rate-to-rate against the same hotel\u2019s own history. We do not estimate the value of meal plans or perks, and mandatory charges (if any) are disclosed in the OTA\u2019s checkout breakdown."
+      },
+      {
+        "question": "Will I always find qualifying Sharm hotels?",
+        "answer": "Not always. In holiday charter peaks, many resorts\u2019 \u201cusual\u201d prices rise together, which reduces how often rates fall 30% below their own medians. Shoulder weeks typically produce more qualifiers."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You pay on the OTA that lists the room\u2014Expedia, Booking.com, Kiwi or Trip.com. expaify sends you there and charges no additional fees."
+      },
+      {
+        "question": "Do lower-priced Sharm resorts qualify more often?",
+        "answer": "No. Because each hotel is judged against its own 60-day median, a cheaper resort does not get an easier standard; the required percentage drop is the same."
+      }
+    ]
+  },
+  {
+    "slug": "antalya",
+    "seo_title": "Antalya Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Antalya hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below each hotel's 60-day median. Book direct, zero fees.",
+    "h1": "Antalya hotel deals below the usual rate",
+    "intro": "Antalya is not one hotel market: beach mega-resorts in Lara and along the coast price differently than Old Town (Kalei\u00e7i) boutiques or city-center business hotels. Add heavy all-inclusive inventory and you often see rates shift with board basis and package availability rather than with the bed itself. expaify tracks each property\u2019s own pricing using daily snapshots from Expedia, Booking.com, Kiwi and Trip.com. We flag a room only when the listed rate is 30%+ below that hotel\u2019s own 60-day median, with at least eight recorded price checks. You book on the OTA; expaify adds zero fees.",
+    "seasonality": "Antalya has a clear summer peak driven by European leisure travel and strong Turkish domestic demand, especially around school holidays. In those periods, resort corridors can sell out quickly and \u201cdiscounted\u201d rates may still sit near a hotel\u2019s peak-season norms. Spring and fall are the main shoulder windows: weather is still attractive, but occupancy pressure eases, and more properties drop far enough below their own recent medians to qualify. Winter is typically softer for beach-focused all-inclusive resorts, while city hotels can be steadier due to local business travel and events. Because Antalya contains both resort and urban inventory, day-of-week patterns can diverge: resort pricing often concentrates on weekend-heavy leisure flows, while central hotels can show midweek firmness.",
+    "faqs": [
+      {
+        "question": "What makes a room an Antalya deal here?",
+        "answer": "A deal is flagged when a hotel\u2019s listed nightly rate is 30% or more below that same hotel\u2019s own 60-day median, and we have at least eight price checks recorded."
+      },
+      {
+        "question": "Do you track villas, holiday homes, or apartment rentals?",
+        "answer": "No. expaify tracks hotel listings from Expedia, Booking.com, Kiwi and Trip.com only, not private rentals or villa inventories."
+      },
+      {
+        "question": "Is the discount based on all-inclusive/ultra all-inclusive or room-only pricing?",
+        "answer": "It is based on the listed rate compared to that same hotel\u2019s own rate history. We do not convert meal plans, drinks packages, resort fees, or local taxes into a discount; any mandatory charges are shown in the OTA\u2019s checkout breakdown."
+      },
+      {
+        "question": "Will I always find qualifying Antalya hotels?",
+        "answer": "Not always. In peak summer and major holiday weeks, many hotels\u2019 usual rates rise, so fewer offers drop 30% below their own median. More qualifiers tend to appear in shoulder months and quieter weeks."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You book and pay on Expedia, Booking.com, Kiwi or Trip.com at their checkout. expaify does not take payment and adds zero fees."
+      },
+      {
+        "question": "Do cheaper Antalya hotels get flagged more often?",
+        "answer": "No. The threshold is relative to each hotel\u2019s own median, so budget and luxury properties face the same 30% drop requirement; savings just differ in absolute currency terms."
+      }
+    ]
+  },
+  {
+    "slug": "istanbul",
+    "seo_title": "Istanbul Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Istanbul hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below each hotel's 60-day median. Book direct, zero fees.",
+    "h1": "Istanbul hotel deals below the usual rate",
+    "intro": "Istanbul is a year-round city where pricing swings by neighborhood, not by beach season. Sultanahmet and Sirkeci move with sightseeing demand, while Taksim, \u015ei\u015fli, and Levent are sensitive to weekday business travel, events, and conventions. That mix makes market-wide \u201caverage\u201d prices unreliable. expaify tracks each hotel independently using daily snapshots from Expedia, Booking.com, Kiwi and Trip.com, and flags a rate only when it falls 30%+ below that hotel\u2019s own 60-day median, supported by at least eight recorded price checks. You book on the OTA; expaify adds zero fees.",
+    "seasonality": "Istanbul tends to behave like a true city market: demand exists in every month, but it spikes around conferences, exhibitions, and major holiday travel periods. Spring and fall often attract heavy leisure traffic for walking-friendly weather and cultural sightseeing, which can tighten availability in central tourist districts. Summer is also popular, but pricing can be uneven as some demand shifts toward coastal destinations while the city remains busy. Winter can bring more frequent dips outside of New Year and school-break windows, particularly for business-oriented hotels when corporate travel softens. Day-of-week effects are real: weekday rates can firm up in business areas during event weeks, while weekend drops are more common there, even as historic-center hotels may show the opposite pattern.",
+    "faqs": [
+      {
+        "question": "What makes a room an Istanbul deal here?",
+        "answer": "We flag a deal only when the listed nightly rate is 30% or more below that same hotel\u2019s own 60-day median, with at least eight recorded price checks."
+      },
+      {
+        "question": "Do you track vacation rentals or Airbnb-style apartments?",
+        "answer": "No. expaify tracks hotel products listed on Expedia, Booking.com, Kiwi and Trip.com, not short-term rentals or private apartments."
+      },
+      {
+        "question": "Should I compare European-side and Asian-side hotels the same way?",
+        "answer": "They serve different trip types and commute patterns, so \u201cusual\u201d pricing differs. expaify compares each property only against its own history, so a Kad\u0131k\u00f6y hotel is judged against its typical rates, not against a Sultanahmet or Taksim average."
+      },
+      {
+        "question": "Will I always find qualifying Istanbul hotels?",
+        "answer": "Not always. During major fairs, congress weeks, and holiday spikes, many hotels\u2019 typical rates rise, which reduces how often prices fall 30% below their own medians. Quieter weeks produce more qualifiers."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "You complete payment on Expedia, Booking.com, Kiwi or Trip.com. expaify links you to the OTA\u2019s checkout and charges zero fees."
+      },
+      {
+        "question": "Do cheaper Istanbul properties get flagged more often?",
+        "answer": "No. The standard is always the same 30%+ drop versus that hotel\u2019s own median. Lower-priced hotels can qualify, but the absolute savings are usually smaller."
+      }
+    ]
+  },
+  {
+    "slug": "bodrum",
+    "seo_title": "Bodrum Hotel Deals: 30%+ Below Usual Rates | expaify",
+    "seo_description": "Track Bodrum hotel rates on Expedia, Booking.com, Kiwi and Trip.com. We flag rooms 30%+ below each hotel's 60-day median. Book direct, zero fees.",
+    "h1": "Bodrum hotel deals below the usual rate",
+    "intro": "Bodrum\u2019s hotel market is compressed into a short, intense summer, and pricing is often pulled around by marina events, beach club season, and villa-heavy holiday demand in nearby bays. That makes \u201cdeal\u201d labels unreliable, especially when resorts switch between room-only, breakfast, and all-inclusive. expaify tracks each Bodrum property\u2019s own history using daily snapshots from Expedia, Booking.com, Kiwi and Trip.com. We flag a room only when the listed rate is 30%+ below that hotel\u2019s own 60-day median, with at least eight recorded price checks. You book on the OTA; expaify adds zero fees.",
+    "seasonality": "Bodrum has one of Turkey\u2019s sharpest seasonality curves: demand surges in high summer and concentrates into peak weeks when beach clubs, yachting, and holiday-home travel are in full swing. In that core period, availability can tighten quickly and price drops are less common, even when an OTA shows a promo badge. The shoulders\u2014late spring and early fall\u2014often create the best mix of open inventory and lower pressure, which is when larger percentage dips are more likely to appear. Off-season is pronounced: many leisure-focused properties reduce operations or target different segments, and pricing can become inconsistent as some hotels close and others compete for a smaller pool of guests. Weekend-heavy patterns are common due to short-break travel.",
+    "faqs": [
+      {
+        "question": "What makes a room a Bodrum deal here?",
+        "answer": "We flag a deal only when the listed nightly rate is 30% or more below that same hotel\u2019s own 60-day median, supported by at least eight recorded price checks."
+      },
+      {
+        "question": "Do you track villas and holiday-home rentals around Bodrum?",
+        "answer": "No. expaify tracks hotel listings from Expedia, Booking.com, Kiwi and Trip.com, not private villas, holiday homes, or peer-to-peer rentals."
+      },
+      {
+        "question": "Is the discount based on all-inclusive value or just the room rate?",
+        "answer": "It is a rate-to-history comparison for the same hotel. We do not price meal plans, beach club access, resort fees, or local taxes into the discount; mandatory charges (if any) are shown in the OTA\u2019s checkout details."
+      },
+      {
+        "question": "Will I always find qualifying Bodrum hotels?",
+        "answer": "Not always. In the short high-summer peak, many properties\u2019 usual rates are already elevated, so fewer offers fall 30% below their own medians. More qualifiers tend to show up on shoulders or midweek gaps."
+      },
+      {
+        "question": "Where do I actually pay?",
+        "answer": "On the OTA that lists the room\u2014Expedia, Booking.com, Kiwi or Trip.com\u2014at their checkout. expaify charges you nothing."
+      },
+      {
+        "question": "Do cheaper Bodrum hotels get flagged more often?",
+        "answer": "No. Every property must meet the same 30% threshold versus its own median. Budget hotels can qualify, but the absolute savings are usually smaller than on high-end properties."
+      }
+    ]
   }
+
 ]
