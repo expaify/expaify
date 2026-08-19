@@ -1,0 +1,24 @@
+name: Free Trial Sequence Emails
+
+on:
+  schedule:
+    - cron: '17 13 * * *'
+  workflow_dispatch:
+
+jobs:
+  trial-sequence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger trial sequence on prod
+        env:
+          PIPELINE_SECRET: ${{ secrets.PIPELINE_SECRET }}
+        run: |
+          curl -fsSL --max-time 60 \
+            -X POST https://expaify.com/api/alerts/trial-sequence \
+            -H "Authorization: Bearer ${PIPELINE_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{}' | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          print(f'D3 sent: {d.get(\"d3Sent\", 0)}, D7 sent: {d.get(\"d7Sent\", 0)}, Failed: {d.get(\"failed\", 0)}')
+          "
