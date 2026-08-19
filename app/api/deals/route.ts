@@ -199,7 +199,7 @@ export async function GET(req: NextRequest) {
   const paywalled = source.items.map((row) => {
     const locked = !pwCtx.premium && !unlockedIds.has(row.id)
     return toApiDeal(row, locked)
-  })
+  }).sort((a, b) => Number(a.locked) - Number(b.locked))
 
   return NextResponse.json({
     deals: paywalled,
