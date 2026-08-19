@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import Script from "next/script";
 import { AttributionCapture } from "./components/AttributionCapture";
+import { Footer } from "./components/Footer";
 import { OpinlyIdentify } from "./components/OpinlyIdentify";
 import { Providers } from "./Providers";
 import "./globals.css";
@@ -81,6 +82,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <OpinlyIdentify />
           {children}
         </Providers>
+        <Footer />
         <Script
           id="opinly-pixel"
           src="https://static.opinly.ai/p.js"
