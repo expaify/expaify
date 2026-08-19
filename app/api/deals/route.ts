@@ -6,6 +6,7 @@ import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { generateMockDeals } from '@/lib/pipeline/mock'
 import { buildDealPage, HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
 import { resolveHotelResultsView, resolveHotelSearchCriteria } from '@/lib/hotels/searchCriteria'
+import type { HotelReviewEvidence } from '@/lib/types'
 
 export const runtime = 'nodejs'
 
@@ -14,6 +15,7 @@ type ApiDeal = {
   hotelId: string
   hotelName: string
   stars: number | null
+  reviewEvidence?: HotelReviewEvidence
   photoUrl: string | null
   city: string
   dealPriceCents: number
@@ -55,11 +57,22 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
       locked: true,
     }
   }
+  let parsedEvidence: HotelReviewEvidence | undefined
+  if (row.review_evidence) {
+    try {
+      parsedEvidence = typeof row.review_evidence === 'string'
+        ? JSON.parse(row.review_evidence) as HotelReviewEvidence
+        : row.review_evidence as HotelReviewEvidence
+    } catch (error) {
+      console.warn(`Malformed review_evidence JSON for hotel_id ${row.hotel_id}:`, error)
+    }
+  }
   return {
     id: row.id,
     hotelId: row.hotel_id,
     hotelName: row.hotel_name,
     stars: row.stars === null ? null : Number(row.stars),
+    ...(parsedEvidence ? { reviewEvidence: parsedEvidence } : {}),
     photoUrl: row.photo_url,
     city: row.city,
     dealPriceCents: row.deal_price_cents,

@@ -105,8 +105,38 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
     expect(insertCall).toBeDefined()
-    const priceCents = insertCall?.[1]?.[7]
+    const priceCents = insertCall?.[1]?.[8]
     expect(priceCents).toBe(19456) // $194.56/night ($389.12 / 2), not the undivided $389.12 (38912 cents)
+  })
+
+  it('stores TripAdvisor bubbles as review evidence and never as property-class stars', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: {
+          data: [{
+            id: '123',
+            title: '1. Test Hotel',
+            bubbleRating: { rating: 4.5, count: '(600)' },
+            priceForDisplay: '$125',
+          }],
+        },
+      }),
+    })
+
+    const [result] = await runSnapshotsForMarket(MIA, 2)
+    expect(result.hotelsProcessed).toBe(1)
+
+    const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
+    expect(insertCall?.[1]?.[2]).toBeNull()
+    expect(JSON.parse(insertCall?.[1]?.[3])).toMatchObject({
+      state: 'ready',
+      providerPropertyId: 'ta_123',
+      provenance: 'provider_only',
+      score: { value: 4.5, scaleMax: 5 },
+      overallReviewCount: 600,
+    })
   })
 
   it('still re-throws RateLimitError out of runSnapshotsForMarket unchanged (the route handler, not this function, decides what to do with it)', async () => {
@@ -192,7 +222,7 @@ describe('fetchPricelineCom (4th rotation provider, separate RAPIDAPI_KEY_PRICEL
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
     expect(insertCall).toBeDefined()
-    const priceCents = insertCall?.[1]?.[7]
+    const priceCents = insertCall?.[1]?.[8]
     expect(priceCents).toBe(6299) // $62.99, not the fake $6.00 teaser (600 cents)
   })
 

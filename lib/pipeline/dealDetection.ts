@@ -10,6 +10,7 @@ type SnapshotRow = {
   hotel_id: string
   hotel_name: string
   stars: number | null
+  review_evidence?: unknown
   photo_url: string | null
   check_in: Date
   avg_price_cents: number
@@ -45,6 +46,9 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
        hotel_id,
        hotel_name,
        stars,
+       (SELECT review_evidence FROM price_snapshots ps2
+        WHERE ps2.hotel_id = ps.hotel_id AND ps2.market_id = ps.market_id AND ps2.check_in = ps.check_in
+        ORDER BY captured_at DESC LIMIT 1)                           AS review_evidence,
        photo_url,
        check_in,
        AVG(price_cents)::INT                                          AS avg_price_cents,
@@ -66,7 +70,7 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
   const copyCandidates: CopyCandidate[] = []
 
   for (const row of snaps.rows) {
-    const { hotel_id, hotel_name, stars, photo_url, check_in, median_price_cents, latest_price_cents, snapshot_count, is_mock } = row
+    const { hotel_id, hotel_name, stars, review_evidence, photo_url, check_in, median_price_cents, latest_price_cents, snapshot_count, is_mock } = row
 
     const decision = evaluateDeal({
       latestPriceCents: latest_price_cents,
@@ -91,23 +95,25 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
       const checkInWindow = formatWindow(check_in, 2)
       const upserted = await query<{ id: string; headline: string | null; description: string | null }>(
         `INSERT INTO deals
-           (hotel_id, hotel_name, stars, photo_url, market_id, deal_price_cents,
+           (hotel_id, hotel_name, stars, review_evidence, photo_url, market_id, deal_price_cents,
             median_price_cents, discount_pct, check_in_window, check_in_date, nights,
             snapshot_count, ota_links, status, is_mock, expires_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,2,$11,$12,'active',$13,
-                 $10::DATE + INTERVAL '90 days', NOW())
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,2,$12,$13,'active',$14,
+                 $11::DATE + INTERVAL '90 days', NOW())
          ON CONFLICT (hotel_id, market_id, check_in_date) DO UPDATE SET
+           stars              = EXCLUDED.stars,
            deal_price_cents   = EXCLUDED.deal_price_cents,
            median_price_cents = EXCLUDED.median_price_cents,
            discount_pct       = EXCLUDED.discount_pct,
            snapshot_count     = EXCLUDED.snapshot_count,
+           review_evidence    = EXCLUDED.review_evidence,
            ota_links          = EXCLUDED.ota_links,
            status             = 'active',
            is_mock            = EXCLUDED.is_mock,
            updated_at         = NOW()
          RETURNING id, headline, description`,
         [
-          hotel_id, hotel_name, stars, photo_url, market.id,
+          hotel_id, hotel_name, stars, review_evidence, photo_url, market.id,
           latest_price_cents, median_price_cents, discountPct,
           checkInWindow, checkInStr,
           snapshot_count, JSON.stringify(links), is_mock,
@@ -157,6 +163,7 @@ export type DealRow = {
   hotel_id: string
   hotel_name: string
   stars: number | null
+  review_evidence?: unknown
   photo_url: string | null
   city: string
   deal_price_cents: number
@@ -188,7 +195,7 @@ export async function getDealById(id: string): Promise<DealRow | null> {
 
   const res = await query<DealRow>(
     `SELECT
-       d.id, d.hotel_id, d.hotel_name, d.stars, d.photo_url,
+       d.id, d.hotel_id, d.hotel_name, d.stars, d.review_evidence, d.photo_url,
        m.city,
        d.deal_price_cents, d.median_price_cents, d.discount_pct,
        d.check_in_window, d.check_in_date::TEXT, d.nights,
@@ -286,7 +293,7 @@ export async function getActiveDeals(opts: {
 
   const res = await query<DealRow>(
     `SELECT
-       d.id, d.hotel_id, d.hotel_name, d.stars, d.photo_url,
+       d.id, d.hotel_id, d.hotel_name, d.stars, d.review_evidence, d.photo_url,
        m.city,
        d.deal_price_cents, d.median_price_cents, d.discount_pct,
        d.check_in_window, d.check_in_date::TEXT, d.nights,
@@ -326,6 +333,7 @@ type TrackedSnapshotRow = {
   hotel_id: string
   hotel_name: string
   stars: number | null
+  review_evidence: unknown
   photo_url: string | null
   check_in: Date
   market_id: number
@@ -344,7 +352,7 @@ type TrackedSnapshotRow = {
 // a stale, tiny group's "median" got compared against a price captured
 // under a different photo_url, producing a fabricated-looking discount).
 const TRACKED_SNAPSHOT_SELECT = `
-  SELECT g.hotel_id, latest.hotel_name, latest.stars, latest.photo_url,
+  SELECT g.hotel_id, latest.hotel_name, latest.stars, latest.review_evidence, latest.photo_url,
          g.check_in, g.market_id, g.city,
          g.median_price_cents, latest.price_cents AS latest_price_cents,
          latest.captured_at AS latest_captured_at, g.snapshot_count
@@ -360,7 +368,7 @@ const TRACKED_SNAPSHOT_SELECT = `
     GROUP BY ps.hotel_id, ps.check_in, ps.market_id, m.city
   ) g
   JOIN LATERAL (
-    SELECT hotel_name, stars, photo_url, price_cents, captured_at
+    SELECT hotel_name, stars, review_evidence, photo_url, price_cents, captured_at
     FROM price_snapshots ps2
     WHERE ps2.hotel_id = g.hotel_id AND ps2.market_id = g.market_id AND ps2.check_in = g.check_in
     ORDER BY captured_at DESC
@@ -390,6 +398,7 @@ function mapTrackedRowToDealRow(row: TrackedSnapshotRow): DealRow {
     hotel_id: row.hotel_id,
     hotel_name: row.hotel_name,
     stars: row.stars,
+    review_evidence: row.review_evidence,
     photo_url: row.photo_url,
     city: row.city,
     deal_price_cents: row.latest_price_cents,

@@ -80,6 +80,50 @@ describe('GET /api/deals sorting', () => {
     expect(mockGetFreeUnlockedDealIds).not.toHaveBeenCalled()
   })
 
+  it('parses serialized review evidence into the unlocked API deal', async () => {
+    mockGetPaywallContext.mockResolvedValue({
+      userId: 'premium-user', premium: true, freeUnlockedThisWeek: 0, freeUnlockLimit: 3,
+    })
+    mockGetActiveDeals.mockResolvedValue([{
+      ...row,
+      review_evidence: JSON.stringify({
+        schemaVersion: 1,
+        state: 'ready',
+        providerPropertyId: 'ta_123',
+        providerId: 'tripadvisor16',
+        provenance: 'provider_only',
+        sourceLabel: 'TripAdvisor',
+        coverage: { kind: 'none' },
+        score: { value: 4.5, scaleMax: 5 },
+      }),
+    }])
+
+    const response = await GET(request('limit=12&offset=0'))
+    const body = await response.json() as { deals: Array<Record<string, unknown>> }
+
+    expect(body.deals[0].reviewEvidence).toMatchObject({
+      providerPropertyId: 'ta_123',
+      provenance: 'provider_only',
+      score: { value: 4.5, scaleMax: 5 },
+    })
+  })
+
+  it('warns and omits malformed review evidence instead of failing the route', async () => {
+    mockGetPaywallContext.mockResolvedValue({
+      userId: 'premium-user', premium: true, freeUnlockedThisWeek: 0, freeUnlockLimit: 3,
+    })
+    mockGetActiveDeals.mockResolvedValue([{ ...row, review_evidence: '{broken' }])
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    const response = await GET(request('limit=12&offset=0'))
+    const body = await response.json() as { deals: Array<Record<string, unknown>> }
+
+    expect(response.status).toBe(200)
+    expect(body.deals[0].reviewEvidence).toBeUndefined()
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('hotel_id hotel-1'), expect.any(SyntaxError))
+    warn.mockRestore()
+  })
+
   it.each(['price', 'discount'])('forces newest for free requests asking for %s and masks only after retrieval', async requestedSort => {
     mockGetPaywallContext.mockResolvedValue({
       userId: null,

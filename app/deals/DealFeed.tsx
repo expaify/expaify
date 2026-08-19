@@ -45,6 +45,7 @@ import {
   deriveHotelFundsSetPresentation,
   type ApiDealFundsPolicy,
 } from '../components/HotelFundsPolicyComparison'
+import type { HotelReviewEvidence } from '@/lib/types'
 import { createUnsupportedHotelClimateEvidence } from '@/lib/hotels/climateEvidence'
 
 const CITIES = [
@@ -132,6 +133,7 @@ export type ApiDeal = {
   hotelId: string
   hotelName: string
   stars: number | null
+  reviewEvidence?: HotelReviewEvidence
   photoUrl: string | null
   city: string
   dealPriceCents: number
@@ -1840,7 +1842,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 {deals.map(deal => deal.locked ? (
                   <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
-                  <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
+                  <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, reviewEvidence: deal.reviewEvidence, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
               </div>
             </>
@@ -1857,7 +1859,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 {deals.map(deal => deal.locked ? (
                   <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
-                  <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
+                  <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, reviewEvidence: deal.reviewEvidence, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' }, medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
               </div>
             </>
@@ -1961,6 +1963,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                         hotelName: deal.hotelName,
                         city: deal.city,
                         stars: deal.stars,
+                        reviewEvidence: deal.reviewEvidence,
                         photoUrl: deal.photoUrl ?? undefined,
                         dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' },
                         medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' },

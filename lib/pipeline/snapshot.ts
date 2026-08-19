@@ -1,4 +1,5 @@
 import { query } from '../db/client'
+import type { HotelReviewEvidence } from '../types'
 import { buildOtaLinks } from './otaLinks'
 
 const NIGHTS = 2
@@ -69,6 +70,7 @@ type HotelEntry = {
   hotelId: string
   hotelName: string
   stars: number | null
+  reviewEvidence?: HotelReviewEvidence | null
   priceCents: number   // per night
   photoUrl: string | null
 }
@@ -162,6 +164,43 @@ function parseTAPrice(raw: string | null | undefined): number {
   return isNaN(num) ? 0 : Math.round(num * 100)
 }
 
+/** Maps TripAdvisor aggregate bubble data without inventing missing values. */
+export function tripAdvisorBubbleRatingToReviewEvidence(
+  rawHotel: {
+    id: string
+    title: string
+    bubbleRating?: {
+      rating?: number
+      count?: string
+    } | null
+  },
+  providerPropertyId: string
+): HotelReviewEvidence | null {
+  if (!rawHotel.bubbleRating) return null
+
+  const rawRating = rawHotel.bubbleRating.rating
+  const hasValidScore = typeof rawRating === 'number'
+    && Number.isFinite(rawRating)
+    && rawRating >= 0
+    && rawRating <= 5
+  const cleanCount = rawHotel.bubbleRating.count?.replace(/\D/g, '') ?? ''
+  const parsedCount = cleanCount ? Number.parseInt(cleanCount, 10) : undefined
+
+  return {
+    schemaVersion: 1,
+    state: hasValidScore ? 'ready' : 'not_provided',
+    providerPropertyId: `ta_${providerPropertyId}`,
+    providerId: 'tripadvisor16',
+    provenance: 'provider_only',
+    sourceLabel: 'TripAdvisor',
+    coverage: { kind: 'none' },
+    ...(hasValidScore ? { score: { value: rawRating, scaleMax: 5 } } : {}),
+    ...(parsedCount !== undefined && Number.isFinite(parsedCount) && parsedCount > 0
+      ? { overallReviewCount: parsedCount }
+      : {}),
+  }
+}
+
 async function fetchTripAdvisor(iata: string, checkIn: string, checkOut: string, key: string): Promise<HotelEntry[]> {
   const geoId = TA_GEO[iata]
   if (!geoId) return []
@@ -182,13 +221,16 @@ async function fetchTripAdvisor(iata: string, checkIn: string, checkOut: string,
     const hotel = h as Record<string, unknown>
     const id = String(hotel.id ?? '')
     const name = String(hotel.title ?? '').replace(/^\d+\.\s*/, '') // strip "1. " prefix
-    const stars = (hotel.bubbleRating as { rating?: number } | undefined)?.rating ?? null
+    const reviewEvidence = tripAdvisorBubbleRatingToReviewEvidence(
+      hotel as { id: string; title: string; bubbleRating?: { rating?: number; count?: string } | null },
+      id
+    )
     const photos = (hotel.cardPhotos as { sizes?: { urlTemplate?: string } }[] | undefined) ?? []
     const photoTpl = photos[0]?.sizes?.urlTemplate ?? null
     const photo = photoTpl ? photoTpl.replace('{width}', '600').replace('{height}', '400') : null
     const priceCents = parseTAPrice(hotel.priceForDisplay as string | undefined)
     if (!id || !name || priceCents <= 0) return []
-    return [{ hotelId: `ta_${id}`, hotelName: name, stars: stars ? Number(stars) : null, priceCents, photoUrl: photo }]
+    return [{ hotelId: `ta_${id}`, hotelName: name, stars: null, reviewEvidence, priceCents, photoUrl: photo }]
   })
 }
 
@@ -290,11 +332,14 @@ async function fetchWithRotation(
 async function storeSnapshot(market: Market, hotel: HotelEntry, checkIn: string, isMock: boolean): Promise<void> {
   await query(
     `INSERT INTO price_snapshots
-       (hotel_id, hotel_name, stars, photo_url, market_id, check_in, nights, price_cents, currency, snapshot_date, is_mock)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'USD',CURRENT_DATE,$9)
+       (hotel_id, hotel_name, stars, review_evidence, photo_url, market_id, check_in, nights, price_cents, currency, snapshot_date, is_mock)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'USD',CURRENT_DATE,$10)
      ON CONFLICT ON CONSTRAINT price_snapshots_unique
-     DO UPDATE SET price_cents = EXCLUDED.price_cents, photo_url = COALESCE(EXCLUDED.photo_url, price_snapshots.photo_url)`,
-    [hotel.hotelId, hotel.hotelName, hotel.stars, hotel.photoUrl, market.id, checkIn, NIGHTS, hotel.priceCents, isMock]
+     DO UPDATE SET price_cents = EXCLUDED.price_cents,
+                   stars = EXCLUDED.stars,
+                   review_evidence = EXCLUDED.review_evidence,
+                   photo_url = COALESCE(EXCLUDED.photo_url, price_snapshots.photo_url)`,
+    [hotel.hotelId, hotel.hotelName, hotel.stars, hotel.reviewEvidence ? JSON.stringify(hotel.reviewEvidence) : null, hotel.photoUrl, market.id, checkIn, NIGHTS, hotel.priceCents, isMock]
   )
 }
 
