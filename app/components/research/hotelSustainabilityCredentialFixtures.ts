@@ -65,7 +65,12 @@ export function createHotelSustainabilityCredentialFixture(id: HotelSustainabili
       sourceLabel: 'EarthCheck research registry',
       levelLabel: 'Silver',
     }])
-    case 'cred-expired': return ready('expired', [{ ...issuerRecord, statusLabel: 'Expired', validThrough: '2025-11-30' }])
+    case 'cred-expired': return ready('expired', [{
+      ...issuerRecord,
+      statusLabel: 'Expired',
+      validFrom: '2025-01-01',
+      validThrough: '2025-11-30',
+    }])
     case 'cred-incomplete': return ready('incomplete', [{
       id: 'research-incomplete',
       schemeName: 'Green Key',
