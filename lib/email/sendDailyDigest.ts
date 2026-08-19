@@ -1,8 +1,9 @@
 import { render } from '@react-email/components'
 import { getResend, FROM } from './resend'
 import { DailyDigest } from './templates/DailyDigest'
-import { query } from '../db/client'
+import { query, withTransaction } from '../db/client'
 import { isPremium, type SubscriptionStatus } from '../subscription'
+import { sendQuietDay } from './sendQuietDay'
 
 const BASE_URL = process.env.AUTH_URL ?? 'https://expaify.com'
 const DEFAULT_MIN_DISCOUNT = 40
@@ -19,6 +20,39 @@ type DigestRecipient = {
   unsubscribeToken: string
   status: SubscriptionStatus
   watchlist: string[]
+}
+
+async function sendQuietDayIfEligible(recipient: DigestRecipient, city: string): Promise<boolean> {
+  return withTransaction(async client => {
+    const eligibility = await client.query<{ eligible: boolean; reset_window: boolean }>(
+      `SELECT
+         (last_quiet_day_sent_at IS NULL
+           OR last_quiet_day_sent_at <= NOW() - INTERVAL '7 days'
+           OR quiet_day_sent_count_7d < 2) AS eligible,
+         (last_quiet_day_sent_at IS NULL
+           OR last_quiet_day_sent_at <= NOW() - INTERVAL '7 days') AS reset_window
+       FROM subscriptions
+       WHERE user_id = $1 AND status = 'free'
+         AND (last_quiet_day_sent_at IS NULL OR
+           (last_quiet_day_sent_at AT TIME ZONE COALESCE(alert_timezone, 'America/New_York'))::DATE <
+           (NOW() AT TIME ZONE COALESCE(alert_timezone, 'America/New_York'))::DATE)
+       FOR UPDATE`,
+      [recipient.userId],
+    )
+    const row = eligibility.rows[0]
+    if (!row?.eligible) return false
+
+    await sendQuietDay({ email: recipient.email, city, unsubscribeToken: recipient.unsubscribeToken })
+    await client.query(
+      `UPDATE subscriptions
+       SET last_quiet_day_sent_at = NOW(),
+           quiet_day_sent_count_7d = CASE WHEN $2 THEN 1 ELSE quiet_day_sent_count_7d + 1 END,
+           updated_at = NOW()
+       WHERE user_id = $1 AND status = 'free'`,
+      [recipient.userId, row.reset_window],
+    )
+    return true
+  })
 }
 
 export type DigestDealRow = {
@@ -194,6 +228,13 @@ export async function runDailyDigest(): Promise<{ recipients: number; skipped: n
 
       if (deals.rows.length === 0) {
         await recordDigestSkipped({ status: recipient.status, cities: recipient.watchlist, path: '/cron/daily-digest' })
+        const city = recipient.watchlist[0]
+        if (!isPremium(recipient.status) && city) {
+          if (await sendQuietDayIfEligible(recipient, city)) {
+            sent++
+            continue
+          }
+        }
         skipped++
         continue
       }
