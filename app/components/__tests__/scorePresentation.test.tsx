@@ -586,8 +586,9 @@ describe('Deal score presentation', () => {
     const titleIndex = source.indexOf('<h1 id="saved-hotel-title"')
     const priceIndex = source.indexOf('<section aria-labelledby="saved-price-score-title"')
     const scoreIndex = source.lastIndexOf('<DealScoreSection deal={deal}')
-    const photoIndex = source.indexOf('<PropertyPhoto src={deal.photo_url}')
-    const actionIndex = source.indexOf('<section aria-labelledby="saved-provider-title"')
+    // Assert the established ordering in the later, flag-off rollback branch.
+    const photoIndex = source.lastIndexOf('<PropertyPhoto src={deal.photo_url}')
+    const actionIndex = source.lastIndexOf('<section aria-labelledby="saved-provider-title"')
 
     expect(source).toContain('PropertyPhoto src={deal.photo_url}')
     expect(source).toContain('Deal found {foundAgo}')
@@ -660,7 +661,7 @@ describe('DealScorePanel — presentation clarity', () => {
 
     const { sampleSize: _omit, ...withoutSampleSize } = scoredHigh
     const textNone = collectText(panel(withoutSampleSize))
-    expect(textNone).toContain('Last 90 days')
+    expect(textNone).toContain('Last 60 days')
     expect(textNone).not.toContain('NaN')
     expect(textNone).not.toContain('undefined')
     expect(textNone).not.toContain('0 price checks')

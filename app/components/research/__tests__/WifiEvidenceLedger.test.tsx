@@ -160,8 +160,9 @@ describe('Wi-Fi evidence research prototype', () => {
     const card = fs.readFileSync('app/components/ui/DealCard.tsx', 'utf8')
     const hotelCard = fs.readFileSync('app/components/HotelCard.tsx', 'utf8')
 
-    expect(detail.indexOf('id="saved-hotel-fit-title"')).toBeLessThan(detail.indexOf('<WifiEvidenceLedger'))
-    expect(detail.indexOf('<WifiEvidenceLedger')).toBeLessThan(detail.indexOf('id="saved-provider-title"'))
+    // The legacy flag-off branch remains later in this file than the opt-in IA.
+    expect(detail.lastIndexOf('id="saved-hotel-fit-title"')).toBeLessThan(detail.lastIndexOf('<WifiEvidenceLedger'))
+    expect(detail.lastIndexOf('<WifiEvidenceLedger')).toBeLessThan(detail.lastIndexOf('id="saved-provider-title"'))
     expect(handoff.indexOf('<WifiEvidenceLedger')).toBeLessThan(handoff.indexOf('id="hotel-provider-title"'))
     expect(card).not.toContain('WifiEvidenceLedger')
     expect(hotelCard).not.toContain('WifiEvidenceLedger')

@@ -9,6 +9,13 @@ type Props = {
   scope: 'route' | 'hotel'
   priceNoun: 'fare' | 'nightly rate'
   unavailableCopy: string
+  canonicalEvidence?: {
+    medianCents: number
+    pctVsMedian: number
+    sampleSize: number
+    windowDays: number
+    explanation: string
+  }
 }
 
 const LOW_CONFIDENCE_RULE =
@@ -56,13 +63,13 @@ function Fact({ label, value }: { label: string; value: string }) {
   )
 }
 
-function basedOnFact(sampleSize: number | undefined) {
-  if (sampleSize === undefined) return { label: 'Window', value: 'Last 90 days' }
+function basedOnFact(sampleSize: number | undefined, windowDays = 60) {
+  if (sampleSize === undefined) return { label: 'Window', value: `Last ${windowDays} days` }
 
   const value =
     sampleSize === 1
-      ? '1 price check, last 90 days'
-      : `${sampleSize} price checks, last 90 days`
+      ? `1 price check, last ${windowDays} days`
+      : `${sampleSize} price checks, last ${windowDays} days`
 
   return { label: 'Based on', value }
 }
@@ -80,14 +87,16 @@ function EvidenceGrid({
   vsUsual,
   showComparison,
   sampleSize,
+  windowDays,
 }: {
   usual: string
   usualLabel: string
   vsUsual: string
   showComparison: boolean
   sampleSize: number | undefined
+  windowDays?: number
 }) {
-  const basedOn = basedOnFact(sampleSize)
+  const basedOn = basedOnFact(sampleSize, windowDays)
 
   return (
     <div className="grid grid-cols-2 gap-2 text-xs min-[420px]:grid-cols-3">
@@ -107,6 +116,7 @@ export default function DealScorePanel({
   scope,
   priceNoun,
   unavailableCopy,
+  canonicalEvidence,
 }: Props) {
   if (loading) {
     return (
@@ -157,13 +167,16 @@ export default function DealScorePanel({
   }
 
   const isLowConfidence = score.confidence === 'low'
-  const usualMoney = { priceCents: score.medianCents, currency: score.currency }
+  const displayedMedianCents = canonicalEvidence?.medianCents ?? score.medianCents
+  const displayedPctVsMedian = canonicalEvidence?.pctVsMedian ?? score.pctVsMedian
+  const displayedSampleSize = canonicalEvidence?.sampleSize ?? score.sampleSize
+  const usualMoney = { priceCents: displayedMedianCents, currency: score.currency }
   const hasValidUsual = isValidMoney(usualMoney)
   const usual = hasValidUsual ? formatMoney(usualMoney) : 'Unavailable'
   const usualLabel = priceNoun === 'nightly rate' ? 'Usual nightly rate' : 'Usual fare'
   const verdictForLabel = isLowConfidence ? 'limited price history' : score.verdict
   const groupLabel = `Deal Score for this ${priceNoun}: ${verdictForLabel}.`
-  const countLine = isLowConfidence ? lowConfidenceCountLine(score.sampleSize) : null
+  const countLine = isLowConfidence ? lowConfidenceCountLine(displayedSampleSize) : null
 
   return (
     <section
@@ -182,7 +195,7 @@ export default function DealScorePanel({
         </div>
       </div>
       <p className="text-sm font-medium leading-5 text-[color:var(--text-1)]">
-        {score.explanation}
+        {canonicalEvidence?.explanation ?? score.explanation}
       </p>
       {isLowConfidence ? (
         countLine ? (
@@ -194,9 +207,10 @@ export default function DealScorePanel({
         <EvidenceGrid
           usual={usual}
           usualLabel={usualLabel}
-          vsUsual={formatPctVsMedian(score.pctVsMedian)}
-          showComparison={hasValidUsual && Number.isFinite(score.pctVsMedian)}
-          sampleSize={score.sampleSize}
+          vsUsual={formatPctVsMedian(displayedPctVsMedian)}
+          showComparison={hasValidUsual && Number.isFinite(displayedPctVsMedian)}
+          sampleSize={displayedSampleSize}
+          windowDays={canonicalEvidence?.windowDays}
         />
       )}
     </section>

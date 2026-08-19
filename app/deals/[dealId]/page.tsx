@@ -23,7 +23,6 @@ import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
 import { AiDayPlanSection } from '@/app/components/AiDayPlanSection'
 import { LocationQualitySection } from '@/app/components/LocationQualitySection'
 import { AiDayPlanCardSkeleton } from '@/app/components/ui/AiDayPlanCard'
-import { notProvidedHotelDocumentReadiness } from '@/lib/providers/hotelDocumentReadiness'
 import HotelCancellationChoicesUnavailable from '@/app/components/HotelCancellationChoicesUnavailable'
 import GuestReviewEvidence from '@/app/components/GuestReviewEvidence'
 import {
@@ -35,8 +34,7 @@ import {
   NO_HOTEL_DISRUPTION_EVIDENCE,
 } from '@/app/components/ui/HotelDisruptionNotice'
 import { HotelEvChargingSection, PRODUCTION_EV_CHARGING_UNKNOWN } from '@/app/components/HotelEvCharging'
-import { scoreDeal } from '@/lib/scoring/scoreDeal'
-import type { DealScore, HotelOffer } from '@/lib/types'
+import type { DealScore } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
 import { HotelContinuityPrototype } from '@/app/components/research/HotelContinuityPrototype'
 import { createContinuityFixture, parseContinuityFixture } from '@/app/components/research/hotelContinuityFixtures'
@@ -70,6 +68,8 @@ import {
 import { HotelClimateEvidenceLedger } from '@/app/components/HotelClimateEvidence'
 import { createUnsupportedHotelClimateEvidence } from '@/lib/hotels/climateEvidence'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
+import { DealDetailProviderHandoff } from '@/app/components/DealDetailProviderHandoff'
+import type { HotelReviewEvidence } from '@/lib/types'
 
 type PageProps = {
   params: Promise<{ dealId: string }>
@@ -271,22 +271,25 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
   const marketId = mktRes.rows[0]?.id
 
   const rawHistory = await getPriceHistory(deal.hotel_id, marketId).catch(() => [])
-  const pricePoints = rawHistory.map((h) => ({ date: h.date, priceCents: h.price_cents, currency: 'USD' as const }))
-
-  let score: DealScore | null = null
-  if (pricePoints.length > 0) {
-    const offer: HotelOffer = {
-      id: deal.id,
-      name: deal.hotel_name,
-      area: deal.city,
-      stars: deal.stars ?? 0,
-      pricePerNight: { priceCents: deal.deal_price_cents, currency: 'USD' as const },
-      deeplink: '',
-      source: 'expaify',
-      documentReadiness: notProvidedHotelDocumentReadiness('Hotel provider'),
-      fundsPolicy: { state: 'not_returned', obligations: [], sourceLabel: 'expaify', scope: 'not_returned' },
-    }
-    score = scoreDeal(offer, pricePoints)
+  // A saved deal already carries the canonical raw-snapshot economics used by
+  // the feed. Do not recalculate a second median from the day-averaged chart.
+  const confidence: DealScore['confidence'] = deal.snapshot_count >= 8 ? 'high' : 'low'
+  const verdict: DealScore['verdict'] = confidence === 'low'
+    ? 'Typical'
+    : deal.discount_pct >= 30
+      ? 'Great'
+      : deal.discount_pct >= 15
+        ? 'Good'
+        : 'Typical'
+  const score: DealScore = {
+    percentile: 50,
+    pctVsMedian: -deal.discount_pct,
+    medianCents: deal.median_price_cents,
+    currency: 'USD',
+    verdict,
+    confidence,
+    explanation: '',
+    sampleSize: deal.snapshot_count,
   }
 
   // The Deal Score verdict and the price-history chart further down the page
@@ -305,6 +308,13 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
         scope="hotel"
         priceNoun="nightly rate"
         unavailableCopy="We could not compare this nightly rate with enough recent hotel prices."
+        canonicalEvidence={{
+          medianCents: deal.median_price_cents,
+          pctVsMedian: -deal.discount_pct,
+          sampleSize: deal.snapshot_count,
+          windowDays: 60,
+          explanation: `${formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })} — ${deal.discount_pct}% below the usual ${formatMoney({ priceCents: deal.median_price_cents, currency: 'USD' })} nightly rate over the last 60 days.`,
+        }}
       />
       {hasChartableHistory ? (
         <a
@@ -409,6 +419,87 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   // not in the saved-deal contract yet. Production therefore renders the honest
   // no-selection fallback and cannot emit positive or mismatch claims.
   const accessibility = createAccessibilityPresentation()
+  const dealDetailIa = process.env.NEXT_PUBLIC_DEAL_DETAIL_IA === '1' || process.env.NEXT_PUBLIC_DEAL_DETAIL_IA === 'true'
+  let reviewEvidence: HotelReviewEvidence | undefined
+  if (deal.review_evidence) {
+    try {
+      reviewEvidence = typeof deal.review_evidence === 'string'
+        ? JSON.parse(deal.review_evidence) as HotelReviewEvidence
+        : deal.review_evidence as HotelReviewEvidence
+    } catch {
+      reviewEvidence = undefined
+    }
+  }
+  const hasReviewEvidence = Boolean(
+    reviewEvidence?.state === 'ready'
+    && reviewEvidence.provenance !== 'unavailable'
+    && reviewEvidence.provenance !== 'inferred'
+    && reviewEvidence.score
+    && Number.isFinite(reviewEvidence.score.value)
+    && Number.isFinite(reviewEvidence.score.scaleMax)
+  )
+
+  if (dealDetailIa) {
+    const hasStayNotes = Boolean(poolEvidence || disruptionFixtureId || wifiEvidence)
+    const trackedMarket = TRACKED_MARKETS.find(m => m.city === deal.city)
+    return (
+      <div className="min-h-screen bg-[color:var(--bg)]">
+        <nav className="border-b border-[color:var(--line-ivory)] bg-[color:var(--bg)]">
+          <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">
+            <a href="/" className="flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline">expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden /></a>
+            <a href="/account#alerts" aria-label="Your account" className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)]">Your account</a>
+          </div>
+        </nav>
+        <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
+          <a href={backHref} className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)]">← {criteria ? 'Back to results' : 'Back to saved deals'}</a>
+          <div className="mt-4 space-y-4">
+            <section aria-labelledby="deal-detail-title" className="overflow-hidden rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)]">
+              {deal.photo_url ? <PropertyPhoto src={deal.photo_url} size="detail" loading="eager" /> : null}
+              <div className="p-4 sm:p-6">
+                <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
+                <h1 id="deal-detail-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name}</h1>
+                <p className="mt-2 text-sm font-medium text-[color:var(--text-2)]"><DealDetailCity city={deal.city} />{deal.stars != null ? ` · ${deal.stars}-star hotel` : ''}</p>
+                <p className="mt-1 text-xs text-[color:var(--text-3)]">Provider supplied an area, not a street address.</p>
+                <p className="mt-3 text-sm text-[color:var(--text-2)]">{checkInDisplay ?? 'Check-in not provided'} to {checkOutDisplay ?? 'check-out not provided'}{deal.nights > 0 ? ` · ${deal.nights} ${deal.nights === 1 ? 'night' : 'nights'}` : ''}</p>
+                <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+                  <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">
+                    <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Nightly rate</p>
+                    <p className="mt-2 font-display text-4xl font-bold tabular-nums text-[color:var(--text-1)]">{formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}</p>
+                    <p className="mt-1 text-sm text-[color:var(--text-2)]"><span className="line-through">{formatMoney({ priceCents: deal.median_price_cents, currency: 'USD' })}</span> usual · {deal.discount_pct}% off</p>
+                    <p className="mt-2 text-xs text-[color:var(--text-3)]">60-day median · {deal.snapshot_count} {deal.snapshot_count === 1 ? 'check' : 'checks'}{checkedAgo ? ` · checked ${checkedAgo}` : ''}</p>
+                  </div>
+                  <Suspense fallback={<DealScorePanel score={null} loading scope="hotel" priceNoun="nightly rate" unavailableCopy="We could not compare this nightly rate with enough recent hotel prices." />}><DealScoreSection deal={deal} /></Suspense>
+                </div>
+                <div className="mt-5"><DealDetailProviderHandoff dealId={deal.id} city={deal.city} links={deal.ota_links ?? {}} backHref={backHref} expired={isExpired} /></div>
+                <div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-1.5 text-xs font-medium text-[color:var(--text-2)]">Cancellation: check on OTA</span></div>
+              </div>
+            </section>
+
+            <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6"><Suspense fallback={<PriceHistorySkeleton />}><PriceHistorySection deal={deal} /></Suspense><p className="mt-3 text-xs text-[color:var(--text-3)]">Based on {deal.snapshot_count} {deal.snapshot_count === 1 ? 'check' : 'checks'} over 60 days.</p></section>
+
+            <section aria-labelledby="place-context-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+              <h2 id="place-context-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Place context</h2>
+              <div className="mt-4 space-y-5"><Suspense fallback={null}><LocationQualitySection hotelName={deal.hotel_name} city={deal.city} /></Suspense><HotelDealCriteriaSummary context={criteriaContext} deal={{ city: deal.city, checkInDate: deal.check_in_date }} /><HotelContinuityPrototype dealId={deal.id} hotelName={deal.hotel_name} fixtureId={continuityFixtureId} disclosure={continuityDisclosure} initiallyExpanded={disclosureParam === 'expanded'} /></div>
+            </section>
+
+            {hasReviewEvidence ? <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6"><GuestReviewEvidence evidence={reviewEvidence} /></section> : null}
+            <Suspense fallback={<AiDayPlanCardSkeleton />}><AiDayPlanSection city={deal.city} /></Suspense>
+
+            {hasStayNotes ? (
+              <details className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 py-2 sm:px-6">
+                <summary className="min-h-11 cursor-pointer py-3 text-base font-medium text-[color:var(--text-1)]">Stay notes</summary>
+                <div className="space-y-4 border-t border-[color:var(--border)] py-4">{poolEvidence ? <HotelPoolEvidenceLedger evidence={poolEvidence} /> : null}{disruptionFixtureId ? <HotelDisruptionEvidenceLedger evidence={disruptionEvidence} analyticsKey={deal.id} fixture /> : null}{wifiEvidence ? <WifiEvidenceLedger evidence={wifiEvidence} idSuffix="deal-detail-ia" /> : null}</div>
+              </details>
+            ) : null}
+
+            <details className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 py-2 sm:px-6"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[color:var(--brand)]">Show offer details</summary><dl className="border-t border-[color:var(--border)] py-3"><dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</dt><dd className="mt-2 break-all font-mono text-xs text-[color:var(--text-2)]">{deal.id}</dd></dl></details>
+            <footer className="space-y-3 px-1 py-3"><p className="text-xs leading-5 text-[color:var(--text-3)]">Amenity and room details can change. Confirm cancellation, accessibility, and room type on the booking site before you pay.</p>{trackedMarket && !isExpired && !datesIncomplete ? <a href={`/flights?destination=${encodeURIComponent(trackedMarket.iata)}&depart=${encodeURIComponent(deal.check_in_date)}`} className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--brand)] underline underline-offset-2">Search flights to {deal.city}</a> : null}<div className="flex flex-wrap items-center gap-3"><ShareButton />{showWatchPill && sub ? <WatchCityPill city={deal.city} initialWatching={sub.watchlist.includes(deal.city)} initialCount={sub.watchlist.length} /> : null}</div>{foundAgo ? <p className="text-xs text-[color:var(--text-3)]">Deal found {foundAgo}.</p> : null}</footer>
+          </div>
+          <HotelDecisionAnalytics hotelId={deal.id} entrySource="saved" hasDates={!datesIncomplete} hasVerifiedGuestRating={hasReviewEvidence} scoreState={scoreState} priceFreshnessState={priceFreshnessState} viewedProps={{ deal_id: deal.id, context_status: contextStatus, detail_ia: true, ...(criteria ? { criteria_version: criteria.criteriaVersion } : {}) }} />
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
