@@ -20,7 +20,7 @@ export function LandingNav({ homepageRedesign = false }: { homepageRedesign?: bo
 
   return (
     <header
-      className="sticky top-0 z-50 w-full bg-[color:var(--bg)] transition-shadow duration-150"
+      className={`sticky top-0 z-50 w-full bg-[color:var(--bg)] transition-[box-shadow,background-color,backdrop-filter] duration-150${scrolled ? ' nav-glass' : ''}`}
       style={{ boxShadow: scrolled ? 'var(--shadow-header)' : 'none' }}
     >
       <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">

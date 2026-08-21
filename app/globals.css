@@ -867,3 +867,44 @@ button:disabled,
   background: radial-gradient(ellipse at center, rgba(14, 90, 84, 0.24), transparent 70%);
   z-index: 0;
 }
+
+/* ============================
+   Scroll reveal utilities
+   ============================ */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 600ms cubic-bezier(0.22, 1, 0.36, 1), transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal[data-revealed="true"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============================
+   Animated progress bar reveal
+   ============================ */
+.reveal-bar {
+  width: 0;
+  transition: opacity 600ms cubic-bezier(0.22, 1, 0.36, 1), transform 600ms cubic-bezier(0.22, 1, 0.36, 1), width 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-bar[data-revealed="true"] {
+  width: var(--bar-target, 100%);
+}
+
+/* ============================
+   Button interaction states
+   ============================ */
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+
+/* ============================
+   Sticky nav frosted-glass state
+   ============================ */
+.nav-glass {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+}
