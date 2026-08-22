@@ -226,6 +226,120 @@ describe('POST /api/analytics', () => {
     expect(mockQuery).not.toHaveBeenCalled()
   })
 
+  it('stores invoice readiness with independent tax-ID and document-name states', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_invoice_readiness_viewed', occurredAt: new Date().toISOString(), path: '/book',
+      props: {
+        status: 'confirmed', documentTypes: 'invoice,receipt', invoiceIssuerRole: 'booking_provider',
+        receiptIssuerRole: 'unknown', billingDetailsStep: 'during_partner_booking', source: 'hotellook',
+        scope: 'rate', taxIdState: 'not_provided', documentNameState: 'supported',
+        taxIdSourceClass: 'other', documentNameSourceClass: 'booking_provider',
+      },
+    }))
+    expect(response.status).toBe(202)
+  })
+
+  it('rejects an out-of-enum taxIdState even when the key is allowlisted', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_invoice_readiness_viewed', occurredAt: new Date().toISOString(), path: '/book',
+      props: {
+        status: 'confirmed', documentTypes: 'invoice', invoiceIssuerRole: 'booking_provider',
+        receiptIssuerRole: 'unknown', billingDetailsStep: 'during_partner_booking', source: 'hotellook',
+        scope: 'rate', taxIdState: 'business_ready',
+      },
+    }))
+    expect(response.status).toBe(400)
+    expect(mockQuery).not.toHaveBeenCalled()
+  })
+
+  it('stores a dimension-scoped invoice verification click', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_invoice_verification_clicked', occurredAt: new Date().toISOString(), path: '/book',
+      props: {
+        status: 'confirmed', documentTypes: 'none', invoiceIssuerRole: 'unknown', receiptIssuerRole: 'unknown',
+        billingDetailsStep: 'unknown', source: 'other', scope: 'selected_stay', targetRole: 'property',
+        dimension: 'tax_id', dimensionState: 'conditional', sourceClass: 'property',
+      },
+    }))
+    expect(response.status).toBe(202)
+  })
+
+  it('rejects a dimension value outside the closed enum', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_invoice_verification_clicked', occurredAt: new Date().toISOString(), path: '/book',
+      props: {
+        status: 'confirmed', documentTypes: 'none', invoiceIssuerRole: 'unknown', receiptIssuerRole: 'unknown',
+        billingDetailsStep: 'unknown', source: 'other', scope: 'rate', targetRole: 'property', dimension: 'billing_details',
+      },
+    }))
+    expect(response.status).toBe(400)
+    expect(mockQuery).not.toHaveBeenCalled()
+  })
+
+  it('stores optional invoice state on the current handoff continuation contract', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_handoff_continue_clicked', occurredAt: new Date().toISOString(), path: '/book',
+      props: {
+        handoffAttemptId: '3eb5df1f-e028-40a8-a755-679e63579723', priceDisclosureState: 'fully_itemized',
+        source: 'hotellook', partnerNamed: true, invoiceNeeded: true, invoiceReadinessStatus: 'conflicting',
+        taxIdState: 'conflicting', documentNameState: 'unsupported',
+      },
+    }))
+    expect(response.status).toBe(202)
+  })
+
+  it.each([
+    ['5c3a83c9-fe75-4747-8171-a9b08c5c15a3', 'tax_id_unclear', 'hotellook'],
+    ['handoff-1732200000000', 'document_name_unclear', 'duffel'],
+  ])('stores invoice return reason with handoff session %s', async (handoffSessionId, reason, provider) => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_handoff_return_reason_selected', occurredAt: new Date().toISOString(), path: '/book',
+      props: { reason, offerId: 'offer_123', provider, partnerHost: 'booking.com', handoffSessionId },
+    }))
+    expect(response.status).toBe(202)
+  })
+
+  it('rejects a hotel return reason using the unrelated flight-provider enum', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_handoff_return_reason_selected', occurredAt: new Date().toISOString(), path: '/book',
+      props: {
+        reason: 'tax_id_unclear', offerId: 'offer_123', provider: 'booking', partnerHost: 'booking.com',
+        handoffSessionId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      },
+    }))
+    expect(response.status).toBe(400)
+    expect(mockQuery).not.toHaveBeenCalled()
+  })
+
+  it('rejects sensitive identifier or free-text values on eligibility events', async () => {
+    const response = await POST(request({
+      eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
+      sessionId: '2e1572d9-5d76-469a-9eb6-6e84cc8e26a1',
+      event: 'hotel_invoice_readiness_viewed', occurredAt: new Date().toISOString(), path: '/book',
+      props: {
+        status: 'confirmed', documentTypes: 'invoice', invoiceIssuerRole: 'booking_provider',
+        receiptIssuerRole: 'unknown', billingDetailsStep: 'during_partner_booking', source: 'hotellook',
+        scope: 'rate', identifierLabel: 'VAT number 123456',
+      },
+    }))
+    expect(response.status).toBe(400)
+    expect(mockQuery).not.toHaveBeenCalled()
+  })
+
   it('rejects a provider value outside the closed affiliate set', async () => {
     const response = await POST(request({
       eventId: '5c3a83c9-fe75-4747-8171-a9b08c5c15a3',
