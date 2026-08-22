@@ -609,6 +609,8 @@ describe('BookingFlow fare context review', () => {
     expect(pin.props.href).toMatch(/^https:\/\/www\.google\.com\/maps\/search\//);
     expect(pin.props.target).toBe('_blank');
     expect(pin.props.rel).toBe('noopener noreferrer');
+    expect(String(pin.props.className)).toContain('w-full');
+    expect(String(pin.props.className)).toContain('sm:w-auto');
 
     (pin.props.onClick as (() => void))();
     expect(trackMock).toHaveBeenCalledWith(

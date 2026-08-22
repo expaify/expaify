@@ -1129,7 +1129,7 @@ export default function HotelCard({
                 <span className="font-medium text-[color:var(--text-2)]">{location.label}: </span>
                 {location.value}
               </p>
-              <p className={`mt-2 ${location.isWarning ? 'font-medium text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
+              <p className={`mt-2 break-words ${location.isWarning ? 'font-medium text-[color:var(--warning)]' : 'text-[color:var(--text-2)]'}`}>
                 {location.note}
               </p>
               {location.distanceText ? (
