@@ -15,8 +15,9 @@ import { query } from '@/lib/db/client'
 import { auth } from '@/auth'
 import { getSubscription, isPremium } from '@/lib/subscription'
 import { WatchCityCta } from '@/app/components/WatchCityCta'
-import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
+import { TRACKED_MARKETS, TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { WatchCityPill } from '@/app/components/ui/WatchCityPill'
+import { Reveal } from '@/app/components/ui/Reveal'
 import { DESTINATION_CONTENT } from '@/lib/destinationContent'
 import { DestinationSeoContent } from './DestinationSeoContent'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
@@ -80,6 +81,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
   const displayName = CITY_SLUGS[city]
   if (!displayName) notFound()
   const content = DESTINATION_CONTENT[city]
+  const trackedMarket = TRACKED_MARKETS.find(market => market.city === displayName)
 
   const criteriaResolution = resolveHotelSearchCriteria(requestedParams)
   const requestedView = resolveHotelResultsView(requestedParams)
@@ -189,7 +191,10 @@ export default async function CityPage({ params, searchParams }: PageProps) {
   } : null
 
   return (
-    <main className="mx-auto max-w-[1200px] px-4 pb-24 pt-8 sm:px-6 lg:px-8">
+    <main className="reveal-scope mx-auto max-w-[1200px] px-4 pb-24 pt-8 sm:px-6 lg:px-8">
+      <noscript>
+        <style>{`.reveal-scope .reveal, .reveal-scope .reveal-bar { opacity: 1 !important; transform: none !important; width: var(--bar-target, 100%) !important; }`}</style>
+      </noscript>
       {content ? <TrackOnMount event="destination_hub_view" props={{ city: displayName }} /> : null}
       {structuredData ? (
         <script
@@ -217,9 +222,25 @@ export default async function CityPage({ params, searchParams }: PageProps) {
         </span>
       </nav>
 
-      <h1 className="text-h2 text-[color:var(--ink)] font-display mb-1">
-        {content?.h1 ?? `Hotel deals in ${displayName} today`}
-      </h1>
+      {trackedMarket ? (
+        <Reveal>
+          <div className="relative h-[260px] overflow-hidden rounded-[var(--radius-card)] bg-[color:var(--primary)] sm:h-[360px]">
+            <img
+              src={trackedMarket.photoUrl}
+              alt={trackedMarket.photoAlt}
+              className="h-full w-full object-cover"
+            />
+            <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" aria-hidden />
+            <h1 className="absolute inset-x-0 bottom-0 p-6 font-display text-h2 text-white sm:p-8">
+              {content?.h1 ?? `Hotel deals in ${displayName} today`}
+            </h1>
+          </div>
+        </Reveal>
+      ) : (
+        <h1 className="text-h2 text-[color:var(--ink)] font-display mb-1">
+          {content?.h1 ?? `Hotel deals in ${displayName} today`}
+        </h1>
+      )}
       {showWatchPill && sub && (
         <div className="mb-3 mt-2">
           <WatchCityPill
@@ -235,7 +256,9 @@ export default async function CityPage({ params, searchParams }: PageProps) {
           : `Updated daily · ${initialDeals.length} deal${initialDeals.length !== 1 ? 's' : ''} found`}
       </p>
       {content ? (
-        <p className="mb-10 max-w-[820px] text-body leading-7 text-[color:var(--text-2)]">{content.intro}</p>
+        <Reveal>
+          <p className="mb-10 max-w-[820px] text-body leading-7 text-[color:var(--text-2)]">{content.intro}</p>
+        </Reveal>
       ) : null}
 
       <DealFeed key={criteria.criteriaVersion} initialDeals={initialDeals} defaultCity={displayName} premium={pwCtx.premium} signedIn={Boolean(pwCtx.userId)} freeUnlockedThisWeek={pwCtx.freeUnlockedThisWeek} freeUnlockLimit={pwCtx.freeUnlockLimit} initialCriteria={criteria} initialView={effectiveView} initialError={initialError} />
@@ -256,22 +279,24 @@ export default async function CityPage({ params, searchParams }: PageProps) {
 
       {content ? <DestinationSeoContent city={displayName} content={content} relatedDestinations={nearbyDestinations} /> : null}
 
-      <section className="mt-10 border-t border-[color:var(--border)] pt-8" aria-labelledby="nearby-destinations-heading">
-        <h2 id="nearby-destinations-heading" className="text-body font-bold text-[color:var(--text-1)]">
-          Explore more destinations
-        </h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {nearbyDestinations.map(([slug, name]) => (
-            <Link
-              key={slug}
-              href={`/destinations/${slug}`}
-              className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 py-3 text-sm font-medium text-[color:var(--text-1)] transition-colors hover:bg-[color:var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--text-3)]"
-            >
-              {name}
-            </Link>
-          ))}
-        </div>
-      </section>
+      <Reveal>
+        <section className="mt-10 border-t border-[color:var(--border)] pt-8" aria-labelledby="nearby-destinations-heading">
+          <h2 id="nearby-destinations-heading" className="text-body font-bold text-[color:var(--text-1)]">
+            Explore more destinations
+          </h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {nearbyDestinations.map(([slug, name]) => (
+              <Link
+                key={slug}
+                href={`/destinations/${slug}`}
+                className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 py-3 text-sm font-medium text-[color:var(--text-1)] transition-colors hover:bg-[color:var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--text-3)]"
+              >
+                {name}
+              </Link>
+            ))}
+          </div>
+        </section>
+      </Reveal>
     </main>
   )
 }
