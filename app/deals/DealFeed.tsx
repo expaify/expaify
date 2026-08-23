@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { DealCard } from '../components/ui/DealCard'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
 import { PremiumHubBar } from '../components/ui/PremiumHubBar'
+import { Reveal } from '../components/ui/Reveal'
 import { Icon } from '../components/ui/icons/Icon'
 import { SearchBar } from '../components/ui/SearchBar'
 import type { DealSearchFilters } from '@/lib/ai/dealSearchFilters'
@@ -1531,10 +1532,12 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   return (
     <>
       {/* Results heading */}
-      <div>
-        <h2 className="text-h2 text-[color:var(--ink)]">Today&rsquo;s catches</h2>
-        <p className="mt-1 text-small text-[color:var(--ink-soft)]">{subtitle}</p>
-      </div>
+      <Reveal>
+        <div>
+          <h2 className="text-h2 text-[color:var(--ink)]">Today&rsquo;s catches</h2>
+          <p className="mt-1 text-small text-[color:var(--ink-soft)]">{subtitle}</p>
+        </div>
+      </Reveal>
 
       {activeTab === 'hotels' ? (
         <>
@@ -1594,7 +1597,8 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               {personalUnlocksRemaining} of {freeUnlockLimit} unlocks left this week
             </p>
           ) : null}
-          <section aria-labelledby="hotel-filter-label" className="mb-5">
+          <Reveal>
+            <section aria-labelledby="hotel-filter-label" className="mb-5">
             <span id="hotel-filter-label" className="mb-1.5 block font-display text-caption font-bold leading-5 text-[var(--text-1)]">
               Filter hotel deals
             </span>
@@ -1682,13 +1686,15 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 <button type="button" onClick={retryFailedFilter} className="btn btn-outline mt-3">Retry</button>
               </div>
             ) : null}
-          </section>
+            </section>
+          </Reveal>
 
-          <section
-            ref={sortControlRef}
-            aria-labelledby="hotel-sort-label"
-            className="relative mb-8 grid min-w-0 grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr] sm:items-start"
-          >
+          <Reveal>
+            <section
+              ref={sortControlRef}
+              aria-labelledby="hotel-sort-label"
+              className="relative mb-8 grid min-w-0 grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr] sm:items-start"
+            >
             <div className="relative w-full sm:w-auto">
               <span id="hotel-sort-label" className="mb-1.5 block font-display text-caption font-bold leading-5 text-[var(--text-1)]">
                 Sort hotel deals
@@ -1814,7 +1820,8 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 <button type="button" onClick={() => void requestSort(failedSort)} className="btn btn-outline mt-3">Retry</button>
               </div>
             ) : null}
-          </section>
+            </section>
+          </Reveal>
 
           <p className="sr-only" aria-live="polite" aria-atomic="true">{coverageAnnouncement}</p>
           <section aria-labelledby="hotel-results-heading" aria-busy={loading || Boolean(pendingSort) || loadingMore}>
@@ -1938,49 +1945,50 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 </div>
               ) : null}
               <div ref={gridRef} tabIndex={-1} aria-busy="false" className={`${gridClass} outline-none`}>
-                {deals.map((deal, index) =>
-                  deal.locked ? (
-                    <div key={deal.id} ref={index === firstLockedDealIndex ? firstLockedDealRef : undefined}>
-                      <LockedDealCard
-                        dealId={deal.id}
-                        canSelfUnlock={personalUnlocksRemaining > 0}
-                        placeholderName="Members-only deal"
-                        placeholderCity={deal.city}
-                        stars={deal.stars}
-                        discountPct={deal.discountPct}
-                        photoUrl={deal.photoUrl ?? undefined}
-                        joinHref="/join"
+                {deals.map((deal, i) => (
+                  <Reveal key={deal.id} delayMs={i * 100}>
+                    {deal.locked ? (
+                      <div ref={i === firstLockedDealIndex ? firstLockedDealRef : undefined}>
+                        <LockedDealCard
+                          dealId={deal.id}
+                          canSelfUnlock={personalUnlocksRemaining > 0}
+                          placeholderName="Members-only deal"
+                          placeholderCity={deal.city}
+                          stars={deal.stars}
+                          discountPct={deal.discountPct}
+                          photoUrl={deal.photoUrl ?? undefined}
+                          joinHref="/join"
+                        />
+                      </div>
+                    ) : (
+                      <DealCard
+                        href={deal.isMock ? undefined : buildHotelDetailUrl(deal.id, researchResultsUrl)}
+                        climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')}
+                        onOpen={deal.isMock ? undefined : () => trackCardOpen(i + 1)}
+                        deal={{
+                          id: deal.id,
+                          hotelName: deal.hotelName,
+                          city: deal.city,
+                          stars: deal.stars,
+                          reviewEvidence: deal.reviewEvidence,
+                          photoUrl: deal.photoUrl ?? undefined,
+                          dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' },
+                          medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' },
+                          discountPct: deal.discountPct,
+                          checkInWindow: deal.checkInWindow,
+                          snapshotCount: deal.snapshotCount,
+                          links: deal.otaLinks,
+                          headline: deal.headline ?? undefined,
+                          isMock: deal.isMock,
+                          firstSeen: deal.firstSeen ?? undefined,
+                          updatedAt: deal.updatedAt,
+                          fundsPolicy: deal.fundsPolicy,
+                        }}
+                        poolEvidence={poolFixtureId ? createHotelPoolFixtureForStay(poolFixtureId, deal.checkInDate, deal.nights) : undefined}
                       />
-                    </div>
-                  ) : (
-                    <DealCard
-                      key={deal.id}
-                      href={deal.isMock ? undefined : buildHotelDetailUrl(deal.id, researchResultsUrl)}
-                      climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')}
-                      onOpen={deal.isMock ? undefined : () => trackCardOpen(index + 1)}
-                      deal={{
-                        id: deal.id,
-                        hotelName: deal.hotelName,
-                        city: deal.city,
-                        stars: deal.stars,
-                        reviewEvidence: deal.reviewEvidence,
-                        photoUrl: deal.photoUrl ?? undefined,
-                        dealPrice: { priceCents: deal.dealPriceCents, currency: 'USD' },
-                        medianPrice: { priceCents: deal.medianPriceCents, currency: 'USD' },
-                        discountPct: deal.discountPct,
-                        checkInWindow: deal.checkInWindow,
-                        snapshotCount: deal.snapshotCount,
-                        links: deal.otaLinks,
-                        headline: deal.headline ?? undefined,
-                        isMock: deal.isMock,
-                        firstSeen: deal.firstSeen ?? undefined,
-                        updatedAt: deal.updatedAt,
-                        fundsPolicy: deal.fundsPolicy,
-                      }}
-                      poolEvidence={poolFixtureId ? createHotelPoolFixtureForStay(poolFixtureId, deal.checkInDate, deal.nights) : undefined}
-                    />
-                  )
-                )}
+                    )}
+                  </Reveal>
+                ))}
                 {loadingMore && Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={`more-${i}`} />)}
               </div>
               <PremiumHubBar lockedDealsCount={lockedDealsCount} firstLockedDealRef={firstLockedDealRef} />
