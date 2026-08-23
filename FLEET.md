@@ -26,6 +26,7 @@ job* each stage does, this file decides *which live agent* does it.
 | **Gemini** (`gemini-3.5-flash`) | Persona-stage docs (UXD/UXR/UXDES, adversarial TEST review) — lighter text generation, not code diffs | `GEMINI_API_KEY` at `~/.config/gemini/credentials` | Metered | 🟢 alive — ran all 4 persona stages on DEAL-RATING-PROVENANCE-01. **Gotcha (live-confirmed 2026-08-19):** this model spends `generationConfig.maxOutputTokens` on internal thinking first — a plain `maxOutputTokens: 4000` request returned `finishReason: MAX_TOKENS` with only ~300 chars of real text (`thoughtsTokenCount` ate the rest). Fix: pass `generationConfig.thinkingConfig.thinkingBudget` (e.g. `2000`) to cap thinking, and/or set `maxOutputTokens` to 2-3x what you expect the prose to need. | 2026-08-19 |
 | **RapidAPI ChatGPT-4** (`chatgpt-42.p.rapidapi.com`) | Backup drafter when Krater is down | `RAPIDAPI_KEY_6` at `~/.config/rapidapi/credentials` | Metered via RapidAPI, tight per-second rate limit | 🟢 alive — live-pinged `POST /gpt4`, real completion returned | 2026-08-19 |
 | **io.net** (`api.intelligence.io.solutions`) | Backup drafter, last resort before direct authorship | key at `~/.config/ionet/credentials` | Metered | 🟢 **alive, prior 🔴 was a wrong-path false negative** — the dead verdict tested `/v1/chat/completions`; the real route is `/api/v1/chat/completions` (note the `/api` prefix). Live-pinged `meta-llama/Llama-3.3-70B-Instruct` there just now, got a real 200 completion. Un-firing it — move up the hire order to right after Gemini until proven otherwise. | 2026-08-19 |
+| **Z.ai** (`api.z.ai/api/paas/v4`, OpenAI-compatible) | Backup drafter — only liveness-verified so far, not yet proven on a real code diff | `ZAI_API_KEY` at `~/.config/zai/credentials` | Free tier (`glm-4.5-flash`); other model names tried (`glm-4-flash`, `glm-4-flash-250414`) 400'd as unknown, and `glm-4.6` alone 429'd on account balance — only `glm-4.5-flash` confirmed reachable | 🟢 alive — live-pinged `glm-4.5-flash`, real completion returned. **Gotcha (live-confirmed 2026-08-23):** same reasoning-eats-tokens failure mode as Krater/Gemini, but the *fix* is different — Krater's anti-reasoning system-prompt trick does NOT work here (still burned the full budget on `reasoning_content`, empty `content`). The real fix is a request-body field: `"thinking": {"type": "disabled"}`. With that set, response came back clean (`content: "pong"`, `finish_reason: "stop"`, 2 completion tokens). Always set this field when using this agent for anything short/structured. | 2026-08-23 |
 | **Manus.im** (`api.manus.ai`) | Standalone autonomous background task runner — NOT a peer drafter (async, own sandbox/browser, poll for completion) | `MANUS_API_KEY` at `~/.config/manus/credentials` | Unknown | 🟡 integration incomplete — `task.create` works, result-retrieval endpoint unconfirmed (not re-checked this session) | 2026-08-13 |
 | **expaify-fleet-orchestrator** (cloud cron, `trig_011raq3JMJkkGQqLUedg2UhG`) | Predecessor unattended hourly routine, same 6-stage pipeline | hardcoded Krater + Gemini keys in its own prompt | — | ⚫ disabled since 2026-08-05 (fired once, then off) | 2026-08-12 |
 | Direct authorship (this Claude session writing the diff itself) | Absolute last resort | — | Session credit | Always available | — |
@@ -33,10 +34,13 @@ job* each stage does, this file decides *which live agent* does it.
 ## Hire/fire order (implementer role)
 
 **Krater → Codex (when Krater output is unusable, or the task needs real
-command execution) → Gemini → io.net → RapidAPI ChatGPT-4 → direct
+command execution) → Gemini → io.net → Z.ai → RapidAPI ChatGPT-4 → direct
 authorship.** (io.net moved back above RapidAPI ChatGPT-4 on 2026-08-19 — see
 registry note above; it was never actually dead, just probed on the wrong
-path.)
+path. Z.ai added 2026-08-23 — slotted before RapidAPI since it's free where
+RapidAPI is metered, but it's unproven on a real code diff so far; only a
+liveness ping has succeeded. Re-evaluate its position once it's actually
+carried a real implementer task.)
 
 "Fire" an agent by flipping its `status` to 🔴 and dating it the moment a
 live call fails (not a guess) — e.g. Krater went 🔴 on 2026-08-12 (`402
