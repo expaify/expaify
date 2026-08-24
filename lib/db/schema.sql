@@ -153,6 +153,8 @@ CREATE TABLE IF NOT EXISTS deals (
   CONSTRAINT deals_hotel_market_checkin UNIQUE (hotel_id, market_id, check_in_date)
 );
 
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS currency CHAR(3) NOT NULL DEFAULT 'USD';
+
 CREATE INDEX IF NOT EXISTS idx_deals_status ON deals (status, first_seen DESC);
 CREATE INDEX IF NOT EXISTS idx_deals_market  ON deals (market_id, status);
 CREATE INDEX IF NOT EXISTS idx_deals_active_newest

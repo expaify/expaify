@@ -222,7 +222,7 @@ async function PriceHistorySection({ deal }: { deal: DealRow }) {
   ).catch(() => ({ rows: [] as { id: number }[] }))
   const marketId = mktRes.rows[0]?.id
 
-  const history = await getPriceHistory(deal.hotel_id, marketId).catch(() => [])
+  const history = await getPriceHistory(deal.hotel_id, marketId, deal.currency).catch(() => [])
 
   if (history.length < 3) {
     return (
@@ -270,7 +270,7 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
   ).catch(() => ({ rows: [] as { id: number }[] }))
   const marketId = mktRes.rows[0]?.id
 
-  const rawHistory = await getPriceHistory(deal.hotel_id, marketId).catch(() => [])
+  const rawHistory = await getPriceHistory(deal.hotel_id, marketId, deal.currency).catch(() => [])
   // A saved deal already carries the canonical raw-snapshot economics used by
   // the feed. Do not recalculate a second median from the day-averaged chart.
   const confidence: DealScore['confidence'] = deal.snapshot_count >= 8 ? 'high' : 'low'
@@ -285,7 +285,7 @@ async function DealScoreSection({ deal }: { deal: DealRow }) {
     percentile: 50,
     pctVsMedian: -deal.discount_pct,
     medianCents: deal.median_price_cents,
-    currency: 'USD',
+    currency: deal.currency,
     verdict,
     confidence,
     explanation: '',

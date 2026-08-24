@@ -51,7 +51,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   ).catch(() => ({ rows: [] as { id: number }[] }))
   const marketId = mktRes.rows[0]?.id
 
-  const history = await getPriceHistory(deal.hotel_id, marketId).catch(() => [])
+  const history = await getPriceHistory(deal.hotel_id, marketId, deal.currency).catch(() => [])
 
   return NextResponse.json({ deal, history, locked: false })
 }

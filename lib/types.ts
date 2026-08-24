@@ -92,6 +92,8 @@ export interface DealScore {
   confidence: 'high' | 'low';
   explanation: string;
   sampleSize?: number;
+  unavailableReason?: 'no_history' | 'currency_mismatch';
+  historyCurrency?: string;
 }
 
 export type HotelQualityKind =

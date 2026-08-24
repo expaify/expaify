@@ -29,6 +29,7 @@ const row: DealRow = {
   city: 'Miami',
   deal_price_cents: 9_999,
   median_price_cents: 15_000,
+  currency: 'EUR',
   discount_pct: 33,
   check_in_window: 'Aug 1–3',
   check_in_date: '2026-08-01',

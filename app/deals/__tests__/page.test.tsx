@@ -82,6 +82,7 @@ describe('/deals server reconstruction', () => {
       city: 'Miami',
       deal_price_cents: 10_000 + index,
       median_price_cents: 15_000,
+      currency: 'USD',
       discount_pct: 30,
       check_in_window: 'Aug 1–3',
       check_in_date: '2026-08-01',

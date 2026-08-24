@@ -88,6 +88,8 @@ export function scoreDeal(
           ? `No price history available for this ${label}.`
           : `No comparable ${currency} price history available for this ${label}.`,
       sampleSize: comparableHistory.length,
+      unavailableReason: history.length === 0 ? 'no_history' : 'currency_mismatch',
+      ...(history.length > 0 ? { historyCurrency: history[0].currency } : {}),
     };
   }
 

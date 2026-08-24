@@ -28,7 +28,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
     return {
       id: row.id, hotelId: row.hotel_id,
       hotelName: 'Members-only deal', stars: null, photoUrl: null,
-      city: row.city, dealPriceCents: 0, medianPriceCents: 0,
+      city: row.city, dealPriceCents: 0, medianPriceCents: 0, currency: row.currency,
       discountPct: row.discount_pct, checkInWindow: row.check_in_window,
       checkInDate: row.check_in_date,
       nights: row.nights, snapshotCount: row.snapshot_count,
@@ -39,7 +39,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
   return {
     id: row.id, hotelId: row.hotel_id, hotelName: row.hotel_name,
     stars: row.stars, photoUrl: row.photo_url, city: row.city,
-    dealPriceCents: row.deal_price_cents, medianPriceCents: row.median_price_cents,
+    dealPriceCents: row.deal_price_cents, medianPriceCents: row.median_price_cents, currency: row.currency,
     discountPct: row.discount_pct, checkInWindow: row.check_in_window,
     checkInDate: row.check_in_date,
     nights: row.nights, snapshotCount: row.snapshot_count,

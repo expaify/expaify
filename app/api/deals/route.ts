@@ -20,6 +20,7 @@ type ApiDeal = {
   city: string
   dealPriceCents: number
   medianPriceCents: number
+  currency: string
   discountPct: number
   checkInWindow: string
   checkInDate: string
@@ -44,6 +45,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
       city: row.city,
       dealPriceCents: 0,
       medianPriceCents: 0,
+      currency: row.currency,
       discountPct: row.discount_pct,
       checkInWindow: row.check_in_window,
       checkInDate: row.check_in_date,
@@ -77,6 +79,7 @@ function toApiDeal(row: DealRow, locked: boolean): ApiDeal {
     city: row.city,
     dealPriceCents: row.deal_price_cents,
     medianPriceCents: row.median_price_cents,
+    currency: row.currency,
     discountPct: row.discount_pct,
     checkInWindow: row.check_in_window,
     checkInDate: row.check_in_date,
@@ -101,6 +104,7 @@ function mockToApiDeal(d: ReturnType<typeof generateMockDeals>[number]): ApiDeal
     city: '',
     dealPriceCents: d.deal_price_cents,
     medianPriceCents: d.median_price_cents,
+    currency: 'USD',
     discountPct: d.discount_pct,
     checkInWindow: d.check_in_window,
     checkInDate: d.check_in_date,

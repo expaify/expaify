@@ -66,6 +66,7 @@ function deal(id: string, city: string): ApiDeal {
     city,
     dealPriceCents: 10_000,
     medianPriceCents: 15_000,
+    currency: 'USD',
     discountPct: 33,
     checkInWindow: 'Aug 1–3',
     checkInDate: '2026-08-01',

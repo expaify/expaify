@@ -94,6 +94,8 @@ describe('scoreDeal — edge cases', () => {
     expect(result.pctVsMedian).toBe(0);
     expect(result.medianCents).toBe(0);
     expect(result.currency).toBe('USD');
+    expect(result.unavailableReason).toBe('no_history');
+    expect(result.historyCurrency).toBeUndefined();
     expect(result.explanation).toBe('No price history available for this route.');
   });
 
@@ -214,6 +216,8 @@ describe('scoreDeal — edge cases', () => {
     expect(result.medianCents).toBe(0);
     expect(result.confidence).toBe('low');
     expect(result.verdict).toBe('Typical');
+    expect(result.unavailableReason).toBe('currency_mismatch');
+    expect(result.historyCurrency).toBe('USD');
     expect(result.explanation).toBe('No comparable EUR price history available for this route.');
   });
 
