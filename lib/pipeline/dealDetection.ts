@@ -302,7 +302,7 @@ export async function getActiveDeals(opts: {
 
   let priceFilter = ''
   if (maxPriceCents) {
-    priceFilter = ` AND d.deal_price_cents <= $${idx++}`
+    priceFilter = ` AND d.currency = 'USD' AND d.deal_price_cents <= $${idx++}`
     params.push(maxPriceCents)
   }
 

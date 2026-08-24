@@ -674,6 +674,19 @@ describe('DealScorePanel — presentation clarity', () => {
     expect(text).not.toContain('Usual nightly rate')
   })
 
+  it('renders currency mismatch as a paused score without a verdict or evidence', () => {
+    const text = collectText(panel({
+      ...lowConfidence,
+      currency: 'EUR',
+      historyCurrency: 'USD',
+      unavailableReason: 'currency_mismatch',
+    }, { scope: 'hotel', priceNoun: 'nightly rate' }))
+
+    expect(text).toContain('Deal Score paused because EUR prices cannot be compared with USD history.')
+    expect(text).not.toContain('Limited history')
+    expect(text).not.toContain('Usual nightly rate')
+  })
+
   it('states the low-confidence count line precisely for known sample sizes and suppresses it at zero', () => {
     const text4 = collectText(panel({ ...lowConfidence, sampleSize: 4 }))
     expect(text4).toContain('4 recent prices')

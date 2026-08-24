@@ -43,5 +43,14 @@ describe('DealCard amenity evidence', () => {
 
     expect(html).not.toContain('Room climate details not supported')
     expect(html).not.toContain('EV charging details not provided')
+    expect(html).toContain('USD figure from the rate provider.')
+  })
+
+  it('names the rate provider only when exactly one provider link is present', () => {
+    const html = renderToStaticMarkup(
+      <DealCard deal={{ ...deal, links: { expedia: 'https://example.com' } }} />,
+    )
+
+    expect(html).toContain('USD figure from Expedia.')
   })
 })

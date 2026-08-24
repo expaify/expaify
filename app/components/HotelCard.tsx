@@ -372,7 +372,7 @@ function StarRow({ stars }: { stars: number }) {
   )
 }
 
-function Price({ price, providerName, className = '' }: { price: HotelOffer['pricePerNight']; providerName: string; className?: string }) {
+function Price({ price, providerName, providerKnown, className = '' }: { price: HotelOffer['pricePerNight']; providerName: string; providerKnown: boolean; className?: string }) {
   return (
     <div className={`min-w-[6.75rem] max-w-[9.5rem] text-right ${className}`}>
       <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">
@@ -385,6 +385,7 @@ function Price({ price, providerName, className = '' }: { price: HotelOffer['pri
         <p className="text-[color:var(--text-3)]">per night</p>
         <p className="text-[color:var(--text-2)]">Rate from {providerName}</p>
         <p className="text-[color:var(--warning)]">Last-checked time unavailable</p>
+        <p className="text-[color:var(--text-3)]">USD figure from {providerKnown ? providerName : 'the rate provider'}. If the property prices in another currency, this is their conversion at a rate we don&apos;t receive.</p>
       </div>
     </div>
   )
@@ -761,6 +762,17 @@ function ScoreChip({ score, loading }: { score: DealScore | null; loading: boole
     )
   }
 
+  if (score.unavailableReason === 'currency_mismatch') {
+    return (
+      <span
+        className="inline-flex min-h-7 items-center rounded-full border border-[color:var(--border-strong)] bg-[color:var(--warning-soft)] px-3 py-1 text-xs font-medium text-[color:var(--warning)]"
+        aria-label="Deal Score paused because this price and this hotel's price history are in different currencies."
+      >
+        Score paused
+      </span>
+    )
+  }
+
   const label = score.confidence === 'low' ? 'Limited history' : score.verdict
   const classes = score.confidence === 'low'
     ? 'border-[color:var(--border-strong)] bg-[color:var(--warning-soft)] text-[color:var(--warning)]'
@@ -1005,6 +1017,7 @@ export default function HotelCard({
             <Price
               price={hotel.pricePerNight}
               providerName={providerName}
+              providerKnown={hasHotelProviderName}
               className="@max-[351px]:col-span-2 @max-[351px]:min-w-0 @max-[351px]:max-w-none @max-[351px]:pt-1 @max-[351px]:text-left"
             />
           ) : (
@@ -1220,6 +1233,7 @@ export default function HotelCard({
               />
               <p className="mt-2 font-medium text-[color:var(--text-1)]">Rate check</p>
               <p>{rateCheckCopy}</p>
+              {hasValidPrice ? <p>The USD figure was set when this rate was checked and is not re-converted since.</p> : null}
               {!hasValidPrice || !hasBookingUrl ? <p className="mt-2">{unavailableReason}</p> : null}
             </div>
 

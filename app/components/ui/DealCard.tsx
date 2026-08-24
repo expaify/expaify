@@ -95,6 +95,17 @@ function absoluteCheckedAt(iso: string | null | undefined): string | undefined {
   })
 }
 
+function singleRateProvider(links: DealLinks): string | null {
+  const providers = [
+    links.expedia ? 'Expedia' : null,
+    links.booking ? 'Booking.com' : null,
+    links.kiwi ? 'Kiwi' : null,
+    links.trip ? 'Trip.com' : null,
+  ].filter((provider): provider is string => provider !== null)
+
+  return providers.length === 1 ? providers[0] : null
+}
+
 export function DealCardCity({ city }: { city: string }) {
   const citySlug = CITY_DISPLAY_TO_SLUG[city]
 
@@ -114,6 +125,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
   const savings = deal.medianPrice.priceCents - deal.dealPrice.priceCents
   const showSavings = savings >= 2000
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
+  const rateProvider = singleRateProvider(deal.links)
   const quietEvidenceCue = getQuietEvidenceResultCue(quietStayEvidence)
   const disruptionCue = getHotelDisruptionResultCue(disruptionEvidence)
   const poolCue = getHotelPoolCardSummary(poolEvidence)
@@ -230,6 +242,9 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
               Price checked {checked}
             </p>
           ) : null}
+          <p className="text-caption font-medium leading-snug text-[color:var(--ink-soft)]">
+            USD figure from {rateProvider ?? 'the rate provider'}. If the property prices in another currency, this is their conversion at a rate we don&apos;t receive.
+          </p>
         </div>
 
         {showTrackingIndicator ? (

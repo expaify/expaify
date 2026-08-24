@@ -81,7 +81,7 @@ export const HOTEL_SORT_OPTIONS: ReadonlyArray<{
   {
     key: 'price',
     label: 'Lowest nightly price',
-    description: 'Lowest current rate per night',
+    description: 'Lowest current rate per night, compared in USD.',
     analyticsValue: 'lowest_nightly_price',
   },
 ]
@@ -122,7 +122,7 @@ function statusSentence(filters: HotelFilterState, premiumFlag: boolean): string
   const fragments: string[] = []
   if (filters.minDiscount > 0) fragments.push(`deals ${filters.minDiscount}% or more off`)
   if (filters.minStars > 0) fragments.push(`${filters.minStars} stars and up`)
-  if (filters.maxPriceCents !== null) fragments.push(`under $${Math.round(filters.maxPriceCents / 100)} a night`)
+  if (filters.maxPriceCents !== null) fragments.push(`under USD ${Math.round(filters.maxPriceCents / 100)} a night`)
   if (fragments.length === 0) return ''
   if (fragments.length === 1) return `Showing ${fragments[0]}.`
   if (fragments.length === 2) return `Showing ${fragments[0]} and ${fragments[1]}.`
@@ -1640,24 +1640,29 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                   onSelect: () => applyFilter({ minStars: o.value }),
                 }))}
               />
-              <FilterPill
-                label="Max price"
-                filterKey="maxPrice"
-                valueLabel={priceValueLabel}
-                state={priceState}
-                busy={pendingFilterKey === 'maxPrice'}
-                inert={anyFilterRequestPending && pendingFilterKey !== 'maxPrice'}
-                align="end"
-                onClear={() => applyFilter({ maxPriceCents: null })}
-                onLockedAttempt={() => openFilterExplanation('maxPrice')}
-                options={MAX_PRICE_OPTIONS.map(o => ({
-                  label: o.label,
-                  value: String(o.value ?? 'any'),
-                  selected: o.value === effectiveFilters.maxPriceCents,
-                  locked: !premium && o.value !== effectiveFilters.maxPriceCents,
-                  onSelect: () => applyFilter({ maxPriceCents: o.value }),
-                }))}
-              />
+              <div className="flex flex-col items-start gap-1">
+                <FilterPill
+                  label="Max price"
+                  filterKey="maxPrice"
+                  valueLabel={priceValueLabel}
+                  state={priceState}
+                  busy={pendingFilterKey === 'maxPrice'}
+                  inert={anyFilterRequestPending && pendingFilterKey !== 'maxPrice'}
+                  align="end"
+                  onClear={() => applyFilter({ maxPriceCents: null })}
+                  onLockedAttempt={() => openFilterExplanation('maxPrice')}
+                  options={MAX_PRICE_OPTIONS.map(o => ({
+                    label: o.label,
+                    value: String(o.value ?? 'any'),
+                    selected: o.value === effectiveFilters.maxPriceCents,
+                    locked: !premium && o.value !== effectiveFilters.maxPriceCents,
+                    onSelect: () => applyFilter({ maxPriceCents: o.value }),
+                  }))}
+                />
+                <p className="max-w-56 text-caption leading-snug text-[color:var(--text-3)]">
+                  Nightly price filters compare USD deals only.
+                </p>
+              </div>
             </div>
             {filterExplanationOpen ? (
               <div

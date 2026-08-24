@@ -189,7 +189,7 @@ describe('getActiveDeals ordering', () => {
     for (const filter of [
       'd.discount_pct >= $3',
       'd.market_id = $4',
-      'd.deal_price_cents <= $5',
+      "d.currency = 'USD' AND d.deal_price_cents <= $5",
       'd.stars >= $6',
       'd.check_in_date >= $7',
       'd.check_in_date <= $8',

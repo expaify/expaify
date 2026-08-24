@@ -124,6 +124,21 @@ function addNights(dateStr: string, nights: number): string {
   return fmtShort(d.toISOString())
 }
 
+function singleRateProvider(links: Record<string, string>): string | null {
+  const providers = [
+    links.expedia ? 'Expedia' : null,
+    links.booking ? 'Booking.com' : null,
+    links.kiwi ? 'Kiwi' : null,
+    links.trip ? 'Trip.com' : null,
+  ].filter((provider): provider is string => provider !== null)
+
+  return providers.length === 1 ? providers[0] : null
+}
+
+function comparisonBasisCopy(links: Record<string, string>): string {
+  return `USD figure from ${singleRateProvider(links) ?? 'the rate provider'}. If the property prices in another currency, this is their conversion at a rate we don't receive.`
+}
+
 export function DealDetailCity({ city }: { city: string }) {
   const citySlug = CITY_DISPLAY_TO_SLUG[city]
 
@@ -232,6 +247,7 @@ async function PriceHistorySection({ deal }: { deal: DealRow }) {
         <div className="mt-3">
         <TrustLine snapshotCount={deal.snapshot_count} />
         </div>
+        <p className="mt-3 text-xs text-[color:var(--text-3)]">The USD figure was set when this rate was checked and is not re-converted since.</p>
       </section>
     )
   }
@@ -249,6 +265,7 @@ async function PriceHistorySection({ deal }: { deal: DealRow }) {
       <div className="mt-3">
         <TrustLine snapshotCount={deal.snapshot_count} />
       </div>
+      <p className="mt-3 text-xs text-[color:var(--text-3)]">The USD figure was set when this rate was checked and is not re-converted since.</p>
     </section>
   )
 }
@@ -467,6 +484,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                     <p className="mt-2 font-display text-4xl font-bold tabular-nums text-[color:var(--text-1)]">{formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}</p>
                     <p className="mt-1 text-sm text-[color:var(--text-2)]"><span className="line-through">{formatMoney({ priceCents: deal.median_price_cents, currency: 'USD' })}</span> usual · {deal.discount_pct}% off</p>
                     <p className="mt-2 text-xs text-[color:var(--text-3)]">60-day median · {deal.snapshot_count} {deal.snapshot_count === 1 ? 'check' : 'checks'}{checkedAgo ? ` · checked ${checkedAgo}` : ''}</p>
+                    <p className="mt-2 text-xs text-[color:var(--text-3)]">{comparisonBasisCopy(deal.ota_links ?? {})}</p>
                   </div>
                   <Suspense fallback={<DealScorePanel score={null} loading scope="hotel" priceNoun="nightly rate" unavailableCopy="We could not compare this nightly rate with enough recent hotel prices." />}><DealScoreSection deal={deal} /></Suspense>
                 </div>
@@ -571,6 +589,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <p className="mt-2 break-words font-display text-3xl font-bold tabular-nums text-[color:var(--text-1)] sm:text-4xl">{formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}</p>
                 <p className="mt-1 text-sm text-[color:var(--text-2)]">per night before taxes and fees</p>
                 <p className="mt-2 text-xs text-[color:var(--text-2)]">Rate observed from a booking partner.</p>
+                <p className="mt-2 text-xs text-[color:var(--text-3)]">{comparisonBasisCopy(deal.ota_links ?? {})}</p>
                 {isExpired && deal.expires_at ? (
                   <p className="mt-3 text-sm font-medium text-[color:var(--error-text)]">This saved rate expired {fmtDate(deal.expires_at)}. It is shown for reference only.</p>
                 ) : isStale ? (

@@ -166,6 +166,26 @@ export default function DealScorePanel({
     )
   }
 
+  if (score.unavailableReason === 'currency_mismatch') {
+    const historyCurrency = score.historyCurrency ?? 'another currency'
+    const pausedCopy = `Deal Score paused because ${score.currency} prices cannot be compared with ${historyCurrency} history.`
+
+    return (
+      <section
+        className={`flex flex-col gap-2 rounded-[var(--radius-card)] border px-3.5 py-3 ${panelClasses(score)}`}
+        role="group"
+        aria-label={pausedCopy}
+      >
+        <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">
+          Deal Score
+        </p>
+        <p className="text-sm font-medium leading-5 text-[color:var(--text-1)]">
+          {pausedCopy}
+        </p>
+      </section>
+    )
+  }
+
   const isLowConfidence = score.confidence === 'low'
   const displayedMedianCents = canonicalEvidence?.medianCents ?? score.medianCents
   const displayedPctVsMedian = canonicalEvidence?.pctVsMedian ?? score.pctVsMedian
