@@ -212,7 +212,6 @@ export async function runDailyDigest(): Promise<{ recipients: number; skipped: n
          JOIN subscriptions s ON s.user_id = $1
          WHERE d.status = 'active'
            AND d.is_mock = false
-           AND d.first_seen >= NOW() - INTERVAL '24 hours'
            AND (d.expires_at IS NULL OR d.expires_at > NOW())
            AND d.check_in_date >= CURRENT_DATE
            AND d.discount_pct >= COALESCE(s.alert_min_discount, $2)

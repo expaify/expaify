@@ -1,4 +1,4 @@
-import { runSnapshotsForMarket, RateLimitError } from '../snapshot'
+import { getActiveMarkets, runSnapshotsForMarket, RateLimitError } from '../snapshot'
 import { query } from '../../db/client'
 
 jest.mock('../../db/client', () => ({
@@ -6,6 +6,37 @@ jest.mock('../../db/client', () => ({
 }))
 
 const MIA = { id: 1, city: 'Miami', country: 'US', iata: 'MIA' }
+
+describe('getActiveMarkets daily rotation', () => {
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  it('rotates the stable id-ordered markets by the UTC day of year', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-01-02T23:30:00-08:00'))
+    ;(query as jest.Mock).mockResolvedValueOnce({
+      rows: [
+        MIA,
+        { id: 2, city: 'New York', country: 'US', iata: 'NYC' },
+        { id: 3, city: 'Paris', country: 'FR', iata: 'PAR' },
+        { id: 4, city: 'London', country: 'GB', iata: 'LON' },
+      ],
+    })
+
+    await expect(getActiveMarkets()).resolves.toEqual([
+      { id: 4, city: 'London', country: 'GB', iata: 'LON' },
+      MIA,
+      { id: 2, city: 'New York', country: 'US', iata: 'NYC' },
+      { id: 3, city: 'Paris', country: 'FR', iata: 'PAR' },
+    ])
+  })
+
+  it('returns an empty market set without attempting modulo by zero', async () => {
+    ;(query as jest.Mock).mockResolvedValueOnce({ rows: [] })
+
+    await expect(getActiveMarkets()).resolves.toEqual([])
+  })
+})
 
 describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SILENT-FAILURE-VISIBILITY-01)', () => {
   const originalKey = process.env.RAPIDAPI_KEY

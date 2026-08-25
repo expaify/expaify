@@ -82,7 +82,7 @@ describe('runDailyDigest', () => {
 
     await expect(runDailyDigest()).resolves.toEqual({ recipients: 1, skipped: 0 })
 
-    expect(mockQuery.mock.calls[1][0]).toContain("d.first_seen >= NOW() - INTERVAL '24 hours'")
+    expect(mockQuery.mock.calls[1][0]).not.toContain("d.first_seen >= NOW() - INTERVAL '24 hours'")
     expect(mockQuery.mock.calls[1][0]).toContain('d.expires_at IS NULL OR d.expires_at > NOW()')
     expect(mockQuery.mock.calls[1][0]).toContain('m.city = ANY(s.watchlist)')
     expect(mockQuery.mock.calls[1][0]).toContain('NOT EXISTS')

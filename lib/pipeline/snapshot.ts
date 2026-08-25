@@ -453,7 +453,18 @@ export async function runSnapshotsForMarket(market: Market, marketIndex = 0): Pr
 
 export async function getActiveMarkets(): Promise<Market[]> {
   const res = await query<Market>(`SELECT id, city, country, iata FROM tracked_markets WHERE active = true ORDER BY id`)
-  return res.rows
+  if (res.rows.length === 0) return []
+
+  const today = new Date()
+  const yearStart = Date.UTC(today.getUTCFullYear(), 0, 0)
+  const dayOfYear = Math.floor((Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate(),
+  ) - yearStart) / 86400000)
+  const offset = dayOfYear % res.rows.length
+
+  return [...res.rows.slice(offset), ...res.rows.slice(0, offset)]
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
