@@ -40,7 +40,7 @@ export default async function OgImage({ params }: { params: Promise<{ dealId: st
         {discountPct > 0 && (
           <div
             style={{
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
               // Gold is the discount/savings colour; coral is reserved for join/upgrade.
               background: '#D9A441',
