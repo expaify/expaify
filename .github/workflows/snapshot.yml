@@ -14,7 +14,7 @@ jobs:
           PIPELINE_SECRET: ${{ secrets.PIPELINE_SECRET }}
         run: |
           curl -fsSL --max-time 310 \
-            -X POST https://expaify.com/api/pipeline/run \
+            -X POST https://expaify.jollybay-d9d870b2.eastus2.azurecontainerapps.io/api/pipeline/run \
             -H "Authorization: Bearer ${PIPELINE_SECRET}" \
             -H "Content-Type: application/json" \
             -d '{}' | tee /tmp/pipeline-result.json
