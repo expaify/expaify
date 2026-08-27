@@ -54,7 +54,7 @@ export default function JoinForm() {
           Start your free trial
         </h1>
         <p className="mb-6 text-base text-[color:var(--ink-soft)]">
-          7 days free. Cancel before day 7 and you pay nothing.
+          7 days free. No charge until day 8 if you cancel first.
         </p>
 
         {/* Feature list */}

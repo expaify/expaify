@@ -45,7 +45,7 @@ export default async function JoinPage({ searchParams }: PageProps) {
             Confirm your plan
           </h1>
           <p className="mb-6 text-base text-[color:var(--ink-soft)]">
-            7 days free. Cancel before day 7 and you pay nothing.
+            7 days free. No charge until day 8 if you cancel first.
           </p>
 
           <div className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-5">
