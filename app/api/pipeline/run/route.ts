@@ -10,6 +10,8 @@ import { pingIndexNow } from '@/lib/indexNow'
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
+const MARKET_BATCH_SIZE = 6
+
 export async function POST(req: NextRequest) {
   const auth = req.headers.get('authorization') ?? ''
   const expected = `Bearer ${process.env.PIPELINE_SECRET ?? ''}`
@@ -31,28 +33,32 @@ export async function POST(req: NextRequest) {
   let marketsAttempted = 0
   let emptyMarketCount = 0
 
-  for (let mi = 0; mi < markets.length; mi++) {
-    const market = markets[mi]
-    try {
-      const snapshots = await runSnapshotsForMarket(market, mi)
-      const dealsFound = await detectDealsForMarket(market)
-      results[market.iata] = { snapshots, dealsFound }
-      totalNewDeals += dealsFound
-      marketsAttempted += 1
-      // A market is "empty" this run if every check-in it attempted came back
-      // with zero hotels processed -- previously invisible, since a market
-      // returning 0 hotels was never distinguished from one that worked
-      // normally. See REPAIR-PIPELINE-SILENT-FAILURE-VISIBILITY-01.
-      if (snapshots.every(s => s.hotelsProcessed === 0)) emptyMarketCount += 1
-    } catch (err) {
-      results[market.iata] = { error: err instanceof Error ? err.message : String(err) }
-      marketsAttempted += 1
-      emptyMarketCount += 1
-      if (err instanceof RateLimitError) {
-        rateLimited = true
-        break
+  for (let batchStart = 0; batchStart < markets.length; batchStart += MARKET_BATCH_SIZE) {
+    const batch = markets.slice(batchStart, batchStart + MARKET_BATCH_SIZE)
+    await Promise.all(batch.map(async (market, batchIndex) => {
+      const marketIndex = batchStart + batchIndex
+      try {
+        const snapshots = await runSnapshotsForMarket(market, marketIndex)
+        const dealsFound = await detectDealsForMarket(market)
+        results[market.iata] = { snapshots, dealsFound }
+        totalNewDeals += dealsFound
+        marketsAttempted += 1
+        // A market is "empty" this run if every check-in it attempted came back
+        // with zero hotels processed -- previously invisible, since a market
+        // returning 0 hotels was never distinguished from one that worked
+        // normally. See REPAIR-PIPELINE-SILENT-FAILURE-VISIBILITY-01.
+        if (snapshots.every(s => s.hotelsProcessed === 0)) emptyMarketCount += 1
+      } catch (err) {
+        results[market.iata] = { error: err instanceof Error ? err.message : String(err) }
+        marketsAttempted += 1
+        emptyMarketCount += 1
+        if (err instanceof RateLimitError) rateLimited = true
       }
-    }
+    }))
+
+    // Finish the current in-flight batch, but do not start more provider calls
+    // after the shared RapidAPI quota reports that it is exhausted.
+    if (rateLimited) break
   }
 
   // More than half of attempted markets came back with nothing. This is the

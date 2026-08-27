@@ -98,15 +98,53 @@ describe('POST /api/pipeline/run pipeline-health aggregation (REPAIR-PIPELINE-SI
     expect(body.pipelineDegraded).toBe(true)
   })
 
-  it('still stops immediately and reports rateLimited on RateLimitError, unaffected by the new aggregation', async () => {
-    mockRunSnapshots
-      .mockResolvedValueOnce([{ market: 'MIA', checkIn: '2026-09-01', hotelsProcessed: 20 }])
-      .mockRejectedValueOnce(new RateLimitError())
+  it('processes markets concurrently with no more than six in flight', async () => {
+    const markets = Array.from({ length: 8 }, (_, index) => ({
+      id: index + 1,
+      city: `City ${index + 1}`,
+      country: 'US',
+      iata: `M${index + 1}`,
+    }))
+    let active = 0
+    let peakActive = 0
+    mockGetActiveMarkets.mockResolvedValue(markets)
+    mockRunSnapshots.mockImplementation(async market => {
+      active += 1
+      peakActive = Math.max(peakActive, active)
+      await new Promise<void>(resolve => setImmediate(resolve))
+      active -= 1
+      return [{ market: market.iata, checkIn: '2026-09-01', hotelsProcessed: 20 }]
+    })
+
+    const response = await POST(pipelineRequest())
+    const body = await response.json()
+
+    expect(peakActive).toBe(6)
+    expect(mockRunSnapshots).toHaveBeenCalledTimes(8)
+    expect(body.marketsAttempted).toBe(8)
+  })
+
+  it('finishes a rate-limited in-flight batch but does not start another batch', async () => {
+    const markets = Array.from({ length: 8 }, (_, index) => ({
+      id: index + 1,
+      city: `City ${index + 1}`,
+      country: 'US',
+      iata: `M${index + 1}`,
+    }))
+    mockGetActiveMarkets.mockResolvedValue(markets)
+    mockRunSnapshots.mockImplementation(async (market, marketIndex) => {
+      if (marketIndex === 1) throw new RateLimitError()
+      return [{ market: market.iata, checkIn: '2026-09-01', hotelsProcessed: 20 }]
+    })
 
     const response = await POST(pipelineRequest())
     const body = await response.json()
 
     expect(body.rateLimited).toBe(true)
-    expect(mockRunSnapshots).toHaveBeenCalledTimes(2)
+    expect(body.marketsAttempted).toBe(6)
+    expect(mockRunSnapshots).toHaveBeenCalledTimes(6)
+    expect(mockRunSnapshots).not.toHaveBeenCalledWith(markets[6], 6)
+    expect(body.results.M7).toBeUndefined()
+    expect(body.results.M8).toBeUndefined()
   })
 })
