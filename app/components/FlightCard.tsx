@@ -37,6 +37,21 @@ function formatDate(value?: string) {
   })
 }
 
+function nearbyDateLabel(fare: NormalizedFare): string {
+  const relation = fare.dateRelation
+  if (!relation || relation.relation !== 'nearby') return ''
+
+  const fareDate = new Date(`${relation.fareDepart}T00:00:00.000Z`)
+  const selectedDate = new Date(`${relation.selectedDepart}T00:00:00.000Z`)
+  if (Number.isNaN(fareDate.getTime()) || Number.isNaN(selectedDate.getTime())) return ''
+
+  const days = Math.round((fareDate.getTime() - selectedDate.getTime()) / 86_400_000)
+  if (days === 0) return ''
+  const distance = Math.abs(days)
+  const direction = days > 0 ? 'after' : 'before'
+  return `${fareDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} · ${distance} day${distance === 1 ? '' : 's'} ${direction} your search`
+}
+
 function formatTime(value: string) {
   if (!value.includes('T')) return ''
   const date = new Date(value)
@@ -713,6 +728,7 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
   const tripLabel = fare.return ? 'Round trip' : 'One way'
   const carrierLabel = fare.carrier.trim() || 'Unknown carrier'
   const departContext = getScheduleContext('Depart', fare.depart)
+  const nearbyDate = nearbyDateLabel(fare)
   const itinerary = fare.itinerary
   const itineraryCertainty = itinerary?.certainty ?? 'unavailable'
   const durationLabel = formatDuration(itinerary?.durationMinutes)
@@ -745,6 +761,11 @@ export default function FlightCard({ fare, score, loading, baggageEstimate }: Pr
               <p className="truncate text-xs font-medium leading-5 text-[var(--text-2)]">
                 {tripLabel} · {carrierLabel}
               </p>
+              {nearbyDate ? (
+                <p className="mt-1 text-xs font-medium leading-5 text-[var(--text-2)]">
+                  {nearbyDate}
+                </p>
+              ) : null}
               <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
                 {showCollapsedDuration && !showRouteTimeline ? (
                   <span className={`text-xs leading-5 tabular-nums ${

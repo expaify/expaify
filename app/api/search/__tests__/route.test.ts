@@ -252,6 +252,45 @@ describe('GET /api/search guardrails and provider failures', () => {
     }));
   });
 
+  it('deduplicates default Travelpayouts fares by id and keeps the cheapest fare', async () => {
+    const duplicateWithDifferentFields: NormalizedFare = {
+      ...fare,
+      carrier: 'Different carrier data',
+      depart: '2099-09-23',
+      price: { priceCents: 17500, currency: 'USD' },
+    };
+    (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      data: [fare, duplicateWithDifferentFields],
+    });
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
+    const flights = parseNdjson(await readNdjson(response)).find(message =>
+      message.type === 'flights' && message.source === 'travelpayouts'
+    );
+
+    expect(flights?.data).toEqual([fareWithDateRelation(duplicateWithDifferentFields)]);
+  });
+
+  it('keeps composite-key deduplication stable for date-only fares with different ids', async () => {
+    const duplicate: NormalizedFare = {
+      ...fare,
+      id: 'tp-2',
+      price: { priceCents: 17500, currency: 'USD' },
+    };
+    (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      data: [fare, duplicate],
+    });
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
+    const flights = parseNdjson(await readNdjson(response)).find(message =>
+      message.type === 'flights' && message.source === 'travelpayouts'
+    );
+
+    expect(flights?.data).toEqual([fareWithDateRelation(duplicate)]);
+  });
+
   it('converts an unexpected provider throw into a user-visible notice without dropping successful fares', async () => {
     (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [fare] });
     (skyScrapper.searchFares as jest.Mock).mockRejectedValueOnce(new Error('socket hang up'));

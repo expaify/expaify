@@ -161,6 +161,32 @@ describe('SkyScrapperProvider', () => {
     expect(cache.set).toHaveBeenCalledWith(expect.any(String), [], 21600);
   });
 
+  it('resolves a metro IATA code to the corresponding CITY entity', async () => {
+    global.fetch = jest.fn().mockImplementation((input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/searchAirport')) {
+        const query = url.searchParams.get('query');
+        const data = query === 'NYC'
+          ? [
+              { navigation: { entityType: 'AIRPORT', relevantFlightParams: { skyId: 'JFK', entityId: '95565058' } } },
+              { navigation: { entityType: 'CITY', relevantFlightParams: { skyId: 'NYCA', entityId: '27537542' } } },
+            ]
+          : [{ navigation: { entityType: 'AIRPORT', relevantFlightParams: { skyId: 'LAX', entityId: '95565047' } } }];
+        return Promise.resolve({ ok: true, status: 200, json: jest.fn().mockResolvedValue({ status: true, data }) } as unknown as Response);
+      }
+      return Promise.resolve({ ok: true, status: 200, json: jest.fn().mockResolvedValue({ data: { itineraries: [] } }) } as unknown as Response);
+    });
+
+    const result = await new SkyScrapperProvider().searchFares('NYC', 'LAX', {
+      depart: '2026-09-15',
+      passengers: 1,
+    });
+
+    expect(result).toEqual({ ok: true, data: [] });
+    expect(cache.set).toHaveBeenCalledWith('skyscrapper:entity:NYC', '27537542', 2592000);
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('originEntityId=27537542'), expect.any(Object));
+  });
+
   it('returns a Result error and writes diagnostics for an HTTP error', async () => {
     mockFetch({}, 429);
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});

@@ -87,17 +87,30 @@ function flexibleDateCoverage(input: {
 }
 
 function dedupFares(fares: NormalizedFare[]): NormalizedFare[] {
-  const best = new Map<string, NormalizedFare>();
+  const bestById = new Map<string, NormalizedFare>();
 
-  for (const fare of fares) {
-    const key = `${fare.price.currency}:${fare.carrier}:${fare.origin}:${fare.destination}:${fare.depart.slice(0, 16)}`;
-    const existing = best.get(key);
+  for (const [index, fare] of fares.entries()) {
+    const id = fare.id.trim();
+    const key = id || `__missing-id:${index}`;
+    const existing = bestById.get(key);
     if (!existing || fare.price.priceCents < existing.price.priceCents) {
-      best.set(key, fare);
+      bestById.set(key, fare);
     }
   }
 
-  return Array.from(best.values()).sort((a, b) =>
+  const bestByJourney = new Map<string, NormalizedFare>();
+  for (const fare of bestById.values()) {
+    // slice is stable for both date-only values (all 10 characters remain)
+    // and timestamps (grouped to departure minute, as before).
+    const departureMinute = fare.depart.slice(0, 16);
+    const key = `${fare.price.currency}:${fare.carrier}:${fare.origin}:${fare.destination}:${departureMinute}`;
+    const existing = bestByJourney.get(key);
+    if (!existing || fare.price.priceCents < existing.price.priceCents) {
+      bestByJourney.set(key, fare);
+    }
+  }
+
+  return Array.from(bestByJourney.values()).sort((a, b) =>
     a.price.currency.localeCompare(b.price.currency) ||
     a.price.priceCents - b.price.priceCents
   );
@@ -368,7 +381,7 @@ export async function GET(request: NextRequest) {
             }
 
             const r = await travelpayouts.searchFares(originIATA, destIATA ?? '', range);
-            if (r.ok && r.data.length > 0) sendFlights('travelpayouts', r.data);
+            if (r.ok && r.data.length > 0) sendFlights('travelpayouts', dedupFares(r.data));
             else if (!r.ok) sendProviderNotice('Travelpayouts', r.reason);
           } catch (error) {
             sendProviderNotice('Travelpayouts', providerExceptionReason('Travelpayouts', error));

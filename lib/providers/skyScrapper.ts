@@ -142,14 +142,20 @@ export class SkyScrapperProvider implements FlightProvider {
         }];
       });
       const match = candidates.sort((left, right) => {
+        const leftCityMatch = left.entityType === 'CITY' && left.skyId.startsWith(normalizedIata);
+        const rightCityMatch = right.entityType === 'CITY' && right.skyId.startsWith(normalizedIata);
         const leftScore = (left.skyId === normalizedIata ? 2 : 0) +
+          (leftCityMatch ? 2 : 0) +
           (left.entityType === 'AIRPORT' ? 1 : 0);
         const rightScore = (right.skyId === normalizedIata ? 2 : 0) +
+          (rightCityMatch ? 2 : 0) +
           (right.entityType === 'AIRPORT' ? 1 : 0);
         return rightScore - leftScore;
       })[0];
 
-      if (!match || match.skyId !== normalizedIata) return null;
+      const isExactMatch = match?.skyId === normalizedIata;
+      const isMetroCityMatch = match?.entityType === 'CITY' && match.skyId.startsWith(normalizedIata);
+      if (!match || (!isExactMatch && !isMetroCityMatch)) return null;
       await cache.set(cacheKey, match.entityId, ENTITY_CACHE_TTL);
       return match.entityId;
     } catch {
