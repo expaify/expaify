@@ -80,7 +80,7 @@ type PageProps = {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { dealId } = await params
   const deal = await getDealById(dealId)
-  if (!deal) return {}
+  if (!deal) notFound()
 
   const title = `${deal.hotel_name} in ${deal.city} — expaify`
   const description = `${deal.discount_pct}% below its usual price for ${deal.check_in_window} in ${deal.city}.`
