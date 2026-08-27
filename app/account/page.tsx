@@ -4,6 +4,8 @@ import { getSubscription, isPremium } from '@/lib/subscription'
 import { reconcileCheckoutSession } from '@/lib/stripe/reconcileCheckout'
 import { query } from '@/lib/db/client'
 import { AccountClient } from './AccountClient'
+import { Icon } from '@/app/components/ui/icons/Icon'
+import { Reveal } from '@/app/components/ui/Reveal'
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -23,6 +25,8 @@ function formatDate(d?: Date | null) {
 function trialDaysLeft(trialEndsAt: Date): number {
   return Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / 86400000))
 }
+
+const TRIAL_LENGTH_DAYS = 7
 
 export default async function AccountPage({ searchParams }: PageProps) {
   const session = await auth()
@@ -95,13 +99,18 @@ export default async function AccountPage({ searchParams }: PageProps) {
         <h1 className="mb-6 font-display text-2xl font-bold text-[color:var(--ink)]">Account</h1>
 
         {/* Plan status */}
-        <section
-          className={`mb-5 rounded-[var(--radius-card)] p-6 ${
-            premium
-              ? 'border-2 border-[color:var(--primary)] bg-[color:var(--surface)]'
-              : 'border-[1.5px] border-dashed border-[color:var(--line-ivory)] bg-[color:var(--surface)]'
-          }`}
-        >
+        <Reveal delayMs={0}>
+          <section
+            className={`mb-5 rounded-[var(--radius-card)] bg-[color:var(--surface)] p-6 shadow-sm transition-shadow duration-300 hover:shadow-md ${
+              premium
+                ? 'border-2 border-[color:var(--primary)] bg-[radial-gradient(ellipse_at_top_right,var(--primary-soft),transparent_60%)]'
+                : 'border-[1.5px] border-dashed border-[color:var(--line-ivory)]'
+            }`}
+          >
+          <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold text-[color:var(--ink)]">
+            <Icon name="premium_unlocked" size={20} className="text-[color:var(--primary)]" />
+            Plan
+          </h2>
           {/* Facts block (R2) */}
           <dl className="mb-4 grid gap-4 sm:grid-cols-3">
             <div>
@@ -150,11 +159,20 @@ export default async function AccountPage({ searchParams }: PageProps) {
           <div className="mb-4">
             {sub?.status === 'trialing' && sub.trialEndsAt && daysLeft !== null && (
               <div className="flex items-center gap-4 rounded-[var(--radius-control)] border border-[color:var(--gold)] bg-[color:var(--warning-soft)] px-4 py-3">
-                <div className="shrink-0 text-center">
-                  <div className="text-h2 text-[color:var(--gold-text)]">{daysLeft}</div>
-                  <div className="text-caption font-medium uppercase tracking-wide text-[color:var(--gold-text)]">
-                    {daysLeft === 1 ? 'day' : 'days'} left
-                  </div>
+                <div className="relative grid h-14 w-14 shrink-0 place-items-center" aria-label={`${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left`}>
+                  {(() => {
+                    const radius = 22
+                    const circumference = 2 * Math.PI * radius
+                    const progressDays = Math.min(TRIAL_LENGTH_DAYS, daysLeft)
+                    const dashoffset = circumference * (1 - progressDays / TRIAL_LENGTH_DAYS)
+                    return (
+                      <svg className="absolute inset-0 -rotate-90" width="56" height="56" viewBox="0 0 56 56" aria-hidden="true">
+                        <circle cx="28" cy="28" r={radius} fill="none" stroke="var(--line-ivory)" strokeWidth="4" />
+                        <circle cx="28" cy="28" r={radius} fill="none" stroke="var(--gold-deep)" strokeWidth="4" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashoffset} />
+                      </svg>
+                    )
+                  })()}
+                  <span className="text-h3 text-tabular text-[color:var(--gold-text)]" aria-hidden="true">{daysLeft}</span>
                 </div>
                 <p className="text-small text-[color:var(--gold-text)]">
                   Trial ends <strong>{formatDate(sub.trialEndsAt)}</strong>. You&apos;ll be charged{' '}
@@ -202,11 +220,16 @@ export default async function AccountPage({ searchParams }: PageProps) {
               <AccountClient userId={session.user.id} upgradePlan="annual" />
             )}
           </div>
-        </section>
+          </section>
+        </Reveal>
 
         {/* Alerts + Watchlist */}
-        <section id="alerts" className="mb-5 scroll-mt-20 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
-            <h2 className="mb-1 font-display text-base font-bold text-[color:var(--ink)]">Email alerts</h2>
+        <Reveal delayMs={75}>
+          <section id="alerts" className="mb-5 scroll-mt-20 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-sm transition-shadow duration-300 hover:shadow-md">
+            <h2 className="mb-1 flex items-center gap-2 font-display text-base font-bold text-[color:var(--ink)]">
+              <Icon name="email_alert" size={20} className="text-[color:var(--primary)]" />
+              Email alerts
+            </h2>
             <p className="mb-5 text-sm text-[color:var(--ink-faint)]">
               Choose how often we email you when a deal appears. Changes save instantly.
             </p>
@@ -214,31 +237,40 @@ export default async function AccountPage({ searchParams }: PageProps) {
               stripeCustomerId={sub?.stripeCustomerId}
               userId={session.user.id}
               alertPreference={sub?.alertPreference}
+              alertTimezone={sub?.alertTimezone}
               watchlist={sub?.watchlist}
               minDiscountPct={sub?.minDiscountPct as 30 | 40 | 50 | undefined}
               premium={premium}
               showAlerts
             />
-        </section>
+          </section>
+        </Reveal>
 
         {/* Profile */}
-        <section className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
+        <Reveal delayMs={150}>
+          <section className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-sm transition-shadow duration-300 hover:shadow-md">
           <h2 className="mb-3 font-display text-base font-bold text-[color:var(--ink)]">Profile</h2>
           <p className="text-sm text-[color:var(--ink-soft)] [overflow-wrap:anywhere]">{session.user.email}</p>
           <p className="mt-1 text-sm text-[color:var(--ink-faint)]">{signInMethod}</p>
           <div className="mt-3 border-t border-[color:var(--line-ivory)] pt-3">
             <AccountClient userId={session.user.id} signOutOnly />
           </div>
-        </section>
+          </section>
+        </Reveal>
 
         {/* Privacy (all authenticated users) */}
-        <section className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6">
-          <h2 className="mb-1 font-display text-base font-bold text-[color:var(--ink)]">Privacy</h2>
+        <Reveal delayMs={225}>
+          <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-sm transition-shadow duration-300 hover:shadow-md">
+          <h2 className="mb-1 flex items-center gap-2 font-display text-base font-bold text-[color:var(--ink)]">
+            <Icon name="privacy" size={20} className="text-[color:var(--primary)]" />
+            Privacy
+          </h2>
           <p className="mb-5 text-sm text-[color:var(--ink-faint)]">
             Request a copy of your account data or ask us to delete your account.
           </p>
           <AccountClient userId={session.user.id} showPrivacy />
-        </section>
+          </section>
+        </Reveal>
       </main>
     </div>
   )

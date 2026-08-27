@@ -6,13 +6,37 @@ import { getStoredUtm } from '@/lib/attribution'
 import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { FREE_WATCHLIST_CAP, PREMIUM_WATCHLIST_CAP } from '@/lib/alertLimits'
 import { track } from '@/lib/analytics'
+import { Icon } from '@/app/components/ui/icons/Icon'
 
 type AlertPreference = 'instant' | 'daily' | 'off'
 type MinDiscountPct = 30 | 40 | 50
 
+const TIMEZONE_OPTIONS = [
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Anchorage',
+  'Pacific/Honolulu',
+  'America/Toronto',
+  'America/Vancouver',
+  'America/Mexico_City',
+  'America/Sao_Paulo',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Africa/Johannesburg',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Australia/Sydney',
+] as const
+
 type Props = {
   stripeCustomerId?: string | null
   alertPreference?: AlertPreference
+  alertTimezone?: string
   watchlist?: string[]
   minDiscountPct?: MinDiscountPct
   userId?: string
@@ -23,7 +47,7 @@ type Props = {
   upgradePlan?: 'monthly' | 'annual'
 }
 
-type GroupName = 'pref' | 'min' | 'city'
+type GroupName = 'pref' | 'timezone' | 'min' | 'city'
 type GroupStatus = 'idle' | 'saving' | 'saved' | 'error' | 'cap'
 
 type PersistResult = {
@@ -35,21 +59,45 @@ type PersistResult = {
 }
 
 function StatusLine({ status, maxCities }: { status: GroupStatus; maxCities?: number }) {
+  const message = status === 'saving'
+    ? 'Saving…'
+    : status === 'saved'
+    ? 'Saved'
+    : status === 'error'
+    ? 'Couldn’t save. Your change was undone — try again.'
+    : status === 'cap'
+    ? `You’re watching ${maxCities} ${maxCities === 1 ? 'city' : 'cities'} — the maximum. Unwatch one first.`
+    : ''
+
   return (
-    <p aria-live="polite" className="mt-1.5 min-h-[18px] text-xs leading-[18px]">
-      {status === 'saving' && <span className="text-[color:var(--ink-faint)]">Saving…</span>}
-      {status === 'saved' && <span className="font-medium text-[color:var(--primary)]">Saved</span>}
-      {status === 'error' && (
-        <span role="alert" className="font-medium text-[color:var(--error-text)]">
-          Couldn&rsquo;t save. Your change was undone — try again.
+    <div aria-live="polite" className="mt-1.5 min-h-[18px] text-xs leading-[18px]">
+      <span className="sr-only">{message}</span>
+      {(status === 'idle' || status === 'saving' || status === 'saved') && (
+        <span aria-hidden="true" className={`inline-flex items-center gap-1.5 transition-opacity duration-200 ${status === 'idle' ? 'opacity-0' : 'opacity-100'}`}>
+          <span className="relative h-4 w-4 shrink-0">
+            <span className={`absolute inset-0 h-4 w-4 rounded-full border-2 border-[color:var(--primary-soft)] border-t-[color:var(--primary)] transition-all duration-200 ${status === 'saving' ? 'animate-spin scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
+            <svg viewBox="0 0 16 16" className={`absolute inset-0 h-4 w-4 text-[color:var(--primary)] transition-all duration-200 ${status === 'saved' ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m3.5 8 3 3 6-6" />
+            </svg>
+          </span>
+          <span className={status === 'saving' ? 'text-[color:var(--ink-faint)]' : 'font-medium text-[color:var(--primary)]'}>
+            {status === 'saving' ? 'Saving…' : 'Saved'}
+          </span>
         </span>
       )}
-      {status === 'cap' && (
-        <span className="text-[color:var(--ink-faint)]">
-          You&rsquo;re watching {maxCities} {maxCities === 1 ? 'city' : 'cities'} — the maximum. Unwatch one first.
-        </span>
-      )}
-    </p>
+      <span aria-hidden="true">
+        {status === 'error' && (
+          <span role="alert" className="font-medium text-[color:var(--error-text)]">
+            Couldn&rsquo;t save. Your change was undone — try again.
+          </span>
+        )}
+        {status === 'cap' && (
+          <span className="text-[color:var(--ink-faint)]">
+            You&rsquo;re watching {maxCities} {maxCities === 1 ? 'city' : 'cities'} — the maximum. Unwatch one first.
+          </span>
+        )}
+      </span>
+    </div>
   )
 }
 
@@ -99,7 +147,7 @@ function PillRadioGroup<T extends string | number>({ label, options, value, onCh
   )
 }
 
-export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [], minDiscountPct = 40, showAlerts, premium = false, showPrivacy, signOutOnly, upgradePlan }: Props) {
+export function AccountClient({ stripeCustomerId, alertPreference, alertTimezone = 'America/New_York', watchlist = [], minDiscountPct = 40, showAlerts, premium = false, showPrivacy, signOutOnly, upgradePlan }: Props) {
   const [portalLoading, setPortalLoading] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
@@ -110,6 +158,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
     !premium && alertPreference === 'instant' ? 'daily' : (alertPreference ?? 'daily')
   )
   const [discountPct, setDiscountPct] = useState<MinDiscountPct>(minDiscountPct)
+  const [timezone, setTimezone] = useState(alertTimezone)
   const [cities, setCities] = useState<string[]>(watchlist)
   const maxCities = premium ? PREMIUM_WATCHLIST_CAP : FREE_WATCHLIST_CAP
   const [citySearch, setCitySearch] = useState('')
@@ -122,6 +171,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
   )
   const [groupStatus, setGroupStatus] = useState<Record<GroupName, GroupStatus>>({
     pref: 'idle',
+    timezone: 'idle',
     min: 'idle',
     city: 'idle',
   })
@@ -133,6 +183,13 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
     Object.values(controllers.current).forEach(controller => controller?.abort())
     Object.values(savingTimers.current).forEach(timer => clearTimeout(timer))
     Object.values(savedTimers.current).forEach(timer => clearTimeout(timer))
+  }, [])
+
+  useEffect(() => {
+    const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if ((TIMEZONE_OPTIONS as readonly string[]).includes(browserTimezone)) {
+      setTimezone(browserTimezone)
+    }
   }, [])
 
   function setStatus(group: GroupName, status: GroupStatus) {
@@ -261,6 +318,17 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
     })
   }
 
+  function saveTimezone(next: string) {
+    if (next === timezone) return
+    const prev = timezone
+    setTimezone(next)
+    void persist('timezone', '/api/account/alerts', { alertTimezone: next }).then(r => {
+      if (r.stale || r.ok) return
+      setTimezone(prev)
+      setStatus('timezone', 'error')
+    })
+  }
+
   function toggleCity(city: string) {
     const selected = cities.includes(city)
     if (!selected && cities.length >= maxCities) {
@@ -341,6 +409,23 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
           <StatusLine status={groupStatus.pref} />
         </div>
 
+        {/* Alert timezone */}
+        <div>
+          <label htmlFor="alert-timezone" className="mb-2 block text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Alert timezone</label>
+          <select
+            id="alert-timezone"
+            value={timezone}
+            onChange={event => saveTimezone(event.target.value)}
+            className="min-h-11 w-full rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--ink)] focus:border-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary-soft)]"
+          >
+            {!(TIMEZONE_OPTIONS as readonly string[]).includes(alertTimezone) && (
+              <option value={alertTimezone}>{alertTimezone}</option>
+            )}
+            {TIMEZONE_OPTIONS.map(zone => <option key={zone} value={zone}>{zone.replaceAll('_', ' ')}</option>)}
+          </select>
+          <StatusLine status={groupStatus.timezone} />
+        </div>
+
         {/* Deal threshold */}
         <div>
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Minimum deal size</p>
@@ -359,9 +444,12 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
 
         {/* Watchlist */}
         <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">
-            Cities I&apos;m watching ({cities.length}/{maxCities})
-          </p>
+          <div className="mb-2 flex items-center gap-2">
+            <Icon name="watchlist" size={20} className="text-[color:var(--primary)]" />
+            <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">
+              Cities I&apos;m watching ({cities.length}/{maxCities})
+            </p>
+          </div>
           <input
             type="text"
             value={citySearch}
@@ -383,7 +471,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, watchlist = [
                     onClick={() => toggleCity(city)}
                     aria-pressed={selected}
                     aria-disabled={capped || undefined}
-                    className={`rounded-[var(--radius-pill)] px-3 py-1.5 text-xs font-medium transition-colors duration-100 ${
+                    className={`rounded-[var(--radius-pill)] px-3 py-1.5 text-xs font-medium transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.97] ${
                       capped ? 'opacity-55' : ''
                     } ${
                       selected
