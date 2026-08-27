@@ -5,6 +5,7 @@ import { LandingNav } from './components/LandingNav'
 import { FaqAccordion } from './components/FaqAccordion'
 import { TrackedLink } from './components/TrackedLink'
 import { CITY_SLUGS } from '@/lib/cities'
+import { TRACKED_MARKETS } from '@/lib/trackedMarkets'
 import { getActiveDeals, getTrackedHotels, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DEAL_THRESHOLD, MIN_SNAPSHOTS } from '@/lib/pipeline/dealRules'
 import { HomepageRedesign } from './components/HomepageRedesign'
@@ -12,7 +13,7 @@ import { HomepageRedesign } from './components/HomepageRedesign'
 export const metadata: Metadata = {
   title: 'expaify — Never overpay for a hotel again',
   description:
-    'We track 26 destinations daily and alert you the moment a hotel drops 30% below its normal price.',
+    `We track ${TRACKED_MARKETS.length} destinations daily and alert you the moment a hotel drops 30% below its normal price.`,
 }
 
 // getActiveDeals() is a cheap, indexed query (limit 3) with no upstream cache —
@@ -296,7 +297,7 @@ export default async function LandingPage() {
                 {
                   n: '01',
                   title: 'We track prices daily',
-                  body: 'Our pipeline snapshots hotel rates across 26 destinations every 24 hours, building a 60-day price history per property.',
+                  body: `Our pipeline snapshots hotel rates across ${TRACKED_MARKETS.length} destinations every 24 hours, building a 60-day price history per property.`,
                 },
                 {
                   n: '02',

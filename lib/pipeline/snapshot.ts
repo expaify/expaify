@@ -39,6 +39,14 @@ const BK_DEST: Record<string, string> = {
   // for them since launch (on top of the Priceline gap fixed separately).
   CAI: '-290692', HRG: '-290029', SSH: '-302053',
   AYT: '-735347', IST: '-755070', BJV: '-739558',
+  // Resolved 2026-08-27 for the 10-city expansion. DPS and JTR have no single
+  // dominant city dest_id on this provider (Bali/Santorini are islands) --
+  // used the highest-nr_hotels city-type entry within each as a documented
+  // proxy (Ubud for Bali, Fira for Santorini), matching this table's
+  // hardcoded search_type=city constraint. The rest are exact city matches.
+  DPS: '-2701757', RAK: '-38833',   MEX: '-1658079', JTR: '-829275',
+  BUE: '-979186',  LAX: '20014181', CHI: '20033173', VIE: '-1995499',
+  PRG: '-553173',  SEL: '-716583',
 }
 
 // Lat/lon for booking-com v1 coordinate search
@@ -52,6 +60,10 @@ const COORDS: Record<string, [number, number]> = {
   CLT: [35.2271, -80.8431], BNA: [36.1627, -86.7816],
   CAI: [30.0445, 31.2356], HRG: [27.2589, 33.8120], SSH: [27.9156, 34.3289],
   AYT: [36.8913, 30.7035], IST: [41.0082, 28.9744], BJV: [37.0333, 27.4333],
+  DPS: [-8.65271, 115.21927], RAK: [31.62821, -8.000632], MEX: [19.432863, -99.1333],
+  JTR: [36.4198, 25.43123],   BUE: [-34.603752, -58.38156], LAX: [34.05205, -118.24327],
+  CHI: [41.8821, -87.6243],  VIE: [48.2086, 16.373491],    PRG: [50.08773, 14.421133],
+  SEL: [37.561893, 126.98116],
 }
 
 // TripAdvisor geoIds (tripadvisor16 provider) — omitted where unavailable
@@ -64,6 +76,13 @@ const TA_GEO: Record<string, string> = {
   // searchLocation endpoint (tried exact name and "<city> <country>"
   // variants 2026-08-27, both empty) -- omitted like the others above.
   CAI: '294201',   IST: '293974',   BJV: '298658',
+  // Resolved 2026-08-27 for the 10-city expansion. DPS (Bali), RAK
+  // (Marrakech), and JTR (Santorini) genuinely have no resolvable geoId on
+  // this provider either (tried multiple name variants each; confirmed the
+  // endpoint itself still works via a Rome=187791 sanity check) -- omitted
+  // like the others above.
+  MEX: '150800',   BUE: '312741',  LAX: '32655',   CHI: '35805',
+  VIE: '190454',   PRG: '274707',  SEL: '294197',
 }
 
 // Priceline city ids (priceline-com2 provider) -- resolved via that API's own
@@ -80,6 +99,10 @@ const PL_CITY: Record<string, string> = {
   // them the whole time. Turkey's countryCode in this API is 'TU', not 'TR'.
   CAI: '3000080002', HRG: '3000080000', SSH: '5000038504',
   AYT: '5000475405', IST: '3000040045', BJV: '5000022030',
+  // Resolved 2026-08-27 for the 10-city expansion, same /hotels/auto-complete method.
+  DPS: '5000012025', RAK: '5000463463', MEX: '3000060262', JTR: '5000496032',
+  BUE: '5000450066', LAX: '3000001947', CHI: '3000005381', VIE: '3000035886',
+  PRG: '3000035883', SEL: '3000040019',
 }
 
 // Agoda city ids (agoda-com provider) -- resolved via /hotels/auto-complete
@@ -91,6 +114,12 @@ const AG_CITY: Record<string, string> = {
   MCO: '10757', SJU: '17823', AMS: '13868', ATH: '16571', PUJ: '3332', CLT: '12113',
   BNA: '2703', TUL: '19741', CAI: '7923', HRG: '6700', SSH: '15897', AYT: '7493',
   IST: '14932', BJV: '3253',
+  // Resolved 2026-08-27 for the 10-city expansion, same /hotels/auto-complete method.
+  // DPS uses the nested city.id for the Denpasar-neighborhood result, since
+  // Agoda's own hierarchy treats "Bali" as the city and Denpasar as an area
+  // within it.
+  DPS: '17193', RAK: '11825', MEX: '2086', JTR: '16084', BUE: '9294',
+  LAX: '12772', CHI: '13899', VIE: '16582', PRG: '15977', SEL: '14690',
 }
 
 // ── Normalised hotel type ────────────────────────────────────────────────────

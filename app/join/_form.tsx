@@ -4,9 +4,10 @@ import { useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { useState } from 'react'
 import { track } from '@/lib/analytics'
+import { TRACKED_MARKETS } from '@/lib/trackedMarkets'
 
 const FEATURES = [
-  'Unlimited hotel deal alerts across 26 destinations',
+  `Unlimited hotel deal alerts across ${TRACKED_MARKETS.length} destinations`,
   'Email the moment prices drop below your target',
   'Full price history — know if a deal is real',
   'Every alert is 30%+ below its 60-day median price',

@@ -2,6 +2,7 @@ import {
   Body, Button, Container, Head, Hr, Html,
   Preview, Text,
 } from '@react-email/components'
+import { TRACKED_MARKETS } from '@/lib/trackedMarkets'
 
 export type WelcomeEmailProps = {
   email: string
@@ -23,7 +24,7 @@ export function WelcomeEmail({ email }: WelcomeEmailProps) {
           </Text>
 
           <Text style={{ fontSize: '15px', lineHeight: '1.6', color: '#5C5852', margin: '0 0 24px' }}>
-            We check hotel prices across 20 destinations every day.
+            We check hotel prices across {TRACKED_MARKETS.length} destinations every day.
             When a hotel drops 30%+ below its usual price, you'll hear from us.
           </Text>
 

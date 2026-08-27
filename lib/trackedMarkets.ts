@@ -33,6 +33,16 @@ export const TRACKED_MARKETS: TrackedMarket[] = [
   { city: 'Antalya', country: 'TR', iata: 'AYT', photoUrl: 'https://images.unsplash.com/photo-1648325129746-abcc1b872380?auto=format&fit=crop&w=640&q=80', photoAlt: 'Antalya old harbor with boats' },
   { city: 'Istanbul', country: 'TR', iata: 'IST', photoUrl: 'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=640&q=80', photoAlt: 'Galata Tower over the Istanbul skyline' },
   { city: 'Bodrum', country: 'TR', iata: 'BJV', photoUrl: 'https://images.unsplash.com/photo-1564166489229-dfb970a591bf?auto=format&fit=crop&w=640&q=80', photoAlt: 'Boat on the water near Bodrum' },
+  { city: 'Bali (Denpasar)', country: 'ID', iata: 'DPS', photoUrl: 'https://images.unsplash.com/photo-1557093793-d149a38a1be8?auto=format&fit=crop&w=640&q=80', photoAlt: 'Tegalalang rice terraces near Ubud, Bali' },
+  { city: 'Marrakech', country: 'MA', iata: 'RAK', photoUrl: 'https://images.unsplash.com/photo-1740381971575-92907071bc5f?auto=format&fit=crop&w=640&q=80', photoAlt: "Crowds gathered in Marrakech's main square at night" },
+  { city: 'Mexico City', country: 'MX', iata: 'MEX', photoUrl: 'https://images.unsplash.com/photo-1747620612231-c598ff8abc65?auto=format&fit=crop&w=640&q=80', photoAlt: 'Angel of Independence monument lit at night in Mexico City' },
+  { city: 'Santorini', country: 'GR', iata: 'JTR', photoUrl: 'https://images.unsplash.com/photo-1563789031959-4c02bcb41319?auto=format&fit=crop&w=640&q=80', photoAlt: "White and blue building overlooking Oia's blue church domes" },
+  { city: 'Buenos Aires', country: 'AR', iata: 'BUE', photoUrl: 'https://images.unsplash.com/photo-1745409927264-0db48faf407b?auto=format&fit=crop&w=640&q=80', photoAlt: 'Obelisco de Buenos Aires under blue skies' },
+  { city: 'Los Angeles', country: 'US', iata: 'LAX', photoUrl: 'https://images.unsplash.com/photo-1534190760961-74e8c1c5c3da?auto=format&fit=crop&w=640&q=80', photoAlt: 'Aerial view of the Hollywood Sign at golden hour' },
+  { city: 'Chicago', country: 'US', iata: 'CHI', photoUrl: 'https://images.unsplash.com/photo-1493134799591-2c9eed26201a?auto=format&fit=crop&w=640&q=80', photoAlt: 'Chicago skyline across Lake Michigan' },
+  { city: 'Vienna', country: 'AT', iata: 'VIE', photoUrl: 'https://images.unsplash.com/photo-1578400889704-bbd63485d516?auto=format&fit=crop&w=640&q=80', photoAlt: "St. Stephen's Cathedral in Vienna" },
+  { city: 'Prague', country: 'CZ', iata: 'PRG', photoUrl: 'https://images.unsplash.com/photo-1755532883700-2dd663854b3b?auto=format&fit=crop&w=640&q=80', photoAlt: 'Charles Bridge with statues and Old Town Bridge Tower' },
+  { city: 'Seoul', country: 'KR', iata: 'SEL', photoUrl: 'https://images.unsplash.com/photo-1674220710675-5a4322525c47?auto=format&fit=crop&w=640&q=80', photoAlt: 'Seoul city skyline at sunset' },
 ]
 
 export const TRACKED_MARKET_NAMES = TRACKED_MARKETS.map((market) => market.city)

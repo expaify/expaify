@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { LandingNav } from '@/app/components/LandingNav'
+import { TRACKED_MARKETS } from '@/lib/trackedMarkets'
 
 export const metadata: Metadata = {
   title: 'Terms of Service — expaify',
@@ -16,7 +17,7 @@ export default function TermsPage() {
         <p className="mt-1 mb-10 text-sm text-[color:var(--ink-faint)]">Last updated July 2, 2026</p>
 
         <Section title="What expaify is">
-          <p>We track hotel prices across 26 destinations and alert members when a price drops significantly below its historical average. expaify is a deal discovery service. We do not sell hotel rooms, process bookings, or hold any payment for travel. All bookings happen directly on third-party provider sites.</p>
+          <p>We track hotel prices across {TRACKED_MARKETS.length} destinations and alert members when a price drops significantly below its historical average. expaify is a deal discovery service. We do not sell hotel rooms, process bookings, or hold any payment for travel. All bookings happen directly on third-party provider sites.</p>
         </Section>
 
         <Section title="Your subscription">

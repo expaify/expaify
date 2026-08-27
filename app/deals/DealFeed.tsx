@@ -47,6 +47,7 @@ import {
   type ApiDealFundsPolicy,
 } from '../components/HotelFundsPolicyComparison'
 import type { HotelReviewEvidence } from '@/lib/types'
+import { TRACKED_MARKETS } from '@/lib/trackedMarkets'
 import { createUnsupportedHotelClimateEvidence } from '@/lib/hotels/climateEvidence'
 
 const CITIES = [
@@ -1506,7 +1507,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   // watchlist and threshold; plain text + link, never styled as a filter pill.
   let subtitle: React.ReactNode
   if (!personalization) {
-    subtitle = 'Deals across 26 destinations, updated daily'
+    subtitle = `Deals across ${TRACKED_MARKETS.length} destinations, updated daily`
   } else if (!personalization.active) {
     subtitle = (
       <>

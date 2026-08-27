@@ -17,10 +17,11 @@ import {
   resolveHotelSearchCriteria,
 } from '@/lib/hotels/searchCriteria'
 import { parseHotelPoolFixture } from '@/app/components/research/hotelPoolFixtures'
+import { TRACKED_MARKETS } from '@/lib/trackedMarkets'
 
 export const metadata: Metadata = {
   title: 'Hotel deals today — expaify',
-  description: 'We track 26 destinations daily and surface hotel deals at least 30% below their 60-day median price.',
+  description: `We track ${TRACKED_MARKETS.length} destinations daily and surface hotel deals at least 30% below their 60-day median price.`,
   alternates: { canonical: 'https://expaify.com/deals' },
 }
 

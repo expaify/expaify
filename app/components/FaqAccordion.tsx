@@ -1,11 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 
 type FaqItem = {
   q: string
   a: string
 }
+
+const cityList = `${TRACKED_MARKET_NAMES.slice(0, -1).join(', ')}, and ${TRACKED_MARKET_NAMES.at(-1)}`
 
 const FAQS: FaqItem[] = [
   {
@@ -22,7 +25,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: 'How does the free trial work?',
-    a: 'You get 7 days of full Premium access — no charge until the trial ends. Cancel any time before day 7 and you pay nothing.',
+    a: 'You get 7 days of full Premium access. No charge until day 8 if you cancel first.',
   },
   {
     q: 'Can I cancel anytime?',
@@ -30,7 +33,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: 'Which cities do you track?',
-    a: 'We currently track 26 markets: Miami, New York, Cancún, Paris, Rome, Barcelona, Lisbon, London, Tokyo, Bangkok, Dubai, Las Vegas, Orlando, San Juan, Tulum, Amsterdam, Athens, Punta Cana, Charlotte, Nashville, Cairo, Hurghada, Sharm El Sheikh, Antalya, Istanbul, and Bodrum. More coming soon.',
+    a: `We currently track ${TRACKED_MARKET_NAMES.length} markets: ${cityList}. More coming soon.`,
   },
 ]
 

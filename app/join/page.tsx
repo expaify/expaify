@@ -3,11 +3,12 @@ import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 import { getSubscription, isPremium } from '@/lib/subscription'
+import { TRACKED_MARKETS } from '@/lib/trackedMarkets'
 import JoinForm from './_form'
 
 export const metadata: Metadata = {
   title: 'Join expaify — never overpay for a hotel again',
-  description: 'Get daily hotel deal alerts across 26 destinations, each one 30%+ below its 60-day median price. Start your trial.',
+  description: `Get daily hotel deal alerts across ${TRACKED_MARKETS.length} destinations, each one 30%+ below its 60-day median price. Start your trial.`,
   alternates: { canonical: 'https://expaify.com/join' },
 }
 

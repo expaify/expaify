@@ -25,6 +25,16 @@ export const CITY_SLUGS: Record<string, string> = {
   'antalya':    'Antalya',
   'istanbul':   'Istanbul',
   'bodrum':     'Bodrum',
+  'bali':          'Bali (Denpasar)',
+  'marrakech':     'Marrakech',
+  'mexico-city':   'Mexico City',
+  'santorini':     'Santorini',
+  'buenos-aires':  'Buenos Aires',
+  'los-angeles':   'Los Angeles',
+  'chicago':       'Chicago',
+  'vienna':        'Vienna',
+  'prague':        'Prague',
+  'seoul':         'Seoul',
 }
 
 export const CITY_DISPLAY_TO_SLUG: Record<string, string> = Object.fromEntries(
