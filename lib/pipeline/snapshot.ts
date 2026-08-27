@@ -62,6 +62,12 @@ const PL_CITY: Record<string, string> = {
   TYO: '3000040035', BKK: '3000040033', DXB: '5000003658', LAS: '3000015284',
   MCO: '3000003349', SJU: '3000024950', TUL: '5000495528', AMS: '3000035824',
   ATH: '3000035889', PUJ: '5000494493', CLT: '3000012874', BNA: '3000020633',
+  // Resolved via this API's own /hotels/auto-complete 2026-08-27 -- these 6
+  // markets were added to AG_CITY on 2026-08-19 but never backfilled here,
+  // leaving Priceline (the highest-volume provider) silently uncovered for
+  // them the whole time. Turkey's countryCode in this API is 'TU', not 'TR'.
+  CAI: '3000080002', HRG: '3000080000', SSH: '5000038504',
+  AYT: '5000475405', IST: '3000040045', BJV: '5000022030',
 }
 
 // Agoda city ids (agoda-com provider) -- resolved via /hotels/auto-complete
