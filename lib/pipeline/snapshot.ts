@@ -33,6 +33,12 @@ const BK_DEST: Record<string, string> = {
   TYO: '-246227',  BKK: '-3414440', DXB: '-782831',  LAS: '20079110',
   MCO: '20023488', SJU: '20154335', TUL: '-1707023', AMS: '-2140479',
   ATH: '-814876',  PUJ: '-3364907', CLT: '20091627', BNA: '20123908',
+  // Resolved via this API's own searchDestination endpoint 2026-08-27 -- same
+  // gap as PL_CITY: these 6 markets were never backfilled here either, so
+  // Booking.com's dest_id-based provider has been silently uncovering nothing
+  // for them since launch (on top of the Priceline gap fixed separately).
+  CAI: '-290692', HRG: '-290029', SSH: '-302053',
+  AYT: '-735347', IST: '-755070', BJV: '-739558',
 }
 
 // Lat/lon for booking-com v1 coordinate search
@@ -44,6 +50,8 @@ const COORDS: Record<string, [number, number]> = {
   MCO: [28.5383, -81.3792], SJU: [18.4655, -66.1057], TUL: [20.2114, -87.4654],
   AMS: [52.3676,   4.9041], ATH: [37.9838,  23.7275], PUJ: [18.5601, -68.3725],
   CLT: [35.2271, -80.8431], BNA: [36.1627, -86.7816],
+  CAI: [30.0445, 31.2356], HRG: [27.2589, 33.8120], SSH: [27.9156, 34.3289],
+  AYT: [36.8913, 30.7035], IST: [41.0082, 28.9744], BJV: [37.0333, 27.4333],
 }
 
 // TripAdvisor geoIds (tripadvisor16 provider) — omitted where unavailable
@@ -52,6 +60,10 @@ const TA_GEO: Record<string, string> = {
   ROM: '187791',   BCN: '187497',   LIS: '189158',  LON: '186338',
   BKK: '293916',   LAS: '45963',    SJU: '147320',  TUL: '23240074',
   AMS: '188590',   ATH: '29209',    CLT: '49022',   BNA: '55229',
+  // HRG, SSH, AYT genuinely have no resolvable geoId via this API's own
+  // searchLocation endpoint (tried exact name and "<city> <country>"
+  // variants 2026-08-27, both empty) -- omitted like the others above.
+  CAI: '294201',   IST: '293974',   BJV: '298658',
 }
 
 // Priceline city ids (priceline-com2 provider) -- resolved via that API's own
