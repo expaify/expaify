@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { SearchPanel, type SearchPanelSubmitPayload } from '@/components/search/SearchPanel'
 import FlightResults from '@/components/flights/FlightResults'
+import HotelCard from '@/app/components/HotelCard'
 import { sortFlights } from '@/lib/search/sortFlights'
 import { comparablePriceCents } from '@/lib/search/comparablePrice'
 import {
@@ -59,6 +60,94 @@ function isFlightsEvent(event: unknown): event is { type: 'flights'; data: Norma
     event !== null &&
     (event as { type?: unknown }).type === 'flights' &&
     Array.isArray((event as { data?: unknown }).data)
+  )
+}
+
+function HotelResults({
+  state,
+  isSearching,
+  hasSearched,
+  hasSearchDates,
+}: {
+  state: SearchStreamState
+  isSearching: boolean
+  hasSearched: boolean
+  hasSearchDates: boolean
+}) {
+  const accessState = state.hotelAccessStatus?.status
+  const cardAccessState = accessState === 'loading' || accessState === 'ready' || accessState === 'error'
+    ? accessState
+    : undefined
+  const searchRequestNotice = state.providerNotices.find(notice => notice.provider === 'Search request')
+  const subCheckMessages = [state.hotelAccessStatus, state.hotelSmokingPolicyStatus]
+    .filter(status => status?.status === 'error' && status.message)
+    .map(status => status!.message!)
+
+  let title = 'Search above to get started'
+  let message = 'Enter a destination and round-trip travel dates to compare live nightly hotel rates.'
+  let tone = 'border-[var(--border)] bg-[var(--bg-surface)]'
+
+  if (searchRequestNotice) {
+    title = 'Hotel search could not start'
+    message = searchRequestNotice.message
+    tone = 'border-[var(--warning)]/25 bg-[var(--warning-soft)]'
+  } else if (state.hotelStatus?.status === 'empty') {
+    title = 'No hotels returned'
+    message = state.hotelStatus.message ?? 'No hotels were returned for these dates.'
+  } else if (state.hotelStatus?.status === 'unavailable') {
+    title = 'Hotel provider unavailable'
+    message = state.hotelStatus.message ?? 'The hotel provider is unavailable right now.'
+    tone = 'border-[var(--warning)]/25 bg-[var(--warning-soft)]'
+  } else if (state.hotelStatus?.status === 'skipped') {
+    title = 'Hotel search needs round-trip details'
+    message = state.hotelStatus.message ?? 'Enter a destination plus depart and return dates to check hotel availability.'
+  } else if (hasSearched && isSearching && state.hotels.length === 0) {
+    title = 'Checking live hotel inventory'
+    message = 'Hotel results will appear here when Booking.com returns usable nightly rates.'
+  } else if (hasSearched && state.hotels.length === 0) {
+    title = 'Hotel inventory was not confirmed'
+    message = 'The search stream ended before a hotel inventory status was returned.'
+    tone = 'border-[var(--warning)]/25 bg-[var(--warning-soft)]'
+  }
+
+  return (
+    <section aria-labelledby="hotel-results-heading" className="space-y-4">
+      <h2 id="hotel-results-heading" className="font-display text-2xl font-bold text-[var(--text-1)]">
+        Hotels
+      </h2>
+      {state.hotels.length > 0 ? (
+        <>
+          {subCheckMessages.length > 0 ? (
+            <div className="rounded-[var(--radius-control)] border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-4 py-3" role="status">
+              {subCheckMessages.map(messageText => (
+                <p key={messageText} className="text-sm font-medium leading-6 text-[var(--warning)]">{messageText}</p>
+              ))}
+            </div>
+          ) : null}
+          {(state.hotelAccessStatus?.status === 'loading' || state.hotelSmokingPolicyStatus?.status === 'loading') ? (
+            <p className="text-sm font-medium text-[var(--text-3)]" role="status" aria-live="polite">
+              Checking hotel access and smoking-policy details…
+            </p>
+          ) : null}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {state.hotels.map(hotel => (
+              <HotelCard
+                key={hotel.id}
+                hotel={hotel}
+                accessEvidenceState={cardAccessState}
+                hasSearchDates={hasSearchDates}
+              />
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className={`rounded-[var(--radius-card)] border px-5 py-6 ${tone}`} role="status">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">Hotel results</p>
+          <h3 className="mt-2 font-display text-xl font-bold text-[var(--text-1)]">{title}</h3>
+          <p className="mt-2 text-sm font-medium leading-6 text-[var(--text-2)]">{message}</p>
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -143,7 +232,7 @@ export function FlightsClient() {
       // Kick off scoring from the raw event's fares rather than from the
       // merged state — reading side effects off a setState updater risks
       // running them twice under React's Strict Mode double-invoke.
-      if (isFlightsEvent(event)) {
+      if (search.searchIntent !== 'hotels' && isFlightsEvent(event)) {
         scoreNewFares(event.data, controller.signal)
       }
     }
@@ -254,6 +343,9 @@ export function FlightsClient() {
   )
 
   const rankingUpdating = scoreLoading.size > 0
+  const searchIntent = lastSearch?.searchIntent ?? 'hotels'
+  const showFlights = searchIntent === 'flights' || searchIntent === 'trip'
+  const showHotels = searchIntent === 'hotels' || searchIntent === 'trip'
 
   const onEditSearch = useCallback(() => {
     searchPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -280,39 +372,54 @@ export function FlightsClient() {
       <div ref={searchPanelRef}>
         <SearchPanel onSubmit={handleSubmit} />
       </div>
-      <FlightResults
-        flights={searchState.flights}
-        displayFlights={displayFlights}
-        isSearching={isSearching}
-        hasSearched={lastSearch !== null}
-        sortBy={sortBy}
-        setSortBy={setSortBy}
-        filterStops={filterStops}
-        setFilterStops={setFilterStops}
-        scores={scores}
-        scoreLoading={scoreLoading}
-        rankingUpdating={rankingUpdating}
-        suggestion={searchState.suggestion}
-        providerNotices={searchState.providerNotices}
-        origin={lastSearch?.originIata ?? ''}
-        dest={lastSearch?.destinationIata ?? ''}
-        depart={lastSearch?.departDate ?? ''}
-        returnDate={lastSearch?.returnDate ?? ''}
-        tripType={lastSearch?.tripType ?? 'roundtrip'}
-        flexDates={lastSearch?.flexible ?? false}
-        searchContext={buildSearchContext(lastSearch)}
-        alertEmail={alertEmail}
-        setAlertEmail={setAlertEmail}
-        alertSent={alertSent}
-        alertLoading={alertLoading}
-        alertError={alertError}
-        handleAlertSubmit={handleAlertSubmit}
-        onEditSearch={onEditSearch}
-        onRetrySearch={onRetrySearch}
-        onTryFlexibleDates={onTryFlexibleDates}
-        onSearchAnywhere={onSearchAnywhere}
-        onTryNearbyOrigin={onTryNearbyOrigin}
-      />
+      {showFlights ? (
+        <section aria-labelledby={searchIntent === 'trip' ? 'flight-results-heading' : undefined} className="space-y-4">
+          {searchIntent === 'trip' ? (
+            <h2 id="flight-results-heading" className="font-display text-2xl font-bold text-[var(--text-1)]">Flights</h2>
+          ) : null}
+          <FlightResults
+            flights={searchState.flights}
+            displayFlights={displayFlights}
+            isSearching={isSearching}
+            hasSearched={lastSearch !== null}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            filterStops={filterStops}
+            setFilterStops={setFilterStops}
+            scores={scores}
+            scoreLoading={scoreLoading}
+            rankingUpdating={rankingUpdating}
+            suggestion={searchState.suggestion}
+            providerNotices={searchState.providerNotices}
+            origin={lastSearch?.originIata ?? ''}
+            dest={lastSearch?.destinationIata ?? ''}
+            depart={lastSearch?.departDate ?? ''}
+            returnDate={lastSearch?.returnDate ?? ''}
+            tripType={lastSearch?.tripType ?? 'roundtrip'}
+            flexDates={lastSearch?.flexible ?? false}
+            searchContext={buildSearchContext(lastSearch)}
+            alertEmail={alertEmail}
+            setAlertEmail={setAlertEmail}
+            alertSent={alertSent}
+            alertLoading={alertLoading}
+            alertError={alertError}
+            handleAlertSubmit={handleAlertSubmit}
+            onEditSearch={onEditSearch}
+            onRetrySearch={onRetrySearch}
+            onTryFlexibleDates={onTryFlexibleDates}
+            onSearchAnywhere={onSearchAnywhere}
+            onTryNearbyOrigin={onTryNearbyOrigin}
+          />
+        </section>
+      ) : null}
+      {showHotels ? (
+        <HotelResults
+          state={searchState}
+          isSearching={isSearching}
+          hasSearched={lastSearch !== null}
+          hasSearchDates={Boolean(lastSearch?.departDate && lastSearch?.returnDate)}
+        />
+      ) : null}
     </div>
   )
 }

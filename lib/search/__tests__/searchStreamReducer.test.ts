@@ -68,11 +68,59 @@ describe('applySearchStreamEvent', () => {
     expect(state.done).toBe(true);
   });
 
-  it('leaves state untouched for out-of-scope event types like hotels and flight-date-coverage', () => {
+  it('accumulates hotel offers and retains the real page coverage', () => {
     const state = reduceAll([
-      { type: 'hotels', source: 'booking.com', data: [{ id: 'hotel-1' }] },
+      {
+        type: 'hotels',
+        source: 'booking.com',
+        data: [{ id: 'hotel-1' }, { id: 'hotel-2' }],
+        page: { coverage: 'more_available', nextPageToken: 'next' },
+      },
+      {
+        type: 'hotels',
+        source: 'booking.com',
+        data: [{ id: 'hotel-3' }],
+        page: { coverage: 'confirmed_end' },
+      },
+    ]);
+
+    expect(state.hotels.map(hotel => hotel.id)).toEqual(['hotel-1', 'hotel-2', 'hotel-3']);
+    expect(state.hotelCoverage).toBe('confirmed_end');
+  });
+
+  it('captures hotel inventory, access, and smoking-policy statuses independently', () => {
+    const state = reduceAll([
+      { type: 'hotel-status', status: 'available', coverage: 'unconfirmed' },
+      { type: 'hotel-access-status', status: 'error', message: 'Access details could not be checked.' },
+      { type: 'hotel-smoking-policy-status', status: 'ready', filterEnabled: false },
+    ]);
+
+    expect(state.hotelStatus).toEqual({ status: 'available', message: undefined });
+    expect(state.hotelCoverage).toBe('unconfirmed');
+    expect(state.hotelAccessStatus).toEqual({ status: 'error', message: 'Access details could not be checked.' });
+    expect(state.hotelSmokingPolicyStatus).toEqual({ status: 'ready', message: undefined });
+  });
+
+  it('retains the route-provided hotel empty/skipped/error message without inventing copy', () => {
+    const state = reduceAll([
+      { type: 'hotel-status', status: 'empty', coverage: 'confirmed_end', message: 'No hotels were returned for these dates.' },
+      { type: 'hotel-status', status: 'skipped', message: 'Enter a destination plus depart and return dates to check hotel availability.' },
+      { type: 'hotel-smoking-policy-status', status: 'error', message: 'Smoking policy could not be checked.' },
+    ]);
+
+    expect(state.hotelStatus).toEqual({
+      status: 'skipped',
+      message: 'Enter a destination plus depart and return dates to check hotel availability.',
+    });
+    expect(state.hotelSmokingPolicyStatus).toEqual({
+      status: 'error',
+      message: 'Smoking policy could not be checked.',
+    });
+  });
+
+  it('still leaves flight-date-coverage unhandled', () => {
+    const state = reduceAll([
       { type: 'flight-date-coverage', data: { status: 'complete' } },
-      { type: 'hotel-status', status: 'available' },
     ]);
 
     expect(state).toEqual(initialSearchStreamState);

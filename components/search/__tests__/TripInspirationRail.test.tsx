@@ -121,6 +121,7 @@ describe('SearchPanel', () => {
 
   it('submits a blank return date for one-way trips without changing round-trip payloads', () => {
     expect(createSearchPanelSubmitPayload({
+      searchIntent: 'trip',
       originIata: 'NYC',
       destinationIata: 'SJU',
       departDate: '2026-11-06',
@@ -128,6 +129,7 @@ describe('SearchPanel', () => {
       flexible: true,
       tripType: 'roundtrip',
     })).toEqual({
+      searchIntent: 'trip',
       originIata: 'NYC',
       destinationIata: 'SJU',
       departDate: '2026-11-06',
@@ -137,6 +139,7 @@ describe('SearchPanel', () => {
     });
 
     expect(createSearchPanelSubmitPayload({
+      searchIntent: 'hotels',
       originIata: 'NYC',
       destinationIata: 'SJU',
       departDate: '2026-11-06',
@@ -144,6 +147,7 @@ describe('SearchPanel', () => {
       flexible: false,
       tripType: 'oneway',
     })).toEqual({
+      searchIntent: 'hotels',
       originIata: 'NYC',
       destinationIata: 'SJU',
       departDate: '2026-11-06',

@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactElement } from 'react'
 import type { SearchPanelSubmitPayload } from '@/components/search/SearchPanel'
-import type { NormalizedFare, DealScore } from '@/lib/types'
+import type { NormalizedFare, DealScore, HotelOffer } from '@/lib/types'
 import type FlightResultsDefault from '@/components/flights/FlightResults'
 
 type FlightResultsProps = ComponentProps<typeof FlightResultsDefault>
@@ -61,6 +61,18 @@ jest.mock('@/components/flights/FlightResults', () => ({
   },
 }))
 
+jest.mock('@/app/components/HotelCard', () => ({
+  __esModule: true,
+  default: (props: { hotel: HotelOffer; accessEvidenceState?: string }) => {
+    const React = require('react') as typeof import('react')
+    return React.createElement(
+      'article',
+      { 'data-testid': `hotel-${props.hotel.id}` },
+      `${props.hotel.name} ${props.hotel.pricePerNight.priceCents} access:${props.accessEvidenceState ?? 'none'}`,
+    )
+  },
+}))
+
 const fareA: NormalizedFare = {
   id: 'fare-a',
   fareType: 'cash',
@@ -106,6 +118,16 @@ const dealScore: DealScore = {
   confidence: 'high',
   explanation: 'Well below recent median.',
 }
+
+const hotelOffer = {
+  id: 'hotel-a',
+  name: 'Real Stream Hotel',
+  area: 'Los Angeles',
+  stars: 4,
+  pricePerNight: { priceCents: 18999, currency: 'USD' },
+  deeplink: 'https://example.com/hotel?marker=test',
+  source: 'booking.com',
+} as HotelOffer
 
 function ndjsonBody(lines: object[]): Uint8Array {
   const encoder = new TextEncoder()
@@ -260,6 +282,7 @@ describe('FlightsClient', () => {
   }
 
   const payload: SearchPanelSubmitPayload = {
+    searchIntent: 'flights',
     originIata: 'JFK',
     destinationIata: 'LAX',
     departDate: '2026-09-01',
@@ -268,15 +291,80 @@ describe('FlightsClient', () => {
     tripType: 'roundtrip',
   }
 
-  it('reports hasSearched=false before any search is submitted, flipping true the moment a search starts', async () => {
+  it('renders hotels only for hotel intent from the same real stream contract', async () => {
+    const calls = installFetchMock({
+      searchChunks: [ndjsonBody([
+        { type: 'flights', source: 'travelpayouts', data: [fareA] },
+        { type: 'hotel-access-status', status: 'loading' },
+        { type: 'hotel-smoking-policy-status', status: 'loading' },
+        { type: 'hotel-status', status: 'available', coverage: 'unconfirmed' },
+        { type: 'hotels', source: 'booking.com', data: [hotelOffer], page: { coverage: 'unconfirmed' } },
+        { type: 'hotel-access-status', status: 'ready' },
+        { type: 'hotel-smoking-policy-status', status: 'ready', filterEnabled: false },
+        { type: 'done' },
+      ])],
+    })
+
+    await renderFlightsClient()
+    await submitSearch({ ...payload, searchIntent: 'hotels' })
+
+    await waitFor(() => expect(container.querySelector('[data-testid="hotel-hotel-a"]')).not.toBeNull())
+    expect(container.querySelector('[data-testid="flight-results-stub"]')).toBeNull()
+    expect(container.textContent).toContain('Real Stream Hotel 18999 access:ready')
+    expect(calls.some(call => call.url.startsWith('/api/score'))).toBe(false)
+  })
+
+  it('renders clearly labeled flight and hotel sections for trip intent', async () => {
+    installFetchMock({
+      searchChunks: [ndjsonBody([
+        { type: 'flights', source: 'travelpayouts', data: [fareA] },
+        { type: 'hotel-status', status: 'available', coverage: 'confirmed_end' },
+        { type: 'hotels', source: 'booking.com', data: [hotelOffer], page: { coverage: 'confirmed_end' } },
+        { type: 'hotel-access-status', status: 'ready' },
+        { type: 'hotel-smoking-policy-status', status: 'ready', filterEnabled: false },
+        { type: 'done' },
+      ])],
+    })
+
+    await renderFlightsClient()
+    await submitSearch({ ...payload, searchIntent: 'trip' })
+
+    await waitFor(() => expect(container.querySelector('[data-testid="hotel-hotel-a"]')).not.toBeNull())
+    const headings = Array.from(container.querySelectorAll('h2')).map(heading => heading.textContent)
+    expect(headings).toEqual(expect.arrayContaining(['Flights', 'Hotels']))
+    expect(container.querySelector('[data-testid="flight-results-stub"]')).not.toBeNull()
+  })
+
+  it('shows the route-provided skipped reason instead of a silent hotel section', async () => {
+    installFetchMock({
+      searchChunks: [ndjsonBody([
+        {
+          type: 'hotel-status',
+          status: 'skipped',
+          message: 'Enter a destination plus depart and return dates to check hotel availability.',
+        },
+        { type: 'hotel-access-status', status: 'skipped' },
+        { type: 'hotel-smoking-policy-status', status: 'skipped', filterEnabled: false },
+        { type: 'done' },
+      ])],
+    })
+
+    await renderFlightsClient()
+    await submitSearch({ ...payload, searchIntent: 'trip', destinationIata: '', tripType: 'oneway', returnDate: '' })
+
+    await waitFor(() => {
+      expect(container.textContent).toContain('Enter a destination plus depart and return dates to check hotel availability.')
+    })
+  })
+
+  it('shows the default hotel start state, then reports hasSearched=true when a flight search starts', async () => {
     installFetchMock({
       searchChunks: [ndjsonBody([{ type: 'done' }])],
     })
 
     await renderFlightsClient()
-    expect(capturedFlightResultsProps?.hasSearched).toBe(false)
-    const preSearchNode = container.querySelector('[data-testid="has-searched"]')
-    expect(preSearchNode?.textContent).toBe('false')
+    expect(capturedFlightResultsProps).toBeNull()
+    expect(container.textContent).toContain('Enter a destination and round-trip travel dates to compare live nightly hotel rates.')
 
     await submitSearch(payload)
 

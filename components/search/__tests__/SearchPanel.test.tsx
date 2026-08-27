@@ -54,12 +54,12 @@ describe('SearchPanel', () => {
     await act(async () => root.unmount())
   })
 
-  async function render() {
+  async function render(props: { onSubmit?: (payload: unknown) => void } = {}) {
     const { act } = require('react') as typeof import('react')
     const { SearchPanel } = require('../SearchPanel') as typeof import('../SearchPanel')
     const React = require('react') as typeof import('react')
     await act(async () => {
-      root.render(React.createElement(SearchPanel, {}) as ReactElement)
+      root.render(React.createElement(SearchPanel, props) as ReactElement)
     })
   }
 
@@ -94,5 +94,18 @@ describe('SearchPanel', () => {
 
     const submit = container.querySelector('button[type="submit"]')
     expect(submit?.textContent).toBe('Search hotels')
+  })
+
+  it('threads the selected search intent into the submit payload', async () => {
+    const onSubmit = jest.fn()
+    await render({ onSubmit })
+    const trip = intentButtons().find(button => button.querySelector('span')?.textContent === 'Flight + hotel')
+    const form = container.querySelector('form') as HTMLFormElement
+    const { act } = require('react') as typeof import('react')
+
+    await act(async () => trip?.click())
+    await act(async () => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ searchIntent: 'trip' }))
   })
 })

@@ -6,7 +6,7 @@ import AirportInput from '@/app/components/AirportInput';
 import { TripInspirationRail } from './TripInspirationRail';
 
 type TripType = 'roundtrip' | 'oneway';
-type SearchIntent = 'flights' | 'hotels' | 'trip';
+export type SearchIntent = 'flights' | 'hotels' | 'trip';
 
 type SearchSelection = {
   originIata: string;
@@ -30,6 +30,7 @@ type SearchPanelSelectionSetters = {
 };
 
 export type SearchPanelSubmitPayload = {
+  searchIntent: SearchIntent;
   originIata: string;
   destinationIata: string;
   departDate: string;
@@ -85,6 +86,7 @@ export function SearchPanel({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     onSubmit?.(createSearchPanelSubmitPayload({
+      searchIntent,
       originIata: origin,
       destinationIata: destination,
       departDate,
