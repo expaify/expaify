@@ -8,6 +8,7 @@ type PropertyPhotoProps = {
   loading?: 'eager' | 'lazy'
   onFailure?: () => void
   brandedFallback?: { cityLabel: string }
+  imageClassName?: string
 }
 
 const sizeClasses = {
@@ -17,7 +18,7 @@ const sizeClasses = {
   detail: { container: 'w-full rounded-[var(--radius-card)]', viewport: 'h-[200px] min-[680px]:h-[280px]', missing: 'min-h-[225px] min-[680px]:min-h-[305px]' },
 } as const
 
-export function PropertyPhoto({ src, size, loading = 'lazy', onFailure, brandedFallback }: PropertyPhotoProps) {
+export function PropertyPhoto({ src, size, loading = 'lazy', onFailure, brandedFallback, imageClassName }: PropertyPhotoProps) {
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState(false)
   // `loaded`/`failed` describe one specific `src`, not this component instance
@@ -102,7 +103,7 @@ export function PropertyPhoto({ src, size, loading = 'lazy', onFailure, brandedF
             setFailed(true)
             onFailure?.()
           }}
-          className={`block h-full w-full object-cover transition-opacity duration-150 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`relative block h-full w-full object-cover ${imageClassName ?? ''}`}
         />
       </div>
       {size === 'card' ? null : (

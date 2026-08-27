@@ -20,6 +20,7 @@ import { TRACKED_MARKET_NAMES, TRACKED_MARKETS } from '@/lib/trackedMarkets'
 import { FlightsToThisDeal } from '@/app/components/FlightsToThisDeal'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
+import { Reveal } from '@/app/components/ui/Reveal'
 import { AiDayPlanSection } from '@/app/components/AiDayPlanSection'
 import { LocationQualitySection } from '@/app/components/LocationQualitySection'
 import { AiDayPlanCardSkeleton } from '@/app/components/ui/AiDayPlanCard'
@@ -255,13 +256,13 @@ async function PriceHistorySection({ deal }: { deal: DealRow }) {
   return (
     <section id="price-history">
       <h3 className="text-h3 text-[color:var(--ink)]">Price history</h3>
-      <div className="mt-4">
+      <Reveal className="mt-4">
         <PriceSparkline
           history={history}
           dealPriceCents={deal.deal_price_cents}
           medianPriceCents={deal.median_price_cents}
         />
-      </div>
+      </Reveal>
       <div className="mt-3">
         <TrustLine snapshotCount={deal.snapshot_count} />
       </div>
@@ -470,32 +471,37 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
         <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
           <a href={backHref} className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)]">← {criteria ? 'Back to results' : 'Back to saved deals'}</a>
           <div className="mt-4 space-y-4">
-            <section aria-labelledby="deal-detail-title" className="overflow-hidden rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)]">
-              {deal.photo_url ? <PropertyPhoto src={deal.photo_url} size="detail" loading="eager" /> : null}
+            <section id="deal-hero" aria-labelledby="deal-detail-title" className="overflow-hidden rounded-[var(--radius-card)] bg-[color:var(--bg-surface)] shadow-[var(--shadow-card-rest)]">
+              {deal.photo_url ? <PropertyPhoto src={deal.photo_url} size="detail" loading="eager" imageClassName="motion-safe:transition-transform motion-safe:duration-500 hover:scale-[1.02]" /> : null}
               <div className="p-4 sm:p-6">
                 <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
                 <h1 id="deal-detail-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name}</h1>
-                <p className="mt-2 text-sm font-medium text-[color:var(--text-2)]"><DealDetailCity city={deal.city} />{deal.stars != null ? ` · ${deal.stars}-star hotel` : ''}</p>
-                <p className="mt-1 text-xs text-[color:var(--text-3)]">Provider supplied an area, not a street address.</p>
-                <p className="mt-3 text-sm text-[color:var(--text-2)]">{checkInDisplay ?? 'Check-in not provided'} to {checkOutDisplay ?? 'check-out not provided'}{deal.nights > 0 ? ` · ${deal.nights} ${deal.nights === 1 ? 'night' : 'nights'}` : ''}</p>
-                <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-                  <div className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-4">
-                    <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Nightly rate</p>
-                    <p className="mt-2 font-display text-4xl font-bold tabular-nums text-[color:var(--text-1)]">{formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}</p>
-                    <p className="mt-1 text-sm text-[color:var(--text-2)]"><span className="line-through">{formatMoney({ priceCents: deal.median_price_cents, currency: 'USD' })}</span> usual · {deal.discount_pct}% off</p>
-                    <p className="mt-2 text-xs text-[color:var(--text-3)]">60-day median · {deal.snapshot_count} {deal.snapshot_count === 1 ? 'check' : 'checks'}{checkedAgo ? ` · checked ${checkedAgo}` : ''}</p>
-                    <p className="mt-2 text-xs text-[color:var(--text-3)]">{comparisonBasisCopy(deal.ota_links ?? {})}</p>
+                <p className="mt-2 text-small font-medium text-[color:var(--ink-soft)]"><DealDetailCity city={deal.city} />{deal.stars != null ? ` · ${deal.stars}-star hotel` : ''}</p>
+                <p className="mt-3 text-small text-[color:var(--ink-soft)]">{checkInDisplay ?? 'Check-in not provided'} to {checkOutDisplay ?? 'check-out not provided'}{deal.nights > 0 ? ` · ${deal.nights} ${deal.nights === 1 ? 'night' : 'nights'}` : ''}</p>
+                <div className="mt-5 grid items-start gap-6 min-[1024px]:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
+                  <div>
+                    <Suspense fallback={<DealScorePanel score={null} loading scope="hotel" priceNoun="nightly rate" unavailableCopy="We could not compare this nightly rate with enough recent hotel prices." />}><DealScoreSection deal={deal} /></Suspense>
+                    <div className="mt-5 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)]/55 p-4 text-caption leading-5 text-[color:var(--ink-faint)]">
+                      <p>Provider supplied an area, not a street address.</p>
+                      <p className="mt-1">{comparisonBasisCopy(deal.ota_links ?? {})}</p>
+                    </div>
                   </div>
-                  <Suspense fallback={<DealScorePanel score={null} loading scope="hotel" priceNoun="nightly rate" unavailableCopy="We could not compare this nightly rate with enough recent hotel prices." />}><DealScoreSection deal={deal} /></Suspense>
+                  <aside className="rounded-[var(--radius-card)] bg-[color:var(--surface)] p-4 shadow-[var(--shadow-card-hover)] min-[1024px]:sticky min-[1024px]:top-6">
+                    <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Nightly rate</p>
+                    <p className="mt-2 break-words text-display font-bold text-[color:var(--ink)] text-tabular">{formatMoney({ priceCents: deal.deal_price_cents, currency: 'USD' })}</p>
+                    <p className="mt-2 text-small text-[color:var(--ink-soft)]"><span className="line-through text-tabular">{formatMoney({ priceCents: deal.median_price_cents, currency: 'USD' })}</span> usual</p>
+                    <span className="mt-3 inline-flex rounded-[var(--radius-pill)] bg-[color:var(--accent)] px-3 py-1.5 text-small font-bold text-[color:var(--ink)]">{deal.discount_pct}% off</span>
+                    <p className="mt-3 text-caption text-[color:var(--ink-faint)]">60-day median · {deal.snapshot_count} {deal.snapshot_count === 1 ? 'check' : 'checks'}{checkedAgo ? ` · checked ${checkedAgo}` : ''}</p>
+                    <div className="mt-5"><DealDetailProviderHandoff dealId={deal.id} city={deal.city} links={deal.ota_links ?? {}} backHref={backHref} expired={isExpired} stickyPrice={{ priceCents: deal.deal_price_cents, currency: 'USD' }} heroId="deal-hero" /></div>
+                  </aside>
                 </div>
-                <div className="mt-5"><DealDetailProviderHandoff dealId={deal.id} city={deal.city} links={deal.ota_links ?? {}} backHref={backHref} expired={isExpired} /></div>
                 <div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-1.5 text-xs font-medium text-[color:var(--text-2)]">Cancellation: check on OTA</span></div>
               </div>
             </section>
 
-            <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6"><Suspense fallback={<PriceHistorySkeleton />}><PriceHistorySection deal={deal} /></Suspense><p className="mt-3 text-xs text-[color:var(--text-3)]">Based on {deal.snapshot_count} {deal.snapshot_count === 1 ? 'check' : 'checks'} over 60 days.</p></section>
+            <section className="rounded-[var(--radius-card)] bg-[color:var(--bg-surface)] p-4 shadow-[var(--shadow-card-rest)] sm:p-6"><Suspense fallback={<PriceHistorySkeleton />}><PriceHistorySection deal={deal} /></Suspense></section>
 
-            <section aria-labelledby="place-context-title" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
+            <section aria-labelledby="place-context-title" className="rounded-[var(--radius-card)] bg-[color:var(--bg-muted)]/45 p-4 sm:p-6">
               <h2 id="place-context-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Place context</h2>
               <div className="mt-4 space-y-5"><Suspense fallback={null}><LocationQualitySection hotelName={deal.hotel_name} city={deal.city} /></Suspense><HotelDealCriteriaSummary context={criteriaContext} deal={{ city: deal.city, checkInDate: deal.check_in_date }} /><HotelContinuityPrototype dealId={deal.id} hotelName={deal.hotel_name} fixtureId={continuityFixtureId} disclosure={continuityDisclosure} initiallyExpanded={disclosureParam === 'expanded'} /></div>
             </section>

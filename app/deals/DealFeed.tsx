@@ -1952,7 +1952,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               ) : null}
               <div ref={gridRef} tabIndex={-1} aria-busy="false" className={`${gridClass} outline-none`}>
                 {deals.map((deal, i) => (
-                  <Reveal key={deal.id} delayMs={i * 100}>
+                  <Reveal key={deal.id} delayMs={Math.min(i, 4) * 100}>
                     {deal.locked ? (
                       <div ref={i === firstLockedDealIndex ? firstLockedDealRef : undefined}>
                         <LockedDealCard

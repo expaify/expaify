@@ -65,14 +65,14 @@ export function LockedDealCard({
     }
   }
   return (
-    <div className="group relative block overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-[color:var(--gold-deep)] hover:shadow-[var(--shadow-card-hover)]">
+    <div className="group relative block overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] motion-safe:transition-all motion-safe:duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)] focus-within:ring-2 focus-within:ring-[color:var(--primary)]">
       <a
         href={canSelfUnlock ? '#' : trackingHref(joinHref, discountPct)}
         onClick={activate}
         aria-label={`Locked deal. Save ${discountPct}% at a hotel in ${placeholderCity}. ${canSelfUnlock ? 'Use one weekly unlock to reveal this deal.' : 'Unlock deal with Premium.'}`}
-        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--gold-deep)]"
+        className="block focus-visible:outline-none"
       >
-      <div className="absolute right-3 top-3 z-30 flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[color:var(--gold-deep)] px-2.5 py-1 font-display text-[11px] font-bold uppercase tracking-wider text-[color:var(--ink)] shadow-md transition-transform duration-200 group-hover:scale-105">
+      <div className="absolute right-3 top-3 z-30 flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[color:var(--accent)] px-2.5 py-1 font-display text-caption font-bold text-[color:var(--ink)] shadow-[var(--shadow-card-rest)] motion-safe:transition-transform motion-safe:duration-300 group-hover:scale-105">
         <Icon name="premium_unlocked" size={16} className="text-[color:var(--ink)]" />
         <span>Save {discountPct}%</span>
       </div>
@@ -86,33 +86,26 @@ export function LockedDealCard({
         </span>
       </div>
 
-      <div className="px-4 pt-3" aria-hidden="true">
-        <div className="relative">
-          <div className={photoUrl ? 'blur-sm' : ''}>
+      <div className="relative mt-3" aria-hidden="true">
+          <div className={photoUrl ? 'blur-sm scale-105' : ''}>
             <PropertyPhoto
               src={photoUrl}
               size="card"
               brandedFallback={{ cityLabel: placeholderCity }}
             />
           </div>
-          {photoUrl ? (
-            <div className="absolute inset-0 z-10 flex items-center justify-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--line-ivory)] bg-[color:var(--surface)]/90 shadow-sm">
-                <Icon name="premium_unlocked" size={20} className="text-[color:var(--gold-deep)]" />
-              </div>
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-[color:var(--surface)]/60 p-4 backdrop-blur-md">
+            <div className="flex max-w-[260px] flex-col items-center rounded-[var(--radius-card)] border border-white/80 bg-[color:var(--surface)]/90 px-5 py-4 text-center shadow-[var(--shadow-card-hover)]">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[color:var(--primary-soft)]">
+                <Icon name="premium_unlocked" size={20} className="text-[color:var(--primary)]" />
+              </span>
+              <span className="mt-2 font-display text-body font-bold text-[color:var(--ink)]">{canSelfUnlock ? (unlocking ? 'Unlocking…' : 'Use a weekly unlock') : 'Members-only deal'}</span>
+              <span className="mt-1 text-caption text-[color:var(--ink-soft)]">{canSelfUnlock ? 'Reveal this hotel and its current rate.' : 'Join Premium to reveal this hotel and its current rate.'}</span>
             </div>
-          ) : null}
-        </div>
+          </div>
       </div>
 
       <div className="relative space-y-3 px-4 pb-4 pt-3">
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[color:var(--bg-overlay)]/10 px-4 py-4 text-center" aria-hidden="true">
-          <div className="flex items-center gap-2 rounded-[var(--radius-input)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] px-4 py-2 shadow-sm transition-all duration-200 group-hover:border-[color:var(--gold-deep)] group-hover:shadow-md">
-            <Icon name="premium_unlocked" size={16} className="text-[color:var(--gold-deep)]" />
-            <span className="font-display text-caption font-bold uppercase tracking-wide text-[color:var(--ink)]">{canSelfUnlock ? (unlocking ? 'Unlocking…' : 'Unlock this deal') : 'Premium Only'}</span>
-          </div>
-        </div>
-
         <div className="space-y-1">
           <div className="h-5 w-3/5 rounded-[6px] bg-[color:var(--line-ivory)]" aria-hidden="true" />
           <p className="text-caption mt-0.5 leading-snug text-[color:var(--ink-faint)]">

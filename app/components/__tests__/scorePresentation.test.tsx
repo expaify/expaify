@@ -524,7 +524,8 @@ describe('Deal score presentation', () => {
 
     expect(withPhotoText).toContain('Members')
     expect(withPhotoText).toContain('Deal found today')
-    expect(withPhotoText).toContain('Premium Only')
+    expect(withPhotoText).toContain('Members-only deal')
+    expect(withPhotoText).toContain('Join Premium to reveal this hotel and its current rate.')
     expect(withPhotoText).toContain('Save 42%')
     expect(withPhotoText).toContain('★★★☆☆')
     expect(findFirstProp(withPhoto, 'href', value => value === '/join?utm_source=deal_page&utm_medium=card_teaser&discount=42')).toBe('/join?utm_source=deal_page&utm_medium=card_teaser&discount=42')

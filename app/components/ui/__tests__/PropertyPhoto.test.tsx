@@ -113,16 +113,15 @@ describe('PropertyPhoto', () => {
       const img = root.root.findByType('img')
       ;(img.props.onLoad as () => void)()
     })
-    expect(root.root.findByType('img').props.className).toContain('opacity-100')
+    expect(root.root.findByType('img').props.className).not.toContain('opacity-0')
 
     act(() => {
       root.update(<PropertyPhoto src="https://example.com/b.jpg" size="card" />)
     })
 
-    // A freshly-swapped src has not loaded yet -- must show the loading (opacity-0) state,
-    // not the previous src's "already loaded" opacity, otherwise a new image could render
-    // invisibly until some unrelated re-render happens to flip it.
-    expect(root.root.findByType('img').props.className).toContain('opacity-0')
+    // A freshly-swapped src remains natively visible while its new skeleton sits behind it;
+    // visibility must never depend on a JavaScript load event.
+    expect(root.root.findByType('img').props.className).not.toContain('opacity-0')
   })
 
   // Regression test for a confirmed live bug: on a fast connection/warm cache,
@@ -140,7 +139,7 @@ describe('PropertyPhoto', () => {
     })
 
     // No onLoad was ever fired -- only the effect's .complete check ran.
-    expect(root.root.findByType('img').props.className).toContain('opacity-100')
+    expect(root.root.findByType('img').props.className).not.toContain('opacity-0')
     expect(hasUnavailableMessage(root)).toBe(false)
   })
 
@@ -168,7 +167,7 @@ describe('PropertyPhoto', () => {
       )
     })
 
-    expect(root.root.findByType('img').props.className).toContain('opacity-0')
+    expect(root.root.findByType('img').props.className).not.toContain('opacity-0')
     expect(hasUnavailableMessage(root)).toBe(false)
   })
 
@@ -198,6 +197,6 @@ describe('PropertyPhoto', () => {
     // state clears (not stuck) even though naturalWidth stays 0, i.e. the
     // reset is driven by the render-time src-change logic, not the effect.
     expect(hasUnavailableMessage(root)).toBe(false)
-    expect(root.root.findByType('img').props.className).toContain('opacity-0')
+    expect(root.root.findByType('img').props.className).not.toContain('opacity-0')
   })
 })

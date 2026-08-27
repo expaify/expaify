@@ -533,6 +533,11 @@ button:disabled,
     scroll-behavior: auto !important;
     transition-duration: 1ms !important;
   }
+
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 /* Isolated dark-home review prototype. Keep every override scoped so the live
