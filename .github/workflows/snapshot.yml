@@ -25,9 +25,8 @@ jobs:
           print(f'New deals: {d[\"totalNewDeals\"]}')
           print(f'Alerts sent: {d[\"alertsSent\"]}')
           print(f'Empty markets: {d.get(\"emptyMarketCount\", \"?\")}/{d.get(\"marketsAttempted\", \"?\")}')
-          if d.get('rateLimited'):
-              print('::error::Pipeline aborted early — RAPIDAPI_KEY quota exhausted (429). No snapshots were collected this run. Rotate/upgrade the RapidAPI key.')
-              sys.exit(1)
+          if d.get('rateLimitedCount', 0):
+              print('::warning::RapidAPI providers returned 429 on ' + str(d['rateLimitedCount']) + ' call(s). Rotation continued with independently quota\'d providers; inspect providerErrors if this persists.')
           # A run that reports ok:true while most markets came back with zero
           # hotels used to be indistinguishable from a normal night -- this is
           # exactly how the pipeline silently produced no real deals for a

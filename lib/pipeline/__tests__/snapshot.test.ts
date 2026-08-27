@@ -40,15 +40,18 @@ describe('getActiveMarkets daily rotation', () => {
 
 describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SILENT-FAILURE-VISIBILITY-01)', () => {
   const originalKey = process.env.RAPIDAPI_KEY
+  const originalKey3 = process.env.RAPIDAPI_KEY_3
 
   beforeEach(() => {
     process.env.RAPIDAPI_KEY = 'test-key'
+    process.env.RAPIDAPI_KEY_3 = 'test-key-3'
     global.fetch = jest.fn()
     ;(query as jest.Mock).mockClear()
   })
 
   afterAll(() => {
     process.env.RAPIDAPI_KEY = originalKey
+    process.env.RAPIDAPI_KEY_3 = originalKey3
   })
 
   it('surfaces providerErrors when every provider fails, instead of silently reporting hotelsProcessed: 0 with no explanation', async () => {
@@ -78,6 +81,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: { hotels: [] } }) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ result: [] }) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: { data: [] } }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: { citySearch: { properties: [] } } }) })
 
     const [result] = await runSnapshotsForMarket(MIA, 0)
 
@@ -170,12 +174,40 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
     })
   })
 
-  it('still re-throws RateLimitError out of runSnapshotsForMarket unchanged (the route handler, not this function, decides what to do with it)', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({}) })
+  it('records a provider 429 and continues rotation until another provider succeeds', async () => {
+    ;(global.fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({}) })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ result: [{
+          hotel_id: '456', hotel_name: 'Fallback Hotel', class: 4,
+          min_total_price: 200,
+        }] }),
+      })
 
-    await expect(runSnapshotsForMarket(MIA, 0)).rejects.toThrow(RateLimitError)
-    // Only one call: rate limit must stop rotation immediately, not try all 4.
-    expect(global.fetch).toHaveBeenCalledTimes(1)
+    const [result] = await runSnapshotsForMarket(MIA, 0)
+
+    expect(result.hotelsProcessed).toBe(1)
+    expect(result.rateLimitedCount).toBe(1)
+    expect(result.providerErrors).toContain('fetchBookingCom15: rate limited (429)')
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('authenticates TripAdvisor with RAPIDAPI_KEY_3 instead of the primary key', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: { data: [{ id: '123', title: 'Test Hotel', priceForDisplay: '$125' }] } }),
+    })
+
+    const [result] = await runSnapshotsForMarket(MIA, 2)
+
+    expect(result.hotelsProcessed).toBe(1)
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('tripadvisor16.p.rapidapi.com'),
+      expect.objectContaining({ headers: expect.objectContaining({ 'X-RapidAPI-Key': 'test-key-3' }) }),
+    )
   })
 })
 

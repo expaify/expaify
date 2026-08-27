@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getActiveMarkets, runSnapshotsForMarket, RateLimitError } from '@/lib/pipeline/snapshot'
+import { getActiveMarkets, runSnapshotsForMarket } from '@/lib/pipeline/snapshot'
 import { detectDealsForMarket, getActiveDeals } from '@/lib/pipeline/dealDetection'
 import { sendInstantAlerts } from '@/lib/email/sendDealAlert'
 import { generateHeadlines } from '@/lib/ai/generateHeadline'
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
   const results: Record<string, unknown> = {}
   let totalNewDeals = 0
-  let rateLimited = false
+  let rateLimitedCount = 0
   let marketsAttempted = 0
   let emptyMarketCount = 0
 
@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
         const dealsFound = await detectDealsForMarket(market)
         results[market.iata] = { snapshots, dealsFound }
         totalNewDeals += dealsFound
+        rateLimitedCount += snapshots.reduce((count, snapshot) => count + (snapshot.rateLimitedCount ?? 0), 0)
         marketsAttempted += 1
         // A market is "empty" this run if every check-in it attempted came back
         // with zero hotels processed -- previously invisible, since a market
@@ -52,13 +53,8 @@ export async function POST(req: NextRequest) {
         results[market.iata] = { error: err instanceof Error ? err.message : String(err) }
         marketsAttempted += 1
         emptyMarketCount += 1
-        if (err instanceof RateLimitError) rateLimited = true
       }
     }))
-
-    // Finish the current in-flight batch, but do not start more provider calls
-    // after the shared RapidAPI quota reports that it is exhausted.
-    if (rateLimited) break
   }
 
   // More than half of attempted markets came back with nothing. This is the
@@ -129,7 +125,7 @@ export async function POST(req: NextRequest) {
     markets: markets.length,
     totalNewDeals,
     alertsSent,
-    rateLimited,
+    rateLimitedCount,
     emptyMarketCount,
     marketsAttempted,
     pipelineDegraded,

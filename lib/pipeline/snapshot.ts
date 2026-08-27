@@ -259,9 +259,10 @@ export function tripAdvisorBubbleRatingToReviewEvidence(
   }
 }
 
-async function fetchTripAdvisor(iata: string, checkIn: string, checkOut: string, key: string): Promise<HotelEntry[]> {
+async function fetchTripAdvisor(iata: string, checkIn: string, checkOut: string): Promise<HotelEntry[]> {
+  const key = process.env.RAPIDAPI_KEY_3 ?? ''
   const geoId = TA_GEO[iata]
-  if (!geoId) return []
+  if (!key || !geoId) return []
 
   const url =
     `https://tripadvisor16.p.rapidapi.com/api/v1/hotels/searchHotels` +
@@ -412,7 +413,7 @@ function fetchPricelineCom(iata: string, ci: string, co: string): Promise<HotelE
 
 const PROVIDERS: ProviderFn[] = [fetchBookingCom15, fetchBookingComCoords, fetchTripAdvisor, fetchPricelineCom, fetchAgoda]
 
-type RotationResult = { hotels: HotelEntry[]; providerErrors: string[] }
+type RotationResult = { hotels: HotelEntry[]; providerErrors: string[]; rateLimitedCount: number }
 
 async function fetchWithRotation(
   iata: string, checkIn: string, checkOut: string, key: string, offsetIndex: number, marketIndex: number
@@ -420,19 +421,25 @@ async function fetchWithRotation(
   // Each check-in offset gets a different starting provider; market index shifts within that
   const startIdx = (offsetIndex + marketIndex) % PROVIDERS.length
   const providerErrors: string[] = []
+  let rateLimitedCount = 0
   for (let i = 0; i < PROVIDERS.length; i++) {
     const provider = PROVIDERS[(startIdx + i) % PROVIDERS.length]
     try {
       const results = await provider(iata, checkIn, checkOut, key)
-      if (results.length > 0) return { hotels: results, providerErrors }
+      if (results.length > 0) return { hotels: results, providerErrors, rateLimitedCount }
       // An empty result isn't necessarily an error (a market can genuinely have
       // no matches), but it's worth recording alongside real errors so a market
       // that comes back empty from every provider, every night, is visible
       // instead of indistinguishable from "briefly nothing to report."
       providerErrors.push(`${provider.name}: returned 0 results`)
     } catch (err) {
-      // Rate limit is shared across all providers (same key) — stop immediately
-      if (err instanceof RateLimitError) throw err
+      // Providers use independently quota'd RapidAPI subscriptions. A 429 from
+      // one provider is therefore a per-provider failure, not a run-wide stop.
+      if (err instanceof RateLimitError) {
+        rateLimitedCount += 1
+        providerErrors.push(`${provider.name}: rate limited (429)`)
+        continue
+      }
       // Every other per-provider failure used to be swallowed entirely here,
       // with no log and no way to distinguish "provider had nothing" from
       // "provider is broken" -- this is exactly how a market silently
@@ -442,7 +449,7 @@ async function fetchWithRotation(
       providerErrors.push(`${provider.name}: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
-  return { hotels: [], providerErrors }
+  return { hotels: [], providerErrors, rateLimitedCount }
 }
 
 // ── DB write ──────────────────────────────────────────────────────────────────
@@ -463,7 +470,14 @@ async function storeSnapshot(market: Market, hotel: HotelEntry, checkIn: string,
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export type SnapshotResult = { market: string; checkIn: string; hotelsProcessed: number; error?: string; providerErrors?: string[] }
+export type SnapshotResult = {
+  market: string
+  checkIn: string
+  hotelsProcessed: number
+  rateLimitedCount?: number
+  error?: string
+  providerErrors?: string[]
+}
 
 export async function runSnapshotsForMarket(market: Market, marketIndex = 0): Promise<SnapshotResult[]> {
   const key = process.env.RAPIDAPI_KEY ?? ''
@@ -474,8 +488,8 @@ export async function runSnapshotsForMarket(market: Market, marketIndex = 0): Pr
   const checkOut = toCheckOut(checkIn, NIGHTS)
 
   try {
-    const { hotels, providerErrors } = isMock
-      ? { hotels: generateMockHotels(market.iata, checkIn), providerErrors: [] as string[] }
+    const { hotels, providerErrors, rateLimitedCount } = isMock
+      ? { hotels: generateMockHotels(market.iata, checkIn), providerErrors: [] as string[], rateLimitedCount: 0 }
       : await fetchWithRotation(market.iata, checkIn, checkOut, key, 0, marketIndex)
 
     for (const hotel of hotels) {
@@ -486,14 +500,14 @@ export async function runSnapshotsForMarket(market: Market, marketIndex = 0): Pr
       market: market.iata,
       checkIn,
       hotelsProcessed: hotels.length,
+      ...(rateLimitedCount > 0 ? { rateLimitedCount } : {}),
       // Surfaced even on the "no exception thrown" path -- a market that came
       // back empty from every provider is a real signal worth keeping visible,
       // not silently indistinguishable from a normal, healthy zero-hotel night.
-      ...(hotels.length === 0 && providerErrors.length > 0 ? { providerErrors } : {}),
+      ...((hotels.length === 0 || rateLimitedCount > 0) && providerErrors.length > 0 ? { providerErrors } : {}),
     }]
   } catch (err) {
     const result = { market: market.iata, checkIn, hotelsProcessed: 0, error: err instanceof Error ? err.message : String(err) }
-    if (err instanceof RateLimitError) throw err
     return [result]
   }
 }

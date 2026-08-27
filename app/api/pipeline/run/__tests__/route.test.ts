@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { getActiveMarkets, runSnapshotsForMarket, RateLimitError } from '@/lib/pipeline/snapshot'
+import { getActiveMarkets, runSnapshotsForMarket } from '@/lib/pipeline/snapshot'
 import { detectDealsForMarket, getActiveDeals } from '@/lib/pipeline/dealDetection'
 import { POST } from '../route'
 
@@ -124,7 +124,7 @@ describe('POST /api/pipeline/run pipeline-health aggregation (REPAIR-PIPELINE-SI
     expect(body.marketsAttempted).toBe(8)
   })
 
-  it('finishes a rate-limited in-flight batch but does not start another batch', async () => {
+  it('reports provider rate limits without skipping later market batches', async () => {
     const markets = Array.from({ length: 8 }, (_, index) => ({
       id: index + 1,
       city: `City ${index + 1}`,
@@ -133,18 +133,20 @@ describe('POST /api/pipeline/run pipeline-health aggregation (REPAIR-PIPELINE-SI
     }))
     mockGetActiveMarkets.mockResolvedValue(markets)
     mockRunSnapshots.mockImplementation(async (market, marketIndex) => {
-      if (marketIndex === 1) throw new RateLimitError()
+      if (marketIndex === 1) {
+        return [{ market: market.iata, checkIn: '2026-09-01', hotelsProcessed: 20, rateLimitedCount: 1 }]
+      }
       return [{ market: market.iata, checkIn: '2026-09-01', hotelsProcessed: 20 }]
     })
 
     const response = await POST(pipelineRequest())
     const body = await response.json()
 
-    expect(body.rateLimited).toBe(true)
-    expect(body.marketsAttempted).toBe(6)
-    expect(mockRunSnapshots).toHaveBeenCalledTimes(6)
-    expect(mockRunSnapshots).not.toHaveBeenCalledWith(markets[6], 6)
-    expect(body.results.M7).toBeUndefined()
-    expect(body.results.M8).toBeUndefined()
+    expect(body.rateLimitedCount).toBe(1)
+    expect(body.marketsAttempted).toBe(8)
+    expect(mockRunSnapshots).toHaveBeenCalledTimes(8)
+    expect(mockRunSnapshots).toHaveBeenCalledWith(markets[6], 6)
+    expect(body.results.M7).toBeDefined()
+    expect(body.results.M8).toBeDefined()
   })
 })
