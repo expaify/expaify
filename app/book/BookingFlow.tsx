@@ -90,6 +90,7 @@ import {
   hotelEvChargingActionBoundary,
   trackHotelEvChargingHandoff,
 } from '@/app/components/HotelEvCharging'
+import { Reveal } from '@/app/components/ui/Reveal'
 
 type BookingState = 'idle' | 'loading' | 'success' | 'error'
 type Title = 'mr' | 'ms' | 'mrs' | 'miss' | 'dr'
@@ -427,7 +428,8 @@ function FareFact({ label, value }: { label: string; value: string }) {
 
 function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareContext; duffelSandbox: boolean }) {
   return (
-    <section aria-labelledby="fare-review-title" className={`${panelCls} p-4 sm:p-6`}>
+    <Reveal>
+      <section aria-labelledby="fare-review-title" className={`${panelCls} p-4 sm:p-6`}>
       <div className="flex flex-col gap-4 border-b border-[color:var(--border)] pb-5 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--brand)]">Fare review</p>
@@ -460,7 +462,8 @@ function FareSummary({ fareContext, duffelSandbox }: { fareContext: BookingFareC
         <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</p>
         <p className="mt-2 break-all font-mono leading-5 text-[color:var(--text-2)]">{fareContext.offerId}</p>
       </div>
-    </section>
+      </section>
+    </Reveal>
   )
 }
 
@@ -489,8 +492,8 @@ function HotelDecisionSummary({
   })
 
   return (
-    <>
-      <section aria-labelledby="hotel-property-title" className={`${panelCls} p-4 sm:p-6`}>
+    <Reveal>
+      <section aria-labelledby="hotel-property-title" className={`${panelCls} bg-[radial-gradient(ellipse_at_top_right,var(--primary-soft),transparent_60%)] p-4 sm:p-6`}>
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--brand)]">Hotel review</p>
           <h1 id="hotel-property-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">
@@ -575,7 +578,7 @@ function HotelDecisionSummary({
         <HotelClimateEvidenceLedger evidence={hotelContext.climateEvidence} continuityFailed={hotelContext.climateEvidence === undefined} />
         <HotelEvChargingSection evidence={PRODUCTION_EV_CHARGING_UNKNOWN} offerId={hotelContext.offerId} />
       </section>
-    </>
+    </Reveal>
   )
 }
 
@@ -597,7 +600,7 @@ function StatusPanel({
   }
 
   return (
-    <div role={live === 'assertive' ? 'alert' : 'status'} aria-live={live} aria-atomic="true" className={`rounded-[var(--radius-control)] border p-4 sm:p-5 ${toneClasses[tone]}`}>
+    <div key={`${tone}-${title}-${message}`} role={live === 'assertive' ? 'alert' : 'status'} aria-live={live} aria-atomic="true" className={`booking-status-enter rounded-[var(--radius-control)] border p-4 sm:p-5 ${toneClasses[tone]}`}>
       <div className="flex gap-3">
         <span aria-hidden="true" className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-current" />
         <div className="min-w-0">
@@ -611,7 +614,8 @@ function StatusPanel({
 
 function TrustSummary() {
   return (
-    <section aria-labelledby="traveler-trust-title" className={`p-4 ${insetPanelCls}`}>
+    <Reveal>
+      <section aria-labelledby="traveler-trust-title" className={`p-4 ${insetPanelCls}`}>
       <h3 id="traveler-trust-title" className="text-sm font-medium text-[color:var(--text-1)]">
         Before you enter details
       </h3>
@@ -626,26 +630,29 @@ function TrustSummary() {
       <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
         expaify keeps the selected fare visible so you can compare the itinerary, price basis, and passenger count before submitting.
       </p>
-    </section>
+      </section>
+    </Reveal>
   )
 }
 
 function FormStatusPanel({ loading }: { loading: boolean }) {
   return (
-    <section
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      aria-busy={loading}
-      className={`p-4 ${insetPanelCls}`}
-    >
-      <p className={factLabelCls}>{loading ? 'Verifying with Duffel' : 'Provider verification pending'}</p>
-      <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-        {loading
-          ? 'Do not refresh this page. Duffel is checking the selected fare and traveler details before returning a booking reference.'
-          : 'After you choose verify, expaify sends these traveler details to Duffel. Duffel rechecks price, currency, passenger count, and availability before any order is created.'}
-      </p>
-    </section>
+    <Reveal>
+      <section
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-busy={loading}
+        className={`p-4 ${insetPanelCls}`}
+      >
+        <p className={factLabelCls}>{loading ? 'Verifying with Duffel' : 'Provider verification pending'}</p>
+        <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+          {loading
+            ? 'Do not refresh this page. Duffel is checking the selected fare and traveler details before returning a booking reference.'
+            : 'After you choose verify, expaify sends these traveler details to Duffel. Duffel rechecks price, currency, passenger count, and availability before any order is created.'}
+        </p>
+      </section>
+    </Reveal>
   )
 }
 
@@ -671,11 +678,13 @@ function FieldGroup({
   children: ReactNode
 }) {
   return (
-    <fieldset className={`space-y-4 p-4 ${insetPanelCls}`}>
-      <legend className="text-sm font-medium text-[color:var(--text-1)]">{title}</legend>
-      <p className="text-sm leading-6 text-[color:var(--text-2)]">{description}</p>
-      {children}
-    </fieldset>
+    <Reveal>
+      <fieldset className={`space-y-4 p-4 ${insetPanelCls}`}>
+        <legend className="text-sm font-medium text-[color:var(--text-1)]">{title}</legend>
+        <p className="text-sm leading-6 text-[color:var(--text-2)]">{description}</p>
+        {children}
+      </fieldset>
+    </Reveal>
   )
 }
 
@@ -714,12 +723,12 @@ function ReviewShell({
         <a href="/" onClick={onBackClick} className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
           ← Back to results
         </a>
-        <div className="mt-4 space-y-4 sm:mt-6">
+        <Reveal className="mt-4 space-y-4 sm:mt-6">
           <HotelDecisionSummary hotelContext={hotelContext} onPinOpen={onHotelLocationPinOpen} />
           {status}
           {children}
           {hotelSupplement ? <div className="space-y-3">{hotelSupplement}</div> : null}
-        </div>
+        </Reveal>
       </main>
     )
   }
@@ -729,7 +738,7 @@ function ReviewShell({
       <a href={getBookingBackHref(fareContext, returnTo)} onClick={onBackClick} className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-1 text-sm font-medium text-[color:var(--text-2)] transition-colors hover:text-[color:var(--brand)] focus-visible:shadow-[var(--focus-ring)]">
         ← Back to search
       </a>
-      <div className="mt-4 grid gap-5 lg:mt-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+      <Reveal className="mt-4 grid gap-5 lg:mt-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
         <div className="min-w-0 space-y-5">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--brand)]">{eyebrow}</p>
@@ -745,7 +754,7 @@ function ReviewShell({
         <div className="min-w-0 lg:sticky lg:top-6">
           {children}
         </div>
-      </div>
+      </Reveal>
     </main>
   )
 }
@@ -771,28 +780,30 @@ function RecoveryState({
   const statusTone = statusTitle === 'One passenger is supported' ? 'red' : 'amber'
 
   return (
-    <ReviewShell
-      title={title}
-      message={message}
-      fareContext={fareContext}
-      duffelSandbox={duffelSandbox}
-      status={<StatusPanel title={statusTitle} message={message} tone={statusTone} live={statusLive} />}
-      returnTo={returnTo}
-    >
-      <div className={`${panelCls} p-4 sm:p-6`}>
-        <div className={`mt-5 p-4 ${insetPanelCls}`}>
-          <p className={factLabelCls}>What happens now</p>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
-            This page is review-only. expaify is not collecting payment details, submitting traveler information, or creating an airline order from this fare.
-          </p>
+    <Reveal>
+      <ReviewShell
+        title={title}
+        message={message}
+        fareContext={fareContext}
+        duffelSandbox={duffelSandbox}
+        status={<StatusPanel title={statusTitle} message={message} tone={statusTone} live={statusLive} />}
+        returnTo={returnTo}
+      >
+        <div className={`${panelCls} p-4 sm:p-6`}>
+          <div className={`mt-5 p-4 ${insetPanelCls}`}>
+            <p className={factLabelCls}>What happens now</p>
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">
+              This page is review-only. expaify is not collecting payment details, submitting traveler information, or creating an airline order from this fare.
+            </p>
+          </div>
+          <div className={actionStackCls}>
+            <a href={getBookingBackHref(fareContext, returnTo)} className="btn-primary active:scale-[0.98] transition-transform duration-150">
+              {actionLabel}
+            </a>
+          </div>
         </div>
-        <div className={actionStackCls}>
-          <a href={getBookingBackHref(fareContext, returnTo)} className="btn-primary">
-            {actionLabel}
-          </a>
-        </div>
-      </div>
-    </ReviewShell>
+      </ReviewShell>
+    </Reveal>
   )
 }
 
@@ -804,7 +815,8 @@ function InvalidBookingState({ duffelSandbox, returnTo }: { duffelSandbox: boole
   }, [])
 
   return (
-    <ReviewShell
+    <Reveal>
+      <ReviewShell
       title="We can't identify this fare"
       message="Return to search and choose a current result before reviewing booking options."
       fareContext={null}
@@ -834,12 +846,13 @@ function InvalidBookingState({ duffelSandbox, returnTo }: { duffelSandbox: boole
           </p>
         </div>
         <div className={actionStackCls}>
-          <a href={getBookingBackHref(null, returnTo)} className="btn-primary">
+          <a href={getBookingBackHref(null, returnTo)} className="btn-primary active:scale-[0.98] transition-transform duration-150">
             Back to search
           </a>
         </div>
       </div>
-    </ReviewShell>
+      </ReviewShell>
+    </Reveal>
   )
 }
 
@@ -851,7 +864,8 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
   }, [])
 
   return (
-    <ReviewShell
+    <Reveal>
+      <ReviewShell
       title="We can't identify this hotel"
       message="Return to search and choose a current hotel result before reviewing provider handoff options."
       fareContext={null}
@@ -883,12 +897,13 @@ function InvalidHotelState({ duffelSandbox }: { duffelSandbox: boolean }) {
           </p>
         </div>
         <div className={actionStackCls}>
-          <a href="/" className="btn-primary">
+          <a href="/" className="btn-primary active:scale-[0.98] transition-transform duration-150">
             Back to search
           </a>
         </div>
       </div>
-    </ReviewShell>
+      </ReviewShell>
+    </Reveal>
   )
 }
 
@@ -2151,11 +2166,11 @@ export default function BookingFlow({
         }
       >
         <div className={`${panelCls} p-4 sm:p-6`}>
-          <div className={`mt-5 p-4 ${insetPanelCls}`}>
+          <div className={`booking-confirmation-enter mt-5 p-4 ${insetPanelCls}`}>
             <p className={factLabelCls}>Booking reference</p>
             <p className="mt-2 break-all font-mono text-xl font-medium text-[color:var(--brand)] sm:text-2xl">{bookingRef}</p>
           </div>
-          <a href={getBookingBackHref(fareContext, returnTo)} className={`mt-5 ${secondaryButtonCls}`}>
+          <a href={getBookingBackHref(fareContext, returnTo)} className={`mt-5 active:scale-[0.98] transition-transform duration-150 ${secondaryButtonCls}`}>
             Search more flights
           </a>
         </div>
