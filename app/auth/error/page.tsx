@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Reveal } from '@/app/components/ui/Reveal';
 
 export const metadata: Metadata = {
   title: 'Sign-in error — expaify',
@@ -23,14 +24,16 @@ export default async function AuthErrorPage({
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[color:var(--bg)] px-5">
       <div className="w-full max-w-[400px]">
-        <a
-          href="/"
-          className="mb-10 flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline"
-        >
-          expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
-        </a>
+        <Reveal delayMs={0}>
+          <a
+            href="/"
+            className="mb-10 flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline"
+          >
+            expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
+          </a>
+        </Reveal>
 
-        <div className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-8">
+        <Reveal delayMs={80} className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-8">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--error-soft)]">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
               <circle cx="12" cy="12" r="9" stroke="var(--error)" strokeWidth="2" />
@@ -46,14 +49,14 @@ export default async function AuthErrorPage({
           </p>
 
           <div className="mt-6 flex flex-col gap-3">
-            <a href="/login" className="btn btn-primary w-full justify-center">
+            <a href="/login" className="btn btn-primary w-full justify-center transition-transform duration-150 active:scale-[0.98]">
               Try again
             </a>
-            <a href="/deals" className="btn btn-outline w-full justify-center">
+            <a href="/deals" className="btn btn-outline w-full justify-center transition-transform duration-150 active:scale-[0.98]">
               Browse deals
             </a>
           </div>
-        </div>
+        </Reveal>
       </div>
     </div>
   )
