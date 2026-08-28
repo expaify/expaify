@@ -5,6 +5,7 @@ import type { FormEvent } from 'react'
 import { SearchPanel, type SearchPanelSubmitPayload } from '@/components/search/SearchPanel'
 import FlightResults from '@/components/flights/FlightResults'
 import HotelCard from '@/app/components/HotelCard'
+import { Reveal } from '@/app/components/ui/Reveal'
 import { sortFlights } from '@/lib/search/sortFlights'
 import { comparablePriceCents } from '@/lib/search/comparablePrice'
 import {
@@ -373,6 +374,7 @@ export function FlightsClient() {
         <SearchPanel onSubmit={handleSubmit} />
       </div>
       {showFlights ? (
+        <Reveal>
         <section aria-labelledby={searchIntent === 'trip' ? 'flight-results-heading' : undefined} className="space-y-4">
           {searchIntent === 'trip' ? (
             <h2 id="flight-results-heading" className="font-display text-2xl font-bold text-[var(--text-1)]">Flights</h2>
@@ -411,14 +413,17 @@ export function FlightsClient() {
             onTryNearbyOrigin={onTryNearbyOrigin}
           />
         </section>
+        </Reveal>
       ) : null}
       {showHotels ? (
+        <Reveal>
         <HotelResults
           state={searchState}
           isSearching={isSearching}
           hasSearched={lastSearch !== null}
           hasSearchDates={Boolean(lastSearch?.departDate && lastSearch?.returnDate)}
         />
+        </Reveal>
       ) : null}
     </div>
   )

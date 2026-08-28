@@ -37,12 +37,12 @@ export function TripInspirationRail({
     <section aria-label="Trip inspiration" className="min-w-0">
       <div className="mb-2 flex items-center justify-between gap-3 px-1">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400 dot-pulse" />
-          <h2 className="font-display truncate text-xs font-extrabold uppercase tracking-[0.14em] text-gray-500">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand)] dot-pulse" />
+          <h2 className="font-display truncate text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--text-2)]">
             Trip ideas
           </h2>
         </div>
-        <span className="hidden shrink-0 text-[11px] font-semibold text-gray-600 sm:inline">
+        <span className="hidden shrink-0 text-[11px] font-semibold text-[var(--text-3)] sm:inline">
           Flexible dates
         </span>
       </div>
@@ -69,20 +69,20 @@ export function TripInspirationRail({
                   flexible: true,
                 });
               }}
-              className="card flex h-28 w-44 shrink-0 snap-start flex-col items-start justify-between overflow-hidden rounded-2xl p-3 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 sm:w-48"
+              className="card flex h-28 w-44 shrink-0 snap-start flex-col items-start justify-between overflow-hidden rounded-2xl p-3 text-left transition-[transform,box-shadow] duration-150 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] sm:w-48"
             >
               <span className="btn-pill max-w-full truncate px-2 py-0.5 text-[10px]">
                 {themeLabel}
               </span>
               <span className="min-w-0 max-w-full">
-                <span className="font-display block max-w-full truncate text-base font-extrabold leading-tight text-white">
+                <span className="font-display block max-w-full truncate text-base font-extrabold leading-tight text-[var(--text-1)]">
                   {item.destinationCity}
                 </span>
-                <span className="block max-w-full truncate text-[11px] font-medium text-gray-500">
+                <span className="block max-w-full truncate text-[11px] font-medium text-[var(--text-3)]">
                   {item.suggestedMonth} - {item.minNights}-{item.maxNights} nights
                 </span>
               </span>
-              <span className="text-xs font-bold text-indigo-300">
+              <span className="text-xs font-bold text-[var(--brand)]">
                 From ${item.priceHintUsd}
               </span>
             </button>

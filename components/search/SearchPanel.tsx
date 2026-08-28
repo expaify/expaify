@@ -3,6 +3,7 @@
 import * as React from 'react';
 import type { FormEvent, JSX } from 'react';
 import AirportInput from '@/app/components/AirportInput';
+import { Reveal } from '@/app/components/ui/Reveal';
 import { TripInspirationRail } from './TripInspirationRail';
 
 type TripType = 'roundtrip' | 'oneway';
@@ -97,10 +98,16 @@ export function SearchPanel({
   }
 
   return (
-    <section className="rounded-3xl border border-white/8 bg-[#0C1122]/85 p-4 shadow-[0_24px_64px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-6">
+    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+      <Reveal delayMs={0}>
       <fieldset className="mb-4">
         <legend className="sr-only">Search intent</legend>
-        <div className="grid grid-cols-1 gap-2 rounded-xl bg-white/[0.04] p-1 sm:grid-cols-3">
+        <div className="relative grid grid-cols-3 gap-2 rounded-xl bg-[var(--bg-muted)] p-1">
+          <span
+            aria-hidden
+            className="absolute inset-y-1 left-1 w-[calc((100%_-_1.5rem)/3)] rounded-lg border border-[var(--border-hover)] bg-[var(--brand-soft)] transition-transform duration-300"
+            style={{ transform: `translateX(calc(${searchIntent === 'hotels' ? 0 : searchIntent === 'trip' ? 1 : 2} * (100% + 0.5rem)))` }}
+          />
           {([
             ['hotels', 'Hotels', 'Check stays'],
             ['trip', 'Flight + hotel', 'Review both'],
@@ -111,10 +118,10 @@ export function SearchPanel({
               type="button"
               onClick={() => setSearchIntent(intent)}
               aria-pressed={searchIntent === intent}
-              className={`min-h-14 rounded-lg border px-3 py-2 text-left transition-colors ${
+              className={`relative z-10 min-h-14 rounded-lg border border-transparent bg-transparent px-3 py-2 text-left transition-[color,transform] duration-150 active:scale-[0.97] ${
                 searchIntent === intent
-                  ? 'border-indigo-500/30 bg-indigo-500/25 text-indigo-200'
-                  : 'border-transparent text-gray-500 hover:text-gray-300'
+                  ? 'text-[var(--brand)]'
+                  : 'text-[var(--text-2)] hover:text-[var(--text-1)]'
               }`}
             >
               <span className="block text-sm font-bold">{label}</span>
@@ -123,23 +130,30 @@ export function SearchPanel({
           ))}
         </div>
       </fieldset>
+      </Reveal>
 
       <form onSubmit={handleSubmit} className="space-y-3">
+        <Reveal delayMs={50}>
         <fieldset>
-          <legend className="mb-2 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
+          <legend className="mb-2 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">
             Trip type
           </legend>
-          <div className="flex rounded-xl bg-white/[0.04] p-1">
+          <div className="relative grid grid-cols-2 gap-1 rounded-xl bg-[var(--bg-muted)] p-1">
+            <span
+              aria-hidden
+              className="absolute inset-y-1 left-1 w-[calc((100%_-_0.75rem)/2)] rounded-lg border border-[var(--border-hover)] bg-[var(--brand-soft)] transition-transform duration-300"
+              style={{ transform: tripType === 'roundtrip' ? 'translateX(0)' : 'translateX(calc(100% + 0.25rem))' }}
+            />
             {(['roundtrip', 'oneway'] as TripType[]).map((type) => (
               <button
                 key={type}
                 type="button"
                 onClick={() => setTripType(type)}
                 aria-pressed={tripType === type}
-                className={`flex-1 rounded-lg border py-2 text-sm font-bold transition-colors ${
+                className={`relative z-10 rounded-lg border border-transparent bg-transparent py-2 text-sm font-bold transition-[color,transform] duration-150 active:scale-[0.97] ${
                   tripType === type
-                    ? 'border-indigo-500/30 bg-indigo-500/25 text-indigo-300'
-                    : 'border-transparent text-gray-500 hover:text-gray-300'
+                    ? 'text-[var(--brand)]'
+                    : 'text-[var(--text-2)] hover:text-[var(--text-1)]'
                 }`}
               >
                 {type === 'roundtrip' ? 'Round trip' : 'One way'}
@@ -147,10 +161,11 @@ export function SearchPanel({
             ))}
           </div>
         </fieldset>
+        </Reveal>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Reveal delayMs={100} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
+            <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">
               From
             </label>
             <AirportInput
@@ -167,7 +182,7 @@ export function SearchPanel({
           </div>
 
           <div>
-            <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
+            <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">
               To
             </label>
             <AirportInput
@@ -181,11 +196,11 @@ export function SearchPanel({
               placeholder="Anywhere"
             />
           </div>
-        </div>
+        </Reveal>
 
-        <div className={`grid gap-3 ${tripType === 'roundtrip' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <Reveal delayMs={150} className={`grid gap-3 ${tripType === 'roundtrip' ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <label className="block">
-            <span className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
+            <span className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">
               Depart
             </span>
             <input
@@ -198,7 +213,7 @@ export function SearchPanel({
 
           {tripType === 'roundtrip' && (
             <label className="block">
-              <span className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
+              <span className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">
                 Return
               </span>
               <input
@@ -209,33 +224,35 @@ export function SearchPanel({
               />
             </label>
           )}
-        </div>
+        </Reveal>
 
-        <TripInspirationRail
-          originIata={origin}
-          originDisplay={originDisplay}
-          onSelect={handleInspirationSelect}
-        />
+        <Reveal delayMs={200}>
+          <TripInspirationRail originIata={origin} originDisplay={originDisplay} onSelect={handleInspirationSelect} />
+        </Reveal>
 
+        <Reveal delayMs={250}>
         <label className="flex cursor-pointer select-none items-center gap-2">
           <input
             type="checkbox"
             checked={flexible}
             onChange={(event) => setFlexible(event.target.checked)}
-            className="h-4 w-4 rounded border-white/20 bg-white/5 accent-indigo-500"
+            className="h-4 w-4 rounded border-[var(--border)] bg-[var(--bg-raised)] accent-[var(--brand)]"
           />
-          <span className="text-xs font-medium text-gray-400">
-            I&apos;m flexible <span className="text-gray-600">(+/-3 days)</span>
+          <span className="text-xs font-medium text-[var(--text-2)]">
+            I&apos;m flexible <span className="text-[var(--text-3)]">(+/-3 days)</span>
           </span>
         </label>
+        </Reveal>
 
-        <button type="submit" className="btn-primary">
+        <Reveal delayMs={300}>
+        <button type="submit" className="btn-primary transition-[transform,box-shadow] duration-150 hover:shadow-[var(--shadow-lift)] active:scale-[0.98]">
           {searchIntent === 'hotels'
             ? 'Search hotels'
             : searchIntent === 'trip'
               ? 'Search flights and hotels'
               : 'Search flights'}
         </button>
+        </Reveal>
       </form>
     </section>
   );
