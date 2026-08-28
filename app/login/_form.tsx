@@ -3,6 +3,8 @@
 import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { Reveal } from '@/app/components/ui/Reveal'
+import { Icon } from '@/app/components/ui/icons/Icon'
 
 type LoginFormProps = {
   freeIntent: boolean
@@ -34,57 +36,66 @@ export default function LoginForm({ freeIntent }: LoginFormProps) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[color:var(--bg)] px-5">
       <div className="w-full max-w-[400px]">
-        <a
-          href="/"
-          className="mb-10 flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline"
-        >
-          expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
-        </a>
+        <Reveal delayMs={0}>
+          <a
+            href="/"
+            className="mb-10 flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline"
+          >
+            expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
+          </a>
+        </Reveal>
 
-        <h1 className="mb-2 font-display text-2xl font-bold text-[color:var(--ink)]">
-          {freeIntent ? 'Get free hotel deal alerts' : 'Sign in to your expaify account'}
-        </h1>
-        <p className="mb-8 text-base text-[color:var(--ink-soft)]">
-          {freeIntent
-            ? 'Enter your email — no card, no password. We’ll email you when a deal drops.'
-            : 'We’ll email you a magic link — no password needed.'}
-        </p>
+        <Reveal delayMs={60}>
+          <h1 className="mb-2 font-display text-2xl font-bold text-[color:var(--ink)]">
+            {freeIntent ? 'Get free hotel deal alerts' : 'Sign in to your expaify account'}
+          </h1>
+          <p className="mb-8 text-base text-[color:var(--ink-soft)]">
+            {freeIntent
+              ? 'Enter your email — no card, no password. We’ll email you when a deal drops.'
+              : 'We’ll email you a magic link — no password needed.'}
+          </p>
+        </Reveal>
 
         {sent ? (
-          <div className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6 text-center">
+          <div className="join-success-enter rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] bg-[radial-gradient(ellipse_at_top_right,var(--primary-soft),transparent_60%)] p-6 text-center">
+            <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[color:var(--primary-soft)] text-[color:var(--primary)]">
+              <Icon name="email_alert" size={20} className="text-[color:var(--primary)]" />
+            </span>
             <p className="font-display text-base font-bold text-[color:var(--ink)]">Check your inbox</p>
             <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
               We sent a sign-in link to <strong>{email}</strong>
             </p>
           </div>
         ) : (
-          <form onSubmit={handleEmail} className="flex flex-col gap-4">
-            <div>
-              <label htmlFor="email" className="sr-only">Email address</label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="field-input"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary w-full justify-center"
-            >
-              {loading ? <span className="spinner" aria-hidden /> : null}
-              {loading ? 'Sending…' : 'Continue with email'}
-            </button>
-          </form>
+          <Reveal delayMs={120}>
+            <form onSubmit={handleEmail} className="flex flex-col gap-4">
+              <div>
+                <label htmlFor="email" className="sr-only">Email address</label>
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="field-input"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn btn-primary w-full justify-center transition-transform duration-150 active:scale-[0.98]"
+              >
+                {loading ? <span className="spinner" aria-hidden /> : null}
+                {loading ? 'Sending…' : 'Continue with email'}
+              </button>
+            </form>
+          </Reveal>
         )}
 
         {googleEnabled && (
-          <>
+          <Reveal delayMs={180}>
             <div className="my-6 flex items-center gap-3">
               <div className="h-px flex-1 bg-[color:var(--line-ivory)]" />
               <span className="text-sm text-[color:var(--ink-faint)]">or</span>
@@ -93,20 +104,22 @@ export default function LoginForm({ freeIntent }: LoginFormProps) {
             <button
               type="button"
               onClick={() => signIn('google', { callbackUrl: '/onboarding' })}
-              className="btn btn-outline w-full justify-center gap-2"
+              className="btn btn-outline w-full justify-center gap-2 transition-transform duration-150 active:scale-[0.98]"
             >
               <GoogleIcon />
               Continue with Google
             </button>
-          </>
+          </Reveal>
         )}
 
-        <p className="mt-8 text-center text-sm text-[color:var(--ink-faint)]">
-          {freeIntent ? 'Want unlimited alerts? ' : 'No account? '}
-          <a href={freeIntent ? '/join' : '/login?intent=free'} className="text-[color:var(--primary)] no-underline hover:underline">
-            {freeIntent ? 'Try Premium' : 'Get free alerts'}
-          </a>
-        </p>
+        <Reveal delayMs={240}>
+          <p className="mt-8 text-center text-sm text-[color:var(--ink-faint)]">
+            {freeIntent ? 'Want unlimited alerts? ' : 'No account? '}
+            <a href={freeIntent ? '/join' : '/login?intent=free'} className="text-[color:var(--primary)] no-underline hover:underline">
+              {freeIntent ? 'Try Premium' : 'Get free alerts'}
+            </a>
+          </p>
+        </Reveal>
       </div>
     </div>
   )
