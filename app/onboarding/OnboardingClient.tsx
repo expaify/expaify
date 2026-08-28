@@ -6,6 +6,8 @@ import type { Ref } from 'react'
 import { TRACKED_MARKETS, TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { FREE_WATCHLIST_CAP, PREMIUM_WATCHLIST_CAP } from '@/lib/alertLimits'
 import { track } from '@/lib/analytics'
+import { Reveal } from '@/app/components/ui/Reveal'
+import { Icon } from '@/app/components/ui/icons/Icon'
 
 type AlertPreference = 'instant' | 'daily' | 'off'
 type MinDiscountPct = 30 | 40 | 50
@@ -219,8 +221,11 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
   if (success) {
     return (
       <div className="mx-auto flex min-h-screen w-full max-w-[680px] items-center px-5 py-10">
-        <section className="w-full rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-card-rest)] sm:p-9" aria-labelledby="onboarding-success-heading">
-          <p className="text-sm font-medium uppercase tracking-wide text-[color:var(--primary)]">Alerts are on</p>
+        <section className="join-success-enter w-full rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-card-rest)] sm:p-9" aria-labelledby="onboarding-success-heading">
+          <p className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-[color:var(--primary)]">
+            <Icon name="deal_alert" size={16} className="text-[color:var(--primary)]" />
+            Alerts are on
+          </p>
           <h1 id="onboarding-success-heading" className="mt-2 font-display text-2xl font-bold text-[color:var(--ink)] sm:text-4xl">
             You’re watching {success.cityLabel}.
           </h1>
@@ -241,7 +246,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
                   Save {success.deal.discountPct}%
                 </span>
               </div>
-              <a href={`/deals/${success.deal.id}`} className="btn btn-conversion mt-5 w-full justify-center">
+              <a href={`/deals/${success.deal.id}`} className="btn btn-conversion mt-5 w-full justify-center transition-transform duration-150 active:scale-[0.98]">
                 View this deal
               </a>
             </div>
@@ -249,7 +254,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
 
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row">
             {!success.deal ? (
-              <button type="button" onClick={() => router.replace('/deals')} className="btn btn-primary w-full justify-center sm:w-auto">
+              <button type="button" onClick={() => router.replace('/deals')} className="btn btn-primary w-full justify-center transition-transform duration-150 active:scale-[0.98] sm:w-auto">
                 Browse live deals
               </button>
             ) : null}
@@ -272,7 +277,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
           type="button"
           onClick={complete}
           disabled={saving}
-          className="rounded-[var(--radius-pill)] px-4 py-2 text-sm font-medium text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] disabled:opacity-60"
+          className="rounded-[var(--radius-pill)] px-4 py-2 text-sm font-medium text-[color:var(--ink-soft)] transition-transform duration-150 hover:text-[color:var(--ink)] active:scale-[0.97] disabled:opacity-60"
         >
           Skip
         </button>
@@ -291,13 +296,19 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
             <span
               key={item}
               aria-hidden
-              className={`h-2 flex-1 rounded-[var(--radius-pill)] ${item <= step ? 'bg-[color:var(--primary)]' : 'bg-[color:var(--line-ivory)]'}`}
-            />
+              className="relative h-2 flex-1 overflow-hidden rounded-[var(--radius-pill)] bg-[color:var(--line-ivory)]"
+            >
+              <span
+                className={`absolute inset-0 origin-left rounded-[var(--radius-pill)] bg-[color:var(--primary)] transition-transform duration-500 ${
+                  item <= step ? 'scale-x-100' : 'scale-x-0'
+                }`}
+              />
+            </span>
           ))}
         </div>
 
         {step === 0 ? (
-          <div>
+          <Reveal key={step}>
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="mb-2 text-sm font-medium uppercase tracking-wide text-[color:var(--ink-faint)]">Step 1 of 3</p>
@@ -316,67 +327,72 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
                 const selected = watchlist.includes(market.city)
                 const disabled = !selected && watchlist.length >= maxCities
                 return (
-                  <button
-                    key={`${market.city}-${market.iata}`}
-                    type="button"
-                    onClick={() => toggleCity(market.city)}
-                    disabled={disabled}
-                    aria-pressed={selected}
-                    className={`group relative aspect-[4/3] overflow-hidden rounded-[var(--radius-card)] border bg-[color:var(--primary-deep)] text-left transition duration-150 disabled:opacity-45 ${
-                      selected ? 'border-[color:var(--primary)] ring-2 ring-[color:var(--primary)]' : 'border-[color:var(--line-ivory)] hover:border-[color:var(--primary-soft)]'
-                    }`}
-                  >
-                    <img
-                      src={market.photoUrl}
-                      alt={market.photoAlt}
-                      width={640}
-                      height={480}
-                      loading={index < 4 ? 'eager' : 'lazy'}
-                      decoding="async"
-                      onError={(event) => {
-                        // Failed image: the --primary-deep card fill + gradient
-                        // keep the white city text legible.
-                        event.currentTarget.style.display = 'none'
-                      }}
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                    <span className="absolute inset-0 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--ink)_4%,transparent)_0%,color-mix(in_srgb,var(--ink)_68%,transparent)_100%)]" aria-hidden />
-                    <span className="absolute inset-x-0 bottom-0 p-3 text-white">
-                      <span className="block font-display text-base font-bold leading-tight">{market.city}</span>
-                      <span className="text-xs font-medium opacity-85">{market.iata} · {market.country}</span>
-                    </span>
-                    {selected ? (
-                      <span className="absolute right-3 top-3 rounded-[var(--radius-pill)] bg-[color:var(--surface)] px-2.5 py-1 text-xs font-medium text-[color:var(--primary)]">
-                        Selected
+                  <Reveal key={`${market.city}-${market.iata}`} delayMs={Math.min(index, 11) * 40} className="h-full">
+                    <button
+                      type="button"
+                      onClick={() => toggleCity(market.city)}
+                      disabled={disabled}
+                      aria-pressed={selected}
+                      className={`group relative aspect-[4/3] w-full overflow-hidden rounded-[var(--radius-card)] border bg-[color:var(--primary-deep)] text-left transition duration-150 active:scale-[0.96] disabled:opacity-45 ${
+                        selected ? 'border-[color:var(--primary)] ring-2 ring-[color:var(--primary)]' : 'border-[color:var(--line-ivory)] hover:border-[color:var(--primary-soft)]'
+                      }`}
+                    >
+                      <img
+                        src={market.photoUrl}
+                        alt={market.photoAlt}
+                        width={640}
+                        height={480}
+                        loading={index < 4 ? 'eager' : 'lazy'}
+                        decoding="async"
+                        onError={(event) => {
+                          // Failed image: the --primary-deep card fill + gradient
+                          // keep the white city text legible.
+                          event.currentTarget.style.display = 'none'
+                        }}
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                      <span className="absolute inset-0 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--ink)_4%,transparent)_0%,color-mix(in_srgb,var(--ink)_68%,transparent)_100%)]" aria-hidden />
+                      <span className="absolute inset-x-0 bottom-0 p-3 text-white">
+                        <span className="block font-display text-base font-bold leading-tight">{market.city}</span>
+                        <span className="text-xs font-medium opacity-85">{market.iata} · {market.country}</span>
                       </span>
-                    ) : null}
-                  </button>
+                      {selected ? (
+                        <span className="absolute right-3 top-3 animate-[join-success-enter_200ms_ease-out_both] rounded-[var(--radius-pill)] bg-[color:var(--surface)] px-2.5 py-1 text-xs font-medium text-[color:var(--primary)]">
+                          Selected
+                        </span>
+                      ) : null}
+                    </button>
+                  </Reveal>
                 )
               })}
             </div>
-          </div>
+          </Reveal>
         ) : null}
 
         {step === 1 ? (
-          <ChoiceStep
-            eyebrow="Step 2 of 3"
-            title="How big should a deal be before we bug you?"
-            options={DISCOUNT_OPTIONS}
-            value={minDiscountPct}
-            onChange={setMinDiscountPct}
-            headingRef={headingRef}
-          />
+          <Reveal key={step}>
+            <ChoiceStep
+              eyebrow="Step 2 of 3"
+              title="How big should a deal be before we bug you?"
+              options={DISCOUNT_OPTIONS}
+              value={minDiscountPct}
+              onChange={setMinDiscountPct}
+              headingRef={headingRef}
+            />
+          </Reveal>
         ) : null}
 
         {step === 2 ? (
-          <ChoiceStep
-            eyebrow="Step 3 of 3"
-            title="How should we reach you?"
-            options={reachOptions}
-            value={alertPreference}
-            onChange={setAlertPreference}
-            headingRef={headingRef}
-          />
+          <Reveal key={step}>
+            <ChoiceStep
+              eyebrow="Step 3 of 3"
+              title="How should we reach you?"
+              options={reachOptions}
+              value={alertPreference}
+              onChange={setAlertPreference}
+              headingRef={headingRef}
+            />
+          </Reveal>
         ) : null}
 
         {error ? (
@@ -402,7 +418,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
             type="button"
             onClick={() => setStep((current) => Math.max(0, current - 1))}
             disabled={step === 0 || saving}
-            className={`btn btn-outline justify-center px-4 ${step === 0 ? 'invisible' : ''}`}
+            className={`btn btn-outline justify-center px-4 transition-transform duration-150 active:scale-[0.97] ${step === 0 ? 'invisible' : ''}`}
           >
             Back
           </button>
@@ -416,7 +432,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
             type="button"
             onClick={() => (step === 2 ? complete() : setStep((current) => current + 1))}
             disabled={saving}
-            className="btn btn-conversion justify-center px-6"
+            className="btn btn-conversion justify-center px-6 transition-transform duration-150 active:scale-[0.97]"
           >
             {saving ? 'Saving...' : step === 2 ? 'Take me to deals' : 'Continue'}
           </button>
@@ -448,37 +464,38 @@ function ChoiceStep<T extends string | number>({
         {title}
       </h1>
       <div className="mt-7 grid gap-3">
-        {options.map((option) => {
+        {options.map((option, index) => {
           const selected = value === option.value
           return (
-            <button
-              key={String(option.value)}
-              type="button"
-              onClick={() => onChange(option.value)}
-              aria-pressed={selected}
-              className={`rounded-[var(--radius-card)] border p-5 text-left transition-colors duration-150 ${
-                selected
-                  ? 'border-[color:var(--primary)] bg-[color:var(--primary)] text-white'
-                  : 'border-[color:var(--line-ivory)] bg-[color:var(--surface)] text-[color:var(--ink)] hover:border-[color:var(--primary-soft)]'
-              }`}
-            >
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="font-display text-xl font-bold leading-tight">{option.label}</span>
-                {option.chip ? (
-                  <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-2 py-0.5 font-display text-xs font-bold leading-none text-[color:var(--gold-text)]">
-                    {option.chip}
+            <Reveal key={String(option.value)} delayMs={index * 60}>
+              <button
+                type="button"
+                onClick={() => onChange(option.value)}
+                aria-pressed={selected}
+                className={`w-full rounded-[var(--radius-card)] border p-5 text-left transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.98] ${
+                  selected
+                    ? 'border-[color:var(--primary)] bg-[color:var(--primary)] text-white'
+                    : 'border-[color:var(--line-ivory)] bg-[color:var(--surface)] text-[color:var(--ink)] hover:border-[color:var(--primary-soft)]'
+                }`}
+              >
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="font-display text-xl font-bold leading-tight">{option.label}</span>
+                  {option.chip ? (
+                    <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-2 py-0.5 font-display text-xs font-bold leading-none text-[color:var(--gold-text)]">
+                      {option.chip}
+                    </span>
+                  ) : null}
+                </span>
+                <span className={`mt-1 block text-sm ${selected ? 'text-white/85' : 'text-[color:var(--ink-soft)]'}`}>
+                  {option.detail}
+                </span>
+                {option.disclosure ? (
+                  <span className={`mt-2 block text-sm ${selected ? 'text-white/85' : 'text-[color:var(--ink-soft)]'}`}>
+                    {option.disclosure}
                   </span>
                 ) : null}
-              </span>
-              <span className={`mt-1 block text-sm ${selected ? 'text-white/85' : 'text-[color:var(--ink-soft)]'}`}>
-                {option.detail}
-              </span>
-              {option.disclosure ? (
-                <span className={`mt-2 block text-sm ${selected ? 'text-white/85' : 'text-[color:var(--ink-soft)]'}`}>
-                  {option.disclosure}
-                </span>
-              ) : null}
-            </button>
+              </button>
+            </Reveal>
           )
         })}
       </div>
