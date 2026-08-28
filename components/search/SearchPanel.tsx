@@ -59,11 +59,13 @@ export function SearchPanel({
   initialReturnDate = '',
   onSubmit,
 }: SearchPanelProps): JSX.Element {
-  // Defaults to 'hotels', not 'trip' -- matches the site's actual
-  // differentiator (curated hotel-deal judgment, confirmed by tonight's
-  // 5-model research and already applied to the top nav) rather than
-  // presenting flights/hotels/both as three equal-weight starting points.
-  const [searchIntent, setSearchIntent] = React.useState<SearchIntent>('hotels');
+  // Flight search intent ('trip'/'flights') is hidden from the picker --
+  // the flight provider isn't reliable enough to surface. searchIntent
+  // stays a real SearchIntent value (not narrowed to a literal 'hotels'
+  // type) so the rest of the search pipeline (FlightsClient, route.ts,
+  // searchStreamReducer) is untouched and can re-enable it later just by
+  // restoring the picker UI below.
+  const searchIntent: SearchIntent = 'hotels';
   const [tripType, setTripType] = React.useState<TripType>('roundtrip');
   const [origin, setOrigin] = React.useState(initialOriginIata);
   const [originDisplay, setOriginDisplay] = React.useState(initialOriginDisplay);
@@ -99,39 +101,6 @@ export function SearchPanel({
 
   return (
     <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] sm:p-6">
-      <Reveal delayMs={0}>
-      <fieldset className="mb-4">
-        <legend className="sr-only">Search intent</legend>
-        <div className="relative grid grid-cols-3 gap-2 rounded-xl bg-[var(--bg-muted)] p-1">
-          <span
-            aria-hidden
-            className="absolute inset-y-1 left-1 w-[calc((100%_-_1.5rem)/3)] rounded-lg border border-[var(--border-hover)] bg-[var(--brand-soft)] transition-transform duration-300"
-            style={{ transform: `translateX(calc(${searchIntent === 'hotels' ? 0 : searchIntent === 'trip' ? 1 : 2} * (100% + 0.5rem)))` }}
-          />
-          {([
-            ['hotels', 'Hotels', 'Check stays'],
-            ['trip', 'Flight + hotel', 'Review both'],
-            ['flights', 'Flights', 'Rank fares'],
-          ] as const).map(([intent, label, description]) => (
-            <button
-              key={intent}
-              type="button"
-              onClick={() => setSearchIntent(intent)}
-              aria-pressed={searchIntent === intent}
-              className={`relative z-10 min-h-14 rounded-lg border border-transparent bg-transparent px-3 py-2 text-left transition-[color,transform] duration-150 active:scale-[0.97] ${
-                searchIntent === intent
-                  ? 'text-[var(--brand)]'
-                  : 'text-[var(--text-2)] hover:text-[var(--text-1)]'
-              }`}
-            >
-              <span className="block text-sm font-bold">{label}</span>
-              <span className="mt-0.5 block text-xs font-medium">{description}</span>
-            </button>
-          ))}
-        </div>
-      </fieldset>
-      </Reveal>
-
       <form onSubmit={handleSubmit} className="space-y-3">
         <Reveal delayMs={50}>
         <fieldset>
@@ -246,11 +215,7 @@ export function SearchPanel({
 
         <Reveal delayMs={300}>
         <button type="submit" className="btn-primary transition-[transform,box-shadow] duration-150 hover:shadow-[var(--shadow-lift)] active:scale-[0.98]">
-          {searchIntent === 'hotels'
-            ? 'Search hotels'
-            : searchIntent === 'trip'
-              ? 'Search flights and hotels'
-              : 'Search flights'}
+          Search hotels
         </button>
         </Reveal>
       </form>

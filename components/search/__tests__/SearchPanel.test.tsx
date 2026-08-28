@@ -1,11 +1,11 @@
 import type { ReactElement } from 'react'
 
-// The homepage hero widget used to default to "Flight + hotel" and present
-// Flights/Hotels/Flight+hotel as three equal-weight, equally-ordered tabs --
-// inconsistent with the top-nav demotion already shipped tonight (5-model
-// research: hotel-deal judgment is the actual differentiator, not flight
-// search breadth). These tests lock in the fix: Hotels leads and is the
-// default selection.
+// The search-intent picker (Hotels / Flight + hotel / Flights) has been
+// removed from the UI -- the flight provider isn't reliable enough to
+// surface, so the panel is hotels-only now. searchIntent still exists as
+// a real value threaded into the submit payload (locked to 'hotels') so
+// the rest of the search pipeline is untouched and the picker can come
+// back later just by restoring it in SearchPanel.tsx.
 
 jest.mock('@/app/components/AirportInput', () => ({
   __esModule: true,
@@ -63,49 +63,30 @@ describe('SearchPanel', () => {
     })
   }
 
-  function intentButtons(): HTMLButtonElement[] {
-    return Array.from(container.querySelectorAll('button[aria-pressed]')).filter(
-      b => ['Hotels', 'Flight + hotel', 'Flights'].includes(b.querySelector('span')?.textContent ?? ''),
-    ) as HTMLButtonElement[]
-  }
-
-  it('shows Hotels first among the search-intent tabs, not Flights or Flight + hotel', async () => {
+  it('does not render a search-intent picker -- Hotels, Flight + hotel, and Flights are not selectable', async () => {
     await render()
 
-    const labels = intentButtons().map(b => b.querySelector('span')?.textContent)
-    expect(labels).toEqual(['Hotels', 'Flight + hotel', 'Flights'])
+    const bodyText = container.textContent ?? ''
+    expect(bodyText).not.toContain('Flight + hotel')
+    expect(bodyText).not.toContain('Rank fares')
+    expect(container.querySelector('legend')?.textContent).not.toBe('Search intent')
   })
 
-  it('defaults to the Hotels intent selected, not Flight + hotel', async () => {
-    await render()
-
-    const buttons = intentButtons()
-    const hotels = buttons.find(b => b.querySelector('span')?.textContent === 'Hotels')
-    const trip = buttons.find(b => b.querySelector('span')?.textContent === 'Flight + hotel')
-    const flights = buttons.find(b => b.querySelector('span')?.textContent === 'Flights')
-
-    expect(hotels?.getAttribute('aria-pressed')).toBe('true')
-    expect(trip?.getAttribute('aria-pressed')).toBe('false')
-    expect(flights?.getAttribute('aria-pressed')).toBe('false')
-  })
-
-  it('defaults the submit button to "Search hotels", matching the default Hotels intent', async () => {
+  it('defaults the submit button to "Search hotels"', async () => {
     await render()
 
     const submit = container.querySelector('button[type="submit"]')
     expect(submit?.textContent).toBe('Search hotels')
   })
 
-  it('threads the selected search intent into the submit payload', async () => {
+  it('always submits with searchIntent locked to hotels', async () => {
     const onSubmit = jest.fn()
     await render({ onSubmit })
-    const trip = intentButtons().find(button => button.querySelector('span')?.textContent === 'Flight + hotel')
     const form = container.querySelector('form') as HTMLFormElement
     const { act } = require('react') as typeof import('react')
 
-    await act(async () => trip?.click())
     await act(async () => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
 
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ searchIntent: 'trip' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ searchIntent: 'hotels' }))
   })
 })
