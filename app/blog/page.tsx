@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LandingNav } from '@/app/components/LandingNav';
+import { Reveal } from '@/app/components/ui/Reveal';
 import { getBlogPosts } from '@/lib/contentful';
 
 export const metadata: Metadata = {
@@ -23,28 +24,29 @@ export default async function BlogIndexPage() {
     <div className="min-h-screen bg-[color:var(--bg)]">
       <LandingNav />
       <main className="mx-auto max-w-[760px] px-5 py-12">
-        <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">The expaify Blog: honest hotel deal advice</h1>
+        <Reveal delayMs={0}>
+          <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">The expaify Blog: honest hotel deal advice</h1>
+        </Reveal>
         {posts.length === 0 ? (
           <p className="mt-6 text-body text-[color:var(--ink-soft)]">No posts yet — check back soon.</p>
         ) : (
           <div className="mt-8 space-y-6">
-            {posts.map((post) => (
-              <article
-                key={post.id}
-                className="rounded-[var(--radius-card)] border border-[color:var(--ink-faint)] bg-white/40 p-5"
-              >
-                <h2 className="font-display text-h3 font-semibold text-[color:var(--ink)]">
-                  <Link href={`/blog/${post.slug}`} className="hover:text-[color:var(--primary)]">
-                    {post.title}
-                  </Link>
-                </h2>
-                <p className="mt-2 text-small text-[color:var(--ink-faint)]">
-                  {formatter.format(new Date(post.publishedDate))}
-                </p>
-                {post.excerpt && (
-                  <p className="mt-3 text-body text-[color:var(--ink-soft)]">{post.excerpt}</p>
-                )}
-              </article>
+            {posts.map((post, index) => (
+              <Reveal key={post.id} delayMs={Math.min(index, 8) * 60}>
+                <article className="rounded-[var(--radius-card)] border border-[color:var(--ink-faint)] bg-white/40 p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]">
+                  <h2 className="font-display text-h3 font-semibold text-[color:var(--ink)]">
+                    <Link href={`/blog/${post.slug}`} className="hover:text-[color:var(--primary)]">
+                      {post.title}
+                    </Link>
+                  </h2>
+                  <p className="mt-2 text-small text-[color:var(--ink-faint)]">
+                    {formatter.format(new Date(post.publishedDate))}
+                  </p>
+                  {post.excerpt && (
+                    <p className="mt-3 text-body text-[color:var(--ink-soft)]">{post.excerpt}</p>
+                  )}
+                </article>
+              </Reveal>
             ))}
           </div>
         )}

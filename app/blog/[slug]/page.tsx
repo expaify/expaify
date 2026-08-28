@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LandingNav } from '@/app/components/LandingNav';
+import { Reveal } from '@/app/components/ui/Reveal';
 import { getBlogPostBySlug, getBlogPosts, type BlogPost } from '@/lib/contentful';
 import { documentToReactComponents } from '@contentful/rich-text-react-renderer';
 import { BLOCKS, MARKS, type Document } from '@contentful/rich-text-types';
@@ -116,35 +117,41 @@ export default async function BlogPostPage({ params }: { params: PageParams }) {
       />
       <LandingNav />
       <main className="mx-auto max-w-[760px] px-5 py-12">
-        <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">{post.title}</h1>
-        <p className="mt-2 text-small text-[color:var(--ink-faint)]">
-          {formatter.format(new Date(post.publishedDate))}
-        </p>
+        <Reveal delayMs={0}>
+          <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">{post.title}</h1>
+          <p className="mt-2 text-small text-[color:var(--ink-faint)]">
+            {formatter.format(new Date(post.publishedDate))}
+          </p>
 
-        {post.tags.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {post.tags.map((tag) => (
-              <span
-                key={tag}
-                className="rounded-[var(--radius-pill)] bg-[color:var(--primary)] px-3 py-1 text-small text-[color:var(--text-inverse)]"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
+          {post.tags.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {post.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-[var(--radius-pill)] bg-[color:var(--primary)] px-3 py-1 text-small text-[color:var(--text-inverse)]"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </Reveal>
 
         {post.heroImageUrl && (
-          <img
-            src={post.heroImageUrl}
-            alt={post.title}
-            className="mt-8 w-full rounded-[var(--radius-card)]"
-          />
+          <Reveal delayMs={60}>
+            <img
+              src={post.heroImageUrl}
+              alt={post.title}
+              className="mt-8 w-full rounded-[var(--radius-card)]"
+            />
+          </Reveal>
         )}
 
-        <div className="mt-8">
-          {documentToReactComponents(post.body as Document, renderOptions)}
-        </div>
+        <Reveal delayMs={post.heroImageUrl ? 100 : 60}>
+          <div className="mt-8">
+            {documentToReactComponents(post.body as Document, renderOptions)}
+          </div>
+        </Reveal>
 
         {relatedPosts.length > 0 && (
           <section className="mt-8" aria-labelledby="related-posts-heading">
@@ -155,25 +162,24 @@ export default async function BlogPostPage({ params }: { params: PageParams }) {
               Related posts
             </h2>
             <div className="mt-4 space-y-6">
-              {relatedPosts.map((relatedPost) => (
-                <article
-                  key={relatedPost.id}
-                  className="rounded-[var(--radius-card)] border border-[color:var(--ink-faint)] bg-white/40 p-5"
-                >
-                  <h3 className="font-display text-body font-semibold text-[color:var(--ink)]">
-                    <Link
-                      href={`/blog/${relatedPost.slug}`}
-                      className="hover:text-[color:var(--primary)]"
-                    >
-                      {relatedPost.title}
-                    </Link>
-                  </h3>
-                  {relatedPost.excerpt && (
-                    <p className="mt-3 text-body text-[color:var(--ink-soft)]">
-                      {relatedPost.excerpt}
-                    </p>
-                  )}
-                </article>
+              {relatedPosts.map((relatedPost, index) => (
+                <Reveal key={relatedPost.id} delayMs={index * 60}>
+                  <article className="rounded-[var(--radius-card)] border border-[color:var(--ink-faint)] bg-white/40 p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]">
+                    <h3 className="font-display text-body font-semibold text-[color:var(--ink)]">
+                      <Link
+                        href={`/blog/${relatedPost.slug}`}
+                        className="hover:text-[color:var(--primary)]"
+                      >
+                        {relatedPost.title}
+                      </Link>
+                    </h3>
+                    {relatedPost.excerpt && (
+                      <p className="mt-3 text-body text-[color:var(--ink-soft)]">
+                        {relatedPost.excerpt}
+                      </p>
+                    )}
+                  </article>
+                </Reveal>
               ))}
             </div>
           </section>
