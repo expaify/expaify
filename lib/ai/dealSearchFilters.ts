@@ -8,15 +8,13 @@ export type DealSearchFilters = {
   date_to?: string
 }
 
+import { TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
+
 export type DealSearchParseResult =
   | { ok: true; filters: DealSearchFilters }
   | { ok: false; reason: string }
 
-export const DEAL_SEARCH_CITIES = [
-  'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
-  'London', 'Tokyo', 'Bangkok', 'Dubai', 'Las Vegas', 'Orlando', 'San Juan',
-  'Tulum', 'Amsterdam', 'Athens', 'Punta Cana', 'Charlotte', 'Nashville',
-] as const
+export const DEAL_SEARCH_CITIES = TRACKED_MARKET_NAMES
 
 const citySet = new Set<string>(DEAL_SEARCH_CITIES)
 const datePattern = /^\d{4}-\d{2}-\d{2}$/

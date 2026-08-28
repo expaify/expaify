@@ -47,14 +47,8 @@ import {
   type ApiDealFundsPolicy,
 } from '../components/HotelFundsPolicyComparison'
 import type { HotelReviewEvidence } from '@/lib/types'
-import { TRACKED_MARKETS } from '@/lib/trackedMarkets'
+import { TRACKED_MARKETS, TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { createUnsupportedHotelClimateEvidence } from '@/lib/hotels/climateEvidence'
-
-const CITIES = [
-  'Miami', 'New York', 'Cancún', 'Paris', 'Rome', 'Barcelona', 'Lisbon',
-  'London', 'Tokyo', 'Bangkok', 'Dubai', 'Las Vegas', 'Orlando', 'San Juan',
-  'Tulum', 'Amsterdam', 'Athens', 'Punta Cana', 'Charlotte', 'Nashville',
-]
 
 const DEFAULT_MIN_DISCOUNT = 30
 
@@ -2028,7 +2022,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
             <HotelSearchCriteriaEditor
               open
               criteria={criteria}
-              cities={CITIES}
+              cities={TRACKED_MARKET_NAMES}
               surface="results"
               entryPoint={criteriaEntryPoint}
               submitting={criteriaUpdating}
