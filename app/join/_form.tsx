@@ -3,6 +3,8 @@
 import { useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { useState } from 'react'
+import { Reveal } from '@/app/components/ui/Reveal'
+import { Icon, type IconName } from '@/app/components/ui/icons/Icon'
 import { track } from '@/lib/analytics'
 import { TRACKED_MARKETS } from '@/lib/trackedMarkets'
 
@@ -12,6 +14,14 @@ const FEATURES = [
   'Full price history — know if a deal is real',
   'Every alert is 30%+ below its 60-day median price',
   'Cancel anytime, no questions asked',
+]
+
+const FEATURE_ICONS: IconName[] = [
+  'deal_alert',
+  'email_alert',
+  'price_history',
+  'verified_savings',
+  'no_hidden_fees',
 ]
 
 const googleEnabled = Boolean(process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED)
@@ -44,35 +54,43 @@ export default function JoinForm() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[color:var(--bg)] px-5">
       <div className="w-full max-w-[440px]">
-        <a
-          href="/"
-          className="mb-10 flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline"
-        >
-          expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
-        </a>
+        <Reveal delayMs={0}>
+          <a
+            href="/"
+            className="mb-10 flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline"
+          >
+            expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
+          </a>
+        </Reveal>
 
-        <h1 className="mb-2 font-display text-2xl font-bold text-[color:var(--ink)]">
-          Start your free trial
-        </h1>
-        <p className="mb-6 text-base text-[color:var(--ink-soft)]">
-          7 days free. No charge until day 8 if you cancel first.
-        </p>
+        <Reveal delayMs={60}>
+          <h1 className="mb-2 font-display text-2xl font-bold text-[color:var(--ink)]">
+            Start your free trial
+          </h1>
+          <p className="mb-6 text-base text-[color:var(--ink-soft)]">
+            7 days free. No charge until day 8 if you cancel first.
+          </p>
+        </Reveal>
 
         {/* Feature list */}
-        <ul className="mb-7 flex flex-col gap-2">
-          {FEATURES.map(f => (
-            <li key={f} className="flex items-start gap-2.5 text-sm text-[color:var(--ink-soft)]">
-              <svg className="mt-px shrink-0 text-[color:var(--primary)]" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-                <circle cx="7" cy="7" r="7" fill="currentColor" opacity=".15"/>
-                <path d="M4 7l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              {f}
-            </li>
-          ))}
-        </ul>
+        <Reveal delayMs={120}>
+          <ul className="mb-7 flex flex-col gap-2">
+            {FEATURES.map((f, i) => (
+              <li key={f} className="flex items-start gap-2.5 text-sm text-[color:var(--ink-soft)]">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-[color:var(--success-soft)]">
+                  <Icon name={FEATURE_ICONS[i]} size={16} className="text-[color:var(--primary)]" />
+                </span>
+                {f}
+              </li>
+            ))}
+          </ul>
+        </Reveal>
 
         {sent ? (
-          <div className="rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-6 text-center">
+          <div className="join-success-enter rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] bg-[radial-gradient(ellipse_at_top_right,var(--primary-soft),transparent_60%)] p-6 text-center">
+            <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[color:var(--primary-soft)] text-[color:var(--primary)]">
+              <Icon name="email_alert" size={20} className="text-[color:var(--primary)]" />
+            </span>
             <p className="font-display text-base font-bold text-[color:var(--ink)]">Check your inbox</p>
             <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
               We sent a sign-in link to <strong>{email}</strong>. After you confirm, we&apos;ll take you to checkout.
@@ -89,13 +107,19 @@ export default function JoinForm() {
         ) : (
           <>
             {/* Plan picker */}
-            <div className="mb-5 flex gap-3">
+            <Reveal delayMs={180} className="relative mb-5 grid grid-cols-2 gap-3">
+              <span
+                aria-hidden
+                className="absolute inset-y-0 left-0 w-[calc((100%_-_0.75rem)/2)] rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--primary)] bg-[color:var(--primary-soft)] transition-transform duration-300"
+                style={{ transform: plan === 'annual' ? 'translateX(0)' : 'translateX(calc(100% + 0.75rem))' }}
+              />
               {(['annual', 'monthly'] as const).map((p) => (
                 <button
                   key={p}
                   type="button"
                   onClick={() => setPlan(p)}
-                  className={`btn-pill flex-1 justify-center ${plan === p ? 'active' : ''}`}
+                  aria-pressed={plan === p}
+                  className="btn-pill relative z-10 flex-1 justify-center !border-transparent !bg-transparent transition-transform duration-150 active:scale-[0.97]"
                 >
                   {p === 'annual' ? (
                     <>
@@ -109,10 +133,10 @@ export default function JoinForm() {
                   )}
                 </button>
               ))}
-            </div>
+            </Reveal>
 
-            <div className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-5">
-              <div className="flex items-baseline gap-1">
+            <Reveal delayMs={240} className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] bg-[radial-gradient(ellipse_at_top_right,var(--primary-soft),transparent_60%)] p-5">
+              <div key={plan} className="join-price-enter flex items-baseline gap-1">
                 <span className="font-display text-2xl font-bold text-[color:var(--ink)]">
                   {plan === 'annual' ? '$8' : '$12'}
                 </span>
@@ -123,13 +147,14 @@ export default function JoinForm() {
               <p className="mt-1 text-sm text-[color:var(--ink-faint)]">
                 7-day free trial — no charge until day 8
               </p>
-            </div>
+            </Reveal>
 
             <p className="mb-4 text-center text-xs text-[color:var(--ink-faint)]">
               Secure checkout via Stripe · 7-day free trial · cancel anytime, no charge until day 8
             </p>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <Reveal delayMs={300}>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
                 <label htmlFor="join-email" className="sr-only">Email address</label>
                 <input
@@ -146,19 +171,19 @@ export default function JoinForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn btn-conversion w-full justify-center"
+                className="btn btn-conversion w-full justify-center transition-transform duration-150 active:scale-[0.98]"
               >
                 {loading ? <span className="spinner" aria-hidden /> : null}
                 {loading ? 'Just a moment…' : 'Start free trial'}
               </button>
-            </form>
+              </form>
 
-            {googleEnabled && (
-              <button
-                type="button"
-                onClick={() => signIn('google', { callbackUrl: `/api/stripe/checkout?plan=${plan}&redirect=true` })}
-                className="btn btn-outline mt-3 w-full justify-center gap-2"
-              >
+              {googleEnabled && (
+                <button
+                  type="button"
+                  onClick={() => signIn('google', { callbackUrl: `/api/stripe/checkout?plan=${plan}&redirect=true` })}
+                  className="btn btn-outline mt-3 w-full justify-center gap-2 transition-transform duration-150 active:scale-[0.98]"
+                >
                 <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
                   <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
                   <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
@@ -166,8 +191,9 @@ export default function JoinForm() {
                   <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
                 </svg>
                 Continue with Google
-              </button>
-            )}
+                </button>
+              )}
+            </Reveal>
           </>
         )}
 

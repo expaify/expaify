@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 import { getSubscription, isPremium } from '@/lib/subscription'
 import { TRACKED_MARKETS } from '@/lib/trackedMarkets'
+import { Reveal } from '@/app/components/ui/Reveal'
 import JoinForm from './_form'
 
 export const metadata: Metadata = {
@@ -35,21 +36,25 @@ export default async function JoinPage({ searchParams }: PageProps) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[color:var(--bg)] px-5">
         <div className="w-full max-w-[440px]">
-          <a
-            href="/"
-            className="mb-10 flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline"
-          >
-            expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
-          </a>
+          <Reveal delayMs={0}>
+            <a
+              href="/"
+              className="mb-10 flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline"
+            >
+              expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
+            </a>
+          </Reveal>
 
-          <h1 className="mb-2 font-display text-2xl font-bold text-[color:var(--ink)]">
-            Confirm your plan
-          </h1>
-          <p className="mb-6 text-base text-[color:var(--ink-soft)]">
-            7 days free. No charge until day 8 if you cancel first.
-          </p>
+          <Reveal delayMs={60}>
+            <h1 className="mb-2 font-display text-2xl font-bold text-[color:var(--ink)]">
+              Confirm your plan
+            </h1>
+            <p className="mb-6 text-base text-[color:var(--ink-soft)]">
+              7 days free. No charge until day 8 if you cancel first.
+            </p>
+          </Reveal>
 
-          <div className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] p-5">
+          <Reveal delayMs={120} className="mb-5 rounded-[var(--radius-card)] border border-[color:var(--line-ivory)] bg-[color:var(--surface)] bg-[radial-gradient(ellipse_at_top_right,var(--primary-soft),transparent_60%)] p-5">
             <p className="mb-2 text-sm font-medium text-[color:var(--ink-soft)]">
               {plan === 'annual' ? 'Annual plan' : 'Monthly plan'}
             </p>
@@ -64,18 +69,22 @@ export default async function JoinPage({ searchParams }: PageProps) {
             <p className="mt-1 text-sm text-[color:var(--ink-faint)]">
               7-day free trial — no charge until day 8
             </p>
-          </div>
+          </Reveal>
 
-          <a
-            href={`/api/stripe/checkout?plan=${plan}&redirect=true`}
-            className="btn btn-conversion w-full justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]"
-          >
-            Continue to secure checkout
-          </a>
+          <Reveal delayMs={180}>
+            <a
+              href={`/api/stripe/checkout?plan=${plan}&redirect=true`}
+              className="btn btn-conversion w-full justify-center transition-transform duration-150 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]"
+            >
+              Continue to secure checkout
+            </a>
+          </Reveal>
 
-          <p className="mt-4 text-center text-xs text-[color:var(--ink-faint)]">
-            Secure checkout via Stripe · cancel anytime
-          </p>
+          <Reveal delayMs={240}>
+            <p className="mt-4 text-center text-xs text-[color:var(--ink-faint)]">
+              Secure checkout via Stripe · cancel anytime
+            </p>
+          </Reveal>
         </div>
       </div>
     )
