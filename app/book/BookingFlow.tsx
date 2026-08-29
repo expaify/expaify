@@ -1822,6 +1822,7 @@ function HotelHandoffReview({
     >
       {hotelWifiEvidence ? <WifiEvidenceLedger evidence={hotelWifiEvidence} idSuffix="hotel-review" /> : null}
 
+      <Reveal>
       <section aria-labelledby="hotel-provider-title" className={`${panelCls} border-[color:var(--border-strong)] p-4 sm:p-6`}>
         <h2 id="hotel-provider-title" className="text-xl font-medium leading-tight text-[color:var(--text-1)] sm:text-2xl">Check rooms with provider</h2>
         <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">
@@ -1877,8 +1878,8 @@ function HotelHandoffReview({
             onClick={handoffCtaOnClick}
             className={
               isDemotedHandoff || isRecognizedHandoff
-                ? `${secondaryButtonCls} gap-2`
-                : 'btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] px-4 text-center text-sm font-medium'
+                ? `${secondaryButtonCls} gap-2 active:scale-[0.98] transition-transform duration-150`
+                : 'btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] px-4 text-center text-sm font-medium active:scale-[0.98] transition-transform duration-150'
             }
           >
             <span className={partnerLabelWrapCls}>{continueLabel}</span>
@@ -1922,10 +1923,10 @@ function HotelHandoffReview({
                         </div>
                       </fieldset>
                       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                        <button type="submit" disabled={!selectedReturnReason} className="btn-primary min-h-11 rounded-[var(--radius-control)] px-4 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">Send feedback</button>
+                        <button type="submit" disabled={!selectedReturnReason} className="btn-primary min-h-11 rounded-[var(--radius-control)] px-4 text-sm font-medium active:scale-[0.98] transition-transform duration-150 disabled:cursor-not-allowed disabled:opacity-50">Send feedback</button>
                         <button
                           type="button"
-                          className={secondaryButtonCls}
+                          className={`${secondaryButtonCls} active:scale-[0.98] transition-transform duration-150`}
                           onClick={() => {
                             setFeedbackOpen(false)
                             setSelectedReturnReason('')
@@ -1941,7 +1942,9 @@ function HotelHandoffReview({
           ) : null}
         </div>
       </section>
+      </Reveal>
 
+      <Reveal>
       <section aria-labelledby="hotel-supporting-title" className={`${panelCls} p-4 sm:p-6`}>
         <h2 id="hotel-supporting-title" className="text-xl font-medium leading-tight text-[color:var(--text-1)] sm:text-2xl">Supporting evidence</h2>
         <div className="mt-5 space-y-5">
@@ -2060,6 +2063,7 @@ function HotelHandoffReview({
           </details>
         </div>
       </section>
+      </Reveal>
     </ReviewShell>
   )
 }
