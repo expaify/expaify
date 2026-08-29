@@ -948,7 +948,7 @@ export default function HotelCard({
     }
   }
 
-  const reviewActionClass = 'btn-primary inline-flex min-h-11 max-w-[8.5rem] items-center justify-center gap-2 rounded-[var(--radius-control)] px-3 text-xs font-medium sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm'
+  const reviewActionClass = 'btn-primary inline-flex min-h-11 max-w-[8.5rem] items-center justify-center gap-2 rounded-[var(--radius-control)] px-3 text-xs font-medium transition-transform duration-150 active:scale-[0.98] sm:min-h-12 sm:max-w-none sm:px-4 sm:text-sm'
   const reviewActionContent = (
     <>
       <span className="truncate">{reviewState === 'loading' ? 'Preparing review…' : 'Review hotel'}</span>
@@ -959,7 +959,7 @@ export default function HotelCard({
   )
 
   return (
-    <article className="card @container overflow-hidden rounded-[var(--radius-card)]">
+    <article className="card @container overflow-hidden rounded-[var(--radius-card)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]">
       <div className="p-3 sm:p-5">
         <div className="grid grid-cols-[5rem_minmax(0,1fr)_minmax(6.75rem,auto)] gap-2 @max-[351px]:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3">
           <PropertyPhoto
@@ -1106,7 +1106,7 @@ export default function HotelCard({
           aria-expanded={isExpanded}
           aria-controls={detailsId}
           onClick={handleDetailsToggle}
-          className="mt-3 flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] text-sm font-medium text-[color:var(--text-1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
+          className="mt-3 flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] text-sm font-medium text-[color:var(--text-1)] transition-transform duration-150 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
         >
           {isExpanded ? 'Hide details' : 'Details'}
         </button>
@@ -1118,7 +1118,7 @@ export default function HotelCard({
       </div>
 
       {isExpanded && (
-        <div id={detailsId} className="border-t border-[color:var(--border)] px-3 pb-3 pt-3 sm:px-5 sm:pb-5">
+        <div id={detailsId} className="hotel-details-enter border-t border-[color:var(--border)] px-3 pb-3 pt-3 sm:px-5 sm:pb-5">
           <div className="space-y-3">
             <DealScorePanel
               score={score}

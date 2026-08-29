@@ -205,7 +205,7 @@ export default function AirportInput({
           id={listboxId}
           role="listbox"
           aria-label={`${placeholder} suggestions`}
-          className="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-raised)] p-1.5 shadow-[var(--shadow-lift)]"
+          className="dropdown-enter absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-raised)] p-1.5 shadow-[var(--shadow-lift)]"
         >
           {results.length > 0 ? (
             groupedResults(results).map(group => (
@@ -227,7 +227,7 @@ export default function AirportInput({
                         e.preventDefault()
                         select(airport)
                       }}
-                      className={`grid min-h-[4.25rem] cursor-pointer grid-cols-[3.25rem_minmax(0,1fr)] gap-3 rounded-[var(--radius-control)] px-3 py-3 text-left transition-colors hover:bg-[var(--bg-muted)] ${i === highlighted ? 'bg-[var(--brand-soft)] shadow-[inset_0_0_0_1px_var(--border-hover)]' : ''}`}
+                      className={`grid min-h-[4.25rem] cursor-pointer grid-cols-[3.25rem_minmax(0,1fr)] gap-3 rounded-[var(--radius-control)] px-3 py-3 text-left transition-[background-color,transform] duration-150 hover:bg-[var(--bg-muted)] active:scale-[0.98] ${i === highlighted ? 'bg-[var(--brand-soft)] shadow-[inset_0_0_0_1px_var(--border-hover)]' : ''}`}
                     >
                       <span className="inline-flex h-8 min-w-12 items-center justify-center rounded-[var(--radius-control)] bg-[var(--bg-muted)] px-2 text-xs font-medium text-[var(--brand)]">{airport.iata}</span>
                       <span className="min-w-0">
