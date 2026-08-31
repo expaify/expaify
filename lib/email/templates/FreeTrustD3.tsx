@@ -13,8 +13,9 @@ export function FreeTrustD3({ city, dealsUrl, premiumUrl, manageUrl, unsubscribe
         <Text style={{ color: '#141210' }}>4. You book on the OTA, we don&apos;t take a cut</Text>
       </Section>
       <Text style={{ color: '#5C5852', lineHeight: '22px' }}>So a low sticker price can still be &quot;normal&quot; for that property. A higher-end hotel can still be a real drop if it&apos;s far under <em>its</em> usual.</Text>
-      <Text style={{ color: '#141210' }}>Your free plan: daily digest for {city} when something qualifies + 3 unlocks/week. See live board: <a href={dealsUrl}>{dealsUrl}</a></Text>
-      <Button href={premiumUrl} style={{ display: 'block', backgroundColor: '#FF6B4A', color: '#141210', textAlign: 'center', padding: '12px 24px', borderRadius: '999px' }}>If you want every city watched at once, the 7-day Premium trial is here: {premiumUrl} (No charge until day 8 if you cancel first.)</Button>
+      <Text style={{ color: '#141210' }}>Your free plan: daily digest for {city} when something qualifies + 3 unlocks/week. See live board: <a href={dealsUrl}>expaify.com/deals</a></Text>
+      <Text style={{ color: '#5C5852', lineHeight: '22px' }}>Want every city watched at once? No charge until day 8 if you cancel first.</Text>
+      <Button href={premiumUrl} style={{ display: 'block', backgroundColor: '#FF6B4A', color: '#141210', textAlign: 'center', padding: '12px 24px', borderRadius: '999px' }}>Start the 7-day Premium trial</Button>
       <Hr style={{ borderColor: '#E8E2D8', marginTop: '24px' }} /><Text style={{ fontSize: '11px', color: '#767168' }}><a href={manageUrl}>Manage preferences</a>{' · '}<a href={unsubscribeUrl}>Unsubscribe</a></Text>
     </Container></Body></Html>
 }

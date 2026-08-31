@@ -9,11 +9,11 @@ export function QuietDay({ city, dealsUrl, premiumUrl, manageUrl, unsubscribeUrl
       <Text style={{ color: '#5C5852', lineHeight: '22px' }}>Hey, no <strong>{city}</strong> hotel cleared <strong>30%+ below its 60-day median</strong> in today&apos;s check (we need ≥8 checks on a property before we&apos;ll call it). That&apos;s normal. Peak weeks push &quot;usual&quot; up, so fewer rooms clear the bar. Shoulder dates clear it more often.</Text>
       <Section style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', padding: '14px 18px', margin: '20px 0' }}>
         <Text style={{ color: '#141210', margin: '6px 0' }}>• Keep {city} on your free watchlist (you&apos;re set).</Text>
-        <Text style={{ color: '#141210', margin: '6px 0' }}>• Browse what&apos;s live across all {TRACKED_MARKETS.length} markets: <a href={dealsUrl}>{dealsUrl}</a></Text>
+        <Text style={{ color: '#141210', margin: '6px 0' }}>• Browse what&apos;s live across all {TRACKED_MARKETS.length} markets: <a href={dealsUrl}>view live board</a></Text>
         <Text style={{ color: '#141210', margin: '6px 0' }}>• Use an unlock when something looks real (3/week on free).</Text>
       </Section>
       <Text style={{ color: '#5C5852', lineHeight: '22px' }}>We&apos;ll email again when {city} actually drops, or with another short note if the market stays quiet.</Text>
-      <Button href={premiumUrl} style={{ display: 'block', backgroundColor: '#FF6B4A', color: '#141210', textAlign: 'center', padding: '12px 24px', borderRadius: '999px' }}>Premium adds the other {TRACKED_MARKETS.length - 1} cities + instant mail → {premiumUrl}</Button>
+      <Button href={premiumUrl} style={{ display: 'block', backgroundColor: '#FF6B4A', color: '#141210', textAlign: 'center', padding: '12px 24px', borderRadius: '999px' }}>Premium adds the other {TRACKED_MARKETS.length - 1} cities + instant mail</Button>
       <Hr style={{ borderColor: '#E8E2D8', marginTop: '24px' }} /><Text style={{ fontSize: '11px', color: '#767168' }}><a href={manageUrl}>Manage preferences</a>{' · '}<a href={unsubscribeUrl}>Unsubscribe</a></Text>
     </Container></Body></Html>
 }
