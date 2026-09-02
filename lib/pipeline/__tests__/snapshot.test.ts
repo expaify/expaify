@@ -175,6 +175,12 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
   })
 
   it('records a provider 429 and continues rotation until another provider succeeds', async () => {
+    // fetchBookingComCoords (the 2nd provider tried here) reads its own
+    // RAPIDAPI_KEY_PRICELINE rather than the shared key -- needs a value so
+    // it actually fetches instead of silently skipping.
+    const originalPricelineKey = process.env.RAPIDAPI_KEY_PRICELINE
+    process.env.RAPIDAPI_KEY_PRICELINE = 'test-key-priceline'
+
     ;(global.fetch as jest.Mock)
       .mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({}) })
       .mockResolvedValueOnce({
@@ -187,6 +193,8 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       })
 
     const [result] = await runSnapshotsForMarket(MIA, 0)
+
+    process.env.RAPIDAPI_KEY_PRICELINE = originalPricelineKey
 
     expect(result.hotelsProcessed).toBe(1)
     expect(result.rateLimitedCount).toBe(1)

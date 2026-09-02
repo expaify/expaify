@@ -180,8 +180,17 @@ async function fetchBookingCom15(iata: string, checkIn: string, checkOut: string
 }
 
 // ── Provider 2: booking-com v1 (coordinate search) ──────────────────────────
+//
+// Separate RapidAPI subscription/key from booking-com15 (RAPIDAPI_KEY isn't
+// subscribed to this one) -- reads its own env var rather than the shared
+// `key` param threaded through fetchWithRotation, so it's silently skipped
+// (not an error) if unconfigured. Currently the same underlying RapidAPI
+// account as the priceline provider below (RAPIDAPI_KEY_PRICELINE), which
+// added this subscription alongside its existing priceline-com2 one.
 
-async function fetchBookingComCoords(iata: string, checkIn: string, checkOut: string, key: string): Promise<HotelEntry[]> {
+async function fetchBookingComCoords(iata: string, checkIn: string, checkOut: string): Promise<HotelEntry[]> {
+  const key = process.env.RAPIDAPI_KEY_PRICELINE ?? ''
+  if (!key) return []
   const coord = COORDS[iata]
   if (!coord) return []
   const [lat, lng] = coord
