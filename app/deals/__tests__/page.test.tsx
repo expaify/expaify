@@ -11,7 +11,7 @@ jest.mock('@/lib/subscription', () => ({ getSubscription: jest.fn() }))
 jest.mock('@/lib/paywall', () => ({ getPaywallContext: jest.fn(), getFreeUnlockedDealIds: jest.fn() }))
 jest.mock('@/lib/pipeline/dealDetection', () => ({ getActiveDeals: jest.fn(), getTrackedHotels: jest.fn(() => Promise.resolve([])) }))
 jest.mock('@/lib/db/client', () => ({ query: jest.fn() }))
-jest.mock('@/app/components/LandingNav', () => ({ LandingNav: () => null }))
+jest.mock('@/app/components/AppShell', () => ({ AppShell: ({ children }: { children: React.ReactNode }) => children }))
 jest.mock('../DealFeed', () => ({ DealFeed: () => null }))
 
 const mockAuth = auth as jest.MockedFunction<typeof auth>

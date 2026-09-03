@@ -6,7 +6,7 @@ import { getPaywallContext, getFreeUnlockedDealIds } from '@/lib/paywall'
 import { getActiveDeals, getTrackedHotels, type DealRow } from '@/lib/pipeline/dealDetection'
 import { generateMockDeals } from '@/lib/pipeline/mock'
 import { redirect } from 'next/navigation'
-import { LandingNav } from '../components/LandingNav'
+import { AppShell } from '../components/AppShell'
 import { DealFeed, type ApiDeal } from './DealFeed'
 import { buildDealPage, HOTEL_DEAL_PAGE_SIZE } from '@/lib/deals/feedContract'
 import { query } from '@/lib/db/client'
@@ -63,8 +63,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   const requestedView = resolveHotelResultsView(requestedParams)
   if (criteriaResolution.status === 'invalid' || !requestedView) {
     return (
-      <>
-        <LandingNav />
+      <AppShell>
         <main className="mx-auto max-w-[760px] px-5 py-16">
           <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-6 text-center">
             <h1 className="text-h2 text-[color:var(--text-1)]">We couldn&apos;t restore this search.</h1>
@@ -72,7 +71,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
             <Link href="/deals" className="btn btn-primary mt-5">Start a new search</Link>
           </section>
         </main>
-      </>
+      </AppShell>
     )
   }
 
@@ -168,8 +167,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   }
 
   return (
-    <>
-      <LandingNav />
+    <AppShell>
       <main className="reveal-scope mx-auto max-w-[1140px] px-5 pb-24 pt-10">
         <noscript>
           <style>{`.reveal-scope .reveal, .reveal-scope .reveal-bar { opacity: 1 !important; transform: none !important; width: var(--bar-target, 100%) !important; }`}</style>
@@ -189,6 +187,6 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           poolFixtureId={poolFixtureId}
         />
       </main>
-    </>
+    </AppShell>
   )
 }
