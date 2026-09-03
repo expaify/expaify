@@ -268,8 +268,12 @@ export function tripAdvisorBubbleRatingToReviewEvidence(
   }
 }
 
+// Uses RAPIDAPI_KEY (the booking-com15 account), not RAPIDAPI_KEY_3 -- this
+// TripAdvisor subscription was added to that account, on a much higher quota
+// than the old RAPIDAPI_KEY_3 subscription (which is BASIC-plan capped at
+// 50 req/month and stays reserved for fetchAgoda below).
 async function fetchTripAdvisor(iata: string, checkIn: string, checkOut: string): Promise<HotelEntry[]> {
-  const key = process.env.RAPIDAPI_KEY_3 ?? ''
+  const key = process.env.RAPIDAPI_KEY ?? ''
   const geoId = TA_GEO[iata]
   if (!key || !geoId) return []
 

@@ -202,7 +202,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
     expect(global.fetch).toHaveBeenCalledTimes(2)
   })
 
-  it('authenticates TripAdvisor with RAPIDAPI_KEY_3 instead of the primary key', async () => {
+  it('authenticates TripAdvisor with the primary RAPIDAPI_KEY (same account as booking-com15)', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -214,7 +214,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
     expect(result.hotelsProcessed).toBe(1)
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('tripadvisor16.p.rapidapi.com'),
-      expect.objectContaining({ headers: expect.objectContaining({ 'X-RapidAPI-Key': 'test-key-3' }) }),
+      expect.objectContaining({ headers: expect.objectContaining({ 'X-RapidAPI-Key': 'test-key' }) }),
     )
   })
 })
