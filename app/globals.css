@@ -884,7 +884,7 @@ button:disabled,
 
 .reveal[data-revealed="true"] {
   opacity: 1;
-  transform: translateY(0);
+  transform: none;
 }
 
 .join-success-enter {
