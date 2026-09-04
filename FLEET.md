@@ -21,9 +21,9 @@ job* each stage does, this file decides *which live agent* does it.
 
 | Agent | Role | Auth | Cost tier | Status | Last verified |
 |---|---|---|---|---|---|
-| **Krater** (`api.krater.ai`, OpenAI-compatible) | Default drafter for real code diffs (implementer) | `KRATER_API_KEY` / `KRATER_API_KEY_2` at `~/.config/krater/credentials` (rotate on 402) | Metered, ~$0.0003/call seen this check (varies with response length; earlier ~$0.000007 call was a much smaller response) | 🟢 alive — live-pinged | 2026-08-19 |
+| **Krater** (`api.krater.ai`, OpenAI-compatible) | Default drafter for real code diffs (implementer) | `KRATER_API_KEY_4` / `_5` at `~/.config/krater/credentials` — `_1`/`_2`/`_3` are SUSPENDED (403, needs account holder to contact Krater support, not fixable by key rotation) | Metered, ~$0.0003/call seen this check (varies with response length) | 🟢 alive — `KRATER_API_KEY_4` live-pinged 2026-09-04 with real headroom (`max_tokens: 500`, not the default) after a `max_tokens: 20` call silently returned empty content (reasoning ate the whole budget, `finish_reason: length` — same known gotcha as always, see below). Used for a real implementer task same day (per-market anchor-scheduling fix); produced usable code but with 2 real bugs the orchestrator had to catch before it typechecked (missing import, wrong query-result access) — draft, verify, don't ship blind. | 2026-09-04 |
 | **Codex CLI** (`codex exec --sandbox workspace-write`) | Implementer for multi-file/mechanical changes needing real tsc/test execution; verifier (runs the actual gate) | ChatGPT OAuth, `~/.codex/auth.json` | Flat subscription, not metered per-call | 🔴 dead — real `401 Unauthorized` from `wss://api.openai.com/v1/responses` and the HTTPS fallback, both live-pinged twice (2026-09-03 during a real dispatch, re-confirmed fresh 2026-09-04, not a stale check). OAuth token needs re-auth (`codex login`) by whoever holds that account — not fixable by rotating a key from here. Implementer role fell through to direct authorship both times this affected. | 2026-09-04 |
-| **Grok CLI** (`@xai-official/grok` / `x.ai/cli/install.sh`, `grok -p "..." --always-approve`) | Backup implementer while Codex is down | `grok login` (OAuth device-code, `~/.grok/auth.json`) — **not** `XAI_API_KEY` | Rides the SuperGrok subscription's own usage allowance via the CLI's chat-proxy path, not the metered developer API | 🟢 alive — `grok login` completed instantly (already-trusted device/browser session, signed in as shayles2@icloud.com), then live-pinged with a real prompt (`pong`) and a real code-gen prompt (correct one-line TS function), both via `grok -p ... --always-approve`. **Gotcha:** the `XAI_API_KEY` env var path is a *separate* auth mode that hits `api.x.ai`'s pay-per-token developer billing directly — that path is still 🔴 dead (account has no credits/spending limit hit, confirmed via raw curl). SuperGrok does NOT fund the API-key path; only `grok login` (OAuth) rides the subscription. Always use `grok login`, never `XAI_API_KEY`, for this agent. | 2026-09-04 |
+| **Grok CLI** (`@xai-official/grok` / `x.ai/cli/install.sh`, `grok -p "..." --always-approve`) | Backup implementer while Codex is down; **strongest current option for the adversarial-checker/audit role** (agentic — explores the live repo itself rather than working from a pasted excerpt) | `grok login` (OAuth device-code, `~/.grok/auth.json`) — **not** `XAI_API_KEY` | Rides the SuperGrok subscription's own usage allowance via the CLI's chat-proxy path, not the metered developer API | 🟢 alive — proven well beyond a liveness ping on 2026-09-04: given a diff + real incident context and told to find what shipping-blind would miss, it independently explored the live repo (not just the pasted diff), re-derived the real detection query's grouping, and correctly found a genuine ship-blocking bug (market-wide vs. per-hotel maturity counting) the orchestrator's own tsc+test+live-DB verification had missed. Every claim it made was independently re-checked against real schema/code/data before being accepted — all of them held up. Takes real time for a deep review (~10-15 min for a multi-file architectural pass); run it backgrounded, not inline. **Gotcha:** the `XAI_API_KEY` env var path is a *separate* auth mode hitting `api.x.ai`'s pay-per-token developer billing — still 🔴 dead (no credits). SuperGrok does NOT fund the API-key path; only `grok login` (OAuth) rides the subscription. Always use `grok login`, never `XAI_API_KEY`. | 2026-09-04 |
 | **Gemini** (`gemini-3.5-flash`) | Persona-stage docs (UXD/UXR/UXDES, adversarial TEST review) — lighter text generation, not code diffs | `GEMINI_API_KEY` at `~/.config/gemini/credentials` | Metered | 🟢 alive — ran all 4 persona stages on DEAL-RATING-PROVENANCE-01. **Gotcha (live-confirmed 2026-08-19):** this model spends `generationConfig.maxOutputTokens` on internal thinking first — a plain `maxOutputTokens: 4000` request returned `finishReason: MAX_TOKENS` with only ~300 chars of real text (`thoughtsTokenCount` ate the rest). Fix: pass `generationConfig.thinkingConfig.thinkingBudget` (e.g. `2000`) to cap thinking, and/or set `maxOutputTokens` to 2-3x what you expect the prose to need. | 2026-08-19 |
 | **RapidAPI ChatGPT-4** (`chatgpt-42.p.rapidapi.com`) | Backup drafter when Krater is down | `RAPIDAPI_KEY_6` at `~/.config/rapidapi/credentials` | Metered via RapidAPI, tight per-second rate limit | 🟢 alive — live-pinged `POST /gpt4`, real completion returned | 2026-08-19 |
 | **io.net** (`api.intelligence.io.solutions`) | Backup drafter, last resort before direct authorship | key at `~/.config/ionet/credentials` | Metered | 🟢 **alive, prior 🔴 was a wrong-path false negative** — the dead verdict tested `/v1/chat/completions`; the real route is `/api/v1/chat/completions` (note the `/api` prefix). Live-pinged `meta-llama/Llama-3.3-70B-Instruct` there just now, got a real 200 completion. Un-firing it — move up the hire order to right after Gemini until proven otherwise. | 2026-08-19 |
@@ -56,12 +56,54 @@ Krater's 402→200).
 
 ## Maker/checker split
 
-Every real code change: an **implementer** (Krater draft, or Codex doing the
-edit directly) produces the diff; a **verifier** step (`npx tsc --noEmit
---incremental false` + `npm test -- --passWithNoTests`, run for real, not
-asserted) gates it before commit. Codex is preferred for the verifier role
-specifically because it can execute commands itself rather than the
-orchestrator taking the implementer's word for it.
+Every real code change: an **implementer** produces the diff; a
+**different agent, acting as an adversarial checker, reviews the actual
+diff** before it ships — not a second pass by the same implementer, and
+not the orchestrator's own read-through standing in for it. This is
+**mandatory, not "preferred,"** for any change touching
+counting/threshold/aggregation logic (deal detection, scoring, paywall
+gating, pipeline scheduling): the highest-value bugs in this codebase
+hide exactly there, and they read as correct on a normal pass.
+
+**Why this is non-negotiable — real incident, 2026-09-04:** a per-market
+deal-scheduling fix was implemented (Krater), then verified by the
+orchestrator via tsc, the full test suite, AND a live query against the
+real production DB that appeared to confirm correct behavior — and it
+still shipped a real bug. The "is this anchor mature" check counted
+market-wide distinct scan-days as a stand-in for per-hotel snapshot
+depth. That's invisible from reading the code or from "does it query and
+return something plausible" testing: on this codebase, different
+providers write disjoint hotel-id sets and only one provider's hotels
+get stored per night (first success wins, no merge), so the aggregate
+could read "mature" while the specific hotels it was supposed to gate
+never accumulated enough real history. A second agent (Grok, no prior
+investment in the diff being right) caught it by re-deriving the real
+detection query's grouping and tracing one concrete failure scenario —
+a single 429 during the healing window — end to end.
+
+**Generalize this**: whenever a fix introduces a count/aggregate as a
+proxy for a per-entity threshold, a second agent must answer "does this
+aggregate track the exact same population the downstream gate checks,"
+with a concrete failure scenario, before it ships. That is the single
+highest-leverage adversarial question on this codebase.
+
+The orchestrator must independently re-verify every finding the checker
+raises against real code/data before accepting or acting on it — a
+confident-sounding audit is not automatically a correct one, the same
+standard applied to the implementer's output. Both directions get
+verified, never just one taken on faith.
+
+Verifier gate mechanics: `npx tsc --noEmit --incremental false` + `npm
+test -- --passWithNoTests`, run for real, not asserted. But this is
+necessary, not sufficient, for anything gating money/detection/paywall
+logic — those additionally require either a live check against real
+production data, or a fresh unit test purpose-written to catch the
+specific failure mode under review, before being considered verified.
+Codex is preferred for the tsc/test verifier role specifically because
+it can execute commands itself; Grok CLI (agentic, reads the live repo
+rather than a pasted excerpt) is the strongest current option for the
+adversarial-checker role on anything non-trivial — proven 2026-09-04 on
+a real multi-file architecture-level review, not just a liveness ping.
 
 ## Human gate
 

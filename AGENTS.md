@@ -184,6 +184,16 @@ curl -s -X POST http://localhost:3001/api/tickets \
 - Check all states from the design spec: loading, empty, error, mobile 375px, desktop.
 - Check that no existing flow regressed (search, results, booking).
 - Check accessibility: tab order, focus ring, aria labels on interactive elements.
+- If the diff introduces or changes a count/aggregate used as a proxy for a
+  per-entity threshold (deal detection, scoring, paywall unlock gating,
+  pipeline scheduling) — ask explicitly: does this aggregate track the exact
+  same population the downstream gate actually checks? Trace one concrete
+  failure scenario, don't just confirm the query runs. See `FLEET.md`'s
+  Maker/checker section for the real incident (2026-09-04) this is written
+  from: a market-wide day-count read as "mature" while the specific hotels it
+  gated stayed unhealed, and it passed tsc, the full suite, and a live DB
+  check before a second agent caught it. A second, different agent doing this
+  specific check is mandatory for this class of change, not optional.
 
 **PASS criteria** — all of the following:
 1. tsc exits 0
