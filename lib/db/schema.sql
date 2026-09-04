@@ -141,6 +141,13 @@ CREATE INDEX IF NOT EXISTS idx_price_snapshots_hotel_market
   ON price_snapshots (hotel_id, market_id, check_in DESC);
 CREATE INDEX IF NOT EXISTS idx_price_snapshots_captured
   ON price_snapshots (captured_at DESC);
+-- detectDealsForMarket's main history query filters on exactly
+-- (market_id =, captured_at >=) every night, for every market -- neither
+-- existing index above covers that pair together. Confirmed via a real
+-- EXPLAIN ANALYZE against production: a full sequential scan over the whole
+-- table (30,549 rows at the time), ~89ms per market, run 36x nightly.
+CREATE INDEX IF NOT EXISTS idx_price_snapshots_market_captured
+  ON price_snapshots (market_id, captured_at DESC);
 -- storeSnapshot() has written this since before this file was last synced to
 -- prod; a fresh schema apply (new environment, disaster recovery) was
 -- missing it entirely and would reject the pipeline's first real INSERT.
