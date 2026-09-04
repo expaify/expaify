@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { LandingNav } from '@/app/components/LandingNav'
+import { AppShell } from '@/app/components/AppShell'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 import { TRACKED_MARKETS } from '@/lib/trackedMarkets'
 
@@ -10,8 +10,7 @@ export const metadata: Metadata = {
 
 export default function DestinationsPage() {
   return (
-    <>
-      <LandingNav />
+    <AppShell>
       <main className="mx-auto w-full max-w-[1200px] px-5 py-16 min-[1024px]:py-24">
         <p className="text-small font-semibold uppercase tracking-[0.08em] text-[color:var(--primary)]">Daily price tracking</p>
         <h1 className="text-display mt-3 text-[color:var(--ink)]">All {TRACKED_MARKETS.length} destinations</h1>
@@ -26,6 +25,6 @@ export default function DestinationsPage() {
           ))}
         </div>
       </main>
-    </>
+    </AppShell>
   )
 }
