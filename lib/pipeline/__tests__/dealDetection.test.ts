@@ -1,5 +1,5 @@
 import { query } from '../../db/client'
-import { getActiveDeals, getDealById, getTrackedDealById } from '../dealDetection'
+import { getActiveDeals, getDealById, getTrackedDealById, detectDealsForMarket } from '../dealDetection'
 
 jest.mock('../../db/client', () => ({
   query: jest.fn(),
@@ -35,6 +35,34 @@ function trackedRow(overrides: Partial<{
     ...overrides,
   }
 }
+
+describe('detectDealsForMarket history grouping (2026-09-04 fragmentation fix)', () => {
+  beforeEach(() => {
+    mockQuery.mockReset()
+  })
+
+  it('groups snapshot history by identity only (hotel_id, check_in, currency), never by display fields', async () => {
+    // Regression guard: grouping by hotel_name/stars/photo_url (in addition
+    // to identity) previously let a provider's routine photo/name refresh
+    // silently split one hotel's real price history into thin sibling
+    // groups -- confirmed live in production (a Miami hotel's real 10-night
+    // history fragmented into an 8-row and a 2-row group over one photo_url
+    // change), corrupting the median and, worse, letting the thin sibling's
+    // forced 'expire' clobber the active deal the fat sibling had just
+    // flagged, in undefined row order. Nobody should be able to
+    // "simplify" this query back to grouping on display fields again.
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 0, command: 'SELECT', oid: 0, fields: [] })
+
+    await detectDealsForMarket({ id: 1, city: 'Miami', country: 'US', iata: 'MIA' })
+
+    const sql = String(mockQuery.mock.calls[0][0])
+    expect(sql).toMatch(/GROUP BY hotel_id, check_in, currency/)
+    expect(sql).toContain('JOIN LATERAL')
+    expect(sql).not.toMatch(/GROUP BY[^)]*photo_url/)
+    expect(sql).not.toMatch(/GROUP BY[^)]*hotel_name/)
+    expect(sql).not.toMatch(/GROUP BY[^)]*stars/)
+  })
+})
 
 describe('getTrackedDealById', () => {
   beforeEach(() => {

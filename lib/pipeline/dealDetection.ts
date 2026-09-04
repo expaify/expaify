@@ -59,32 +59,43 @@ export type DetectionResult = {
 }
 
 export async function detectDealsForMarket(market: Market): Promise<DetectionResult> {
-  // Get rolling 60-day stats per hotel+check_in for this market
+  // Get rolling 60-day stats per hotel+check_in for this market.
+  //
+  // History must be grouped ONLY by (hotel_id, check_in, currency) -- the
+  // real, stable identity of a tracked stay. The previous version also
+  // grouped by hotel_name/stars/photo_url, which a provider can legitimately
+  // change between scans (a refreshed photo URL, a slightly reworded name);
+  // any such change silently fragmented one hotel's real price history into
+  // separate, thin sibling groups, corrupting the median and preventing
+  // snapshot_count from ever reaching MIN_SNAPSHOTS for that hotel. Same bug
+  // already found and fixed in the tracked-hotel fallback path
+  // (TRACKED_SNAPSHOT_SELECT below) -- this applies the identical LATERAL
+  // pattern to the primary detection query: aggregate on identity alone,
+  // then pull display fields from a single latest snapshot via LATERAL join.
   const snaps = await query<SnapshotRow>(
-    `SELECT
-       hotel_id,
-       hotel_name,
-       stars,
-       (SELECT review_evidence FROM price_snapshots ps2
-        WHERE ps2.hotel_id = ps.hotel_id AND ps2.market_id = ps.market_id AND ps2.check_in = ps.check_in
-          AND ps2.currency = ps.currency
-        ORDER BY captured_at DESC LIMIT 1)                           AS review_evidence,
-       photo_url,
-       check_in,
-       currency,
-       AVG(price_cents)::INT                                          AS avg_price_cents,
-       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_cents)::INT AS median_price_cents,
-       (SELECT price_cents FROM price_snapshots ps2
-        WHERE ps2.hotel_id = ps.hotel_id AND ps2.market_id = ps.market_id AND ps2.check_in = ps.check_in
-          AND ps2.currency = ps.currency
-        ORDER BY captured_at DESC LIMIT 1)                           AS latest_price_cents,
-       COUNT(*)::INT                                                  AS snapshot_count,
-       bool_or(is_mock)                                              AS is_mock
-     FROM price_snapshots ps
-     WHERE market_id = $1
-       AND captured_at >= NOW() - INTERVAL '60 days'
-       AND check_in >= CURRENT_DATE
-     GROUP BY hotel_id, hotel_name, stars, photo_url, check_in, market_id, currency`,
+    `SELECT g.hotel_id, latest.hotel_name, latest.stars, latest.review_evidence, latest.photo_url,
+            g.check_in, g.currency, g.avg_price_cents, g.median_price_cents,
+            latest.price_cents AS latest_price_cents, g.snapshot_count, g.is_mock
+     FROM (
+       SELECT hotel_id, check_in, currency,
+              AVG(price_cents)::INT AS avg_price_cents,
+              PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_cents)::INT AS median_price_cents,
+              COUNT(*)::INT AS snapshot_count,
+              bool_or(is_mock) AS is_mock
+       FROM price_snapshots
+       WHERE market_id = $1
+         AND captured_at >= NOW() - INTERVAL '60 days'
+         AND check_in >= CURRENT_DATE
+       GROUP BY hotel_id, check_in, currency
+     ) g
+     JOIN LATERAL (
+       SELECT hotel_name, stars, review_evidence, photo_url, price_cents
+       FROM price_snapshots ps2
+       WHERE ps2.hotel_id = g.hotel_id AND ps2.market_id = $1 AND ps2.check_in = g.check_in
+         AND ps2.currency = g.currency
+       ORDER BY captured_at DESC
+       LIMIT 1
+     ) latest ON true`,
     [market.id]
   )
 
@@ -147,6 +158,8 @@ export async function detectDealsForMarket(market: Market): Promise<DetectionRes
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,2,$13,$14,'active',$15,
                  $12::DATE + INTERVAL '90 days', NOW())
          ON CONFLICT (hotel_id, market_id, check_in_date) DO UPDATE SET
+           hotel_name         = EXCLUDED.hotel_name,
+           photo_url          = EXCLUDED.photo_url,
            stars              = EXCLUDED.stars,
            deal_price_cents   = EXCLUDED.deal_price_cents,
            median_price_cents = EXCLUDED.median_price_cents,
