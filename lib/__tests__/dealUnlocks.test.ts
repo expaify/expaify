@@ -28,7 +28,21 @@ describe('personal deal unlock quota', () => {
   it('inserts a new unlock and returns the exact remaining quota', async () => {
     const db = client(false, 1)
     await expect(unlockDealForUser(db as never, 'user-1', 'deal-2')).resolves.toEqual({ ok: true, alreadyUnlocked: false, remaining: 1 })
-    expect(String(db.query.mock.calls[3][0])).toContain('ON CONFLICT (user_id, deal_id) DO NOTHING')
+    expect(String(db.query.mock.calls[3][0])).toContain('ON CONFLICT (user_id, deal_id) DO UPDATE SET unlocked_at = NOW()')
     expect(db.query.mock.calls[3][1]).toEqual(['user-1', 'deal-2'])
+  })
+
+  it('re-unlocking a deal from a prior week refreshes unlocked_at instead of silently no-op-ing', async () => {
+    // Regression guard: (user_id, deal_id) is lifetime-unique, but the quota
+    // is weekly. A user re-unlocking a deal they'd already unlocked in an
+    // earlier week has `existing` = false (the row is outside "this week"),
+    // so this reaches the insert path with a real conflicting row already
+    // present. DO NOTHING previously left unlocked_at frozen at the old
+    // week, so the deal stayed outside every "this week" filter
+    // (getFreeUnlockedDealIds) despite this function reporting success.
+    const db = client(false, 0)
+    await expect(unlockDealForUser(db as never, 'user-1', 'deal-old')).resolves.toEqual({ ok: true, alreadyUnlocked: false, remaining: 2 })
+    expect(String(db.query.mock.calls[3][0])).not.toContain('DO NOTHING')
+    expect(String(db.query.mock.calls[3][0])).toContain('DO UPDATE SET unlocked_at = NOW()')
   })
 })
