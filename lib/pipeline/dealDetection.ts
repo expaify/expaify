@@ -2,6 +2,7 @@ import { query } from '../db/client'
 import { generateHeadlines } from '../ai/generateHeadline'
 import { buildOtaLinks } from './otaLinks'
 import { evaluateDeal } from './dealRules'
+import { NIGHTS } from './snapshot'
 import { TRACKED_HOTEL_ID_PREFIX, isTrackedHotelId, type HotelDealSort } from '../deals/feedContract'
 
 type Market = { id: number; city: string; country: string; iata: string }
@@ -139,7 +140,7 @@ export async function detectDealsForMarket(market: Market): Promise<DetectionRes
     if (decision.action === 'flag') {
       const { discountPct } = decision
       const checkOut = new Date(check_in)
-      checkOut.setDate(checkOut.getDate() + 2)
+      checkOut.setDate(checkOut.getDate() + NIGHTS)
       const checkOutStr = checkOut.toISOString().slice(0, 10)
 
       const links = buildOtaLinks({
@@ -149,13 +150,13 @@ export async function detectDealsForMarket(market: Market): Promise<DetectionRes
         checkOut: checkOutStr,
       })
 
-      const checkInWindow = formatWindow(check_in, 2)
+      const checkInWindow = formatWindow(check_in, NIGHTS)
       const upserted = await query<{ id: string; headline: string | null; description: string | null; is_new: boolean }>(
         `INSERT INTO deals
            (hotel_id, hotel_name, stars, review_evidence, photo_url, market_id, deal_price_cents,
             median_price_cents, currency, discount_pct, check_in_window, check_in_date, nights,
             snapshot_count, ota_links, status, is_mock, expires_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,2,$13,$14,'active',$15,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,${NIGHTS},$13,$14,'active',$15,
                  $12::DATE + INTERVAL '90 days', NOW())
          ON CONFLICT (hotel_id, market_id, check_in_date) DO UPDATE SET
            hotel_name         = EXCLUDED.hotel_name,
@@ -484,7 +485,7 @@ function mapTrackedRowToDealRow(row: TrackedSnapshotRow): DealRow {
   const discountPct = ratio < 1 ? Math.round((1 - ratio) * 100) : 0
   const checkInStr = row.check_in.toISOString().slice(0, 10)
   const checkOut = new Date(row.check_in)
-  checkOut.setDate(checkOut.getDate() + 2)
+  checkOut.setDate(checkOut.getDate() + NIGHTS)
   const links = buildOtaLinks({
     hotelName: row.hotel_name,
     city: row.city,
@@ -507,9 +508,9 @@ function mapTrackedRowToDealRow(row: TrackedSnapshotRow): DealRow {
     median_price_cents: discountPct > 0 ? row.median_price_cents : row.latest_price_cents,
     currency: row.currency,
     discount_pct: discountPct,
-    check_in_window: formatWindow(row.check_in, 2),
+    check_in_window: formatWindow(row.check_in, NIGHTS),
     check_in_date: checkInStr,
-    nights: 2,
+    nights: NIGHTS,
     snapshot_count: row.snapshot_count,
     ota_links: links,
     headline: null,

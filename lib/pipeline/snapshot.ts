@@ -3,7 +3,7 @@ import type { HotelReviewEvidence } from '../types'
 import { buildOtaLinks } from './otaLinks'
 import { MIN_SNAPSHOTS } from './dealRules'
 
-const NIGHTS = 2
+export const NIGHTS = 2
 
 // Anchor selection must be per-market and snapshot-depth-aware, not a single
 // global calendar alternation — the old 2-anchor version let a deep-history
