@@ -104,7 +104,21 @@ INSERT INTO tracked_markets (city, country, iata) VALUES
   ('Sharm El Sheikh', 'EG', 'SSH'),
   ('Antalya',       'TR', 'AYT'),
   ('Istanbul',      'TR', 'IST'),
-  ('Bodrum',        'TR', 'BJV')
+  ('Bodrum',        'TR', 'BJV'),
+  ('Bali (Denpasar)', 'ID', 'DPS'),
+  ('Marrakech',     'MA', 'RAK'),
+  ('Mexico City',   'MX', 'MEX'),
+  ('Santorini',     'GR', 'JTR'),
+  ('Buenos Aires',  'AR', 'BUE'),
+  ('Los Angeles',   'US', 'LAX'),
+  ('Chicago',       'US', 'CHI'),
+  ('Vienna',        'AT', 'VIE'),
+  ('Prague',        'CZ', 'PRG'),
+  ('Seoul',         'KR', 'SEL')
+-- These 10 (plus the 26 above) match the real, live 36-row tracked_markets
+-- table -- production already has all 36 (added by hand at some point, per
+-- this file's own header note that deploy never applies it), but a fresh
+-- environment bootstrapped from this file was silently 10 cities short.
 ON CONFLICT (iata) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS price_snapshots (
@@ -127,6 +141,10 @@ CREATE INDEX IF NOT EXISTS idx_price_snapshots_hotel_market
   ON price_snapshots (hotel_id, market_id, check_in DESC);
 CREATE INDEX IF NOT EXISTS idx_price_snapshots_captured
   ON price_snapshots (captured_at DESC);
+-- storeSnapshot() has written this since before this file was last synced to
+-- prod; a fresh schema apply (new environment, disaster recovery) was
+-- missing it entirely and would reject the pipeline's first real INSERT.
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS review_evidence JSONB;
 
 CREATE TABLE IF NOT EXISTS deals (
   id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
