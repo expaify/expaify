@@ -5,7 +5,48 @@ jest.mock('../../db/client', () => ({
   query: jest.fn(),
 }))
 
+jest.mock('../../ai/generateHeadline', () => ({
+  generateHeadlines: jest.fn().mockResolvedValue(undefined),
+}))
+
 const mockQuery = query as jest.MockedFunction<typeof query>
+
+function qr<T>(rows: T[]) {
+  return { rows, rowCount: rows.length, command: 'SELECT', oid: 0, fields: [] }
+}
+
+const MARKET = { id: 7, city: 'Rome', country: 'IT', iata: 'ROM' }
+
+function snapshotRow(overrides: Partial<{
+  hotel_id: string
+  hotel_name: string
+  stars: number | null
+  review_evidence: unknown
+  photo_url: string | null
+  check_in: Date
+  currency: string
+  avg_price_cents: number
+  median_price_cents: number
+  latest_price_cents: number
+  snapshot_count: number
+  is_mock: boolean
+}> = {}) {
+  return {
+    hotel_id: 'bk_1001',
+    hotel_name: 'Hotel Roma Centrale',
+    stars: 4,
+    review_evidence: null,
+    photo_url: 'https://example.com/roma.jpg',
+    check_in: new Date('2026-10-01T00:00:00.000Z'),
+    currency: 'USD',
+    avg_price_cents: 9000,
+    median_price_cents: 10000,
+    latest_price_cents: 6000,
+    snapshot_count: 10,
+    is_mock: false,
+    ...overrides,
+  }
+}
 
 function trackedRow(overrides: Partial<{
   hotel_id: string
@@ -61,6 +102,84 @@ describe('detectDealsForMarket history grouping (2026-09-04 fragmentation fix)',
     expect(sql).not.toMatch(/GROUP BY[^)]*photo_url/)
     expect(sql).not.toMatch(/GROUP BY[^)]*hotel_name/)
     expect(sql).not.toMatch(/GROUP BY[^)]*stars/)
+  })
+})
+
+describe('detectDealsForMarket flag/expire/newDeals behavior', () => {
+  beforeEach(() => {
+    mockQuery.mockReset()
+  })
+
+  it('flags a hotel that clears the discount+history bar, expires one that does not, and reports only the flagged deal as new', async () => {
+    const flagging = snapshotRow({ hotel_id: 'bk_flag', latest_price_cents: 6000, median_price_cents: 10000, snapshot_count: 10 })
+    const thin = snapshotRow({ hotel_id: 'bk_thin', latest_price_cents: 6000, median_price_cents: 10000, snapshot_count: 5 })
+
+    mockQuery
+      .mockResolvedValueOnce(qr([flagging, thin])) // main history query
+      .mockResolvedValueOnce(qr([{ id: 'deal-flag', headline: 'x', description: 'y', is_new: true }])) // INSERT for bk_flag
+      .mockResolvedValueOnce(qr([])) // UPDATE expire for bk_thin
+      .mockResolvedValueOnce(qr([])) // final "expire passed checkins" UPDATE
+
+    const result = await detectDealsForMarket(MARKET)
+
+    expect(result.dealsUpserted).toBe(1)
+    expect(result.newDeals).toHaveLength(1)
+    expect(result.newDeals[0]).toMatchObject({ id: 'deal-flag', hotelName: 'Hotel Roma Centrale', discountPct: 40 })
+
+    const insertSql = String(mockQuery.mock.calls[1][0])
+    expect(insertSql).toContain('INSERT INTO deals')
+    expect(insertSql).toContain('(xmax = 0) AS is_new')
+
+    const expireSql = String(mockQuery.mock.calls[2][0])
+    expect(expireSql).toContain("status = 'expired'")
+    expect(mockQuery.mock.calls[2][1]).toEqual(['bk_thin', MARKET.id, '2026-10-01'])
+  })
+
+  it('does not report a re-affirmed (already-active) deal as new', async () => {
+    // xmax = 0 is false when ON CONFLICT DO UPDATE fires instead of a fresh
+    // INSERT -- this is the real mechanism the 2026-09-04 instant-alert fix
+    // relies on to avoid re-alerting every night a deal's price is just
+    // re-confirmed as still qualifying.
+    const row = snapshotRow({ hotel_id: 'bk_reaffirm' })
+    mockQuery
+      .mockResolvedValueOnce(qr([row]))
+      .mockResolvedValueOnce(qr([{ id: 'deal-existing', headline: 'x', description: 'y', is_new: false }]))
+      .mockResolvedValueOnce(qr([]))
+
+    const result = await detectDealsForMarket(MARKET)
+
+    expect(result.dealsUpserted).toBe(1)
+    expect(result.newDeals).toHaveLength(0)
+  })
+
+  it('never reports a mock deal as new, even on a fresh insert', async () => {
+    // Regression guard: the instant-alert fan-out fix originally had no
+    // is_mock check on newDeals at all -- caught by adversarial review
+    // before it shipped. A mock deal reaching this array would mean a real
+    // subscriber gets emailed about a fake hotel.
+    const row = snapshotRow({ hotel_id: 'bk_mock', is_mock: true })
+    mockQuery
+      .mockResolvedValueOnce(qr([row]))
+      .mockResolvedValueOnce(qr([{ id: 'deal-mock', headline: 'x', description: 'y', is_new: true }]))
+      .mockResolvedValueOnce(qr([]))
+
+    const result = await detectDealsForMarket(MARKET)
+
+    expect(result.dealsUpserted).toBe(1)
+    expect(result.newDeals).toHaveLength(0)
+  })
+
+  it('always runs the "expire deals whose check-in has passed" sweep, even with no comparable rows', async () => {
+    mockQuery.mockResolvedValueOnce(qr([])) // main query: nothing found
+    mockQuery.mockResolvedValueOnce(qr([])) // final expire-passed-checkins sweep
+
+    const result = await detectDealsForMarket(MARKET)
+
+    expect(result).toEqual({ dealsUpserted: 0, newDeals: [] })
+    expect(mockQuery).toHaveBeenCalledTimes(2)
+    const finalSql = String(mockQuery.mock.calls[1][0])
+    expect(finalSql).toContain("check_in_date < CURRENT_DATE")
+    expect(mockQuery.mock.calls[1][1]).toEqual([MARKET.id])
   })
 })
 
