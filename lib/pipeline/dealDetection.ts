@@ -487,12 +487,30 @@ export async function getTrackedHotels(opts: {
     params.push(marketId)
   }
 
+  // Rank within each market before picking the global top N — a plain global
+  // sort here previously let one deep-history market (Las Vegas) fill every
+  // slot and crowd out every other tracked city. Ranking per market_id first
+  // interleaves cities (every market's best candidate before anyone's second)
+  // while still preferring hotels with more/tighter history overall.
   const res = await query<TrackedSnapshotRow>(
-    `${TRACKED_SNAPSHOT_SELECT} ${marketFilter}
+    `WITH candidates AS (
+       ${TRACKED_SNAPSHOT_SELECT} ${marketFilter}
+     ), ranked AS (
+       SELECT *,
+         ROW_NUMBER() OVER (
+           PARTITION BY market_id
+           ORDER BY snapshot_count DESC,
+             GREATEST(0, latest_price_cents::numeric / NULLIF(median_price_cents, 0)) ASC,
+             latest_captured_at DESC
+         ) AS market_rank
+       FROM candidates
+     )
+     SELECT * FROM ranked
      ORDER BY
-       g.snapshot_count DESC,
-       GREATEST(0, latest.price_cents::numeric / NULLIF(g.median_price_cents, 0)) ASC,
-       latest.captured_at DESC
+       market_rank ASC,
+       snapshot_count DESC,
+       GREATEST(0, latest_price_cents::numeric / NULLIF(median_price_cents, 0)) ASC,
+       latest_captured_at DESC
      LIMIT $1`,
     params
   )

@@ -136,7 +136,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     // truly no real snapshot data at all yet.
     const tracked = await getTrackedHotels({ limit: HOTEL_DEAL_PAGE_SIZE }).catch(() => [] as DealRow[])
     initialDeals = tracked.length > 0
-      ? tracked.map(row => toApiDeal(row, false))
+      ? tracked.map((row, i) => toApiDeal(row, !pwCtx.premium && i >= pwCtx.freeUnlockLimit))
       : generateMockDeals(HOTEL_DEAL_PAGE_SIZE).map((d) => {
         const base: ApiDeal = {
           id: d.hotel_id,
