@@ -134,10 +134,10 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     // currently-tracked hotels (real photo, real price) over fabricated
     // example cards — only fall back to generated mock deals if there's
     // truly no real snapshot data at all yet.
-    const tracked = await getTrackedHotels({ limit: 3 }).catch(() => [] as DealRow[])
+    const tracked = await getTrackedHotels({ limit: HOTEL_DEAL_PAGE_SIZE }).catch(() => [] as DealRow[])
     initialDeals = tracked.length > 0
       ? tracked.map(row => toApiDeal(row, false))
-      : generateMockDeals(3).map((d) => {
+      : generateMockDeals(HOTEL_DEAL_PAGE_SIZE).map((d) => {
         const base: ApiDeal = {
           id: d.hotel_id,
           hotelId: d.hotel_id,

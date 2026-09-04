@@ -184,10 +184,10 @@ export async function GET(req: NextRequest) {
     // No confirmed deals yet — prefer real, currently-tracked hotels (real
     // photo, real price) over fabricated example cards. Only fall back to
     // generated mock deals if there's truly no real snapshot data yet.
-    const tracked = await getTrackedHotels({ limit: 3 }).catch(() => [] as DealRow[])
+    const tracked = await getTrackedHotels({ limit: HOTEL_DEAL_PAGE_SIZE }).catch(() => [] as DealRow[])
     const deals = tracked.length > 0
       ? tracked.map(row => toApiDeal(row, false))
-      : generateMockDeals(3).map(mockToApiDeal)
+      : generateMockDeals(HOTEL_DEAL_PAGE_SIZE).map(mockToApiDeal)
     return NextResponse.json({
       deals,
       total: deals.length,
