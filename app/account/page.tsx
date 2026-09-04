@@ -4,6 +4,7 @@ import { getSubscription, isPremium } from '@/lib/subscription'
 import { reconcileCheckoutSession } from '@/lib/stripe/reconcileCheckout'
 import { query } from '@/lib/db/client'
 import { AccountClient } from './AccountClient'
+import { AppShell } from '@/app/components/AppShell'
 import { Icon } from '@/app/components/ui/icons/Icon'
 import { Reveal } from '@/app/components/ui/Reveal'
 import type { Metadata } from 'next';
@@ -63,18 +64,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
     : 'Signed in via email link'
 
   return (
-    <div className="min-h-screen bg-[color:var(--bg)]">
-      <nav className="border-b border-[color:var(--line-ivory)] bg-[color:var(--bg)]">
-        <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">
-          <a href="/" className="flex items-center gap-0.5 font-display text-xl font-bold text-[color:var(--ink)] no-underline">
-            expaify<span className="h-[7px] w-[7px] rounded-full bg-[color:var(--accent)]" aria-hidden />
-          </a>
-          <a href="/deals" className="text-sm font-medium text-[color:var(--ink-soft)] no-underline hover:text-[color:var(--ink)]">
-            Browse deals →
-          </a>
-        </div>
-      </nav>
-
+    <AppShell>
       <main className="mx-auto max-w-[680px] px-5 py-10">
 
         {/* Welcome banner */}
@@ -272,6 +262,6 @@ export default async function AccountPage({ searchParams }: PageProps) {
           </section>
         </Reveal>
       </main>
-    </div>
+    </AppShell>
   )
 }

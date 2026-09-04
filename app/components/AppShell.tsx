@@ -28,7 +28,7 @@ const NAV_ITEMS = [
     ),
   },
   {
-    href: '/alerts',
+    href: '/account#alerts',
     label: 'Alerts',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
