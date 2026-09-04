@@ -1,4 +1,4 @@
-import { getActiveMarkets, runSnapshotsForMarket, RateLimitError } from '../snapshot'
+import { getActiveMarkets, getAnchorCheckInDate, runSnapshotsForMarket, RateLimitError } from '../snapshot'
 import { query } from '../../db/client'
 
 jest.mock('../../db/client', () => ({
@@ -6,6 +6,123 @@ jest.mock('../../db/client', () => ({
 }))
 
 const MIA = { id: 1, city: 'Miami', country: 'US', iata: 'MIA' }
+
+describe('getAnchorCheckInDate per-market snapshot-depth scheduling (REPAIR-DEAL-PIPELINE-ANCHOR-ROTATION-01)', () => {
+  beforeEach(() => {
+    ;(query as jest.Mock).mockClear()
+  })
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  it('builds the 3-candidate pool as the next three 1st/15th dates strictly after today', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
+    ;(query as jest.Mock).mockResolvedValueOnce({ rows: [] })
+
+    await getAnchorCheckInDate(1)
+
+    const [, params] = (query as jest.Mock).mock.calls[0]
+    expect(params[1]).toEqual(['2026-09-15', '2026-10-01', '2026-10-15'])
+  })
+
+  it('excludes today itself when today is exactly an anchor date', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-15T12:00:00Z'))
+    ;(query as jest.Mock).mockResolvedValueOnce({ rows: [] })
+
+    await getAnchorCheckInDate(1)
+
+    const [, params] = (query as jest.Mock).mock.calls[0]
+    expect(params[1]).toEqual(['2026-10-01', '2026-10-15', '2026-11-01'])
+  })
+
+  it('rolls correctly across a year boundary', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-12-20T12:00:00Z'))
+    ;(query as jest.Mock).mockResolvedValueOnce({ rows: [] })
+
+    await getAnchorCheckInDate(1)
+
+    const [, params] = (query as jest.Mock).mock.calls[0]
+    expect(params[1]).toEqual(['2027-01-01', '2027-01-15', '2027-02-01'])
+  })
+
+  it('picks the nearest candidate when nothing has reached MIN_SNAPSHOTS yet', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
+    ;(query as jest.Mock).mockResolvedValueOnce({ rows: [] })
+
+    await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-09-15')
+  })
+
+  it('skips a mature nearest anchor and heals the next one still under MIN_SNAPSHOTS', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
+    ;(query as jest.Mock).mockResolvedValueOnce({
+      rows: [
+        { check_in: '2026-09-15', cnt: 16 },
+        { check_in: '2026-10-01', cnt: 5 },
+      ],
+    })
+
+    await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-10-01')
+  })
+
+  it('measures maturity per hotel, not per market-wide touched day', async () => {
+    // Regression guard (real production audit finding): fetchWithRotation
+    // returns only ONE provider's hotels per night (first success wins, no
+    // merge across providers), and each provider writes a disjoint hotel_id
+    // prefix (bk_/ta_/pl_/ag_). A market-wide "was this date touched today"
+    // count would read as mature the moment ANY provider's hotels reach 8
+    // combined scan-days — even if the hotels that actually matter (the
+    // primary provider's, which is what's shown/flagged) are still stuck at
+    // 5 because a couple of nights fell back to a different provider after a
+    // 429. The query must aggregate distinct snapshot_date PER hotel_id
+    // first, then take the max across hotels for that check-in — never a
+    // single market-wide day count.
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
+    ;(query as jest.Mock).mockResolvedValueOnce({
+      rows: [{ check_in: '2026-09-15', cnt: 5 }],
+    })
+
+    await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-09-15')
+
+    const [sql] = (query as jest.Mock).mock.calls[0]
+    expect(sql).toMatch(/GROUP BY check_in,\s*hotel_id/)
+    expect(sql).toMatch(/MAX\(per_hotel\)/)
+    expect(sql).toMatch(/COUNT\(DISTINCT snapshot_date\)/)
+  })
+
+  it('excludes mock snapshots from the maturity count', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
+    ;(query as jest.Mock).mockResolvedValueOnce({ rows: [] })
+
+    await getAnchorCheckInDate(1)
+
+    const [sql] = (query as jest.Mock).mock.calls[0]
+    expect(sql).toMatch(/is_mock = false/)
+  })
+
+  it('falls back to freshness rotation once every candidate has cleared MIN_SNAPSHOTS', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
+    ;(query as jest.Mock).mockResolvedValueOnce({
+      rows: [
+        { check_in: '2026-09-15', cnt: 20 },
+        { check_in: '2026-10-01', cnt: 15 },
+        { check_in: '2026-10-15', cnt: 9 },
+      ],
+    })
+
+    // 2026-09-04 has getDate() === 4, so index 4 % 3 === 1 -> the 2nd candidate
+    await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-10-01')
+  })
+
+  it('queries snapshot history scoped to the given market only', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
+    ;(query as jest.Mock).mockResolvedValueOnce({ rows: [] })
+
+    await getAnchorCheckInDate(42)
+
+    const [, params] = (query as jest.Mock).mock.calls[0]
+    expect(params[0]).toBe(42)
+  })
+})
 
 describe('getActiveMarkets daily rotation', () => {
   afterEach(() => {

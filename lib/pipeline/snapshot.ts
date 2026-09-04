@@ -1,25 +1,69 @@
 import { query } from '../db/client'
 import type { HotelReviewEvidence } from '../types'
 import { buildOtaLinks } from './otaLinks'
+import { MIN_SNAPSHOTS } from './dealRules'
 
 const NIGHTS = 2
 
-// Instead of relative offsets (which shift every day, preventing snapshot accumulation),
-// we use two fixed calendar anchors per month so the same hotel+date gets re-scanned
-// and builds up MIN_SNAPSHOTS=8 within days rather than never.
-// Alternating between 2 anchors keeps the daily API call count at 19 (1 per market),
-// well within the RapidAPI quota that previously exhausted after ~7 markets.
-function getAnchorCheckInDate(): string {
+// Anchor selection must be per-market and snapshot-depth-aware, not a single
+// global calendar alternation — the old 2-anchor version let a deep-history
+// anchor's check-in date pass (mass-expiring its deals) while the shared
+// replacement anchor was still shallow, causing a real multi-night sitewide
+// deal drought (2026-09-02). Each market now steers its one nightly call
+// toward whichever of its 3 upcoming anchors is furthest from MIN_SNAPSHOTS,
+// so an anchor is always safely over the bar before it's ever relied on.
+export async function getAnchorCheckInDate(marketId: number): Promise<string> {
   const today = new Date()
-  const nm1 = new Date(today.getFullYear(), today.getMonth() + 1, 1)
-  const nm15 = new Date(today.getFullYear(), today.getMonth() + 1, 15)
-  // If next-month's 1st is already within 7 days, roll to month+2
-  const daysToNm1 = Math.ceil((nm1.getTime() - today.getTime()) / 86400000)
-  const anchors = daysToNm1 < 7
-    ? [nm15, new Date(today.getFullYear(), today.getMonth() + 2, 1)]
-    : [nm1, nm15]
-  // Alternate anchors each day so both accumulate snapshots every ~2 days
-  return anchors[today.getDate() % anchors.length].toISOString().slice(0, 10)
+
+  const nextAnchorAfter = (from: Date): Date => {
+    const y = from.getFullYear()
+    const m = from.getMonth()
+    return from.getDate() < 15 ? new Date(y, m, 15) : new Date(y, m + 1, 1)
+  }
+
+  const candidates: Date[] = []
+  let cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  while (candidates.length < 3) {
+    const next = nextAnchorAfter(cursor)
+    candidates.push(next)
+    cursor = new Date(next.getFullYear(), next.getMonth(), next.getDate() + 1)
+  }
+  const candidateStrings = candidates.map(d => d.toISOString().slice(0, 10))
+
+  // MIN_SNAPSHOTS gates on PER-HOTEL history depth (dealDetection.ts groups
+  // by hotel_id AND check_in). A market-wide day-count is not a safe proxy
+  // for that: fetchWithRotation returns only ONE provider's hotels per night
+  // (first success wins, no merge), and each provider writes a disjoint
+  // hotel_id prefix (bk_/ta_/pl_/ag_). A single fallback night — a 429 on the
+  // usual provider — touches a different hotel set and would make a
+  // market-wide count look "mature" while the hotels that actually matter
+  // are still stuck below the bar and never get healed again. MAX(per-hotel
+  // depth) is the honest question: can THIS date flag any hotel at all yet.
+  // (MIN would never resolve, since a market can always pick up a brand-new,
+  // single-snapshot hotel from a rotation fallback.) Uses snapshot_date, the
+  // column price_snapshots already carries for exactly this purpose, instead
+  // of deriving a calendar day from the captured_at timestamp.
+  const rows = await query<{ check_in: string; cnt: number }>(
+    `SELECT check_in::text AS check_in, MAX(per_hotel)::int AS cnt
+     FROM (
+       SELECT check_in, hotel_id, COUNT(DISTINCT snapshot_date) AS per_hotel
+       FROM price_snapshots
+       WHERE market_id = $1
+         AND check_in = ANY($2::date[])
+         AND captured_at >= NOW() - INTERVAL '60 days'
+         AND is_mock = false
+       GROUP BY check_in, hotel_id
+     ) per_hotel_depth
+     GROUP BY check_in`,
+    [marketId, candidateStrings]
+  )
+  const countByDate = new Map(rows.rows.map(r => [r.check_in, r.cnt]))
+
+  for (const d of candidateStrings) {
+    if ((countByDate.get(d) ?? 0) < MIN_SNAPSHOTS) return d
+  }
+  // Every upcoming anchor already has enough history — rotate for freshness.
+  return candidateStrings[today.getDate() % 3]
 }
 
 // ── Market metadata ──────────────────────────────────────────────────────────
@@ -496,11 +540,14 @@ export async function runSnapshotsForMarket(market: Market, marketIndex = 0): Pr
   const key = process.env.RAPIDAPI_KEY ?? ''
   const isMock = !key
 
-  // Single anchor date per run — keeps total calls at 19/day (1 per market) vs 57 before
-  const checkIn = getAnchorCheckInDate()
-  const checkOut = toCheckOut(checkIn, NIGHTS)
-
+  // Single anchor date per run, chosen per-market by snapshot depth — keeps
+  // total calls at 1 per market per night regardless of how many anchors exist.
+  // Selected inside the try: it now does a real DB query and a failure there
+  // must still produce a SnapshotResult, not skip this market's run entirely.
+  let checkIn = ''
   try {
+    checkIn = await getAnchorCheckInDate(market.id)
+    const checkOut = toCheckOut(checkIn, NIGHTS)
     const { hotels, providerErrors, rateLimitedCount } = isMock
       ? { hotels: generateMockHotels(market.iata, checkIn), providerErrors: [] as string[], rateLimitedCount: 0 }
       : await fetchWithRotation(market.iata, checkIn, checkOut, key, 0, marketIndex)
