@@ -36,6 +36,7 @@ export async function sendInstantAlerts(deal: Deal): Promise<number> {
      FROM deals
      WHERE id = $1
        AND status = 'active'
+       AND is_mock = false
        AND (expires_at IS NULL OR expires_at > NOW())
        AND check_in_date >= CURRENT_DATE
      LIMIT 1`,
@@ -100,12 +101,20 @@ export async function sendInstantAlerts(deal: Deal): Promise<number> {
         })
       )
 
-      await resend.emails.send({
+      const sendResult = await resend.emails.send({
         from: FROM,
         to: recipient.email,
         subject: `${deal.hotelName} — ${deal.discountPct}% off in ${deal.city}`,
         html,
       })
+      // Resend returns errors in the response body rather than throwing --
+      // an unchecked result here previously recorded a failed send as
+      // delivered. Since (user_id, deal_id) is a lifetime-unique delivery
+      // row, and sendDailyDigest also skips any deal with an existing
+      // delivery row, that consequence isn't just "no instant retry" -- a
+      // false-delivered row silences this deal for that user everywhere,
+      // including the next morning's digest, the actual retry path.
+      if ('error' in sendResult && sendResult.error) throw new Error('Instant alert delivery was rejected')
 
       await query(
         `INSERT INTO deal_alert_deliveries (user_id, deal_id, delivery_type)

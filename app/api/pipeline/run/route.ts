@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getActiveMarkets, runSnapshotsForMarket } from '@/lib/pipeline/snapshot'
-import { detectDealsForMarket, getActiveDeals } from '@/lib/pipeline/dealDetection'
+import { detectDealsForMarket, getActiveDeals, type NewDealAlert } from '@/lib/pipeline/dealDetection'
 import { sendInstantAlerts } from '@/lib/email/sendDealAlert'
 import { generateHeadlines } from '@/lib/ai/generateHeadline'
 import { pingIndexNow } from '@/lib/indexNow'
@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   const results: Record<string, unknown> = {}
+  const allNewDeals: NewDealAlert[] = []
   let totalNewDeals = 0
   let rateLimitedCount = 0
   let marketsAttempted = 0
@@ -39,9 +40,10 @@ export async function POST(req: NextRequest) {
       const marketIndex = batchStart + batchIndex
       try {
         const snapshots = await runSnapshotsForMarket(market, marketIndex)
-        const dealsFound = await detectDealsForMarket(market)
-        results[market.iata] = { snapshots, dealsFound }
-        totalNewDeals += dealsFound
+        const { dealsUpserted, newDeals } = await detectDealsForMarket(market)
+        results[market.iata] = { snapshots, dealsFound: dealsUpserted, newDealCount: newDeals.length }
+        totalNewDeals += dealsUpserted
+        allNewDeals.push(...newDeals)
         rateLimitedCount += snapshots.reduce((count, snapshot) => count + (snapshot.rateLimitedCount ?? 0), 0)
         marketsAttempted += 1
         // A market is "empty" this run if every check-in it attempted came back
@@ -82,30 +84,31 @@ export async function POST(req: NextRequest) {
     }))
   ).catch(() => { /* non-fatal — headlines are cosmetic */ })
 
-  // Send instant alerts for the top new deal (if any)
+  // Send instant alerts for every genuinely new deal found tonight -- this
+  // used to alert on only the single newest deal system-wide regardless of
+  // how many actually qualified, so subscribers missed almost everything
+  // that didn't happen to be the most recent insert. sendInstantAlerts
+  // already applies each recipient's own watchlist/threshold/daily-cap
+  // filtering per deal, so fanning out here is just "ask it for every deal,"
+  // not "guess who wants which one." Each deal is isolated in its own
+  // try/catch so one failure can't suppress alerts for the rest of the night.
+  // A recipient's daily instant cap (MAX_INSTANT_PER_DAY in sendDealAlert.ts)
+  // is evaluated per deal as this loop runs, so send order decides which
+  // deals "win" a spot for anyone with several new matches tonight. Sort
+  // best-discount-first so that cap is spent on the strongest drops, not
+  // whatever order markets happened to finish in.
+  const sortedNewDeals = [...allNewDeals].sort((a, b) => b.discountPct - a.discountPct)
+
   let alertsSent = 0
-  try {
-    if (totalNewDeals > 0) {
-      const topDeals = await getActiveDeals({ limit: 1, sort: 'newest', includeMock: false })
-      if (topDeals[0]) {
-        const d = topDeals[0]
-        alertsSent = await sendInstantAlerts({
-          id: d.id,
-          hotelName: d.hotel_name,
-          city: d.city,
-          stars: d.stars,
-          photoUrl: d.photo_url,
-          checkInWindow: d.check_in_window,
-          discountPct: d.discount_pct,
-          dealPriceCents: d.deal_price_cents,
-          medianPriceCents: d.median_price_cents,
-          snapshotCount: d.snapshot_count,
-        })
-      }
+  const alertErrors: string[] = []
+  for (const deal of sortedNewDeals) {
+    try {
+      alertsSent += await sendInstantAlerts(deal)
+    } catch (err) {
+      alertErrors.push(`${deal.id}: ${err instanceof Error ? err.message : String(err)}`)
     }
-  } catch (err) {
-    results['_alerts'] = { error: err instanceof Error ? err.message : String(err) }
   }
+  if (alertErrors.length > 0) results['_alerts'] = { errors: alertErrors }
 
   // Ping Bing/Yandex's instant-indexing endpoint for newly published deal
   // pages -- best-effort, never blocks or fails the pipeline response.

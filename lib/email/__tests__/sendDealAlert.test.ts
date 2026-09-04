@@ -71,6 +71,14 @@ describe('sendInstantAlerts', () => {
     expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('expires_at'), [deal.id])
   })
 
+  it('excludes mock deals from the active-deal check, defense-in-depth against a caller forgetting to filter', async () => {
+    mockQuery.mockResolvedValueOnce(qr([]))
+
+    await sendInstantAlerts(deal)
+
+    expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('is_mock = false'), [deal.id])
+  })
+
   it('filters recipients by premium status, watchlist, threshold, duplicates, and daily cap', async () => {
     mockQuery
       .mockResolvedValueOnce(qr([{ id: deal.id }]))
@@ -107,5 +115,22 @@ describe('sendInstantAlerts', () => {
       stopCityUrl: null,
       switchDailyUrl: 'https://expaify.com/alerts/manage?token=token-1&action=daily',
     }))
+  })
+
+  it('does not record delivery or count as sent when Resend returns an error in the response body', async () => {
+    // Regression guard: Resend reports failures in the response body rather
+    // than throwing. An unchecked result previously recorded a failed send
+    // as delivered -- and since (user_id, deal_id) is a lifetime-unique
+    // delivery row, that recipient would never be retried for this deal.
+    mockGetResend.mockReturnValue({
+      emails: { send: jest.fn().mockResolvedValue({ data: null, error: { name: 'validation_error', message: 'Invalid `to` field' } }) },
+    })
+    mockQuery
+      .mockResolvedValueOnce(qr([{ id: deal.id }]))
+      .mockResolvedValueOnce(qr([{ userId: 'user-1', email: 'bad', unsubscribeToken: 'token-1', watchlist: [] }]))
+
+    await expect(sendInstantAlerts(deal)).resolves.toBe(0)
+
+    expect(mockQuery).not.toHaveBeenCalledWith(expect.stringContaining('INSERT INTO deal_alert_deliveries'), expect.anything())
   })
 })

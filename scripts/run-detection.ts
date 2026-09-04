@@ -11,9 +11,9 @@ async function main(): Promise<void> {
 
   let total = 0
   for (const market of markets) {
-    const n = await detectDealsForMarket(market)
-    console.log(`  ${market.iata}: ${n} deals`)
-    total += n
+    const { dealsUpserted, newDeals } = await detectDealsForMarket(market)
+    console.log(`  ${market.iata}: ${dealsUpserted} deals (${newDeals.length} new)`)
+    total += dealsUpserted
   }
 
   console.log(`\nTotal deals upserted: ${total}`)

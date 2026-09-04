@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { getActiveMarkets, runSnapshotsForMarket } from '@/lib/pipeline/snapshot'
-import { detectDealsForMarket, getActiveDeals } from '@/lib/pipeline/dealDetection'
+import { detectDealsForMarket, getActiveDeals, type NewDealAlert } from '@/lib/pipeline/dealDetection'
+import { sendInstantAlerts } from '@/lib/email/sendDealAlert'
 import { POST } from '../route'
 
 jest.mock('@/lib/pipeline/snapshot', () => {
@@ -25,6 +26,22 @@ const mockGetActiveMarkets = getActiveMarkets as jest.MockedFunction<typeof getA
 const mockRunSnapshots = runSnapshotsForMarket as jest.MockedFunction<typeof runSnapshotsForMarket>
 const mockDetectDeals = detectDealsForMarket as jest.MockedFunction<typeof detectDealsForMarket>
 const mockGetActiveDeals = getActiveDeals as jest.MockedFunction<typeof getActiveDeals>
+const mockSendInstantAlerts = sendInstantAlerts as jest.MockedFunction<typeof sendInstantAlerts>
+
+function newDeal(id: string): NewDealAlert {
+  return {
+    id,
+    hotelName: `Hotel ${id}`,
+    city: 'Miami',
+    stars: 4,
+    photoUrl: null,
+    checkInWindow: 'Sep 15 – Sep 17',
+    discountPct: 35,
+    dealPriceCents: 10000,
+    medianPriceCents: 15000,
+    snapshotCount: 10,
+  }
+}
 
 function pipelineRequest(): NextRequest {
   return new NextRequest('https://expaify.test/api/pipeline/run', {
@@ -47,8 +64,9 @@ describe('POST /api/pipeline/run pipeline-health aggregation (REPAIR-PIPELINE-SI
     process.env.PIPELINE_SECRET = 'test-secret'
     mockGetActiveMarkets.mockReset().mockResolvedValue(MARKETS)
     mockRunSnapshots.mockReset()
-    mockDetectDeals.mockReset().mockResolvedValue(0)
+    mockDetectDeals.mockReset().mockResolvedValue({ dealsUpserted: 0, newDeals: [] })
     mockGetActiveDeals.mockReset().mockResolvedValue([])
+    mockSendInstantAlerts.mockReset().mockResolvedValue(1)
   })
 
   afterAll(() => {
@@ -148,5 +166,72 @@ describe('POST /api/pipeline/run pipeline-health aggregation (REPAIR-PIPELINE-SI
     expect(mockRunSnapshots).toHaveBeenCalledWith(markets[6], 6)
     expect(body.results.M7).toBeDefined()
     expect(body.results.M8).toBeDefined()
+  })
+})
+
+describe('POST /api/pipeline/run instant-alert fan-out (2026-09-04 audit finding)', () => {
+  const originalSecret = process.env.PIPELINE_SECRET
+
+  beforeEach(() => {
+    process.env.PIPELINE_SECRET = 'test-secret'
+    mockGetActiveMarkets.mockReset().mockResolvedValue(MARKETS)
+    mockRunSnapshots.mockReset().mockResolvedValue([{ market: 'x', checkIn: '2026-09-01', hotelsProcessed: 20 }])
+    mockDetectDeals.mockReset()
+    mockGetActiveDeals.mockReset().mockResolvedValue([])
+    mockSendInstantAlerts.mockReset().mockResolvedValue(1)
+  })
+
+  afterAll(() => {
+    process.env.PIPELINE_SECRET = originalSecret
+  })
+
+  it('sends an instant alert for every new deal across every market, not just the single newest', async () => {
+    // Regression guard: this previously called getActiveDeals({ limit: 1 })
+    // and alerted on exactly one deal system-wide, however many actually
+    // flagged that night.
+    mockDetectDeals
+      .mockResolvedValueOnce({ dealsUpserted: 2, newDeals: [newDeal('a1'), newDeal('a2')] })
+      .mockResolvedValueOnce({ dealsUpserted: 1, newDeals: [newDeal('b1')] })
+      .mockResolvedValueOnce({ dealsUpserted: 0, newDeals: [] })
+
+    const response = await POST(pipelineRequest())
+    const body = await response.json()
+
+    expect(mockSendInstantAlerts).toHaveBeenCalledTimes(3)
+    expect(mockSendInstantAlerts).toHaveBeenCalledWith(expect.objectContaining({ id: 'a1' }))
+    expect(mockSendInstantAlerts).toHaveBeenCalledWith(expect.objectContaining({ id: 'a2' }))
+    expect(mockSendInstantAlerts).toHaveBeenCalledWith(expect.objectContaining({ id: 'b1' }))
+    expect(body.alertsSent).toBe(3)
+    expect(body.totalNewDeals).toBe(3)
+  })
+
+  it('does not alert at all when detection found deals but none were genuinely new tonight', async () => {
+    // dealsUpserted counts every flag action, including re-affirming a
+    // still-qualifying deal's price; newDeals is only genuinely fresh rows.
+    mockDetectDeals.mockResolvedValue({ dealsUpserted: 4, newDeals: [] })
+
+    const response = await POST(pipelineRequest())
+    const body = await response.json()
+
+    expect(mockSendInstantAlerts).not.toHaveBeenCalled()
+    expect(body.alertsSent).toBe(0)
+    expect(body.totalNewDeals).toBe(12) // 4 per market x 3 markets
+  })
+
+  it('one failing deal does not suppress alerts for the rest of the night', async () => {
+    mockDetectDeals.mockResolvedValueOnce({ dealsUpserted: 2, newDeals: [newDeal('ok-1'), newDeal('bad'), newDeal('ok-2')] })
+      .mockResolvedValueOnce({ dealsUpserted: 0, newDeals: [] })
+      .mockResolvedValueOnce({ dealsUpserted: 0, newDeals: [] })
+    mockSendInstantAlerts.mockImplementation(async (deal) => {
+      if (deal.id === 'bad') throw new Error('resend rejected')
+      return 1
+    })
+
+    const response = await POST(pipelineRequest())
+    const body = await response.json()
+
+    expect(mockSendInstantAlerts).toHaveBeenCalledTimes(3)
+    expect(body.alertsSent).toBe(2)
+    expect(body.results._alerts.errors).toEqual(['bad: resend rejected'])
   })
 })

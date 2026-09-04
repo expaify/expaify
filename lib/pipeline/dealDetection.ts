@@ -40,7 +40,25 @@ function formatWindow(checkIn: Date, nights: number): string {
   return `${fmt(checkIn)} – ${fmt(co)}`
 }
 
-export async function detectDealsForMarket(market: Market): Promise<number> {
+export type NewDealAlert = {
+  id: string
+  hotelName: string
+  city: string
+  stars: number | null
+  photoUrl: string | null
+  checkInWindow: string
+  discountPct: number
+  dealPriceCents: number
+  medianPriceCents: number
+  snapshotCount: number
+}
+
+export type DetectionResult = {
+  dealsUpserted: number
+  newDeals: NewDealAlert[]
+}
+
+export async function detectDealsForMarket(market: Market): Promise<DetectionResult> {
   // Get rolling 60-day stats per hotel+check_in for this market
   const snaps = await query<SnapshotRow>(
     `SELECT
@@ -72,6 +90,7 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
 
   let dealsUpserted = 0
   const copyCandidates: CopyCandidate[] = []
+  const newDeals: NewDealAlert[] = []
 
   const currenciesByStay = new Map<string, Set<string>>()
   for (const row of snaps.rows) {
@@ -120,7 +139,7 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
       })
 
       const checkInWindow = formatWindow(check_in, 2)
-      const upserted = await query<{ id: string; headline: string | null; description: string | null }>(
+      const upserted = await query<{ id: string; headline: string | null; description: string | null; is_new: boolean }>(
         `INSERT INTO deals
            (hotel_id, hotel_name, stars, review_evidence, photo_url, market_id, deal_price_cents,
             median_price_cents, currency, discount_pct, check_in_window, check_in_date, nights,
@@ -139,7 +158,7 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
            status             = 'active',
            is_mock            = EXCLUDED.is_mock,
            updated_at         = NOW()
-         RETURNING id, headline, description`,
+         RETURNING id, headline, description, (xmax = 0) AS is_new`,
         [
           hotel_id, hotel_name, stars, review_evidence, photo_url, market.id,
           latest_price_cents, median_price_cents, currency, discountPct,
@@ -148,6 +167,32 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
         ]
       )
       const dealId = upserted.rows[0]?.id
+      // xmax = 0 is Postgres's standard tell for "this row was just INSERTed,
+      // not touched via the ON CONFLICT UPDATE path" -- used here to alert
+      // only on deals that are genuinely new tonight, not every night a
+      // still-qualifying deal's price is re-confirmed. A deal that expires
+      // and later re-qualifies goes through the UPDATE path (same unique
+      // key), so it won't re-alert here -- consistent with the prior
+      // behavior, which sorted by `first_seen` (also untouched by this
+      // UPDATE) and so never picked a reactivated-but-old deal either.
+      // is_mock is excluded here for the same reason the old code called
+      // getActiveDeals with includeMock: false before alerting -- instant
+      // email is the one path with no other mock guard between here and a
+      // real subscriber's inbox.
+      if (dealId && upserted.rows[0].is_new && !is_mock) {
+        newDeals.push({
+          id: dealId,
+          hotelName: hotel_name,
+          city: market.city,
+          stars,
+          photoUrl: photo_url,
+          checkInWindow,
+          discountPct,
+          dealPriceCents: latest_price_cents,
+          medianPriceCents: median_price_cents,
+          snapshotCount: snapshot_count,
+        })
+      }
       if (dealId && (!upserted.rows[0].headline || !upserted.rows[0].description)) {
         copyCandidates.push({
           id: dealId,
@@ -183,7 +228,7 @@ export async function detectDealsForMarket(market: Market): Promise<number> {
     void generateHeadlines(copyCandidates).catch(() => undefined)
   }
 
-  return dealsUpserted
+  return { dealsUpserted, newDeals }
 }
 
 export type DealRow = {
