@@ -3,6 +3,9 @@ import { POST } from '../route'
 import { query } from '@/lib/db/client'
 import { getSubscription } from '@/lib/subscription'
 import { recordDigestSkipped, sendDigest } from '@/lib/email/sendDailyDigest'
+import { DEAL_THRESHOLD, MIN_SNAPSHOTS } from '@/lib/pipeline/dealRules'
+
+const MIN_DISCOUNT_PCT = Math.round((1 - DEAL_THRESHOLD) * 100)
 
 jest.mock('@/lib/db/client', () => ({ query: jest.fn() }))
 jest.mock('@/lib/subscription', () => ({ getSubscription: jest.fn() }))
@@ -65,10 +68,10 @@ describe('POST /api/internal/qa/force-digest', () => {
     const response = await POST(request())
 
     expect(await response.json()).toEqual({ sent: true, city: 'Paris', dealCount: 1, dealIds: [deal.id] })
-    expect(mockQuery.mock.calls[1][0]).toContain('d.snapshot_count >= 8')
+    expect(mockQuery.mock.calls[1][0]).toContain('d.snapshot_count >= $3')
     expect(mockQuery.mock.calls[1][0]).not.toContain('first_seen >=')
     expect(mockQuery.mock.calls[1][0]).not.toContain('deal_alert_deliveries')
-    expect(mockQuery.mock.calls[1][1]).toEqual([['Paris'], 2])
+    expect(mockQuery.mock.calls[1][1]).toEqual([['Paris'], MIN_DISCOUNT_PCT, MIN_SNAPSHOTS, 2])
     expect(mockSendDigest).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-1', deals: [deal] }))
   })
 

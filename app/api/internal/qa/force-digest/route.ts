@@ -9,8 +9,10 @@ import {
   maxDigestDeals,
   type DigestDealRow,
 } from '@/lib/email/sendDailyDigest'
+import { DEAL_THRESHOLD, MIN_SNAPSHOTS } from '@/lib/pipeline/dealRules'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const MIN_DISCOUNT_PCT = Math.round((1 - DEAL_THRESHOLD) * 100)
 
 export async function POST(req: NextRequest) {
   const auth = req.headers.get('authorization') ?? ''
@@ -45,12 +47,12 @@ export async function POST(req: NextRequest) {
          AND d.is_mock = false
          AND (d.expires_at IS NULL OR d.expires_at > NOW())
          AND d.check_in_date >= CURRENT_DATE
-         AND d.discount_pct >= 30
-         AND d.snapshot_count >= 8
+         AND d.discount_pct >= $2
+         AND d.snapshot_count >= $3
          AND ($1::text[] = '{}'::text[] OR m.city = ANY($1::text[]))
        ORDER BY d.discount_pct DESC, d.first_seen DESC
-       LIMIT $2`,
-      [subscription.watchlist, maxDigestDeals(subscription.status)],
+       LIMIT $4`,
+      [subscription.watchlist, MIN_DISCOUNT_PCT, MIN_SNAPSHOTS, maxDigestDeals(subscription.status)],
     )
     const city = subscription.watchlist.length > 0 ? subscription.watchlist.join(',') : 'everywhere'
     if (deals.rows.length === 0) {

@@ -2,8 +2,10 @@ import { render } from '@react-email/components'
 import { query } from '../db/client'
 import { getResend, FROM } from './resend'
 import { TrialNudgeD7, type TrialNudgeDeal } from './templates/TrialNudgeD7'
+import { DEAL_THRESHOLD, MIN_SNAPSHOTS } from '../pipeline/dealRules'
 
 const BASE_URL = process.env.AUTH_URL ?? 'https://expaify.com'
+const MIN_DISCOUNT_PCT = Math.round((1 - DEAL_THRESHOLD) * 100)
 
 export async function sendTrialNudgeD7({ email, city, unsubscribeToken }: { email: string; city: string; unsubscribeToken: string }): Promise<void> {
   if (!process.env.RESEND_API_KEY) return
@@ -15,9 +17,9 @@ export async function sendTrialNudgeD7({ email, city, unsubscribeToken }: { emai
      WHERE d.status = 'active' AND d.is_mock = false
        AND d.first_seen >= NOW() - INTERVAL '7 days'
        AND (d.expires_at IS NULL OR d.expires_at > NOW()) AND d.check_in_date >= CURRENT_DATE
-       AND d.discount_pct >= 30 AND d.snapshot_count >= 8 AND m.city = $1
+       AND d.discount_pct >= $2 AND d.snapshot_count >= $3 AND m.city = $1
      ORDER BY d.discount_pct DESC, d.first_seen DESC LIMIT 1`,
-    [city],
+    [city, MIN_DISCOUNT_PCT, MIN_SNAPSHOTS],
   ).catch(() => ({ rows: [] }))
   const row = result.rows[0]
   const deal: TrialNudgeDeal | null = row ? { hotelName: row.hotel_name, dealPriceCents: row.deal_price_cents, medianPriceCents: row.median_price_cents, discountPct: row.discount_pct, snapshotCount: row.snapshot_count } : null
