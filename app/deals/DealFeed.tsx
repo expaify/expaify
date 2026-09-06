@@ -1795,6 +1795,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 <>
                   <p>Sorted by {appliedSortOption.label} · {realDealCount} {realDealCount === 1 ? 'deal' : 'deals'} loaded</p>
                   {appliedSort === 'price' ? <p className="font-medium text-[var(--text-1)]">Nightly prices before taxes and fees</p> : null}
+                  {!premium ? <p>{FREE_TIER_STATUS_SENTENCE}</p> : null}
                 </>
               ) : null}
             </div>
