@@ -199,7 +199,7 @@ export function buildHotelResultsUrl(
     if (criteria.dates.dateFrom) params.set('date_from', criteria.dates.dateFrom)
     if (criteria.dates.dateTo) params.set('date_to', criteria.dates.dateTo)
   }
-  if (view?.minDiscount !== undefined && view.minDiscount !== 20) params.set('min_discount', String(view.minDiscount))
+  if (view?.minDiscount !== undefined && view.minDiscount !== 30) params.set('min_discount', String(view.minDiscount))
   if (view?.maxPriceCents) params.set('max_price_cents', String(view.maxPriceCents))
   if (view?.minStars) params.set('min_stars', String(view.minStars))
   if (view?.sort && view.sort !== 'newest') params.set('sort', view.sort)
@@ -260,7 +260,7 @@ export function resolveHotelResultsView(source: SearchParamSource): HotelResults
     if (!/^\d+$/.test(raw)) return null
     return Number(raw)
   }
-  const minDiscount = readInteger('min_discount', 20)
+  const minDiscount = readInteger('min_discount', 30)
   const maxPriceCents = readInteger('max_price_cents', 0)
   const minStars = readInteger('min_stars', 0)
   const sort = readSearchParam(source, 'sort') ?? 'newest'

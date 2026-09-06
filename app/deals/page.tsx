@@ -94,7 +94,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
       })
     : null
   if (requestedCity && !market?.rows[0]) initialError = true
-  const effectiveView = pwCtx.premium ? requestedView : { minDiscount: 20, maxPriceCents: null, minStars: 0, sort: 'newest' as const }
+  const effectiveView = pwCtx.premium ? requestedView : { minDiscount: 30, maxPriceCents: null, minStars: 0, sort: 'newest' as const }
 
   // Pre-fetch the exact validated URL state so refresh/share never flash default results.
   const rowsRequest = initialError
@@ -127,7 +127,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     initialDeals = initialPage.items.map(row => toApiDeal(row, !pwCtx.premium && !unlockedIds.has(row.id)))
   } else if (!initialError &&
     criteria.destination.state === 'all' && criteria.dates.semantic === 'missing' &&
-    effectiveView.minDiscount === 20 && effectiveView.maxPriceCents === null &&
+    effectiveView.minDiscount === 30 && effectiveView.maxPriceCents === null &&
     effectiveView.minStars === 0 && effectiveView.sort === 'newest'
   ) {
     // No confirmed deals yet for the default (unfiltered) view. Prefer real,

@@ -107,11 +107,11 @@ const MAX_PRICE_OPTIONS: Array<{ label: string; value: number | null }> = [
   { label: 'Under $300', value: 300_00 },
 ]
 
-const FREE_TIER_STATUS_SENTENCE = 'Showing every expaify deal at 20% or more off, newest first. Filters and sorting are included with Premium.'
+const FREE_TIER_STATUS_SENTENCE = 'Showing every expaify deal at 30% or more off, newest first. Filters and sorting are included with Premium.'
 
 /** What is constraining the list right now, from the server's point of view.
     Reads effective (not raw) filter values so it is never wrong for a free
-    user clamped to the 20% floor. */
+    user clamped to the 30% floor. */
 function statusSentence(filters: HotelFilterState, premiumFlag: boolean): string {
   if (!premiumFlag) return FREE_TIER_STATUS_SENTENCE
   const fragments: string[] = []
@@ -1668,7 +1668,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 className="mt-3 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-muted)] p-3 text-[var(--text-1)] sm:w-[22rem]"
               >
                 <p className="font-display text-body font-bold">Premium filters</p>
-                <p className="mt-1 text-small leading-5">Filters are included with Premium. You&apos;re seeing every expaify deal at 20% or more off, sorted by Recently found.</p>
+                <p className="mt-1 text-small leading-5">Filters are included with Premium. You&apos;re seeing every expaify deal at 30% or more off, sorted by Recently found.</p>
                 <div className="mt-3 flex flex-col items-stretch gap-2 min-[420px]:flex-row">
                   <a href="/join" className="btn btn-primary">See Premium</a>
                   <button type="button" onClick={dismissFilterExplanation} className="btn btn-outline">Not now</button>

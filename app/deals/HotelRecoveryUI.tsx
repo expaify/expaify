@@ -221,8 +221,8 @@ export function HotelFilterRecoveryPanel({
           >
             <p className="text-small leading-5 text-[color:var(--text-1)]">
               {defaultCity
-                ? `Reset to 20%+ off, any hotel class, any price, and any dates? ${defaultCity} will stay selected.`
-                : 'Reset to all destinations, 20%+ off, any hotel class, any price, and any dates?'}
+                ? `Reset to 30%+ off, any hotel class, any price, and any dates? ${defaultCity} will stay selected.`
+                : 'Reset to all destinations, 30%+ off, any hotel class, any price, and any dates?'}
             </p>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               <button type="button" disabled={pendingKey !== null} onClick={onReset} className="btn btn-primary w-full sm:w-auto">

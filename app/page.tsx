@@ -118,7 +118,7 @@ export default async function LandingPage() {
     limit: 3,
     sort: 'discount',
     includeMock: false,
-    minDiscount: 20,
+    minDiscount: 30,
   }).catch(() => [] as DealRow[])
 
   // Statistically-confirmed deals (30%+ below an 8-snapshot median) can take
