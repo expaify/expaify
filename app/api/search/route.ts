@@ -277,9 +277,14 @@ export async function GET(request: NextRequest) {
         send({ type: 'flight-date-coverage', data });
       };
 
-      const sendProviderNotice = (provider: string, reason: string, messageOverride?: string) => {
-        const status = classifyProviderIssue(reason);
-        const timedOut = isTimeoutReason(reason);
+      // statusOverride bypasses classifyProviderIssue's string-sniffing for
+      // callers that already know the real status -- currently only the
+      // "provider searched successfully but returned zero fares" case below,
+      // which classifyProviderIssue can never produce on its own (there's no
+      // failure `reason` string for a successful empty response to classify).
+      const sendProviderNotice = (provider: string, reason: string, messageOverride?: string, statusOverride?: ProviderIssueStatus) => {
+        const status = statusOverride ?? classifyProviderIssue(reason);
+        const timedOut = !statusOverride && isTimeoutReason(reason);
         const notice: ProviderNotice = {
           provider,
           status,
@@ -291,6 +296,10 @@ export async function GET(request: NextRequest) {
         send({ type: 'notice', ...notice });
       };
 
+      const sendNoSupplyNotice = (provider: string) => {
+        sendProviderNotice(provider, 'no_supply', providerMessage(provider, 'no_supply'), 'no_supply');
+      };
+
       const searchFlightProvider = async (
         provider: string,
         source: string,
@@ -300,6 +309,7 @@ export async function GET(request: NextRequest) {
           const result = await search();
           if (result.ok && result.data.length > 0) sendFlights(source, result.data);
           else if (!result.ok) sendProviderNotice(provider, result.reason);
+          else sendNoSupplyNotice(provider);
         } catch (error) {
           sendProviderNotice(provider, providerExceptionReason(provider, error));
         }
@@ -376,6 +386,8 @@ export async function GET(request: NextRequest) {
                 sendProviderNotice('Travelpayouts', firstFailure.value.reason);
               } else if (fares.length === 0 && firstRejection?.status === 'rejected') {
                 sendProviderNotice('Travelpayouts', providerExceptionReason('Travelpayouts', firstRejection.reason));
+              } else if (fares.length === 0) {
+                sendNoSupplyNotice('Travelpayouts');
               }
               return;
             }
@@ -383,6 +395,7 @@ export async function GET(request: NextRequest) {
             const r = await travelpayouts.searchFares(originIATA, destIATA ?? '', range);
             if (r.ok && r.data.length > 0) sendFlights('travelpayouts', dedupFares(r.data));
             else if (!r.ok) sendProviderNotice('Travelpayouts', r.reason);
+            else sendNoSupplyNotice('Travelpayouts');
           } catch (error) {
             sendProviderNotice('Travelpayouts', providerExceptionReason('Travelpayouts', error));
           }

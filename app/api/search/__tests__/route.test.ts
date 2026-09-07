@@ -291,6 +291,34 @@ describe('GET /api/search guardrails and provider failures', () => {
     expect(flights?.data).toEqual([fareWithDateRelation(duplicate)]);
   });
 
+  it('emits a no_supply notice for a provider that searches successfully but returns zero fares, instead of silently dropping it', async () => {
+    (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [fare] });
+    (skyScrapper.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [] });
+    (googleFlights.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [] });
+
+    const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
+    const messages = parseNdjson(await readNdjson(response));
+
+    expect(response.status).toBe(200);
+    expect(messages).toContainEqual({
+      type: 'flights',
+      source: 'travelpayouts',
+      data: [fareWithDateRelation(fare)],
+    });
+    expect(messages).toContainEqual({
+      type: 'notice',
+      provider: 'SkyScrapper',
+      status: 'no_supply',
+      message: 'SkyScrapper returned no matching fares for this search.',
+    });
+    expect(messages).toContainEqual({
+      type: 'notice',
+      provider: 'GoogleFlights',
+      status: 'no_supply',
+      message: 'GoogleFlights returned no matching fares for this search.',
+    });
+  });
+
   it('converts an unexpected provider throw into a user-visible notice without dropping successful fares', async () => {
     (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [fare] });
     (skyScrapper.searchFares as jest.Mock).mockRejectedValueOnce(new Error('socket hang up'));
