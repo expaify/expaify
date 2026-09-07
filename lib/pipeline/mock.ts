@@ -1,4 +1,5 @@
 import type { OtaLinks } from './otaLinks'
+import { NIGHTS } from './snapshot'
 
 export type MockSnapshot = {
   hotel_id: string
@@ -89,7 +90,7 @@ export function generateMockDeals(count = 5): MockDeal[] {
   const today = new Date()
   return MOCK_HOTELS.slice(0, count).map((h, i) => {
     const checkIn = addDays(today, 14 + i * 7)
-    const nights = 2
+    const nights = NIGHTS
     const discountPct = Math.round((1 - h.price / h.median) * 100)
     return {
       hotel_id: h.id,
