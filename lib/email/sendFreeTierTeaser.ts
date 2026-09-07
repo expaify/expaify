@@ -42,12 +42,20 @@ export async function runFreeTierTeaser(): Promise<{ recipients: number; skipped
   if (res.rows.length === 0) return { recipients: 0, skipped: 0 }
 
   const resend = getResend()
-  const unlockedDealIds = Array.from(await getFreeUnlockedDealIds())
   let sent = 0
   let skipped = 0
 
   for (const recipient of res.rows) {
     try {
+      // Per-recipient, not hoisted above the loop: getFreeUnlockedDealIds()
+      // with no userId returns the sitewide anonymous-homepage default unlock
+      // set, a completely different query branch from a specific user's real
+      // weekly unlocks (deal_unlocks). Every other call site in this codebase
+      // passes the real userId; this one didn't, so every recipient in a
+      // batch got emailed against the same shared, wrong exclusion set --
+      // possibly featuring a deal they'd already personally unlocked, or a
+      // stale locked_deal_count against deals they'd never actually seen.
+      const unlockedDealIds = Array.from(await getFreeUnlockedDealIds(recipient.userId))
       const deals = await query<TeaserDealRow>(
         `SELECT
            d.hotel_name,
