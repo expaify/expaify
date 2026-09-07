@@ -258,11 +258,14 @@ export function AdminAccountDossier({ initialDossier, userId, adminEmail }: Admi
               copy={subscription.stripeSubscriptionId ?? undefined}
               copyLabel="Stripe subscription ID"
             />
-            {subscription.entitlementSource === 'comp' && (
+            {(subscription.entitlementSource === 'comp' || subscription.compReason || subscription.compGrantedBy || subscription.compExpiresAt) && (
               <>
                 <Field label="Comp reason" value={subscription.compReason || 'Not set'} />
                 <Field label="Granted by" value={subscription.compGrantedBy || 'Not set'} />
-                <Field label="Expires" value={subscription.compExpiresAt ? formatAdminDate(subscription.compExpiresAt) : 'Not set'} />
+                <Field
+                  label={subscription.compExpiresAt && new Date(subscription.compExpiresAt).getTime() < Date.now() ? 'Expired' : 'Expires'}
+                  value={subscription.compExpiresAt ? formatAdminDate(subscription.compExpiresAt) : 'Not set'}
+                />
               </>
             )}
             <Field label="Last updated" value={subscription.updatedAt ? formatAdminDate(subscription.updatedAt) : 'Not set'} />

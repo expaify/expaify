@@ -91,6 +91,34 @@ export async function grantCompAccess(input: GrantCompInput): Promise<Result<{ s
   }
 }
 
+// Comp grants store a real comp_expires_at the admin dossier displays as
+// "Expires: <date>" (AdminAccountDossier.tsx), but nothing previously read
+// that column back -- isPremium() only checks `status`, which grantCompAccess
+// sets to 'active' once and nothing ever revisited. A comp with an expiry
+// date never actually expired. This is the missing enforcement side, run on
+// a schedule (see app/api/admin/comp-expiry/route.ts). Deliberately leaves
+// comp_reason/comp_granted_by/comp_granted_at/comp_expires_at untouched --
+// unlike removeLocalAccess (an admin actively rescinding a grant), this is
+// the grant fulfilling its own stated term, so the dossier should keep
+// showing who granted it, why, and when it lapsed.
+export async function expireDueComps(): Promise<{ expiredCount: number; expiredUserIds: string[] }> {
+  return withTransaction(async (client) => {
+    const result = await client.query<{ user_id: string }>(
+      `UPDATE subscriptions SET
+         status = 'free',
+         entitlement_source = 'none',
+         updated_at = NOW()
+       WHERE entitlement_source = 'comp'
+         AND status = 'active'
+         AND comp_expires_at IS NOT NULL
+         AND comp_expires_at < NOW()
+       RETURNING user_id`
+    )
+    const expiredUserIds = result.rows.map((row) => row.user_id)
+    return { expiredCount: expiredUserIds.length, expiredUserIds }
+  })
+}
+
 export async function removeLocalAccess(input: RemoveLocalAccessInput): Promise<Result<{ status: string }>> {
   const reasonResult = validateReason(input.reason)
   if (!reasonResult.ok) {
