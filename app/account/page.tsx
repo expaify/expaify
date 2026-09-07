@@ -188,7 +188,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
                   </div>
                 )}
                 <p className="text-sm text-[color:var(--ink-soft)]">
-                  Free plan gives you 3 unlocked deals. Upgrade for unlimited deals + instant email alerts.
+                  Free plan gives you 3 unlocked deals per week. Upgrade for unlimited deals + instant email alerts.
                 </p>
               </div>
             )}

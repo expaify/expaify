@@ -192,6 +192,25 @@ export function AccountClient({ stripeCustomerId, alertPreference, alertTimezone
     }
   }, [])
 
+  // A free user's saved preference can be 'instant' from a lapsed premium
+  // subscription -- the `pref` state above already displays this as 'daily'
+  // for them, but that's a local-only override. Since saveFrequency() no-ops
+  // when the clicked option already matches `pref`, a free user looking at
+  // an already-selected "Daily" pill has no way to trigger a real save, so
+  // the stale 'instant' value sits in the DB indefinitely and silently
+  // reactivates (instant alert emails resume with no user action) the next
+  // time they resubscribe. Persist the correction once, quietly, on mount.
+  useEffect(() => {
+    if (!premium && alertPreference === 'instant') {
+      fetch('/api/account/alerts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alertPreference: 'daily' }),
+      }).catch(() => {})
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   function setStatus(group: GroupName, status: GroupStatus) {
     setGroupStatus(s => ({ ...s, [group]: status }))
   }
