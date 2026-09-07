@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Reveal } from '@/app/components/ui/Reveal'
 import { Icon } from '@/app/components/ui/icons/Icon'
+import { resolveMagicLinkOutcome } from './magicLinkOutcome'
 
 type LoginFormProps = {
   freeIntent: boolean
@@ -16,6 +17,7 @@ export default function LoginForm({ freeIntent }: LoginFormProps) {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const googleEnabled = Boolean(process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED)
 
   useEffect(() => {
@@ -28,8 +30,16 @@ export default function LoginForm({ freeIntent }: LoginFormProps) {
     e.preventDefault()
     if (!email.trim()) return
     setLoading(true)
-    await signIn('resend', { email, redirect: false })
-    setSent(true)
+    setError(null)
+    let outcome: ReturnType<typeof resolveMagicLinkOutcome>
+    try {
+      const result = await signIn('resend', { email, redirect: false })
+      outcome = resolveMagicLinkOutcome(result, undefined)
+    } catch (err) {
+      outcome = resolveMagicLinkOutcome(undefined, err)
+    }
+    setSent(outcome.sent)
+    setError(outcome.error)
     setLoading(false)
   }
 
@@ -82,6 +92,11 @@ export default function LoginForm({ freeIntent }: LoginFormProps) {
                   className="field-input"
                 />
               </div>
+              {error ? (
+                <p role="alert" className="rounded-[var(--radius-input)] border border-[color:var(--error)] bg-[color:var(--error-soft)] px-4 py-3 text-sm font-medium text-[color:var(--ink)]">
+                  {error}
+                </p>
+              ) : null}
               <button
                 type="submit"
                 disabled={loading}
