@@ -54,7 +54,7 @@ export function FaqAccordion() {
               {item.q}
             </span>
             <span
-              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[var(--radius-pill)] border border-[color:var(--line-white)] text-[color:var(--ink-soft)] transition-transform duration-[160ms]"
+              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[var(--radius-pill)] border border-[color:var(--line-white)] text-[color:var(--ink-soft)] transition-transform duration-[220ms] ease-out-expo"
               style={{ transform: open === i ? 'rotate(45deg)' : 'rotate(0deg)' }}
               aria-hidden
             >
@@ -64,7 +64,7 @@ export function FaqAccordion() {
             </span>
           </button>
           <div
-            className="overflow-hidden transition-all duration-[160ms]"
+            className="overflow-hidden transition-all duration-[220ms] ease-out-expo"
             style={{ maxHeight: open === i ? '400px' : '0px', opacity: open === i ? 1 : 0 }}
           >
             <p className="text-body pb-5 text-[color:var(--ink-soft)]">{item.a}</p>

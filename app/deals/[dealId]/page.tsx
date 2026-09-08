@@ -471,8 +471,9 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
         <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
           <a href={backHref} className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)]">← {criteria ? 'Back to results' : 'Back to saved deals'}</a>
           <div className="mt-4 space-y-4">
+            <Reveal>
             <section id="deal-hero" aria-labelledby="deal-detail-title" className="overflow-hidden rounded-[var(--radius-card)] bg-[color:var(--bg-surface)] shadow-[var(--shadow-card-rest)]">
-              {deal.photo_url ? <PropertyPhoto src={deal.photo_url} size="detail" loading="eager" imageClassName="motion-safe:transition-transform motion-safe:duration-500 hover:scale-[1.02]" /> : null}
+              {deal.photo_url ? <PropertyPhoto src={deal.photo_url} size="detail" loading="eager" imageClassName="motion-safe:transition-transform motion-safe:duration-500 ease-out-expo hover:scale-[1.02]" /> : null}
               <div className="p-4 sm:p-6">
                 <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
                 <h1 id="deal-detail-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name}</h1>
@@ -498,6 +499,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-3 py-1.5 text-xs font-medium text-[color:var(--text-2)]">Cancellation: check on OTA</span></div>
               </div>
             </section>
+            </Reveal>
 
             <section className="rounded-[var(--radius-card)] bg-[color:var(--bg-surface)] p-4 shadow-[var(--shadow-card-rest)] sm:p-6"><Suspense fallback={<PriceHistorySkeleton />}><PriceHistorySection deal={deal} /></Suspense></section>
 
@@ -561,6 +563,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
         </a>
 
         <div className="mt-4 space-y-4">
+          <Reveal>
           <section aria-labelledby="saved-hotel-title" data-hotel-decision-section="property_stay" data-hotel-decision-position="1" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
             <h1 id="saved-hotel-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name}</h1>
@@ -586,6 +589,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 : 'Stay dates are incomplete. Choose or confirm dates with the provider before comparing room options. No room is selected, and room-level accessibility fit is not confirmed.'}
             </p>
           </section>
+          </Reveal>
 
           <section aria-labelledby="saved-price-score-title" data-hotel-decision-section="price_deal_score" data-hotel-decision-position="2" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="saved-price-score-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Price and Deal Score</h2>

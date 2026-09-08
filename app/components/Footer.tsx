@@ -22,7 +22,7 @@ const socialLinks = [
 ];
 
 const linkClassName =
-  "text-small text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]";
+  "text-small text-[color:var(--ink-soft)] no-underline transition-colors duration-200 ease-out-expo hover:text-[color:var(--ink)]";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();

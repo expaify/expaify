@@ -20,7 +20,7 @@ export function LandingNav({ homepageRedesign = false }: { homepageRedesign?: bo
 
   return (
     <header
-      className={`sticky top-0 z-50 w-full bg-[color:var(--bg)] transition-[box-shadow,background-color,backdrop-filter] duration-150${scrolled ? ' nav-glass' : ''}`}
+      className={`sticky top-0 z-50 w-full bg-[color:var(--bg)] transition-[box-shadow,background-color,backdrop-filter] duration-200 ease-out-expo${scrolled ? ' nav-glass' : ''}`}
       style={{ boxShadow: scrolled ? 'var(--shadow-header)' : 'none' }}
     >
       <div className="mx-auto flex h-16 max-w-[1140px] items-center justify-between px-5">
@@ -38,13 +38,13 @@ export function LandingNav({ homepageRedesign = false }: { homepageRedesign?: bo
             <>
               <a
                 href="/blog"
-                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
+                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors duration-200 ease-out-expo hover:text-[color:var(--ink)]"
               >
                 Blog
               </a>
               <a
                 href="/deals"
-                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
+                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors duration-200 ease-out-expo hover:text-[color:var(--ink)]"
               >
                 Deals
               </a>
@@ -52,14 +52,14 @@ export function LandingNav({ homepageRedesign = false }: { homepageRedesign?: bo
                 href="/account"
                 aria-label="Your account"
                 title={session.user?.email ?? 'Account'}
-                className="ml-1 flex h-8 w-8 items-center justify-center rounded-[var(--radius-pill)] bg-[color:var(--primary)] text-small font-medium uppercase text-[color:var(--text-inverse)] no-underline transition-opacity hover:opacity-80"
+                className="ml-1 flex h-8 w-8 items-center justify-center rounded-[var(--radius-pill)] bg-[color:var(--primary)] text-small font-medium uppercase text-[color:var(--text-inverse)] no-underline transition-opacity duration-200 ease-out-expo hover:opacity-80"
               >
                 {initial.toUpperCase()}
               </a>
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: '/' })}
-                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] transition-colors hover:text-[color:var(--ink)]"
+                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] transition-colors duration-200 ease-out-expo hover:text-[color:var(--ink)]"
               >
                 Sign out
               </button>
@@ -68,21 +68,21 @@ export function LandingNav({ homepageRedesign = false }: { homepageRedesign?: bo
             <>
               {homepageRedesign ? (
                 <>
-                  <a href="/deals" className="hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block">Deals</a>
-                  <a href="/destinations" className="hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block">Destinations</a>
+                  <a href="/deals" className="hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors duration-200 ease-out-expo hover:text-[color:var(--ink)] sm:block">Deals</a>
+                  <a href="/destinations" className="hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors duration-200 ease-out-expo hover:text-[color:var(--ink)] sm:block">Destinations</a>
                 </>
               ) : null}
               {isHomepage && (
                 <>
                   <a
                     href="#pricing"
-                    className={homepageRedesign ? 'hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]' : 'hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block'}
+                    className={homepageRedesign ? 'hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors duration-200 ease-out-expo hover:text-[color:var(--ink)]' : 'hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors duration-200 ease-out-expo hover:text-[color:var(--ink)] sm:block'}
                   >
                     Pricing
                   </a>
                   <a
                     href="#faq"
-                    className={homepageRedesign ? 'hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]' : 'hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)] sm:block'}
+                    className={homepageRedesign ? 'hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors duration-200 ease-out-expo hover:text-[color:var(--ink)]' : 'hidden rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors duration-200 ease-out-expo hover:text-[color:var(--ink)] sm:block'}
                   >
                     FAQ
                   </a>
@@ -90,13 +90,13 @@ export function LandingNav({ homepageRedesign = false }: { homepageRedesign?: bo
               )}
               {!homepageRedesign ? <a
                 href="/blog"
-                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
+                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors duration-200 ease-out-expo hover:text-[color:var(--ink)]"
               >
                 Blog
               </a> : null}
               <a
                 href="/login"
-                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors hover:text-[color:var(--ink)]"
+                className="rounded-[var(--radius-input)] px-3 py-2 text-body font-medium text-[color:var(--ink-soft)] no-underline transition-colors duration-200 ease-out-expo hover:text-[color:var(--ink)]"
               >
                 Login
               </a>

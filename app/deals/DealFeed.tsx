@@ -420,7 +420,7 @@ function FilterPill({ label, filterKey, valueLabel, state, busy, inert, options,
         <div
           role="menu"
           aria-label={`${label} options`}
-          className={`absolute top-full z-30 mt-2 max-h-[320px] min-w-[176px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-1 shadow-[var(--shadow-lift)] ${align === 'end' ? 'right-0' : 'left-0'}`}
+          className={`absolute top-full z-30 mt-2 max-h-[320px] min-w-[176px] max-w-[calc(100vw-2rem)] origin-top animate-in fade-in-0 zoom-in-95 duration-150 overflow-y-auto rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] p-1 shadow-[var(--shadow-lift)] ${align === 'end' ? 'right-0' : 'left-0'}`}
         >
           {options.map((opt, index) => (
             <button
@@ -1730,7 +1730,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                     <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                 ) : (
-                  <svg className={`h-4 w-4 shrink-0 transition-transform ${sortMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg className={`h-4 w-4 shrink-0 transition-transform duration-200 ease-out-expo ${sortMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="m6 9 6 6 6-6" />
                   </svg>
                 )}
@@ -1847,7 +1847,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               <div className={`${gridClass} mb-6`} aria-label="Loading updated hotel deals">
                 {Array.from({ length: Math.min(Math.max(deals.length, 3), 6) }).map((_, i) => <SkeletonCard key={`criteria-${i}`} />)}
               </div>
-              <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150`}>
+              <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150 ease-out-expo`}>
                 {deals.map(deal => deal.locked ? (
                   <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
@@ -1864,7 +1864,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               <div className={`${gridClass} mb-6`} aria-label="Loading updated hotel deals">
                 {Array.from({ length: Math.min(Math.max(deals.length, 1), 6) }).map((_, i) => <SkeletonCard key={`filter-${i}`} />)}
               </div>
-              <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150`}>
+              <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150 ease-out-expo`}>
                 {deals.map(deal => deal.locked ? (
                   <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (

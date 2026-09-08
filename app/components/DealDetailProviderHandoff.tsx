@@ -32,7 +32,7 @@ function MobileStickyCta({ href, label, event, price, heroId, expired, rel }: { 
   }, [expired, heroId])
 
   return (
-    <div className={`fixed inset-x-0 bottom-0 z-50 border-t border-[color:var(--border)] bg-[color:var(--surface)]/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_24px_rgba(20,18,16,0.08)] backdrop-blur-md motion-safe:transition-transform motion-safe:duration-300 min-[1024px]:hidden ${showSticky ? 'translate-y-0' : 'pointer-events-none translate-y-full'}`} aria-hidden={!showSticky}>
+    <div className={`fixed inset-x-0 bottom-0 z-50 border-t border-[color:var(--border)] bg-[color:var(--surface)]/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_24px_rgba(20,18,16,0.08)] backdrop-blur-md motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out-expo min-[1024px]:hidden ${showSticky ? 'translate-y-0' : 'pointer-events-none translate-y-full'}`} aria-hidden={!showSticky}>
       <div className="mx-auto flex max-w-[680px] items-center gap-3">
         <div className="min-w-0 shrink-0">
           <p className="text-h3 font-bold text-[color:var(--ink)] text-tabular">{formatMoney(price)}</p>
