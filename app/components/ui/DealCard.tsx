@@ -175,9 +175,9 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
     : 0
 
   const content = (
-    <article className={`overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] focus-within:ring-2 focus-within:ring-[color:var(--primary)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'motion-safe:transition-all motion-safe:duration-300 group-hover:-translate-y-1 group-hover:shadow-[var(--shadow-card-hover)]'}`}>
+    <article className={`overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] focus-within:ring-2 focus-within:ring-[color:var(--primary)] ${deal.expired ? 'grayscale' : deal.isMock ? '' : 'motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-out-expo group-hover:-translate-y-1 group-hover:shadow-[var(--shadow-card-hover)]'}`}>
       <div className="relative">
-        <PropertyPhoto src={deal.photoUrl} size="card" loading={photoLoading} imageClassName="motion-safe:transition-transform motion-safe:duration-500 group-hover:scale-105" />
+        <PropertyPhoto src={deal.photoUrl} size="card" loading={photoLoading} imageClassName="motion-safe:transition-transform motion-safe:duration-500 motion-safe:ease-out-expo group-hover:scale-105" />
         {deal.isMock ? (
           <span className="absolute left-3 top-3 z-[2] inline-flex items-center rounded-[var(--radius-pill)] border border-[color:var(--line-white)] bg-[color:var(--surface)] px-2 py-1 font-display text-caption font-bold leading-none text-[color:var(--ink-soft)] shadow-[var(--shadow-card-rest)]">
             Example

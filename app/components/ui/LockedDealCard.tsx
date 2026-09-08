@@ -65,14 +65,14 @@ export function LockedDealCard({
     }
   }
   return (
-    <div className="group relative block overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] motion-safe:transition-all motion-safe:duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)] focus-within:ring-2 focus-within:ring-[color:var(--primary)]">
+    <div className="group relative block overflow-hidden rounded-[var(--radius-card)] border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--surface)] shadow-[var(--shadow-card-rest)] motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-out-expo hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)] focus-within:ring-2 focus-within:ring-[color:var(--primary)]">
       <a
         href={canSelfUnlock ? '#' : trackingHref(joinHref, discountPct)}
         onClick={activate}
         aria-label={`Locked deal. Save ${discountPct}% at a hotel in ${placeholderCity}. ${canSelfUnlock ? 'Use one weekly unlock to reveal this deal.' : 'Unlock deal with Premium.'}`}
         className="block focus-visible:outline-none"
       >
-      <div className="absolute right-3 top-3 z-30 flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[color:var(--accent)] px-2.5 py-1 font-display text-caption font-bold text-[color:var(--ink)] shadow-[var(--shadow-card-rest)] motion-safe:transition-transform motion-safe:duration-300 group-hover:scale-105">
+      <div className="absolute right-3 top-3 z-30 flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[color:var(--accent)] px-2.5 py-1 font-display text-caption font-bold text-[color:var(--ink)] shadow-[var(--shadow-card-rest)] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out-expo group-hover:scale-105">
         <Icon name="premium_unlocked" size={16} className="text-[color:var(--ink)]" />
         <span>Save {discountPct}%</span>
       </div>

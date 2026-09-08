@@ -2,9 +2,10 @@
 @import "tw-animate-css";
 
 @theme inline {
-  --font-display: var(--font-geist-sans);
-  --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-bricolage-grotesque);
+  --font-sans: var(--font-hanken-grotesk);
   --font-mono: var(--font-geist-mono);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @theme inline {
@@ -34,6 +35,19 @@
   --radius-xl: var(--radius-card);
   --animate-marquee: marquee var(--duration) infinite linear;
   --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
+  --animate-deal-chip-pulse: deal-chip-pulse 2.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes deal-chip-pulse {
+  0% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
 }
 
 @keyframes marquee {

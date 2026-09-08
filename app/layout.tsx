@@ -1,6 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { GeistSans } from "geist/font/sans";
+import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
 import { GeistMono } from "geist/font/mono";
+
+const bricolageGrotesque = Bricolage_Grotesque({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-bricolage-grotesque",
+  display: "swap",
+});
+
+const hankenGrotesk = Hanken_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-hanken-grotesk",
+  display: "swap",
+});
 import Script from "next/script";
 import { AttributionCapture } from "./components/AttributionCapture";
 import { Footer } from "./components/Footer";
@@ -71,7 +85,7 @@ const organizationSchema = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} h-full`}>
+    <html lang="en" className={`${bricolageGrotesque.variable} ${hankenGrotesk.variable} ${GeistMono.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-[color:var(--bg)] text-[color:var(--ink)] antialiased">
         <script
           type="application/ld+json"
