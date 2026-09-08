@@ -58,7 +58,7 @@ export function PremiumHubBar({ lockedDealsCount, firstLockedDealRef, joinHref =
   }
 
   return (
-    <div inert={!revealed} className={`fixed bottom-0 left-0 right-0 z-50 w-full px-0 pb-[env(safe-area-inset-bottom)] transition-[transform,opacity] duration-300 md:bottom-4 md:px-4 ${revealed ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-full opacity-0'}`} aria-hidden={!revealed}>
+    <div inert={!revealed} className={`fixed bottom-0 left-0 right-0 z-50 w-full px-0 pb-[env(safe-area-inset-bottom)] motion-safe:transition-[transform,translate,opacity] motion-safe:duration-300 motion-safe:ease-out-expo md:bottom-4 md:px-4 ${revealed ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-full opacity-0'}`} aria-hidden={!revealed}>
       <div className="mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-4 border-[0.5px] border-[color:var(--line-ivory)] bg-[color:var(--bg-overlay)] px-6 py-4 shadow-2xl backdrop-blur-md md:rounded-[var(--radius-card)] md:flex-row md:py-3.5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--gold-deep)] text-[color:var(--ink)] shadow-inner">

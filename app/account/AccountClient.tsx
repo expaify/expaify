@@ -73,10 +73,10 @@ function StatusLine({ status, maxCities }: { status: GroupStatus; maxCities?: nu
     <div aria-live="polite" className="mt-1.5 min-h-[18px] text-xs leading-[18px]">
       <span className="sr-only">{message}</span>
       {(status === 'idle' || status === 'saving' || status === 'saved') && (
-        <span aria-hidden="true" className={`inline-flex items-center gap-1.5 transition-opacity duration-200 ${status === 'idle' ? 'opacity-0' : 'opacity-100'}`}>
+        <span aria-hidden="true" className={`inline-flex items-center gap-1.5 motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-out-expo ${status === 'idle' ? 'opacity-0' : 'opacity-100'}`}>
           <span className="relative h-4 w-4 shrink-0">
-            <span className={`absolute inset-0 h-4 w-4 rounded-full border-2 border-[color:var(--primary-soft)] border-t-[color:var(--primary)] transition-all duration-200 ${status === 'saving' ? 'animate-spin scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
-            <svg viewBox="0 0 16 16" className={`absolute inset-0 h-4 w-4 text-[color:var(--primary)] transition-all duration-200 ${status === 'saved' ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <span className={`absolute inset-0 h-4 w-4 rounded-full border-2 border-[color:var(--primary-soft)] border-t-[color:var(--primary)] motion-safe:transition-[transform,scale,opacity] motion-safe:duration-200 motion-safe:ease-out-expo ${status === 'saving' ? 'motion-safe:animate-spin motion-safe:scale-100 opacity-100' : 'motion-safe:scale-75 opacity-0'}`} />
+            <svg viewBox="0 0 16 16" className={`absolute inset-0 h-4 w-4 text-[color:var(--primary)] motion-safe:transition-[transform,scale,opacity] motion-safe:duration-200 motion-safe:ease-out-expo ${status === 'saved' ? 'motion-safe:scale-100 opacity-100' : 'motion-safe:scale-75 opacity-0'}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m3.5 8 3 3 6-6" />
             </svg>
           </span>
@@ -133,7 +133,7 @@ function PillRadioGroup<T extends string | number>({ label, options, value, onCh
             tabIndex={checked ? 0 : -1}
             onClick={() => onChange(opt.value)}
             onKeyDown={e => onKeyDown(e, i)}
-            className={`rounded-[var(--radius-pill)] px-4 py-2 text-sm font-medium transition-colors duration-100 ${
+            className={`rounded-[var(--radius-pill)] px-4 py-2 text-sm font-medium motion-safe:transition-colors motion-safe:duration-100 motion-safe:ease-out-expo ${
               checked
                 ? 'bg-[color:var(--primary)] text-white'
                 : 'border border-[color:var(--line-ivory)] bg-white text-[color:var(--ink)] hover:border-[color:var(--primary-soft)]'
@@ -490,7 +490,7 @@ export function AccountClient({ stripeCustomerId, alertPreference, alertTimezone
                     onClick={() => toggleCity(city)}
                     aria-pressed={selected}
                     aria-disabled={capped || undefined}
-                    className={`rounded-[var(--radius-pill)] px-3 py-1.5 text-xs font-medium transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.97] ${
+                    className={`rounded-[var(--radius-pill)] px-3 py-1.5 text-xs font-medium motion-safe:transition-[color,background-color,border-color,transform,scale] motion-safe:duration-150 motion-safe:ease-out-expo motion-safe:active:scale-[0.97] ${
                       capped ? 'opacity-55' : ''
                     } ${
                       selected

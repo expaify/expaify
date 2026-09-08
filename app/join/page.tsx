@@ -74,7 +74,7 @@ export default async function JoinPage({ searchParams }: PageProps) {
           <Reveal delayMs={180}>
             <a
               href={`/api/stripe/checkout?plan=${plan}&redirect=true`}
-              className="btn btn-conversion w-full justify-center transition-transform duration-150 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]"
+              className="btn btn-conversion w-full justify-center motion-safe:transition-[background-color,border-color,color,opacity,transform,scale,box-shadow]! motion-safe:duration-150! motion-safe:ease-out-expo! motion-reduce:transform-none! motion-safe:active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]"
             >
               Continue to secure checkout
             </a>

@@ -205,14 +205,14 @@ export default async function CityPage({ params, searchParams }: PageProps) {
       <nav aria-label="breadcrumb" className="hidden md:flex items-center mb-6">
         <Link
           href="/"
-          className="text-sm text-[color:var(--text-2)] hover:text-[color:var(--text-1)] transition-colors"
+          className="text-sm text-[color:var(--text-2)] hover:text-[color:var(--text-1)] motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out-expo"
         >
           Home
         </Link>
         <span className="mx-2 text-[color:var(--text-3)]" aria-hidden="true">›</span>
         <Link
           href="/deals"
-          className="text-sm text-[color:var(--text-2)] hover:text-[color:var(--text-1)] transition-colors"
+          className="text-sm text-[color:var(--text-2)] hover:text-[color:var(--text-1)] motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out-expo"
         >
           Destinations
         </Link>
@@ -289,7 +289,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
               <Link
                 key={slug}
                 href={`/destinations/${slug}`}
-                className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 py-3 text-sm font-medium text-[color:var(--text-1)] transition-colors hover:bg-[color:var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--text-3)]"
+                className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 py-3 text-sm font-medium text-[color:var(--text-1)] motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out-expo hover:bg-[color:var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--text-3)]"
               >
                 {name}
               </Link>

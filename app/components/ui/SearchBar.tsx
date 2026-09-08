@@ -96,7 +96,7 @@ export function SearchBar({ premium, onResult, onClear }: Props) {
           placeholder={premium ? "Search e.g. '4 star hotels in Miami under $150'" : 'Upgrade to search deals in plain English'}
           disabled={loading}
           aria-describedby={!premium ? 'search-bar-premium-message' : undefined}
-          className="w-full rounded-[var(--radius-input)] border border-[color:var(--line-ivory)] bg-white px-4 py-3 text-sm text-[color:var(--ink)] outline-none transition-colors focus:border-[color:var(--primary)] placeholder:text-[color:var(--ink-faint)] disabled:bg-[color:var(--surface)] disabled:opacity-75"
+          className="w-full rounded-[var(--radius-input)] border border-[color:var(--line-ivory)] bg-white px-4 py-3 text-sm text-[color:var(--ink)] outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out-expo focus:border-[color:var(--primary)] placeholder:text-[color:var(--ink-faint)] disabled:bg-[color:var(--surface)] disabled:opacity-75"
         />
         <button
           type="button"
@@ -104,10 +104,10 @@ export function SearchBar({ premium, onResult, onClear }: Props) {
           disabled={loading}
           aria-label="Search deals"
           aria-describedby={!premium ? 'search-bar-premium-message' : undefined}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[color:var(--primary)] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[color:var(--primary)] text-white motion-safe:transition-opacity motion-safe:duration-150 motion-safe:ease-out-expo hover:opacity-90 disabled:opacity-50"
         >
           {loading ? (
-            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="h-4 w-4 motion-safe:animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
             </svg>
           ) : (

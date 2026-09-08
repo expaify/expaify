@@ -37,7 +37,7 @@ export default function VerifyPage() {
 
           <a
             href="mailto:"
-            className="btn btn-primary mt-6 w-full justify-center transition-transform duration-150 active:scale-[0.98]"
+            className="btn btn-primary mt-6 w-full justify-center motion-safe:transition-[background-color,border-color,color,opacity,transform,scale,box-shadow]! motion-safe:duration-150! motion-safe:ease-out-expo! motion-reduce:transform-none! motion-safe:active:scale-[0.98]"
           >
             Open email app
           </a>

@@ -100,7 +100,7 @@ export default function LoginForm({ freeIntent }: LoginFormProps) {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn btn-primary w-full justify-center transition-transform duration-150 active:scale-[0.98]"
+                className="btn btn-primary w-full justify-center motion-safe:transition-[background-color,border-color,color,opacity,transform,scale,box-shadow]! motion-safe:duration-150! motion-safe:ease-out-expo! motion-reduce:transform-none! motion-safe:active:scale-[0.98]"
               >
                 {loading ? <span className="spinner" aria-hidden /> : null}
                 {loading ? 'Sending…' : 'Continue with email'}
@@ -119,7 +119,7 @@ export default function LoginForm({ freeIntent }: LoginFormProps) {
             <button
               type="button"
               onClick={() => signIn('google', { callbackUrl: '/onboarding' })}
-              className="btn btn-outline w-full justify-center gap-2 transition-transform duration-150 active:scale-[0.98]"
+              className="btn btn-outline w-full justify-center gap-2 motion-safe:transition-[background-color,border-color,color,opacity,transform,scale,box-shadow]! motion-safe:duration-150! motion-safe:ease-out-expo! motion-reduce:transform-none! motion-safe:active:scale-[0.98]"
             >
               <GoogleIcon />
               Continue with Google

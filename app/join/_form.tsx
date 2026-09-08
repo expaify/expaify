@@ -110,7 +110,7 @@ export default function JoinForm() {
             <Reveal delayMs={180} className="relative mb-5 grid grid-cols-2 gap-3">
               <span
                 aria-hidden
-                className="absolute inset-y-0 left-0 w-[calc((100%_-_0.75rem)/2)] rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--primary)] bg-[color:var(--primary-soft)] transition-transform duration-300"
+                className="absolute inset-y-0 left-0 w-[calc((100%_-_0.75rem)/2)] rounded-[var(--radius-pill)] border-[1.5px] border-[color:var(--primary)] bg-[color:var(--primary-soft)] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out-expo"
                 style={{ transform: plan === 'annual' ? 'translateX(0)' : 'translateX(calc(100% + 0.75rem))' }}
               />
               {(['annual', 'monthly'] as const).map((p) => (
@@ -119,7 +119,7 @@ export default function JoinForm() {
                   type="button"
                   onClick={() => setPlan(p)}
                   aria-pressed={plan === p}
-                  className="btn-pill relative z-10 flex-1 justify-center !border-transparent !bg-transparent transition-transform duration-150 active:scale-[0.97]"
+                  className="btn-pill relative z-10 flex-1 justify-center !border-transparent !bg-transparent motion-safe:transition-transform motion-safe:duration-150 motion-safe:ease-out-expo motion-safe:active:scale-[0.97]"
                 >
                   {p === 'annual' ? (
                     <>
@@ -171,7 +171,7 @@ export default function JoinForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn btn-conversion w-full justify-center transition-transform duration-150 active:scale-[0.98]"
+                className="btn btn-conversion w-full justify-center motion-safe:transition-[background-color,border-color,color,opacity,transform,scale,box-shadow]! motion-safe:duration-150! motion-safe:ease-out-expo! motion-reduce:transform-none! motion-safe:active:scale-[0.98]"
               >
                 {loading ? <span className="spinner" aria-hidden /> : null}
                 {loading ? 'Just a moment…' : 'Start free trial'}
@@ -182,7 +182,7 @@ export default function JoinForm() {
                 <button
                   type="button"
                   onClick={() => signIn('google', { callbackUrl: `/api/stripe/checkout?plan=${plan}&redirect=true` })}
-                  className="btn btn-outline mt-3 w-full justify-center gap-2 transition-transform duration-150 active:scale-[0.98]"
+                  className="btn btn-outline mt-3 w-full justify-center gap-2 motion-safe:transition-[background-color,border-color,color,opacity,transform,scale,box-shadow]! motion-safe:duration-150! motion-safe:ease-out-expo! motion-reduce:transform-none! motion-safe:active:scale-[0.98]"
                 >
                 <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
                   <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
