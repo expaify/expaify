@@ -45,8 +45,13 @@ jobs:
           context: .
           push: true
           tags: ${{ env.IMAGE }}
-          # Re-enabled 2026-09-08: OAuth client 740079679133-...apps.googleusercontent.com
-          # was restored and GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET updated to match.
+          # Re-enabled 2026-09-08: the original OAuth client's whole "brand"
+          # (consent screen) was deleted alongside it and never recovered by
+          # restoring the project -- recovery was a dead end even after the
+          # client itself showed as restored in the Console. Moved to a
+          # dedicated GCP project (expaify-prod-0185, no shared/deletion
+          # history with other apps) with a fresh brand + client; GOOGLE_CLIENT_ID/
+          # GOOGLE_CLIENT_SECRET updated to match.
           build-args: |
             NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true
 
