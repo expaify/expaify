@@ -189,7 +189,7 @@ export async function GET(req: NextRequest) {
     // generated mock deals if there's truly no real snapshot data yet.
     const tracked = await getTrackedHotels({ limit: HOTEL_DEAL_PAGE_SIZE }).catch(() => [] as DealRow[])
     const deals = tracked.length > 0
-      ? tracked.map((row, i) => toApiDeal(row, !pwCtx.premium && i >= pwCtx.freeUnlockLimit))
+      ? tracked.map((row, i) => toApiDeal(row, !pwCtx.premium && i >= pwCtx.freeUnlockLimit && !unlockedIds.has(row.id)))
       : generateMockDeals(HOTEL_DEAL_PAGE_SIZE).map(mockToApiDeal)
     return NextResponse.json({
       deals,
