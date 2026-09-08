@@ -132,6 +132,18 @@ export class BookingComHotelsRapidApiProvider implements HotelProvider {
 
     const location = area.trim().toUpperCase();
     const searchCacheKey = `bookingcom-rapidapi:search:${location}:${range.checkin}:${range.checkout}`;
+    // grossPrice is the TOTAL for the whole requested stay, not a nightly rate --
+    // the same field, on the same booking-com15 host, already confirmed live
+    // (2026-08-06) in lib/pipeline/snapshot.ts's fetchBookingCom15: querying the
+    // same hotel/dates for 1 night vs 2 nights showed grossPrice scale from
+    // $207.26 to $389.12, not staying flat. This provider stored it directly as
+    // pricePerNight with no division, unlike that sibling fetcher. A stay of any
+    // length longer than 1 night showed an inflated "per night" price scaling
+    // with trip length (a 3-night stay would show ~3x the real nightly rate).
+    const rawNights = Math.round(
+      (new Date(`${range.checkout}T00:00:00Z`).getTime() - new Date(`${range.checkin}T00:00:00Z`).getTime()) / 86_400_000
+    );
+    const nights = Number.isFinite(rawNights) && rawNights > 0 ? rawNights : 1;
 
     try {
       const cached = await cache.get<RapidHotelOffer[]>(searchCacheKey);
@@ -165,7 +177,7 @@ export class BookingComHotelsRapidApiProvider implements HotelProvider {
 
         const priceValue = property.priceBreakdown?.grossPrice?.value;
         if (typeof priceValue !== 'number' || !Number.isFinite(priceValue) || priceValue <= 0) return [];
-        const priceCents = Math.round(priceValue * 100);
+        const priceCents = Math.round((priceValue / nights) * 100);
 
         const stars = Number.isFinite(property.propertyClass) && (property.propertyClass ?? 0) > 0 ? Number(property.propertyClass) : 0;
         const hasCoords = typeof property.latitude === 'number' && typeof property.longitude === 'number';
