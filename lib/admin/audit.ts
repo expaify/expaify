@@ -8,6 +8,7 @@ export type AdminAuditAction =
   | 'local_access_removed'
   | 'export_request_created'
   | 'deletion_request_created'
+  | 'export_request_fulfilled'
 
 export interface AdminAuditEntryInput {
   action: AdminAuditAction

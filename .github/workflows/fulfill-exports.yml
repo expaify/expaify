@@ -1,0 +1,24 @@
+name: Account Data Export Fulfillment
+
+on:
+  schedule:
+    - cron: '30 7 * * *'  # once daily, 3:30am ET
+  workflow_dispatch:
+
+jobs:
+  fulfill-exports:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fulfill due account export requests on prod
+        env:
+          PIPELINE_SECRET: ${{ secrets.PIPELINE_SECRET }}
+        run: |
+          curl -fsSL --max-time 60 \
+            -X POST https://expaify.com/api/pipeline/fulfill-exports \
+            -H "Authorization: Bearer ${PIPELINE_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{}' | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          print(f'Fulfilled: {d.get(\"fulfilled\", 0)}, Failed: {d.get(\"failed\", 0)}')
+          "
