@@ -1,0 +1,38 @@
+name: Flight & Legacy Hotel Snapshot
+
+# scripts/snapshot-job.ts (npm run snapshot) writes real flight price history
+# to `snapshots` (used by getBaseline()/scoreDeal() -- the flight Deal Score
+# shown on real search results and FlightsToThisDeal) and hotel price history
+# to `hotel_snapshots` (used by the /api/score?type=hotel path). This script
+# has existed since the very first commit but was never wired into any
+# scheduled job -- confirmed 2026-09-08 that both tables were completely
+# empty and the flight Deal Score feature had been silently returning
+# "Typical / no price history available" for every single real request,
+# regardless of how good the actual deal was, for as long as this went
+# unscheduled. A manual real run confirmed the script itself works
+# correctly (hundreds of rows inserted, real scores subsequently computed
+# correctly) -- it only ever needed a schedule.
+
+on:
+  schedule:
+    - cron: '17 5 * * *'  # once daily, offset from the 4am hotel-pipeline run
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run flight & legacy hotel snapshot job against prod
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          TP_TOKEN: ${{ secrets.TP_TOKEN }}
+          TP_AFFILIATE_MARKER: ${{ secrets.TP_AFFILIATE_MARKER }}
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+        run: npm run snapshot
