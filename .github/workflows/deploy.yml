@@ -45,8 +45,18 @@ jobs:
           context: .
           push: true
           tags: ${{ env.IMAGE }}
+          # Disabled 2026-09-08: the real Google Cloud OAuth client this app
+          # used (740079679133-...apps.googleusercontent.com) was deleted --
+          # "Continue with Google" 401s with deleted_client for every user
+          # right now. NEXT_PUBLIC_* vars are inlined at build time by Next.js,
+          # so this is the build-arg that actually controls the button (the
+          # two --set-env-vars occurrences below only set a runtime container
+          # env var that Next.js never reads for a NEXT_PUBLIC_ flag -- kept
+          # in sync below for clarity, not because they have any real effect).
+          # Flip back to true once a real OAuth client is restored/recreated
+          # and GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET are updated to match.
           build-args: |
-            NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true
+            NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=false
 
       - name: Log in to Azure
         uses: azure/login@v1
@@ -84,7 +94,7 @@ jobs:
                 "NEXTAUTH_URL=${{ secrets.AUTH_URL }}" \
                 "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" \
                 "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" \
-                "NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true" \
+                "NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=false" \
                 "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}" \
                 "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
                 "STRIPE_PRICE_MONTHLY=${{ secrets.STRIPE_PRICE_MONTHLY }}" \
@@ -121,7 +131,7 @@ jobs:
                 "NEXTAUTH_URL=${{ secrets.AUTH_URL }}" \
                 "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" \
                 "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" \
-                "NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true" \
+                "NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=false" \
                 "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}" \
                 "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
                 "STRIPE_PRICE_MONTHLY=${{ secrets.STRIPE_PRICE_MONTHLY }}" \

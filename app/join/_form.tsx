@@ -24,7 +24,7 @@ const FEATURE_ICONS: IconName[] = [
   'no_hidden_fees',
 ]
 
-const googleEnabled = Boolean(process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED)
+const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === 'true'
 
 export default function JoinForm() {
   const params = useSearchParams()

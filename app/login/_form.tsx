@@ -18,7 +18,7 @@ export default function LoginForm({ freeIntent }: LoginFormProps) {
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const googleEnabled = Boolean(process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED)
+  const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === 'true'
 
   useEffect(() => {
     // /deals is the correct landing point — it server-redirects to /onboarding
