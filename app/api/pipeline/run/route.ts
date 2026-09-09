@@ -6,6 +6,7 @@ import { detectDealsForMarket, getActiveDeals, type NewDealAlert } from '@/lib/p
 import { sendInstantAlerts } from '@/lib/email/sendDealAlert'
 import { generateHeadlines } from '@/lib/ai/generateHeadline'
 import { pingIndexNow } from '@/lib/indexNow'
+import { isValidPipelineSecret } from '@/lib/pipeline/auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -13,9 +14,7 @@ export const maxDuration = 300
 const MARKET_BATCH_SIZE = 6
 
 export async function POST(req: NextRequest) {
-  const auth = req.headers.get('authorization') ?? ''
-  const expected = `Bearer ${process.env.PIPELINE_SECRET ?? ''}`
-  if (!process.env.PIPELINE_SECRET || auth !== expected) {
+  if (!isValidPipelineSecret(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 

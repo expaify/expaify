@@ -2,11 +2,10 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { expireDueComps } from '@/lib/admin/entitlement'
+import { isValidPipelineSecret } from '@/lib/pipeline/auth'
 
 export async function POST(req: NextRequest) {
-  const auth = req.headers.get('authorization') ?? ''
-  const expected = `Bearer ${process.env.PIPELINE_SECRET ?? ''}`
-  if (!process.env.PIPELINE_SECRET || auth !== expected) {
+  if (!isValidPipelineSecret(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
