@@ -11,24 +11,48 @@ export type PaywallContext = {
 
 export const FREE_WEEKLY_LIMIT = 3
 
+// Thrown when a paywall DB lookup fails. Distinct from a resolved
+// `{ premium: false }` context, which means the user is genuinely free-tier.
+export class PaywallLookupError extends Error {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause !== undefined ? { cause } : undefined)
+    this.name = 'PaywallLookupError'
+  }
+}
+
+async function withLookupRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn()
+  } catch (first) {
+    console.warn(`[paywall] ${label} failed, retrying once`, first)
+    try {
+      return await fn()
+    } catch (retryErr) {
+      console.error(`[paywall] ${label} failed after retry; refusing to treat as free-tier`, retryErr)
+      throw new PaywallLookupError(`${label} failed`, retryErr)
+    }
+  }
+}
+
 export async function getPaywallContext(): Promise<PaywallContext> {
   const session = await auth()
-  if (!session?.user?.id) {
+  const userId = session?.user?.id
+  if (!userId) {
     return { userId: null, premium: false, freeUnlockedThisWeek: 0, freeUnlockLimit: FREE_WEEKLY_LIMIT }
   }
 
-  const sub = await getSubscription(session.user.id).catch(() => null)
+  const sub = await withLookupRetry('subscription lookup', () => getSubscription(userId))
   if (sub && isPremium(sub.status)) {
-    return { userId: session.user.id, premium: true, freeUnlockedThisWeek: 0, freeUnlockLimit: FREE_WEEKLY_LIMIT }
+    return { userId, premium: true, freeUnlockedThisWeek: 0, freeUnlockLimit: FREE_WEEKLY_LIMIT }
   }
 
-  const unlocks = await query<{ count: number }>(
+  const unlocks = await withLookupRetry('deal_unlocks count', () => query<{ count: number }>(
     `SELECT COUNT(*)::INT AS count FROM deal_unlocks
      WHERE user_id = $1 AND unlocked_at >= date_trunc('week', NOW())`,
-    [session.user.id],
-  ).catch(() => ({ rows: [{ count: 0 }] }))
+    [userId],
+  ))
   return {
-    userId: session.user.id,
+    userId,
     premium: false,
     freeUnlockedThisWeek: unlocks.rows[0]?.count ?? 0,
     freeUnlockLimit: FREE_WEEKLY_LIMIT,
