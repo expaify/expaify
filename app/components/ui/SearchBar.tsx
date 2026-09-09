@@ -89,6 +89,7 @@ export function SearchBar({ premium, onResult, onClear }: Props) {
         <input
           ref={inputRef}
           type="text"
+          aria-label="Search hotel deals in plain English"
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleSearch(query) }}

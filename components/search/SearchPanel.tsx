@@ -134,7 +134,7 @@ export function SearchPanel({
 
         <Reveal delayMs={100} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">
+            <label htmlFor="origin" className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">
               From
             </label>
             <AirportInput
@@ -151,7 +151,7 @@ export function SearchPanel({
           </div>
 
           <div>
-            <label className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">
+            <label htmlFor="dest" className="mb-1.5 block pl-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-3)]">
               To
             </label>
             <AirportInput

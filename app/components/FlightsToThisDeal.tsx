@@ -197,6 +197,7 @@ export function FlightsToThisDeal({ destinationIata, checkInDate, nights }: Flig
       <h2 className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Find flights to {destinationIata}</h2>
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <div className="min-w-[200px] flex-1">
+          <label htmlFor="flights-to-deal-origin" className="sr-only">Flying from</label>
           <AirportInput
             id="flights-to-deal-origin"
             value={originIata}

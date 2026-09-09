@@ -13,10 +13,10 @@ const capturedFlightCardProps: Array<{ fare: NormalizedFare; score: DealScore | 
 
 jest.mock('@/app/components/AirportInput', () => ({
   __esModule: true,
-  default: (props: { onChange: (iata: string, display: string) => void; placeholder: string }) => {
+  default: (props: { id: string; onChange: (iata: string, display: string) => void; placeholder: string }) => {
     capturedAirportOnChange = props.onChange
     const React = require('react') as typeof import('react')
-    return React.createElement('div', { 'data-testid': 'airport-input-stub' }, props.placeholder)
+    return React.createElement('input', { id: props.id, 'data-testid': 'airport-input-stub', placeholder: props.placeholder })
   },
 }))
 
@@ -178,6 +178,12 @@ describe('FlightsToThisDeal', () => {
   function searchButton(): HTMLButtonElement {
     return Array.from(container.querySelectorAll('button')).find(b => b.textContent === 'Search flights') as HTMLButtonElement
   }
+
+  it('labels the origin input independently of its placeholder', async () => {
+    await render()
+    expect(container.querySelector('label[for="flights-to-deal-origin"]')?.textContent).toBe('Flying from')
+    expect(container.querySelector('input[id="flights-to-deal-origin"]')).not.toBeNull()
+  })
 
   it('does not call /api/search until the user picks an origin and searches', async () => {
     global.fetch = jest.fn()

@@ -74,6 +74,12 @@ describe('SearchBar', () => {
     return container.querySelector('button[aria-label="Search deals"]') as HTMLButtonElement
   }
 
+  it.each([true, false])('names the search input independently of its placeholder (premium: %s)', async premium => {
+    await render(premium)
+
+    expect(getInput().getAttribute('aria-label')).toBe('Search hotel deals in plain English')
+  })
+
   it('keeps the input and search button in tab order (not disabled) when the user is not premium', async () => {
     await render(false)
 

@@ -11,7 +11,7 @@ jest.mock('@/app/components/AirportInput', () => ({
   __esModule: true,
   default: (props: { id: string; placeholder: string }) => {
     const React = require('react') as typeof import('react')
-    return React.createElement('div', { 'data-testid': `airport-input-${props.id}` }, props.placeholder)
+    return React.createElement('input', { id: props.id, 'data-testid': `airport-input-${props.id}`, placeholder: props.placeholder })
   },
 }))
 
@@ -77,6 +77,12 @@ describe('SearchPanel', () => {
 
     const submit = container.querySelector('button[type="submit"]')
     expect(submit?.textContent).toBe('Search hotels')
+  })
+
+  it.each([['origin', 'From'], ['dest', 'To']])('associates the %s airport field with its visible label', async (id, name) => {
+    await render()
+    expect(container.querySelector(`label[for="${id}"]`)?.textContent?.trim()).toBe(name)
+    expect(container.querySelector(`input[id="${id}"]`)).not.toBeNull()
   })
 
   it('always submits with searchIntent locked to hotels', async () => {
