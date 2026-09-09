@@ -229,16 +229,22 @@ function LockedDealDetail({ city, checkInDate, checkInWindow, criteriaContext }:
   )
 }
 
-/* Streams in after the static content: the market lookup and the 60-day
-   history query never block the hero, title, price, or CompareRow. */
-async function PriceHistorySection({ deal }: { deal: DealRow }) {
+type DealHistory = Awaited<ReturnType<typeof getPriceHistory>>
+type HistorySectionProps = { deal: DealRow; loadHistory: () => Promise<DealHistory> }
+
+async function loadDealHistory(deal: DealRow): Promise<DealHistory> {
   const mktRes = await query<{ id: number }>(
     'SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1',
     [deal.city]
   ).catch(() => ({ rows: [] as { id: number }[] }))
   const marketId = mktRes.rows[0]?.id
 
-  const history = await getPriceHistory(deal.hotel_id, marketId, deal.currency).catch(() => [])
+  return getPriceHistory(deal.hotel_id, marketId, deal.currency).catch(() => [])
+}
+
+/* Both streamed sections share one lazy, request-local history read. */
+async function PriceHistorySection({ deal, loadHistory }: HistorySectionProps) {
+  const history = await loadHistory()
 
   if (history.length < 3) {
     return (
@@ -281,14 +287,8 @@ function PriceHistorySkeleton() {
   )
 }
 
-async function DealScoreSection({ deal }: { deal: DealRow }) {
-  const mktRes = await query<{ id: number }>(
-    'SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1',
-    [deal.city]
-  ).catch(() => ({ rows: [] as { id: number }[] }))
-  const marketId = mktRes.rows[0]?.id
-
-  const rawHistory = await getPriceHistory(deal.hotel_id, marketId, deal.currency).catch(() => [])
+async function DealScoreSection({ deal, loadHistory }: HistorySectionProps) {
+  const rawHistory = await loadHistory()
   // A saved deal already carries the canonical raw-snapshot economics used by
   // the feed. Do not recalculate a second median from the day-averaged chart.
   const confidence: DealScore['confidence'] = deal.snapshot_count >= 8 ? 'high' : 'low'
@@ -371,6 +371,11 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
       return <LockedDealDetail city={deal.city} checkInDate={deal.check_in_date} checkInWindow={deal.check_in_window} criteriaContext={criteriaContext} />
     }
   }
+
+  // Created only for an unlocked page; started lazily below Suspense so the
+  // hero can stream immediately. Nothing is cached across requests.
+  let historyPromise: Promise<DealHistory> | undefined
+  const loadHistory = () => historyPromise ??= loadDealHistory(deal)
 
   // Watch pill: premium sessions only, and only for tracked markets (defensive).
   const sub = pwCtx.premium && pwCtx.userId
@@ -481,7 +486,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 <p className="mt-3 text-small text-[color:var(--ink-soft)]">{checkInDisplay ?? 'Check-in not provided'} to {checkOutDisplay ?? 'check-out not provided'}{deal.nights > 0 ? ` · ${deal.nights} ${deal.nights === 1 ? 'night' : 'nights'}` : ''}</p>
                 <div className="mt-5 grid items-start gap-6 min-[1024px]:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
                   <div>
-                    <Suspense fallback={<DealScorePanel score={null} loading scope="hotel" priceNoun="nightly rate" unavailableCopy="We could not compare this nightly rate with enough recent hotel prices." />}><DealScoreSection deal={deal} /></Suspense>
+                    <Suspense fallback={<DealScorePanel score={null} loading scope="hotel" priceNoun="nightly rate" unavailableCopy="We could not compare this nightly rate with enough recent hotel prices." />}><DealScoreSection deal={deal} loadHistory={loadHistory} /></Suspense>
                     <div className="mt-5 rounded-[var(--radius-control)] bg-[color:var(--bg-muted)]/55 p-4 text-caption leading-5 text-[color:var(--ink-faint)]">
                       <p>Provider supplied an area, not a street address.</p>
                       <p className="mt-1">{comparisonBasisCopy(deal.ota_links ?? {})}</p>
@@ -501,7 +506,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             </section>
             </Reveal>
 
-            <section className="rounded-[var(--radius-card)] bg-[color:var(--bg-surface)] p-4 shadow-[var(--shadow-card-rest)] sm:p-6"><Suspense fallback={<PriceHistorySkeleton />}><PriceHistorySection deal={deal} /></Suspense></section>
+            <section className="rounded-[var(--radius-card)] bg-[color:var(--bg-surface)] p-4 shadow-[var(--shadow-card-rest)] sm:p-6"><Suspense fallback={<PriceHistorySkeleton />}><PriceHistorySection deal={deal} loadHistory={loadHistory} /></Suspense></section>
 
             <section aria-labelledby="place-context-title" className="rounded-[var(--radius-card)] bg-[color:var(--bg-muted)]/45 p-4 sm:p-6">
               <h2 id="place-context-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Place context</h2>
@@ -613,7 +618,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
                 )}
               </div>
               <Suspense fallback={<DealScorePanel score={null} loading scope="hotel" priceNoun="nightly rate" unavailableCopy="We could not compare this nightly rate with enough recent hotel prices." />}>
-                <DealScoreSection deal={deal} />
+                <DealScoreSection deal={deal} loadHistory={loadHistory} />
               </Suspense>
             </div>
           </section>
@@ -696,7 +701,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
               <HotelDealCriteriaSummary context={criteriaContext} deal={{ city: deal.city, checkInDate: deal.check_in_date }} />
               <HotelContinuityPrototype dealId={deal.id} hotelName={deal.hotel_name} fixtureId={continuityFixtureId} disclosure={continuityDisclosure} initiallyExpanded={disclosureParam === 'expanded'} />
               <Suspense fallback={<PriceHistorySkeleton />}>
-                <PriceHistorySection deal={deal} />
+                <PriceHistorySection deal={deal} loadHistory={loadHistory} />
               </Suspense>
               <Suspense fallback={<AiDayPlanCardSkeleton />}>
                 <AiDayPlanSection city={deal.city} />
