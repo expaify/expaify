@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import Stripe from 'stripe'
 import { auth } from '@/auth'
 import { getSubscription } from '@/lib/subscription'
-import { POST } from '../route'
+import { GET, POST } from '../route'
 
 const mockCreateCheckoutSession = jest.fn()
 
@@ -36,7 +36,7 @@ function checkoutRequest(body: unknown): NextRequest {
   })
 }
 
-describe('POST /api/stripe/checkout', () => {
+describe('/api/stripe/checkout', () => {
   const originalEnv = {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
@@ -157,6 +157,33 @@ describe('POST /api/stripe/checkout', () => {
       })
     )
     expect(mockCreateCheckoutSession.mock.calls[0][0]).not.toHaveProperty('customer_email')
+  })
+
+  it.each(['reject', 'throw'])('POST stops checkout when the subscription lookup fails (%s)', async (failure) => {
+    const error = new Error('database connection timed out')
+    if (failure === 'reject') {
+      mockGetSubscription.mockRejectedValue(error)
+    } else {
+      mockGetSubscription.mockImplementation(() => { throw error })
+    }
+
+    const response = await POST(checkoutRequest({ plan: 'annual' }))
+
+    expect(mockGetSubscription).toHaveBeenCalledWith('user_123')
+    expect(mockCreateCheckoutSession).not.toHaveBeenCalled()
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: 'Checkout could not start. Try again in a moment.' })
+  })
+
+  it('GET stops checkout and redirects to the error page when the subscription lookup fails', async () => {
+    mockGetSubscription.mockRejectedValue(new Error('database connection timed out'))
+
+    const response = await GET(new NextRequest('https://expaify.test/api/stripe/checkout?plan=annual&redirect=true'))
+
+    expect(mockGetSubscription).toHaveBeenCalledWith('user_123')
+    expect(mockCreateCheckoutSession).not.toHaveBeenCalled()
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe('https://expaify.com/account?checkout=error')
   })
 
   it('returns unauthorized without creating checkout when the user is signed out', async () => {

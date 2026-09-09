@@ -21,6 +21,7 @@ function getOrigin(): string {
 type BillingPlan = 'monthly' | 'annual'
 
 class CheckoutConfigurationError extends Error {}
+class CheckoutSubscriptionLookupError extends Error {}
 
 function assertConfiguredPrice(priceId: string, plan: string): void {
   if (priceId.includes('placeholder')) {
@@ -58,7 +59,14 @@ async function createCheckoutUrl({
 
   const stripe = getStripe()
   const origin = getOrigin()
-  const sub = await getSubscription(userId).catch(() => null)
+  let sub: Awaited<ReturnType<typeof getSubscription>>
+  try {
+    sub = await getSubscription(userId)
+  } catch {
+    // Unknown customer identity must never create a duplicate Stripe customer:
+    // doing so permanently splits billing history and saved payment methods.
+    throw new CheckoutSubscriptionLookupError('Subscription lookup failed')
+  }
   const existingCustomerId = sub?.stripeCustomerId ?? undefined
 
   const params: Stripe.Checkout.SessionCreateParams = {
@@ -96,6 +104,13 @@ async function createCheckoutUrl({
 }
 
 function publicCheckoutError(err: unknown): { message: string; status: number } {
+  if (err instanceof CheckoutSubscriptionLookupError) {
+    return {
+      message: 'Checkout could not start. Try again in a moment.',
+      status: 503,
+    }
+  }
+
   if (err instanceof CheckoutConfigurationError || (err instanceof Error && err.message === 'STRIPE_SECRET_KEY is not set')) {
     return {
       message: 'Billing is not configured yet. Contact support and we will finish your upgrade.',
