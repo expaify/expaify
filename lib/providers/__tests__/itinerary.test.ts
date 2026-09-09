@@ -1,4 +1,25 @@
-import { buildConfirmedItinerary } from '../itinerary';
+import { buildConfirmedItinerary, buildPartialItinerary, buildPartialOrUnavailable } from '../itinerary';
+
+describe('partial itinerary arrival bounds', () => {
+  it.each([
+    ['2026-09-22T08:00:00Z', 1e20],
+    ['2026-09-22T08:00:00Z', Number.MAX_VALUE],
+    ['+275760-09-13T00:00:00.000Z', 1],
+  ])('omits an unrepresentable arrival for departure %s and duration %s', (depart, durationMinutes) => {
+    const expected = { certainty: 'partial', durationMinutes };
+    expect(buildPartialItinerary({ depart, durationMinutes })).toEqual(expected);
+    expect(buildPartialOrUnavailable({ depart, durationMinutes })).toEqual(expected);
+  });
+
+  it('still derives representable arrivals and preserves provider-supplied arrivals', () => {
+    expect(buildPartialItinerary({ depart: '2026-09-22T08:00:00Z', durationMinutes: 90 })).toEqual({
+      certainty: 'partial', durationMinutes: 90, arrive: '2026-09-22T09:30:00.000Z',
+    });
+    expect(buildPartialItinerary({ depart: '2026-09-22T08:00:00Z', durationMinutes: 1e20, arrive: '2026-09-22T09:30:00Z' })).toEqual({
+      certainty: 'partial', durationMinutes: 1e20, arrive: '2026-09-22T09:30:00Z',
+    });
+  });
+});
 
 describe('buildConfirmedItinerary', () => {
   it('rejects offsetless local timestamps instead of computing confirmed elapsed time', () => {

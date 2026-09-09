@@ -99,7 +99,10 @@ export function buildPartialItinerary(params: {
   } else if (params.depart && itinerary.durationMinutes !== undefined) {
     const departTime = parseTime(params.depart);
     if (departTime !== null) {
-      itinerary.arrive = new Date(departTime + itinerary.durationMinutes * 60_000).toISOString();
+      const arrival = new Date(departTime + itinerary.durationMinutes * 60_000);
+      if (Number.isFinite(arrival.getTime())) {
+        itinerary.arrive = arrival.toISOString();
+      }
     }
   }
 
