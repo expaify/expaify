@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { LandingNav } from '@/app/components/LandingNav';
 import { Reveal } from '@/app/components/ui/Reveal';
 import { getBlogPostBySlug, getBlogPosts, type BlogPost } from '@/lib/contentful';
+import { safeJsonLd } from '@/lib/safeJsonLd';
 import { documentToReactComponents } from '@contentful/rich-text-react-renderer';
 import { BLOCKS, MARKS, type Document } from '@contentful/rich-text-types';
 
@@ -113,7 +114,7 @@ export default async function BlogPostPage({ params }: { params: PageParams }) {
       <script
         type="application/ld+json"
         // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(articleSchema) }}
       />
       <LandingNav />
       <main className="mx-auto max-w-[760px] px-5 py-12">

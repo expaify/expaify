@@ -21,6 +21,7 @@ import { Footer } from "./components/Footer";
 import { OpinlyIdentify } from "./components/OpinlyIdentify";
 import { Providers } from "./Providers";
 import { TRACKED_MARKETS } from "@/lib/trackedMarkets";
+import { safeJsonLd } from "@/lib/safeJsonLd";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -90,7 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           type="application/ld+json"
           // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(organizationSchema) }}
         />
         <Providers>
           <AttributionCapture />

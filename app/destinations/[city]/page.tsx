@@ -19,6 +19,7 @@ import { TRACKED_MARKETS, TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { WatchCityPill } from '@/app/components/ui/WatchCityPill'
 import { Reveal } from '@/app/components/ui/Reveal'
 import { DESTINATION_CONTENT } from '@/lib/destinationContent'
+import { safeJsonLd } from '@/lib/safeJsonLd'
 import { DestinationSeoContent } from './DestinationSeoContent'
 import { TrackOnMount } from '@/app/components/TrackOnMount'
 import { TrackedLink } from '@/app/components/TrackedLink'
@@ -199,7 +200,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
       {structuredData ? (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}
         />
       ) : null}
       <nav aria-label="breadcrumb" className="hidden md:flex items-center mb-6">
