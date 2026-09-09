@@ -208,3 +208,47 @@ describe('getLocationQuality', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
+
+
+describe('getLocationQuality failure boundary', () => {
+  it.each([0, 1, 2])('returns Result when response %i cannot be decoded', async (failureIndex) => {
+    const responses = [
+      jsonResponse(200, realPlacesResponse),
+      jsonResponse(200, nearbyResponse(qualifyingPois)),
+      jsonResponse(200, { choices: [{ message: { content: '{"vibeTag":"Walkable","summary":"Nearby places."}' } }] }),
+    ];
+    responses[failureIndex] = {
+      ok: true, status: 200,
+      json: async () => { throw new SyntaxError('Invalid upstream JSON'); },
+    } as unknown as Response;
+    const fetchMock = jest.fn();
+    for (const response of responses) fetchMock.mockResolvedValueOnce(response);
+    global.fetch = fetchMock;
+
+    await expect(getLocationQuality('Hotel Test', 'Barcelona')).resolves.toEqual({
+      ok: false, reason: 'Location quality is temporarily unavailable.',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(failureIndex + 1);
+    expect(cache.set).not.toHaveBeenCalled();
+  });
+
+  it('returns Result when a nearby place has a malformed name', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce(jsonResponse(200, realPlacesResponse))
+      .mockResolvedValueOnce(jsonResponse(200, { places: [{ rating: 4.5, displayName: { text: 42 } }] }));
+    await expect(getLocationQuality('Hotel Test', 'Barcelona')).resolves.toEqual({
+      ok: false, reason: 'Location quality is temporarily unavailable.',
+    });
+    expect(cache.set).not.toHaveBeenCalled();
+  });
+
+  it.each(['get', 'set'] as const)('returns Result when cache.%s rejects', async (operation) => {
+    cache[operation].mockRejectedValueOnce(new Error('Cache unavailable'));
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce(jsonResponse(200, realPlacesResponse))
+      .mockResolvedValueOnce(jsonResponse(200, { places: [] }));
+    await expect(getLocationQuality('Hotel Test', 'Barcelona')).resolves.toEqual({
+      ok: false, reason: 'Location quality is temporarily unavailable.',
+    });
+  });
+});

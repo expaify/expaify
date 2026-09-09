@@ -178,45 +178,50 @@ Output only the JSON object, no other text.`;
 }
 
 export async function getLocationQuality(hotelName: string, city: string): Promise<Result<LocationQuality>> {
-  const trimmedName = hotelName.trim();
-  const trimmedCity = city.trim();
-  if (!trimmedName || !trimmedCity) {
-    return { ok: false, reason: 'Hotel name and city are required.' };
-  }
+  try {
+    const trimmedName = hotelName.trim();
+    const trimmedCity = city.trim();
+    if (!trimmedName || !trimmedCity) {
+      return { ok: false, reason: 'Hotel name and city are required.' };
+    }
 
-  const key = cacheKeyFor(trimmedName, trimmedCity);
-  const cached = await cache.get<Result<LocationQuality>>(key);
-  if (cached !== null) return cached;
+    const key = cacheKeyFor(trimmedName, trimmedCity);
+    const cached = await cache.get<Result<LocationQuality>>(key);
+    if (cached !== null) return cached;
 
-  const placesApiKey = process.env.GOOGLE_PLACES_API_KEY ?? '';
-  if (!placesApiKey) return { ok: false, reason: 'Location quality is not configured.' };
+    const placesApiKey = process.env.GOOGLE_PLACES_API_KEY ?? '';
+    if (!placesApiKey) return { ok: false, reason: 'Location quality is not configured.' };
 
-  const ioNetApiKey = process.env.IONET_API_KEY ?? '';
-  if (!ioNetApiKey) return { ok: false, reason: 'Location quality is not configured.' };
+    const ioNetApiKey = process.env.IONET_API_KEY ?? '';
+    if (!ioNetApiKey) return { ok: false, reason: 'Location quality is not configured.' };
 
-  const coords = await resolveCoordinates(trimmedName, trimmedCity, placesApiKey);
-  if (!coords.ok) return coords;
+    const coords = await resolveCoordinates(trimmedName, trimmedCity, placesApiKey);
+    if (!coords.ok) return coords;
 
-  const pois = await fetchQualifyingPois(coords.data.lat, coords.data.lng, placesApiKey);
-  if (!pois.ok) return pois;
+    const pois = await fetchQualifyingPois(coords.data.lat, coords.data.lng, placesApiKey);
+    if (!pois.ok) return pois;
 
-  if (pois.data.length < MIN_QUALIFYING_POIS) {
+    if (pois.data.length < MIN_QUALIFYING_POIS) {
+      const result: Result<LocationQuality> = {
+        ok: false,
+        reason: 'Not enough nearby points of interest to assess this location.',
+      };
+      // Cache this too -- it's a real evaluation outcome, not a transient failure.
+      await cache.set(key, result, CACHE_TTL_SECONDS);
+      return result;
+    }
+
+    const vibe = await classifyVibe(pois.data, ioNetApiKey);
+    if (!vibe.ok) return vibe;
+
     const result: Result<LocationQuality> = {
-      ok: false,
-      reason: 'Not enough nearby points of interest to assess this location.',
+      ok: true,
+      data: { vibeTag: vibe.data.vibeTag, summary: vibe.data.summary, poiCount: pois.data.length },
     };
-    // Cache this too -- it's a real evaluation outcome, not a transient failure.
     await cache.set(key, result, CACHE_TTL_SECONDS);
     return result;
+  } catch {
+    // Upstream body parsing and cache operations can reject as well as fetch.
+    return { ok: false, reason: 'Location quality is temporarily unavailable.' };
   }
-
-  const vibe = await classifyVibe(pois.data, ioNetApiKey);
-  if (!vibe.ok) return vibe;
-
-  const result: Result<LocationQuality> = {
-    ok: true,
-    data: { vibeTag: vibe.data.vibeTag, summary: vibe.data.summary, poiCount: pois.data.length },
-  };
-  await cache.set(key, result, CACHE_TTL_SECONDS);
-  return result;
 }
