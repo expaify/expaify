@@ -89,7 +89,7 @@ export class TravelpayoutsProvider implements FlightProvider {
   async priceTrends(origin: string, dest: string): Promise<Result<PricePoint[]>> {
     if (!this.token) return { ok: false, reason: 'TP_TOKEN not configured' };
 
-    const cacheKey = `tp:priceTrends:${origin}:${dest}:monthly`;
+    const cacheKey = `tp:priceTrends:${origin}:${dest}:monthly:v2`;
 
     try {
       const cached = await cache.get<PricePoint[]>(cacheKey);
@@ -107,8 +107,13 @@ export class TravelpayoutsProvider implements FlightProvider {
         return { ok: false, reason: `Travelpayouts /prices/monthly HTTP ${res.status}` };
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const json: any = await res.json();
+      const json: unknown = await res.json();
+      if (!isRecord(json)) {
+        return { ok: false, reason: 'Travelpayouts returned a malformed response' };
+      }
+      if (typeof json.currency !== 'string' || json.currency.toUpperCase() !== 'USD') {
+        return { ok: false, reason: 'Travelpayouts trend currency unconfirmed' };
+      }
 
       const entriesRaw = json.data != null ? json.data : json;
       if (!isRecord(entriesRaw)) {

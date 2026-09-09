@@ -22,6 +22,7 @@ jest.mock('../../cache/redis', () => ({
 /** Recorded response from GET /prices/monthly — prices in USD (currency=usd) */
 const MONTHLY_FIXTURE = {
   success: true,
+  currency: 'USD',
   data: {
     '2024-03-01': { price: 350, airline: 'SU', flight_number: 101, transfers: 0 },
     '2024-04-01': { price: 280, airline: 'SU', flight_number: 102, transfers: 0 },
@@ -127,6 +128,33 @@ beforeEach(() => {
 // ─── priceTrends tests ───────────────────────────────────────────────────────
 
 describe('TravelpayoutsProvider.priceTrends', () => {
+  it.each(['RUB', 'EUR', undefined, null, 123])('rejects unconfirmed monthly currency %s without caching mislabeled prices', async (currency) => {
+    mockFetchOk({ ...MONTHLY_FIXTURE, currency });
+    const result = await new TravelpayoutsProvider().priceTrends('MOW', 'AMS');
+    expect(result).toEqual({ ok: false, reason: 'Travelpayouts trend currency unconfirmed' });
+    const { cache } = jest.requireMock('../../cache/redis');
+    expect(cache.set).not.toHaveBeenCalled();
+  });
+
+  it('accepts lowercase USD currency evidence', async () => {
+    mockFetchOk({ ...MONTHLY_FIXTURE, currency: 'usd' });
+    const result = await new TravelpayoutsProvider().priceTrends('MOW', 'AMS');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data[0]).toMatchObject({ priceCents: 35000, currency: 'USD' });
+  });
+
+  it('does not reuse monthly prices cached before currency validation', async () => {
+    const { cache } = jest.requireMock('../../cache/redis');
+    cache.get.mockImplementation(async (key: string) => key.endsWith(':monthly')
+      ? [{ date: '2024-03-01', priceCents: 35000, currency: 'USD' }]
+      : null);
+    mockFetchOk({ ...MONTHLY_FIXTURE, currency: 'RUB' });
+    expect(await new TravelpayoutsProvider().priceTrends('MOW', 'AMS')).toEqual({
+      ok: false, reason: 'Travelpayouts trend currency unconfirmed',
+    });
+    expect(global.fetch).toHaveBeenCalled();
+  });
+
   it('returns PricePoint[] with integer priceCents and currency USD', async () => {
     mockFetchOk(MONTHLY_FIXTURE);
     const provider = new TravelpayoutsProvider();
@@ -176,7 +204,7 @@ describe('TravelpayoutsProvider.priceTrends', () => {
     await provider.priceTrends('MOW', 'AMS');
 
     expect(cache.set).toHaveBeenCalledWith(
-      'tp:priceTrends:MOW:AMS:monthly',
+      'tp:priceTrends:MOW:AMS:monthly:v2',
       expect.any(Array),
       21600
     );
