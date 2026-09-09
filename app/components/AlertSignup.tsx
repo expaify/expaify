@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, FormEvent, ChangeEvent } from 'react'
+import { completeAlert, type AlertContract } from '@/lib/alerts/contract'
 
 interface Props {
   origin: string
   destination: string
+  quoteContext?: AlertContract
 }
 
 type AlertResponse =
@@ -43,7 +45,7 @@ function normalizeSuccessMessage(message: string): string {
     .replace('Alert set!', 'Price alert request saved.')
 }
 
-export default function AlertSignup({ origin, destination }: Props) {
+export default function AlertSignup({ origin, destination, quoteContext }: Props) {
   const [email, setEmail] = useState('')
   const [targetPrice, setTargetPrice] = useState('')
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
@@ -74,6 +76,11 @@ export default function AlertSignup({ origin, destination }: Props) {
     e.preventDefault()
     if (isLoading) return
 
+    if (!quoteContext || !completeAlert(quoteContext)) {
+      setMessage('Select a live quote with currency and exact travel dates before setting an alert.')
+      setState('error')
+      return
+    }
     const price = parseFloat(targetPrice)
     if (!email) {
       setMessage('Enter your email address to set a price alert.')
@@ -81,7 +88,7 @@ export default function AlertSignup({ origin, destination }: Props) {
       return
     }
     if (isNaN(price) || price < 50 || price > 5000) {
-      setMessage('Enter a target price between $50 and $5,000.')
+      setMessage(`Enter a target price between 50 and 5,000 ${quoteContext.currency}.`)
       setState('error')
       return
     }
@@ -96,7 +103,11 @@ export default function AlertSignup({ origin, destination }: Props) {
       const res = await fetch('/api/alerts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, origin, destination, targetPrice: price }),
+        body: JSON.stringify({ email, origin, destination, thresholdCents: Math.round(price * 100),
+          currency: quoteContext.currency, travelStart: quoteContext.travel_start, travelEnd: quoteContext.travel_end,
+          tripType: quoteContext.trip_type, passengerCount: quoteContext.passenger_count,
+          ...(quoteContext.hotel_id ? { hotelId: quoteContext.hotel_id, hotelProvider: quoteContext.hotel_provider } : {}),
+        }),
       })
       const data = await res.json() as AlertResponse
       if (res.ok && data.ok) {
@@ -136,7 +147,8 @@ export default function AlertSignup({ origin, destination }: Props) {
           type="number"
           value={targetPrice}
           onChange={handleTargetPriceChange}
-          placeholder="$250"
+          placeholder={`${quoteContext?.currency ?? ""} 250`}
+          aria-label={`Target price in ${quoteContext?.currency ?? "quote currency"}`}
           min={50}
           max={5000}
           required
@@ -146,8 +158,8 @@ export default function AlertSignup({ origin, destination }: Props) {
         />
         <button
           type="submit"
-          disabled={isLoading || isDone}
-          aria-disabled={isLoading || isDone}
+          disabled={isLoading || isDone || !quoteContext || !completeAlert(quoteContext)}
+          aria-disabled={isLoading || isDone || !quoteContext || !completeAlert(quoteContext)}
           className="btn btn-primary whitespace-nowrap"
         >
           {isLoading ? 'Setting...' : isDone ? 'Alert set' : 'Set alert'}

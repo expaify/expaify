@@ -39,12 +39,27 @@ describe('POST /api/alerts', () => {
     jest.restoreAllMocks();
   });
 
+  it.each([
+    { currency: undefined }, { travelStart: undefined }, { travelEnd: undefined },
+    { tripType: undefined }, { passengerCount: undefined }, { travelStart: '2099-02-30' },
+    { hotelId: '123', tripType: 'hotel', hotelProvider: undefined },
+    { hotelId: '123', tripType: 'hotel', hotelProvider: 'hotellook' },
+    { hotelId: 'booking-123', tripType: 'hotel', hotelProvider: 'booking.com' },
+  ])('rejects incomplete or ambiguous signup %j without writing', async override => {
+    const response = await POST(postRequest({ email: 'traveler@example.com', origin: 'JFK', destination: 'LAX',
+      thresholdCents: 25000, currency: 'EUR', travelStart: '2099-09-01', travelEnd: '2099-09-08',
+      tripType: 'roundtrip', passengerCount: 2, ...override }));
+    expect(response.status).toBe(400);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
   it('returns Result-style validation failures and does not write', async () => {
     const response = await POST(postRequest({
       email: 'not-an-email',
       origin: 'JFK',
       destination: 'LAX',
       thresholdCents: 25000,
+      currency: 'EUR', travelStart: '2099-09-01', travelEnd: '2099-09-08', tripType: 'roundtrip', passengerCount: 2,
     }));
     const body = await response.json() as { ok: boolean; reason: string };
 
@@ -61,6 +76,7 @@ describe('POST /api/alerts', () => {
       origin: 'JFK',
       destination: 'LAX',
       thresholdCents: 25000,
+      currency: 'EUR', travelStart: '2099-09-01', travelEnd: '2099-09-08', tripType: 'roundtrip', passengerCount: 2,
     }));
     const body = await response.json() as { ok: boolean; reason: string };
 
@@ -80,6 +96,7 @@ describe('POST /api/alerts', () => {
       origin: 'jfk',
       destination: 'lax',
       thresholdCents: 25000,
+      currency: 'EUR', travelStart: '2099-09-01', travelEnd: '2099-09-08', tripType: 'roundtrip', passengerCount: 2,
     }));
     const body = await response.json() as { ok: boolean; reason: string };
 
@@ -104,6 +121,7 @@ describe('POST /api/alerts', () => {
       origin: 'jfk',
       destination: 'lax',
       thresholdCents: 25000,
+      currency: 'EUR', travelStart: '2099-09-01', travelEnd: '2099-09-08', tripType: 'roundtrip', passengerCount: 2,
     }));
     const body = await response.json() as {
       ok: boolean;
@@ -116,9 +134,10 @@ describe('POST /api/alerts', () => {
       data: {
         id: 'alert-123',
         active: true,
-        message: "Alert set! We'll email you when JFK→LAX drops below $250.",
+        message: "Alert set! We'll email you when JFK→LAX on 2099-09-01 to 2099-09-08 costs EUR 250.00 or less for 2 traveler(s).",
       },
     });
+    expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('travel_start'), ['traveler@example.com', 'JFK', 'LAX', 25000, 'EUR', null, '2099-09-01', '2099-09-08', 'roundtrip', 2, null]);
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });

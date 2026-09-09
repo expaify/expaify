@@ -125,13 +125,15 @@ export class BookingComHotelsRapidApiProvider implements HotelProvider {
 
   async searchHotels(
     area: string,
-    range: { checkin: string; checkout: string },
+    range: { checkin: string; checkout: string; currency?: string; strictCurrency?: boolean },
     context?: HotelSearchContext
   ): Promise<Result<HotelSearchPage>> {
     if (!this.apiKey) return { ok: false, reason: 'RAPIDAPI_KEY not configured' };
 
+    const currency = range.currency ?? 'USD';
+    if (!/^[A-Z]{3}$/.test(currency)) return { ok: false, reason: 'Invalid currency' };
     const location = area.trim().toUpperCase();
-    const searchCacheKey = `bookingcom-rapidapi:search:${location}:${range.checkin}:${range.checkout}`;
+    const searchCacheKey = `bookingcom-rapidapi:search:${location}:${range.checkin}:${range.checkout}${range.strictCurrency ? `:alert-v1:${currency}` : `:${currency}`}`;
     // grossPrice is the TOTAL for the whole requested stay, not a nightly rate --
     // the same field, on the same booking-com15 host, already confirmed live
     // (2026-08-06) in lib/pipeline/snapshot.ts's fetchBookingCom15: querying the
@@ -160,7 +162,7 @@ export class BookingComHotelsRapidApiProvider implements HotelProvider {
         `&search_type=${encodeURIComponent(destination.searchType.toUpperCase())}` +
         `&arrival_date=${encodeURIComponent(range.checkin)}` +
         `&departure_date=${encodeURIComponent(range.checkout)}` +
-        `&adults=2&room_qty=1&page_number=1&currency_code=USD`;
+        `&adults=2&room_qty=1&page_number=1&currency_code=${encodeURIComponent(currency)}`;
 
       const res = await fetchWithProviderTimeout('Booking.com', url, { headers: this.headers });
       if (!res.ok) return { ok: false, reason: `Booking.com HTTP ${res.status}` };
@@ -175,6 +177,7 @@ export class BookingComHotelsRapidApiProvider implements HotelProvider {
         const property = entry.property;
         if (typeof entry.hotel_id !== 'number' || !property || typeof property.name !== 'string') return [];
 
+        if (range.strictCurrency && property.priceBreakdown?.grossPrice?.currency !== currency) return [];
         const priceValue = property.priceBreakdown?.grossPrice?.value;
         if (typeof priceValue !== 'number' || !Number.isFinite(priceValue) || priceValue <= 0) return [];
         const priceCents = Math.round((priceValue / nights) * 100);
@@ -197,7 +200,7 @@ export class BookingComHotelsRapidApiProvider implements HotelProvider {
           area: property.wishlistName ?? location,
           location: locationEvidence,
           stars,
-          pricePerNight: { priceCents, currency: property.priceBreakdown?.grossPrice?.currency ?? 'USD' },
+          pricePerNight: { priceCents, currency: property.priceBreakdown?.grossPrice?.currency ?? currency },
           deeplink: '',
           source: 'booking.com',
           documentReadiness: notProvidedHotelDocumentReadiness('Booking.com'),

@@ -10,7 +10,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "db:seed": "tsx --env-file .env.local scripts/seed.ts",
-    "check-alerts": "tsx --env-file .env.local scripts/check-alerts.ts",
+    "check-alerts": "tsx scripts/check-alerts.ts",
+    "migrate:alerts": "tsx scripts/migrate-alerts.ts",
     "snapshot": "tsx scripts/snapshot-job.ts"
   },
   "dependencies": {

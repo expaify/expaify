@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { type NextRequest, NextResponse } from 'next/server';
 import { query } from '../../../lib/db/client';
+import { completeAlert, type AlertContract } from '../../../lib/alerts/contract';
 import type { Result } from '../../../lib/types';
 
 type AlertCreated = {
@@ -39,9 +40,16 @@ export async function POST(request: Request) {
     thresholdCents?: unknown;
     targetPrice?: unknown;
     hotelId?: unknown;
+    currency?: unknown;
+    travelStart?: unknown;
+    travelEnd?: unknown;
+    tripType?: unknown;
+    passengerCount?: unknown;
+    hotelProvider?: unknown;
   };
   try {
     body = await request.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid body');
   } catch {
     return resultJson({ ok: false, reason: 'Invalid JSON body' }, 400);
   }
@@ -78,6 +86,19 @@ export async function POST(request: Request) {
     return resultJson({ ok: false, reason: 'hotelId must be a non-empty string' }, 400);
   }
 
+  const contract = {
+    currency: body.currency,
+    travel_start: body.travelStart,
+    travel_end: body.travelEnd,
+    trip_type: body.tripType,
+    passenger_count: body.passengerCount,
+    hotel_id: hotelId ?? null,
+    hotel_provider: body.hotelProvider ?? null,
+  } as AlertContract;
+  if (!completeAlert(contract) || contract.travel_start < new Date().toISOString().slice(0, 10)) {
+    return resultJson({ ok: false, reason: 'A price alert requires currency, exact future travel dates, trip type, passenger count, and Booking.com identity for hotels.' }, 400);
+  }
+
   if (!process.env.RESEND_API_KEY) {
     return resultJson(
       { ok: false, reason: 'Price alert emails are not configured, so no active alert was created.' },
@@ -91,10 +112,10 @@ export async function POST(request: Request) {
 
   try {
     const result = await query<{ id: string }>(
-      `INSERT INTO price_alerts (email, origin, destination, target_cents, currency, hotel_id, created_at)
-       VALUES ($1, $2, $3, $4, 'USD', $5, now())
+      `INSERT INTO price_alerts (email, origin, destination, target_cents, currency, hotel_id, travel_start, travel_end, trip_type, passenger_count, hotel_provider, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
        RETURNING id`,
-      [email, originUpper, destUpper, targetCents, hotelIdValue],
+      [email, originUpper, destUpper, targetCents, contract.currency, hotelIdValue, contract.travel_start, contract.travel_end, contract.trip_type, contract.passenger_count, contract.hotel_provider],
     );
 
     const id = result.rows[0]?.id ?? '';
@@ -105,11 +126,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const targetDollars = Math.round(targetCents / 100);
-    const message =
-      hotelIdValue === null
-        ? `Alert set! We'll email you when ${originUpper}→${destUpper} drops below $${targetDollars}.`
-        : `Alert set! We'll email you when hotel ${hotelIdValue} drops below $${targetDollars}.`;
+    const target = `${contract.currency} ${(targetCents / 100).toFixed(2)}`;
+    const dates = `${contract.travel_start}${contract.travel_end ? ` to ${contract.travel_end}` : ''}`;
+    const message = `Alert set! We'll email you when ${hotelIdValue === null ? `${originUpper}→${destUpper}` : `hotel ${hotelIdValue}`} on ${dates} costs ${target} or less${hotelIdValue ? ' per night (2 adults, 1 room)' : ` for ${contract.passenger_count} traveler(s)`}.`;
 
     return resultJson<AlertCreated>({
       ok: true,
@@ -119,9 +138,8 @@ export async function POST(request: Request) {
         active: true,
       },
     });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[alerts] INSERT error:', message);
+  } catch {
+    console.warn('[alerts] INSERT unavailable');
     return resultJson(
       { ok: false, reason: 'Alert storage is unavailable, so no active alert was created.' },
       503,

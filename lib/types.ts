@@ -4,6 +4,8 @@ export type FareType = 'cash' | 'award';
 export type FarePriceScope = 'per_person' | 'party_total';
 
 export interface FlightSearchRange {
+  currency?: string;
+  strictDates?: boolean;
   depart: string;
   return?: string;
   passengers: number;

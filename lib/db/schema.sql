@@ -55,6 +55,51 @@ CREATE TABLE IF NOT EXISTS price_alerts (
   triggered_at TIMESTAMPTZ
 );
 ALTER TABLE price_alerts ADD COLUMN IF NOT EXISTS hotel_id TEXT;
+-- BEGIN complete-alert-contract migration (also executed by migrate-alerts.ts)
+ALTER TABLE price_alerts ADD COLUMN IF NOT EXISTS travel_start DATE;
+ALTER TABLE price_alerts ADD COLUMN IF NOT EXISTS travel_end DATE;
+ALTER TABLE price_alerts ADD COLUMN IF NOT EXISTS trip_type TEXT;
+ALTER TABLE price_alerts ADD COLUMN IF NOT EXISTS passenger_count INTEGER;
+ALTER TABLE price_alerts ADD COLUMN IF NOT EXISTS hotel_provider TEXT;
+
+CREATE TABLE IF NOT EXISTS alert_contract_migrations (
+  id TEXT PRIMARY KEY,
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  retired_rows INTEGER NOT NULL
+);
+DO $$
+DECLARE retired INTEGER;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM alert_contract_migrations WHERE id = 'complete-alert-contract-v1') THEN
+    UPDATE price_alerts SET active = false
+    WHERE active = true AND NOT COALESCE((
+      currency ~ '^[A-Z]{3}$' AND travel_start IS NOT NULL AND
+      passenger_count BETWEEN 1 AND 9 AND
+      ((hotel_id IS NULL AND hotel_provider IS NULL AND
+        ((trip_type = 'oneway' AND travel_end IS NULL) OR
+         (trip_type = 'roundtrip' AND travel_end >= travel_start))) OR
+       (trip_type = 'hotel' AND hotel_provider = 'booking.com' AND
+        hotel_id ~ '^[1-9][0-9]*$' AND passenger_count = 2 AND travel_end > travel_start))
+    ), false);
+    GET DIAGNOSTICS retired = ROW_COUNT;
+    INSERT INTO alert_contract_migrations(id, retired_rows) VALUES ('complete-alert-contract-v1', retired);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'price_alerts_complete_active' AND conrelid = 'price_alerts'::regclass) THEN
+    ALTER TABLE price_alerts ADD CONSTRAINT price_alerts_complete_active CHECK (
+      NOT active OR COALESCE((
+        currency ~ '^[A-Z]{3}$' AND travel_start IS NOT NULL AND
+        passenger_count BETWEEN 1 AND 9 AND target_cents > 0 AND
+        ((hotel_id IS NULL AND hotel_provider IS NULL AND
+          ((trip_type = 'oneway' AND travel_end IS NULL) OR
+           (trip_type = 'roundtrip' AND travel_end >= travel_start))) OR
+         (trip_type = 'hotel' AND hotel_provider = 'booking.com' AND
+          hotel_id ~ '^[1-9][0-9]*$' AND passenger_count = 2 AND travel_end > travel_start))
+      ), false)
+    );
+  END IF;
+END $$;
+-- END complete-alert-contract migration
+
 CREATE INDEX IF NOT EXISTS price_alerts_active_idx ON price_alerts(active) WHERE active = true;
 
 -- Routes searched by users — auto-enrolled into nightly snapshot pipeline

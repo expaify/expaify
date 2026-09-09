@@ -14,7 +14,8 @@ import {
   type SearchStreamState,
 } from '@/lib/search/searchStreamReducer'
 import { extractNdjsonLines } from '@/lib/search/parseNdjsonBuffer'
-import type { DealScore, Money, NormalizedFare } from '@/lib/types'
+import { flightAlertTotal } from '@/lib/alerts/contract'
+import type { DealScore, NormalizedFare } from '@/lib/types'
 
 type SortBy = 'price' | 'deal' | 'estimatedTotal' | 'duration'
 
@@ -47,13 +48,6 @@ function buildSearchContext(search: SearchPanelSubmitPayload | null): string {
   return `Flight search · ${route} · ${dates} · 1 traveler`
 }
 
-function cheapestFarePrice(fares: NormalizedFare[]): Money | null {
-  if (fares.length === 0) return null
-  const cheapest = fares.reduce((best, fare) =>
-    comparablePriceCents(fare) < comparablePriceCents(best) ? fare : best
-  , fares[0])
-  return { priceCents: comparablePriceCents(cheapest), currency: cheapest.price.currency }
-}
 
 function isFlightsEvent(event: unknown): event is { type: 'flights'; data: NormalizedFare[] } {
   return (
@@ -297,11 +291,16 @@ export function FlightsClient() {
       return
     }
 
-    const cheapest = cheapestFarePrice(searchState.flights)
-    if (!cheapest) {
-      setAlertError('We need at least one live fare before setting a price alert.')
+    const eligible = searchState.flights.filter(fare =>
+      fare.origin === lastSearch.originIata && fare.destination === lastSearch.destinationIata &&
+      fare.depart?.slice(0, 10) === lastSearch.departDate &&
+      (fare.return?.slice(0, 10) ?? null) === (lastSearch.tripType === 'roundtrip' ? lastSearch.returnDate : null) &&
+      flightAlertTotal(fare) !== null)
+    if (!eligible.length || new Set(eligible.map(fare => fare.price.currency)).size !== 1) {
+      setAlertError('We need a live fare with one currency, exact search dates, and confirmed traveler pricing before setting a price alert.')
       return
     }
+    const cheapest = eligible.reduce((best, fare) => flightAlertTotal(fare)! < flightAlertTotal(best)! ? fare : best)
 
     setAlertLoading(true)
     setAlertError(null)
@@ -315,7 +314,12 @@ export function FlightsClient() {
             email: alertEmail,
             origin: lastSearch.originIata,
             destination: lastSearch.destinationIata,
-            thresholdCents: cheapest.priceCents,
+            thresholdCents: flightAlertTotal(cheapest),
+            currency: cheapest.price.currency,
+            travelStart: cheapest.depart.slice(0, 10),
+            travelEnd: cheapest.return?.slice(0, 10) ?? null,
+            tripType: cheapest.return ? 'roundtrip' : 'oneway',
+            passengerCount: cheapest.passengerCount,
           }),
         })
         const result = (await response.json()) as AlertResponse

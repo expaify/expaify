@@ -71,3 +71,22 @@ it('treats a 1-night stay total correctly (no division artifact)', async () => {
   if (!result.ok) return;
   expect(result.data.offers[0].pricePerNight).toEqual({ priceCents: 15000, currency: 'USD' });
 });
+
+it.each([undefined, 'USD', 'EUR'])('strict hotel alert requires explicit matching currency (%s)', async returnedCurrency => {
+  const fixture = hotelsFixture(300);
+  const gross = fixture.data.hotels[0].property.priceBreakdown.grossPrice as { value: number; currency?: string };
+  gross.currency = returnedCurrency;
+  global.fetch = jest.fn().mockImplementation((input: string) => Promise.resolve({
+    ok: true, json: async () => input.includes('/searchDestination') ? DESTINATION_FIXTURE : fixture,
+  }));
+  const result = await bookingComHotels.searchHotels('PAR', {
+    checkin: '2099-10-01', checkout: '2099-10-04', currency: 'EUR', strictCurrency: true,
+  });
+  expect(result.ok).toBe(true);
+  if (!result.ok) return;
+  expect(result.data.offers).toHaveLength(returnedCurrency === 'EUR' ? 1 : 0);
+  expect((global.fetch as jest.Mock).mock.calls.some(([url]) => String(url).includes('currency_code=EUR'))).toBe(true);
+  if (returnedCurrency === 'EUR') expect(result.data.offers[0]).toMatchObject({
+    id: '12345', source: 'booking.com', pricePerNight: { priceCents: 10000, currency: 'EUR' },
+  });
+});

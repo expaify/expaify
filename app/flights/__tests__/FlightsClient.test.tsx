@@ -81,6 +81,9 @@ const fareA: NormalizedFare = {
   origin: 'JFK',
   destination: 'LAX',
   depart: '2026-09-01T08:00:00.000Z',
+  return: '2026-09-08T08:00:00.000Z',
+  passengerCount: 3,
+  priceScope: 'party_total',
   price: { priceCents: 25000, currency: 'USD' },
   deeplink: 'https://example.com/book',
   stops: 0,
@@ -100,6 +103,7 @@ const farePerPerson: NormalizedFare = {
   origin: 'JFK',
   destination: 'LAX',
   depart: '2026-09-01T09:00:00.000Z',
+  return: '2026-09-08T09:00:00.000Z',
   price: { priceCents: 10000, currency: 'USD' },
   priceScope: 'per_person',
   passengerCount: 3,
@@ -516,14 +520,14 @@ describe('FlightsClient', () => {
     expect(searchCallsAfter).toBe(2)
   })
 
-  it('sets the price-alert threshold from the party-total-normalized cheapest fare, not raw priceCents', async () => {
+  it.each(['USD', 'EUR'])('sets the %s alert currency, exact dates, and party-total-normalized threshold from the live fare', async currency => {
     // fareA: party_total $250.00. farePerPerson: $100.00 per person x 3 =
     // $300.00 party total -- more expensive once normalized, despite its raw
     // priceCents (10000) looking cheaper than fareA's (25000).
     const calls = installFetchMock({
       searchChunks: [
         ndjsonBody([
-          { type: 'flights', source: 'travelpayouts', data: [fareA, farePerPerson] },
+          { type: 'flights', source: 'travelpayouts', data: [{ ...fareA, price: { ...fareA.price, currency } }, { ...farePerPerson, price: { ...farePerPerson.price, currency } }] },
           { type: 'done' },
         ]),
       ],
@@ -546,6 +550,7 @@ describe('FlightsClient', () => {
     expect(alertCall).toBeDefined()
     const body = JSON.parse(String(alertCall!.init?.body))
     expect(body.thresholdCents).toBe(25000)
+    expect(body).toMatchObject({ currency, travelStart: '2026-09-01', travelEnd: '2026-09-08', tripType: 'roundtrip', passengerCount: 3 })
   })
 
   it('drops a stale search stream event that resolves after a newer search has already started', async () => {

@@ -139,8 +139,10 @@ export class TravelpayoutsProvider implements FlightProvider {
     if (!this.token) return { ok: false, reason: 'TP_TOKEN not configured' };
     if (!this.marker) return { ok: false, reason: 'TP_AFFILIATE_MARKER not configured' };
 
+    const currency = range.currency ?? 'USD';
+    if (!/^[A-Z]{3}$/.test(currency)) return { ok: false, reason: 'Invalid currency' };
     const extraParams = `${range.depart}:${range.return ?? ''}:pax:${range.passengers}`;
-    const cacheKey = `tp:searchFares:v2:${origin}:${dest}:${extraParams}`;
+    const cacheKey = `tp:searchFares:v5:${origin}:${dest}:${extraParams}:${currency}:${range.strictDates === true}`;
 
     try {
       const cached = await cache.get<NormalizedFare[]>(cacheKey);
@@ -153,7 +155,7 @@ export class TravelpayoutsProvider implements FlightProvider {
       let latestUrl =
         `${BASE_V2}/prices/latest` +
         `?origin=${encodeURIComponent(origin)}` +
-        `&currency=usd` +
+        `&currency=${encodeURIComponent(currency.toLowerCase())}` +
         `&limit=20` +
         `&token=${encodeURIComponent(this.token)}`;
       if (dest) latestUrl += `&destination=${encodeURIComponent(dest)}`;
@@ -161,7 +163,11 @@ export class TravelpayoutsProvider implements FlightProvider {
 
       const latestRes = await fetchWithProviderTimeout('Travelpayouts', latestUrl);
       if (latestRes.ok) {
-        const latestJson = (await latestRes.json()) as { data?: unknown; success?: boolean };
+        const latestJson = (await latestRes.json()) as { data?: unknown; success?: boolean; currency?: unknown };
+        // The response currency is evidence; a request parameter alone is not.
+        if (typeof latestJson.currency !== 'string' || latestJson.currency.toUpperCase() !== currency) {
+          return { ok: false, reason: 'Travelpayouts quote currency unconfirmed' };
+        }
         if (latestJson.data !== undefined && !Array.isArray(latestJson.data)) {
           return { ok: false, reason: 'Travelpayouts returned a malformed response' };
         }
@@ -189,7 +195,7 @@ export class TravelpayoutsProvider implements FlightProvider {
             cabin: 'economy',
             stops: entry.number_of_changes,
             carrier: entry.gate,
-            price: { priceCents, currency: 'USD' },
+            price: { priceCents, currency },
             passengerCount: range.passengers,
             priceScope: 'per_person',
             deeplink: this.buildDeeplink(entry.origin, entry.destination, departAt),
@@ -209,12 +215,16 @@ export class TravelpayoutsProvider implements FlightProvider {
           `&destination=${encodeURIComponent(dest)}` +
           `&depart_date=${encodeURIComponent(monthParam)}` +
           `&calendar_type=departure_date` +
-          `&currency=usd` +
+          `&currency=${encodeURIComponent(currency.toLowerCase())}` +
           `&token=${encodeURIComponent(this.token)}`;
 
         const calRes = await fetchWithProviderTimeout('Travelpayouts', calUrl);
         if (calRes.ok) {
-          const calJson = (await calRes.json()) as { data?: unknown };
+          const calJson = (await calRes.json()) as { data?: unknown; currency?: unknown };
+          // The response currency is evidence; a request parameter alone is not.
+          if (typeof calJson.currency !== 'string' || calJson.currency.toUpperCase() !== currency) {
+            return { ok: false, reason: 'Travelpayouts quote currency unconfirmed' };
+          }
           if (calJson.data !== undefined && !isRecord(calJson.data)) {
             return { ok: false, reason: 'Travelpayouts returned a malformed response' };
           }
@@ -242,7 +252,7 @@ export class TravelpayoutsProvider implements FlightProvider {
               cabin: 'economy',
               stops: entry.transfers,
               carrier: entry.airline,
-              price: { priceCents, currency: 'USD' },
+              price: { priceCents, currency },
               passengerCount: range.passengers,
               priceScope: 'per_person',
               deeplink: this.buildDeeplink(entry.origin, entry.destination, entry.departure_at),
@@ -260,19 +270,24 @@ export class TravelpayoutsProvider implements FlightProvider {
           `${BASE_V1}/prices/cheap` +
           `?origin=${encodeURIComponent(origin)}` +
           `&destination=${encodeURIComponent(dest)}` +
-          `&currency=usd` +
+          `&currency=${encodeURIComponent(currency.toLowerCase())}` +
           `&token=${encodeURIComponent(this.token)}`;
         if (range.depart) cheapUrl += `&depart_date=${encodeURIComponent(range.depart)}`;
         if (range.return) cheapUrl += `&return_date=${encodeURIComponent(range.return)}`;
 
         const cheapRes = await fetchWithProviderTimeout('Travelpayouts', cheapUrl);
         if (cheapRes.ok) {
-          const cheapJson = (await cheapRes.json()) as { data?: unknown };
+          const cheapJson = (await cheapRes.json()) as { data?: unknown; currency?: unknown };
+          // The response currency is evidence; a request parameter alone is not.
+          if (typeof cheapJson.currency !== 'string' || cheapJson.currency.toUpperCase() !== currency) {
+            return { ok: false, reason: 'Travelpayouts quote currency unconfirmed' };
+          }
           if (cheapJson.data !== undefined && !isRecord(cheapJson.data)) {
             return { ok: false, reason: 'Travelpayouts returned a malformed response' };
           }
           // Shape: { data: { [destCode]: { [slot]: CheapEntry } } }
-          for (const slots of Object.values(cheapJson.data ?? {})) {
+          for (const [returnedDestination, slots] of Object.entries(cheapJson.data ?? {})) {
+            if (returnedDestination !== dest) continue;
             if (!isRecord(slots)) return { ok: false, reason: 'Travelpayouts returned a malformed response' };
             for (const fareRaw of Object.values(slots)) {
               const fareData = fareRaw as CheapEntry;
@@ -281,19 +296,21 @@ export class TravelpayoutsProvider implements FlightProvider {
                 return { ok: false, reason: 'Travelpayouts returned a malformed response' };
               }
 
+              // Alert checks cannot manufacture date evidence from the request.
+              if (!fareData.departure_at || (range.strictDates && range.return && !fareData.return_at)) continue;
               const airline = fareData.airline ?? 'Unknown';
-              const departAt = fareData.departure_at ?? range.depart;
+              const departAt = fareData.departure_at;
               fares.push({
                 id: `tp-v1-${airline}-${origin}-${dest}-${departAt}`,
                 fareType: 'cash',
                 origin,
                 destination: dest,
                 depart: departAt,
-                return: fareData.return_at || range.return,
+                return: fareData.return_at || undefined,
                 cabin: 'economy',
                 stops: fareData.transfers ?? 0,
                 carrier: airline,
-                price: { priceCents, currency: 'USD' },
+                price: { priceCents, currency },
                 passengerCount: range.passengers,
                 priceScope: 'per_person',
                 deeplink: this.buildDeeplink(origin, dest, departAt),

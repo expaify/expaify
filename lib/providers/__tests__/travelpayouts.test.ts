@@ -94,11 +94,11 @@ function mockFetchOk(body: unknown): void {
 }
 
 /** Returns LATEST_FIXTURE → empty calendar → CHEAP_FIXTURE for the three search calls */
-function mockFetchSearchSequence(): void {
+function mockFetchSearchSequence(currency = 'USD'): void {
   global.fetch = jest.fn()
-    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => LATEST_FIXTURE } as Response)
-    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, data: {} }) } as Response)
-    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => CHEAP_FIXTURE } as Response);
+    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ...LATEST_FIXTURE, currency }) } as Response)
+    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, data: {}, currency }) } as Response)
+    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ...CHEAP_FIXTURE, currency }) } as Response);
 }
 
 function mockFetchError(status: number): void {
@@ -295,13 +295,14 @@ describe('TravelpayoutsProvider.searchFares', () => {
   it('uses stops=0 when transfers field is absent', async () => {
     const cheapFixture = {
       success: true,
+      currency: 'USD',
       data: {
         AMS: { '1': { price: 100, airline: 'SU', departure_at: '2024-07-01T10:00:00Z' } },
       },
     };
     global.fetch = jest.fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, data: [] }) } as Response)
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, data: {} }) } as Response)
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, data: [], currency: 'USD' }) } as Response)
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, data: {}, currency: 'USD' }) } as Response)
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => cheapFixture } as Response);
     const provider = new TravelpayoutsProvider();
     const result = await provider.searchFares('MOW', 'AMS', { depart: '2024-07', passengers: 1 });
@@ -341,4 +342,55 @@ describe('TravelpayoutsProvider.searchFares', () => {
     if (result.ok) throw new Error('Expected error');
     expect(result.reason).toBe('ECONNREFUSED');
   });
+});
+
+it('requests EUR and isolates strict-date alert cache from USD search cache', async () => {
+  mockFetchSearchSequence('EUR');
+  const provider = new TravelpayoutsProvider();
+  const result = await provider.searchFares('MOW', 'AMS', {
+    depart: '2099-06-15', return: '2099-06-22', passengers: 2, currency: 'EUR', strictDates: true,
+  });
+  expect(result.ok).toBe(true);
+  if (!result.ok) return;
+  expect(result.data.length).toBeGreaterThan(0);
+  expect(result.data.every(fare => fare.price.currency === 'EUR')).toBe(true);
+  expect((global.fetch as jest.Mock).mock.calls.every(([url]) => new URL(url).searchParams.get('currency') === 'eur')).toBe(true);
+  const { cache } = jest.requireMock('../../cache/redis');
+  expect(cache.get).toHaveBeenCalledWith(expect.stringContaining(':EUR:true'));
+});
+
+it.each([
+  ['missing departure', { AMS: { '1': { price: 100, return_at: '2099-06-22' } } }],
+  ['wrong destination', { JFK: { '1': { price: 100, departure_at: '2099-06-15', return_at: '2099-06-22' } } }],
+])('does not manufacture quote route/date evidence from %s', async (_label, data) => {
+  global.fetch = jest.fn()
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [], currency: 'USD' }) })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ data: {}, currency: 'USD' }) })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ data, currency: 'USD' }) });
+  const result = await new TravelpayoutsProvider().searchFares('MOW', 'AMS', {
+    depart: '2099-06-15', return: '2099-06-22', passengers: 1,
+  });
+  expect(result).toEqual({ ok: true, data: [] });
+});
+
+it('never copies the requested return date into a quote missing return evidence', async () => {
+  global.fetch = jest.fn()
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [], currency: 'USD' }) })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ data: {}, currency: 'USD' }) })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ currency: 'USD', data: { AMS: { '1': { price: 100, departure_at: '2099-06-15' } } } }) });
+  const result = await new TravelpayoutsProvider().searchFares('MOW', 'AMS', {
+    depart: '2099-06-15', return: '2099-06-22', passengers: 1,
+  });
+  expect(result.ok).toBe(true);
+  if (result.ok) expect(result.data.every(fare => fare.return === undefined)).toBe(true);
+});
+
+it.each([[undefined, true], ['usd', true], [undefined, false], ['usd', false]])('rejects an unconfirmed EUR response currency (%s, strict=%s) before labeling quotes', async (currency, strictDates) => {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true, json: async () => ({ ...LATEST_FIXTURE, currency }),
+  });
+  const result = await new TravelpayoutsProvider().searchFares('MOW', 'AMS', {
+    depart: '2099-06-15', return: '2099-06-22', passengers: 2, currency: 'EUR', strictDates: strictDates as boolean,
+  });
+  expect(result).toEqual({ ok: false, reason: 'Travelpayouts quote currency unconfirmed' });
 });
