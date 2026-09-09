@@ -101,6 +101,8 @@ export async function detectDealsForMarket(market: Market): Promise<DetectionRes
   )
 
   let dealsUpserted = 0
+  const expirations: { hotel_id: string; check_in_date: string }[] = []
+  const pending: { row: SnapshotRow; discountPct: number; checkInWindow: string; checkInStr: string; params: unknown[] }[] = []
   const copyCandidates: CopyCandidate[] = []
   const newDeals: NewDealAlert[] = []
 
@@ -116,11 +118,7 @@ export async function detectDealsForMarket(market: Market): Promise<DetectionRes
     const separatorIndex = stayKey.indexOf('\u0000')
     const hotelId = stayKey.slice(0, separatorIndex)
     const checkIn = stayKey.slice(separatorIndex + 1)
-    await query(
-      `UPDATE deals SET status = 'expired', updated_at = NOW()
-       WHERE hotel_id = $1 AND market_id = $2 AND check_in_date = $3 AND status = 'active'`,
-      [hotelId, market.id, checkIn]
-    )
+    expirations.push({ hotel_id: hotelId, check_in_date: checkIn })
   }
   const comparableSnaps = snaps.rows.filter((row) => {
     const stayKey = `${row.hotel_id}\u0000${row.check_in instanceof Date ? row.check_in.toISOString().slice(0, 10) : String(row.check_in)}`
@@ -151,13 +149,40 @@ export async function detectDealsForMarket(market: Market): Promise<DetectionRes
       })
 
       const checkInWindow = formatWindow(check_in, NIGHTS)
-      const upserted = await query<{ id: string; headline: string | null; description: string | null; is_new: boolean }>(
+      pending.push({ row, discountPct, checkInWindow, checkInStr, params: [
+        hotel_id, hotel_name, stars, review_evidence, photo_url, market.id,
+        latest_price_cents, median_price_cents, currency, discountPct,
+        checkInWindow, checkInStr, snapshot_count, JSON.stringify(links), is_mock,
+      ] })
+      dealsUpserted++
+    } else if (decision.action === 'expire') {
+      // Price recovered above the expiry threshold, or the snapshot history is
+      // too thin to support a flag — expire any active deal for this hotel+checkin
+      expirations.push({ hotel_id, check_in_date: checkInStr })
+    }
+  }
+
+  // Bound round trips and parameter counts while retaining each stay's own
+  // decision. RETURNING order is unspecified, so match results by identity.
+  const batchSize = 500
+  for (let start = 0; start < pending.length; start += batchSize) {
+    const batch = pending.slice(start, start + batchSize)
+    // push(...), not flatMap: item.params is a flat array of scalars/JSON
+    // strings today, but flatMap would silently corrupt the bind-parameter
+    // alignment for every following row if any single param ever became an
+    // array (e.g. review_evidence stored as a JSON array instead of an object).
+    const params: unknown[] = []
+    for (const item of batch) params.push(...item.params)
+    const values = batch.map((_, index) => {
+      const p = (column: number) => `$${index * 15 + column}`
+      return `(${Array.from({ length: 12 }, (_, column) => p(column + 1)).join(',')},${NIGHTS},${p(13)},${p(14)},'active',${p(15)},${p(12)}::DATE + INTERVAL '90 days',NOW())`
+    })
+    const upserted = await query<{ hotel_id: string; check_in_date: string; id: string; headline: string | null; description: string | null; is_new: boolean }>(
         `INSERT INTO deals
            (hotel_id, hotel_name, stars, review_evidence, photo_url, market_id, deal_price_cents,
             median_price_cents, currency, discount_pct, check_in_window, check_in_date, nights,
             snapshot_count, ota_links, status, is_mock, expires_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,${NIGHTS},$13,$14,'active',$15,
-                 $12::DATE + INTERVAL '90 days', NOW())
+         VALUES ${values.join(',')}
          ON CONFLICT (hotel_id, market_id, check_in_date) DO UPDATE SET
            hotel_name         = EXCLUDED.hotel_name,
            photo_url          = EXCLUDED.photo_url,
@@ -172,15 +197,21 @@ export async function detectDealsForMarket(market: Market): Promise<DetectionRes
            status             = 'active',
            is_mock            = EXCLUDED.is_mock,
            updated_at         = NOW()
-         RETURNING id, headline, description, (xmax = 0) AS is_new`,
-        [
-          hotel_id, hotel_name, stars, review_evidence, photo_url, market.id,
-          latest_price_cents, median_price_cents, currency, discountPct,
-          checkInWindow, checkInStr,
-          snapshot_count, JSON.stringify(links), is_mock,
-        ]
-      )
-      const dealId = upserted.rows[0]?.id
+         RETURNING hotel_id, check_in_date::text, id, headline, description, (xmax = 0) AS is_new`,
+        params
+    )
+    const savedByStay = new Map(upserted.rows.map((saved) => [`${saved.hotel_id}\u0000${saved.check_in_date}`, saved]))
+    for (const { row, discountPct, checkInWindow, checkInStr } of batch) {
+      const saved = savedByStay.get(`${row.hotel_id}\u0000${checkInStr}`)
+      if (!saved) {
+        // Should be unreachable (ON CONFLICT DO UPDATE with no WHERE returns
+        // every affected row) -- logged instead of silently dropped because a
+        // miss here means a genuinely new deal would silently never alert.
+        console.warn('dealDetection: RETURNING row missing for pending stay', { hotel_id: row.hotel_id, checkInStr, marketId: market.id })
+        continue
+      }
+      const { hotel_name, stars, photo_url, latest_price_cents, median_price_cents, snapshot_count, is_mock } = row
+      const dealId = saved.id
       // xmax = 0 is Postgres's standard tell for "this row was just INSERTed,
       // not touched via the ON CONFLICT UPDATE path" -- used here to alert
       // only on deals that are genuinely new tonight, not every night a
@@ -193,7 +224,7 @@ export async function detectDealsForMarket(market: Market): Promise<DetectionRes
       // getActiveDeals with includeMock: false before alerting -- instant
       // email is the one path with no other mock guard between here and a
       // real subscriber's inbox.
-      if (dealId && upserted.rows[0].is_new && !is_mock) {
+      if (dealId && saved.is_new && !is_mock) {
         newDeals.push({
           id: dealId,
           hotelName: hotel_name,
@@ -207,7 +238,7 @@ export async function detectDealsForMarket(market: Market): Promise<DetectionRes
           snapshotCount: snapshot_count,
         })
       }
-      if (dealId && (!upserted.rows[0].headline || !upserted.rows[0].description)) {
+      if (dealId && (!saved.headline || !saved.description)) {
         copyCandidates.push({
           id: dealId,
           hotelName: hotel_name,
@@ -219,16 +250,16 @@ export async function detectDealsForMarket(market: Market): Promise<DetectionRes
           checkInWindow,
         })
       }
-      dealsUpserted++
-    } else if (decision.action === 'expire') {
-      // Price recovered above the expiry threshold, or the snapshot history is
-      // too thin to support a flag — expire any active deal for this hotel+checkin
-      await query(
-        `UPDATE deals SET status = 'expired', updated_at = NOW()
-         WHERE hotel_id = $1 AND market_id = $2 AND check_in_date = $3 AND status = 'active'`,
-        [hotel_id, market.id, checkInStr]
-      )
     }
+  }
+  for (let start = 0; start < expirations.length; start += batchSize) {
+    await query(
+      `UPDATE deals d SET status = 'expired', updated_at = NOW()
+       FROM jsonb_to_recordset($2::jsonb) AS expired(hotel_id text, check_in_date date)
+       WHERE d.market_id = $1 AND d.status = 'active'
+         AND d.hotel_id = expired.hotel_id AND d.check_in_date = expired.check_in_date`,
+      [market.id, JSON.stringify(expirations.slice(start, start + batchSize))]
+    )
   }
 
   // Also expire deals whose check-in date has passed

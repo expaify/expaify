@@ -1,3 +1,4 @@
+import { generateHeadlines } from '../../ai/generateHeadline'
 import { query } from '../../db/client'
 import { getActiveDeals, getDealById, getTrackedDealById, detectDealsForMarket } from '../dealDetection'
 
@@ -116,7 +117,7 @@ describe('detectDealsForMarket flag/expire/newDeals behavior', () => {
 
     mockQuery
       .mockResolvedValueOnce(qr([flagging, thin])) // main history query
-      .mockResolvedValueOnce(qr([{ id: 'deal-flag', headline: 'x', description: 'y', is_new: true }])) // INSERT for bk_flag
+      .mockResolvedValueOnce(qr([{ id: 'deal-flag', hotel_id: 'bk_flag', check_in_date: '2026-10-01', headline: 'x', description: 'y', is_new: true }])) // INSERT for bk_flag
       .mockResolvedValueOnce(qr([])) // UPDATE expire for bk_thin
       .mockResolvedValueOnce(qr([])) // final "expire passed checkins" UPDATE
 
@@ -132,7 +133,7 @@ describe('detectDealsForMarket flag/expire/newDeals behavior', () => {
 
     const expireSql = String(mockQuery.mock.calls[2][0])
     expect(expireSql).toContain("status = 'expired'")
-    expect(mockQuery.mock.calls[2][1]).toEqual(['bk_thin', MARKET.id, '2026-10-01'])
+    expect(mockQuery.mock.calls[2][1]).toEqual([MARKET.id, JSON.stringify([{ hotel_id: 'bk_thin', check_in_date: '2026-10-01' }])])
   })
 
   it('does not report a re-affirmed (already-active) deal as new', async () => {
@@ -143,7 +144,7 @@ describe('detectDealsForMarket flag/expire/newDeals behavior', () => {
     const row = snapshotRow({ hotel_id: 'bk_reaffirm' })
     mockQuery
       .mockResolvedValueOnce(qr([row]))
-      .mockResolvedValueOnce(qr([{ id: 'deal-existing', headline: 'x', description: 'y', is_new: false }]))
+      .mockResolvedValueOnce(qr([{ id: 'deal-existing', hotel_id: 'bk_reaffirm', check_in_date: '2026-10-01', headline: 'x', description: 'y', is_new: false }]))
       .mockResolvedValueOnce(qr([]))
 
     const result = await detectDealsForMarket(MARKET)
@@ -160,7 +161,7 @@ describe('detectDealsForMarket flag/expire/newDeals behavior', () => {
     const row = snapshotRow({ hotel_id: 'bk_mock', is_mock: true })
     mockQuery
       .mockResolvedValueOnce(qr([row]))
-      .mockResolvedValueOnce(qr([{ id: 'deal-mock', headline: 'x', description: 'y', is_new: true }]))
+      .mockResolvedValueOnce(qr([{ id: 'deal-mock', hotel_id: 'bk_mock', check_in_date: '2026-10-01', headline: 'x', description: 'y', is_new: true }]))
       .mockResolvedValueOnce(qr([]))
 
     const result = await detectDealsForMarket(MARKET)
@@ -180,6 +181,78 @@ describe('detectDealsForMarket flag/expire/newDeals behavior', () => {
     const finalSql = String(mockQuery.mock.calls[1][0])
     expect(finalSql).toContain("check_in_date < CURRENT_DATE")
     expect(mockQuery.mock.calls[1][1]).toEqual([MARKET.id])
+  })
+})
+
+describe('detectDealsForMarket batched writes', () => {
+  beforeEach(() => {
+    mockQuery.mockReset()
+    jest.mocked(generateHeadlines).mockClear()
+  })
+
+  it.each([1, 40, 500, 501])('bounds writes for %i flagged and expired stays', async (count) => {
+    const rows = Array.from({ length: count }, (_, index) => [
+      snapshotRow({ hotel_id: `flag-${index}` }),
+      snapshotRow({ hotel_id: `thin-${index}`, snapshot_count: 5 }),
+    ]).flat()
+    mockQuery.mockResolvedValue(qr([])).mockResolvedValueOnce(qr(rows))
+
+    const result = await detectDealsForMarket(MARKET)
+
+    expect(result.dealsUpserted).toBe(count)
+    const inserts = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('INSERT INTO deals'))
+    const expires = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('jsonb_to_recordset'))
+    expect(inserts).toHaveLength(Math.ceil(count / 500))
+    expect(expires).toHaveLength(Math.ceil(count / 500))
+    expect(mockQuery).toHaveBeenCalledTimes(2 + 2 * Math.ceil(count / 500))
+    expect(inserts.flatMap(([, params]) => params ?? [])).toHaveLength(count * 15)
+    expect(expires.flatMap(([, params]) => JSON.parse(String(params![1])))).toHaveLength(count)
+    for (const [sql, params] of inserts) {
+      const placeholders = [...String(sql).matchAll(/\$(\d+)/g)].map((match) => Number(match[1]))
+      expect(Math.max(...placeholders)).toBe(params!.length)
+      expect(new Set(placeholders).size).toBe(params!.length)
+    }
+  })
+
+  it('preserves mixed-currency expiration, per-stay decisions and alert/copy identity with reordered RETURNING rows', async () => {
+    const rows = [
+      snapshotRow({ hotel_id: 'new', hotel_name: 'New hotel' }),
+      snapshotRow({ hotel_id: 'existing', hotel_name: 'Existing hotel' }),
+      snapshotRow({ hotel_id: 'mock', is_mock: true }),
+      snapshotRow({ hotel_id: 'hold', latest_price_cents: 8000 }),
+      snapshotRow({ hotel_id: 'thin', snapshot_count: 5 }),
+      snapshotRow({ hotel_id: 'recovered', latest_price_cents: 9000 }),
+      snapshotRow({ hotel_id: 'mixed', currency: 'USD' }),
+      snapshotRow({ hotel_id: 'mixed', currency: 'EUR' }),
+      // The same hotel's other check-in remains comparable and can flag.
+      snapshotRow({ hotel_id: 'mixed', check_in: new Date('2026-10-02T00:00:00Z'), currency: 'EUR' }),
+    ]
+    mockQuery.mockResolvedValue(qr([])).mockResolvedValueOnce(qr(rows)).mockResolvedValueOnce(qr([
+      { hotel_id: 'mixed', check_in_date: '2026-10-02', id: 'mixed-next-day', headline: 'ready', description: 'ready', is_new: false },
+      { hotel_id: 'mock', check_in_date: '2026-10-01', id: 'mock-id', headline: 'ready', description: 'ready', is_new: true },
+      { hotel_id: 'existing', check_in_date: '2026-10-01', id: 'existing-id', headline: null, description: 'ready', is_new: false },
+      { hotel_id: 'new', check_in_date: '2026-10-01', id: 'new-id', headline: 'ready', description: null, is_new: true },
+    ]))
+
+    const result = await detectDealsForMarket(MARKET)
+
+    expect(result.dealsUpserted).toBe(4)
+    expect(result.newDeals).toEqual([expect.objectContaining({ id: 'new-id', hotelName: 'New hotel', discountPct: 40 })])
+    expect(generateHeadlines).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'new-id', hotelName: 'New hotel' }),
+      expect.objectContaining({ id: 'existing-id', hotelName: 'Existing hotel' }),
+    ])
+    const params = mockQuery.mock.calls[1][1]!
+    expect([params[0], params[15], params[30], params[45]]).toEqual(['new', 'existing', 'mock', 'mixed'])
+    expect(params[45 + 8]).toBe('EUR')
+    expect(params[45 + 11]).toBe('2026-10-02')
+    expect(JSON.parse(String(mockQuery.mock.calls[2][1]![1]))).toEqual([
+      { hotel_id: 'mixed', check_in_date: '2026-10-01' },
+      { hotel_id: 'thin', check_in_date: '2026-10-01' },
+      { hotel_id: 'recovered', check_in_date: '2026-10-01' },
+    ])
+    expect(mockQuery.mock.calls[2][1]![0]).toBe(MARKET.id)
+    expect(mockQuery).toHaveBeenCalledTimes(4)
   })
 })
 
