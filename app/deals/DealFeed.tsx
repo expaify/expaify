@@ -405,6 +405,9 @@ function FilterPill({ label, filterKey, valueLabel, state, busy, inert, options,
             onClick={() => {
               if (blocked) return
               setOpen(false)
+              // Clearing can unmount this button. Keep focus on the persistent
+              // trigger while the request runs (success may focus results).
+              btnRef.current?.focus()
               onClear()
             }}
             className={`flex min-h-11 items-center rounded-r-[var(--radius-pill)] pl-1 pr-3 ${blocked ? 'cursor-not-allowed' : ''}`}

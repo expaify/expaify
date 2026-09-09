@@ -253,6 +253,23 @@ describe('DealFeed continuation interactions', () => {
     await act(async () => root.unmount())
   })
 
+  it('returns focus to the filter trigger before clearing removes the focused control', async () => {
+    const pending = deferred<Response>()
+    global.fetch = jest.fn(() => pending.promise)
+    await renderDealFeed()
+    const trigger = container.querySelector<HTMLButtonElement>('[data-filter-trigger="minDiscount"]')!
+    const focus = jest.fn()
+    trigger.focus = focus
+    const clear = container.querySelector<HTMLButtonElement>('button[aria-label="Remove minimum discount filter"]')!
+    expect(clear).not.toBeNull()
+    const { act } = require('react') as typeof import('react')
+    await act(async () => clear.click())
+
+    expect(focus).toHaveBeenCalledTimes(1)
+    expect(container.contains(trigger)).toBe(true)
+    expect(container.contains(clear)).toBe(false)
+  })
+
   it.each(['click', 'Enter', 'Space'] as const)(
     'uses native %s activation and returns focus after a successful manual continuation',
     async method => {
