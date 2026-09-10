@@ -63,7 +63,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <a
           href="/"
           aria-label="expaify home"
-          className="hidden items-center gap-2 px-2.5 pb-5 pt-1.5 text-[17px] font-bold leading-none tracking-[-0.02em] text-white no-underline lg:flex"
+          className="flex shrink-0 items-center gap-2 px-2.5 py-2.5 lg:pb-5 lg:pt-1.5 text-[17px] font-bold leading-none tracking-[-0.02em] text-white no-underline"
         >
           expaify
           <span className="h-[7px] w-[7px] rounded-[var(--radius-pill)] bg-[color:var(--accent)]" aria-hidden />
@@ -75,6 +75,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <a
               key={item.href}
               href={item.href}
+              aria-label={item.label}
               className={`flex shrink-0 items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-[13.5px] font-medium no-underline transition-colors duration-150 motion-reduce:transition-none lg:gap-[11px] lg:px-3 ${
                 active ? 'text-white' : 'text-[#8FA6A2] hover:text-white'
               }`}
