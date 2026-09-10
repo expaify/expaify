@@ -1179,7 +1179,7 @@ export default function FlightResults({
           title="Search above to get started"
         >
           <p>
-            Compare live fares across 5 providers by entering a route and travel dates above.
+            Compare fares from available providers by entering a route and travel dates above.
           </p>
         </FlightStatePanel>
       ) : displayFlights.length === 0 ? (

@@ -3,7 +3,6 @@ import { GET } from '../route';
 import type { HotelOffer, NormalizedFare } from '@/lib/types';
 import { travelpayouts } from '../../../../lib/providers/travelpayouts';
 import { skyScrapper } from '../../../../lib/providers/skyScrapper';
-import { googleFlights } from '../../../../lib/providers/googleFlights';
 import { bookingComHotels } from '../../../../lib/providers/bookingComHotelsRapidApi';
 import { query } from '../../../../lib/db/client';
 
@@ -15,10 +14,6 @@ jest.mock('../../../../lib/providers/skyScrapper', () => ({
   skyScrapper: { searchFares: jest.fn() },
 }));
 
-jest.mock('../../../../lib/providers/googleFlights', () => ({
-  googleFlights: { searchFares: jest.fn() },
-}));
-
 jest.mock('../../../../lib/providers/bookingComHotelsRapidApi', () => ({
   bookingComHotels: { searchHotels: jest.fn() },
 }));
@@ -27,7 +22,7 @@ jest.mock('../../../../lib/db/client', () => ({
   query: jest.fn(),
 }));
 
-const flightProviders = [travelpayouts, skyScrapper, googleFlights] as unknown as Array<{
+const flightProviders = [travelpayouts, skyScrapper] as unknown as Array<{
   searchFares: jest.Mock;
 }>;
 const mockHotelSearch = bookingComHotels.searchHotels as jest.Mock;
@@ -294,7 +289,6 @@ describe('GET /api/search guardrails and provider failures', () => {
   it('emits a no_supply notice for a provider that searches successfully but returns zero fares, instead of silently dropping it', async () => {
     (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [fare] });
     (skyScrapper.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [] });
-    (googleFlights.searchFares as jest.Mock).mockResolvedValueOnce({ ok: true, data: [] });
 
     const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
     const messages = parseNdjson(await readNdjson(response));
@@ -310,12 +304,6 @@ describe('GET /api/search guardrails and provider failures', () => {
       provider: 'SkyScrapper',
       status: 'no_supply',
       message: 'SkyScrapper returned no matching fares for this search.',
-    });
-    expect(messages).toContainEqual({
-      type: 'notice',
-      provider: 'GoogleFlights',
-      status: 'no_supply',
-      message: 'GoogleFlights returned no matching fares for this search.',
     });
   });
 
@@ -367,7 +355,6 @@ describe('GET /api/search guardrails and provider failures', () => {
   it('returns controlled timeout notices when all flight providers time out', async () => {
     (travelpayouts.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'Travelpayouts timed out' });
     (skyScrapper.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'SkyScrapper timed out' });
-    (googleFlights.searchFares as jest.Mock).mockResolvedValueOnce({ ok: false, reason: 'GoogleFlights timed out' });
 
     const response = await GET(searchRequest('origin=JFK&dest=LAX&depart=2099-09-22&trip=oneway&passengers=1'));
     const messages = parseNdjson(await readNdjson(response));
@@ -377,7 +364,6 @@ describe('GET /api/search guardrails and provider failures', () => {
     expect(messages.filter(message => message.type === 'notice')).toEqual([
       expect.objectContaining({ provider: 'Travelpayouts', message: expect.stringContaining('did not respond in time') }),
       expect.objectContaining({ provider: 'SkyScrapper', message: expect.stringContaining('did not respond in time') }),
-      expect.objectContaining({ provider: 'GoogleFlights', message: expect.stringContaining('did not respond in time') }),
     ]);
     expect(messages).toContainEqual(expect.objectContaining({ type: 'done' }));
   });

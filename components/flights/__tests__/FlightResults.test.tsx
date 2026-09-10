@@ -128,7 +128,7 @@ describe('FlightResults', () => {
     });
 
     expect(text).toContain('Search above to get started');
-    expect(text).toContain('Compare live fares across 5 providers');
+    expect(text).toContain('Compare fares from available providers');
 
     // None of the alarming, warning-toned copy that a real incomplete/failed
     // search would show should appear before the user has done anything.

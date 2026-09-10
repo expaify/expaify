@@ -5,7 +5,6 @@ import { getSearchLinkedAirportAnchor, resolveToIATA } from '../../../lib/airpor
 import { getNearby } from '../../../lib/airports/nearby';
 import { travelpayouts } from '../../../lib/providers/travelpayouts';
 import { skyScrapper } from '../../../lib/providers/skyScrapper';
-import { googleFlights } from '../../../lib/providers/googleFlights';
 import { bookingComHotels } from '../../../lib/providers/bookingComHotelsRapidApi';
 import { query } from '../../../lib/db/client';
 import {
@@ -327,7 +326,7 @@ export async function GET(request: NextRequest) {
         ).catch(() => {});
       }
 
-      // Race all 5 providers — stream each chunk the moment it resolves
+      // Race the configured flight providers — stream each chunk the moment it resolves
       if (!flexDates) {
         sendFlightDateCoverage(fixedDateCoverage(depart));
       }
@@ -401,7 +400,6 @@ export async function GET(request: NextRequest) {
           }
         })(),
         searchFlightProvider('SkyScrapper', 'skyScrapper', () => skyScrapper.searchFares(originIATA, destIATA ?? '', range)),
-        searchFlightProvider('GoogleFlights', 'googleFlights', () => googleFlights.searchFares(originIATA, destIATA ?? '', range)),
       ]);
 
       const nearby = getNearby(originIATA);

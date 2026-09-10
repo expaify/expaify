@@ -1,4 +1,6 @@
 # Technical Design Specification: Sky Scrapper Provider Integration
+
+> 2026-09-10 update: google-flights2 and its dedicated deployment credential references are retired after confirmed subscription 403s. The search route retains Travelpayouts and SkyScrapper with independent failure handling. The hotels-only SearchPanel decision remains unchanged; commit 6cb160b cites flight-provider reliability, not a specific subscription failure. Historical provider lists and implementation instructions below are superseded.
 **Document Version:** 1.0.0  
 **Domain:** Search Orchestration & Data Integration (Expaify.com)  
 **Target State:** Replace Duffel search with `SkyScrapperProvider` while maintaining absolute schema conformance and interaction trust.

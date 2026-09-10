@@ -77,8 +77,8 @@ const BK_DEST: Record<string, string> = {
   TYO: '-246227',  BKK: '-3414440', DXB: '-782831',  LAS: '20079110',
   MCO: '20023488', SJU: '20154335', TUL: '-1707023', AMS: '-2140479',
   ATH: '-814876',  PUJ: '-3364907', CLT: '20091627', BNA: '20123908',
-  // Resolved via this API's own searchDestination endpoint 2026-08-27 -- same
-  // gap as PL_CITY: these 6 markets were never backfilled here either, so
+  // Resolved via this API's own searchDestination endpoint 2026-08-27 --
+  // these 6 markets were never backfilled here, so
   // Booking.com's dest_id-based provider has been silently uncovering nothing
   // for them since launch.
   CAI: '-290692', HRG: '-290029', SSH: '-302053',

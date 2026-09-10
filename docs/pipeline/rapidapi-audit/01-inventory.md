@@ -1,5 +1,7 @@
 # RapidAPI Full Inventory — Live-Verified Audit
 
+> 2026-09-10 update: google-flights2 and its dedicated deployment credential references are retired after confirmed subscription 403s. The search route retains Travelpayouts and SkyScrapper with independent failure handling. The hotels-only SearchPanel decision remains unchanged; commit 6cb160b cites flight-provider reliability, not a specific subscription failure. Historical provider lists and implementation instructions below are superseded.
+
 > 2026-09-10 update: the AI day-plan adapter and both deal-detail sections are retired after the sole provider returned subscription 403s. Its Result failures previously rendered an unavailable card; removal avoids permanent retry messaging and doomed calls. Historical feature instructions below are superseded.
 
 > 2026-09-10 update: priceline-com2 is retired after confirmed subscription failure (403). The snapshot rotation now has four providers. RAPIDAPI_KEY_PRICELINE remains required by the live Booking.com coordinate provider. Historical findings below describe the earlier integration.

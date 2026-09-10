@@ -1,5 +1,7 @@
 # UX Discovery Report: Flight Search Redundancy & Provider Vulnerability
 
+> 2026-09-10 update: google-flights2 and its dedicated deployment credential references are retired after confirmed subscription 403s. The search route retains Travelpayouts and SkyScrapper with independent failure handling. The hotels-only SearchPanel decision remains unchanged; commit 6cb160b cites flight-provider reliability, not a specific subscription failure. Historical provider lists and implementation instructions below are superseded.
+
 ### 1. User Pain Point
 When a user runs a flight search and the single healthy, Google-style data source experiences an outage or rate limit, the system abruptly returns zero results or hangs, instantly shattering the user’s trust in expaify.com as a viable travel-monitoring tool and driving them to abandon the platform for mainstream competitors.
 
