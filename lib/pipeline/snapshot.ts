@@ -80,7 +80,7 @@ const BK_DEST: Record<string, string> = {
   // Resolved via this API's own searchDestination endpoint 2026-08-27 -- same
   // gap as PL_CITY: these 6 markets were never backfilled here either, so
   // Booking.com's dest_id-based provider has been silently uncovering nothing
-  // for them since launch (on top of the Priceline gap fixed separately).
+  // for them since launch.
   CAI: '-290692', HRG: '-290029', SSH: '-302053',
   AYT: '-735347', IST: '-755070', BJV: '-739558',
   // Resolved 2026-08-27 for the 10-city expansion. DPS and JTR have no single
@@ -127,26 +127,6 @@ const TA_GEO: Record<string, string> = {
   // like the others above.
   MEX: '150800',   BUE: '312741',  LAX: '32655',   CHI: '35805',
   VIE: '190454',   PRG: '274707',  SEL: '294197',
-}
-
-// Priceline city ids (priceline-com2 provider) -- resolved via that API's own
-// /hotels/auto-complete for each tracked market's city name (2026-08-06).
-const PL_CITY: Record<string, string> = {
-  MIA: '3000003311', NYC: '3000016152', CUN: '3000061781', PAR: '3000035827',
-  ROM: '3000035823', BCN: '3000035833', LIS: '3000035890', LON: '3000035825',
-  TYO: '3000040035', BKK: '3000040033', DXB: '5000003658', LAS: '3000015284',
-  MCO: '3000003349', SJU: '3000024950', TUL: '5000495528', AMS: '3000035824',
-  ATH: '3000035889', PUJ: '5000494493', CLT: '3000012874', BNA: '3000020633',
-  // Resolved via this API's own /hotels/auto-complete 2026-08-27 -- these 6
-  // markets were added to AG_CITY on 2026-08-19 but never backfilled here,
-  // leaving Priceline (the highest-volume provider) silently uncovered for
-  // them the whole time. Turkey's countryCode in this API is 'TU', not 'TR'.
-  CAI: '3000080002', HRG: '3000080000', SSH: '5000038504',
-  AYT: '5000475405', IST: '3000040045', BJV: '5000022030',
-  // Resolved 2026-08-27 for the 10-city expansion, same /hotels/auto-complete method.
-  DPS: '5000012025', RAK: '5000463463', MEX: '3000060262', JTR: '5000496032',
-  BUE: '5000450066', LAX: '3000001947', CHI: '3000005381', VIE: '3000035886',
-  PRG: '3000035883', SEL: '3000040019',
 }
 
 // Agoda city ids (agoda-com provider) -- resolved via /hotels/auto-complete
@@ -228,9 +208,8 @@ async function fetchBookingCom15(iata: string, checkIn: string, checkOut: string
 // Separate RapidAPI subscription/key from booking-com15 (RAPIDAPI_KEY isn't
 // subscribed to this one) -- reads its own env var rather than the shared
 // `key` param threaded through fetchWithRotation, so it's silently skipped
-// (not an error) if unconfigured. Currently the same underlying RapidAPI
-// account as the priceline provider below (RAPIDAPI_KEY_PRICELINE), which
-// added this subscription alongside its existing priceline-com2 one.
+// (not an error) if unconfigured. Its deployed credential retains the legacy
+// RAPIDAPI_KEY_PRICELINE name; it is still required for this live provider.
 
 async function fetchBookingComCoords(iata: string, checkIn: string, checkOut: string): Promise<HotelEntry[]> {
   const key = process.env.RAPIDAPI_KEY_PRICELINE ?? ''
@@ -350,54 +329,7 @@ async function fetchTripAdvisor(iata: string, checkIn: string, checkOut: string)
   })
 }
 
-// ── Provider 4: priceline-com2 (city id search) ──────────────────────────────
-//
-// Separate RapidAPI subscription/key from the other three (RAPIDAPI_KEY isn't
-// subscribed to this one, and this key isn't subscribed to the other three) --
-// reads its own env var rather than the shared `key` param threaded through
-// fetchWithRotation, so it's silently skipped (not an error) if unconfigured.
-
-async function fetchPricelineComProvider(iata: string, checkIn: string, checkOut: string): Promise<HotelEntry[]> {
-  const key = process.env.RAPIDAPI_KEY_PRICELINE ?? ''
-  const locationId = PL_CITY[iata]
-  if (!key || !locationId) return []
-
-  const url =
-    `https://priceline-com2.p.rapidapi.com/hotels/search` +
-    `?locationId=${locationId}&checkIn=${checkIn}&checkOut=${checkOut}&adults=2&rooms=1&currency=USD`
-
-  const res = await fetch(url, {
-    headers: { 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': 'priceline-com2.p.rapidapi.com' },
-    signal: AbortSignal.timeout(18_000),
-  })
-  if (res.status === 429) throw new RateLimitError()
-  if (!res.ok) return []
-
-  const json = await res.json() as { data?: { hotels?: unknown[] } }
-  return (json?.data?.hotels ?? []).flatMap((h: unknown) => {
-    const hotel = h as Record<string, unknown>
-    const id = String(hotel.hotelId ?? '')
-    const name = String(hotel.name ?? '')
-    const stars = hotel.starRating ? Number(hotel.starRating) : null
-    const images = hotel.images as { fastlyUrl?: string }[] | undefined
-    const photo = images?.[0]?.fastlyUrl ?? (typeof hotel.thumbnailUrl === 'string' ? hotel.thumbnailUrl : null)
-    // ratesSummary.minPrice is a pre-tax/fee teaser figure -- confirmed live
-    // (2026-08-06) against real Vegas listings where it understated the real
-    // price by 8-13x (e.g. Flamingo Las Vegas: minPrice "6.00" vs the actual
-    // nightlyRateIncludingTaxesAndFees "62.99", which matches grandTotal /
-    // nights exactly). Using minPrice would have shipped fabricated
-    // sub-$10/night "deals" -- the same class of dishonesty this app has
-    // repeatedly had to fix elsewhere (never present a pre-fee price as if
-    // it were the real one).
-    const ratesSummary = hotel.ratesSummary as { nightlyRateIncludingTaxesAndFees?: string } | undefined
-    const price = Number(ratesSummary?.nightlyRateIncludingTaxesAndFees ?? 0)
-    const priceCents = Math.round(price * 100)
-    if (!id || !name || priceCents <= 0) return []
-    return [{ hotelId: `pl_${id}`, hotelName: name, stars, priceCents, photoUrl: photo }]
-  })
-}
-
-// ── Provider 5: agoda-com (city id search) ───────────────────────────────────
+// ── Provider 4: agoda-com (city id search) ───────────────────────────────────
 
 async function fetchAgoda(iata: string, checkIn: string, checkOut: string): Promise<HotelEntry[]> {
   const key = process.env.RAPIDAPI_KEY_3 ?? ''
@@ -461,14 +393,7 @@ async function fetchAgoda(iata: string, checkIn: string, checkOut: string): Prom
 
 type ProviderFn = (iata: string, ci: string, co: string, key: string) => Promise<HotelEntry[]>
 
-// Ignores the shared `key` param -- reads RAPIDAPI_KEY_PRICELINE itself.
-// Named (not an inline arrow) so provider.name stays meaningful in
-// fetchWithRotation's providerErrors messages below.
-function fetchPricelineCom(iata: string, ci: string, co: string): Promise<HotelEntry[]> {
-  return fetchPricelineComProvider(iata, ci, co)
-}
-
-const PROVIDERS: ProviderFn[] = [fetchBookingCom15, fetchBookingComCoords, fetchTripAdvisor, fetchPricelineCom, fetchAgoda]
+const PROVIDERS: ProviderFn[] = [fetchBookingCom15, fetchBookingComCoords, fetchTripAdvisor, fetchAgoda]
 
 type RotationResult = { hotels: HotelEntry[]; providerErrors: string[]; rateLimitedCount: number }
 

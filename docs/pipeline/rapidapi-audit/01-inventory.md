@@ -1,5 +1,7 @@
 # RapidAPI Full Inventory — Live-Verified Audit
 
+> 2026-09-10 update: priceline-com2 is retired after confirmed subscription failure (403). The snapshot rotation now has four providers. RAPIDAPI_KEY_PRICELINE remains required by the live Booking.com coordinate provider. Historical findings below describe the earlier integration.
+
 **Date:** 2026-08-16
 **Method:** Every row below was tested with a real `curl` request against the live RapidAPI gateway during this session — no simulated results. Ground truth for key values: `~/.config/rapidapi/credentials`. Endpoint shapes were taken from real request-building code already in this repo (`lib/providers/*.ts`, `lib/pipeline/snapshot.ts`) wherever a host is wired in; for unwired hosts, endpoints were found live via a documented "subscription-status vs endpoint-status" probe (see Methodology).
 

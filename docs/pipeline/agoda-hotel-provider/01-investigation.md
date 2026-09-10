@@ -1,5 +1,7 @@
 # DEV-AGODA-HOTEL-PROVIDER-01 — Live Investigation
 
+> 2026-09-10 update: priceline-com2 is retired after confirmed subscription failure (403). The snapshot rotation now has four providers. RAPIDAPI_KEY_PRICELINE remains required by the live Booking.com coordinate provider. Historical findings below describe the earlier integration.
+
 **Date:** 2026-08-19
 **Scope:** Investigation + real live-call evidence only. No provider code was changed by this doc.
 **Origin:** Helena's P10 roadmap Rank 3 ("Agoda + confirm Expedia depth"), Wave T2. Her stated condition for approving T2: verify Expedia's actual snapshot-median contribution first (see below — confirmed zero, not wired), and do a field-mapping sanity check on Agoda before writing any migration, specifically checking for the same "silent overwrite" pattern found in `DEV-DEAL-RATING-PROVENANCE-01` (TripAdvisor's guest score silently overwriting the hotel-class `stars` field).

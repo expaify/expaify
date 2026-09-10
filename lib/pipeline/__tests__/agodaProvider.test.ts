@@ -7,7 +7,7 @@ jest.mock('../../db/client', () => ({
 
 const PAR = { id: 4, city: 'Paris', country: 'FR', iata: 'PAR' }
 
-describe('fetchAgoda (5th rotation provider, separate RAPIDAPI_KEY_3)', () => {
+describe('fetchAgoda (4th rotation provider, separate RAPIDAPI_KEY_3)', () => {
   const originalSharedKey = process.env.RAPIDAPI_KEY
   const originalAgodaKey = process.env.RAPIDAPI_KEY_3
 
@@ -64,8 +64,8 @@ describe('fetchAgoda (5th rotation provider, separate RAPIDAPI_KEY_3)', () => {
       }),
     })
 
-    // Agoda is index 4, so marketIndex 4 starts the rotation with it.
-    const [result] = await runSnapshotsForMarket(PAR, 4)
+    // Agoda is index 3, so marketIndex 3 starts the rotation with it.
+    const [result] = await runSnapshotsForMarket(PAR, 3)
 
     expect(result.hotelsProcessed).toBe(1)
     expect(global.fetch).toHaveBeenCalledTimes(1)
