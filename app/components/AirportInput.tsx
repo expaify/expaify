@@ -200,8 +200,8 @@ export default function AirportInput({
             : 'border-[var(--border)] focus:border-[var(--border-focus)]'
         }`}
       />
-      {open && (
         <div
+          hidden={!open}
           id={listboxId}
           role="listbox"
           aria-label={`${placeholder} suggestions`}
@@ -249,7 +249,6 @@ export default function AirportInput({
             <div className="px-4 py-3 text-sm font-medium text-[var(--text-2)]">Airport lookup is unavailable. Try again in a moment.</div>
           ) : null}
         </div>
-      )}
       {hasSelectedScope && (
         <div id={helperId} className={`flex min-h-5 items-start gap-1.5 text-xs font-medium leading-5 ${selectionKind === 'resolved' ? 'text-[var(--warning)]' : 'text-[var(--success)]'}`}>
           {selectionKind === 'resolved'

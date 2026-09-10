@@ -75,6 +75,16 @@ describe('AirportInput', () => {
     ReactMock.useState.mockClear()
   })
 
+  it('keeps a hidden matching listbox in the initial DOM', () => {
+    const tree = renderAirportInput()
+    const input = findByType(tree, 'input')
+    const listbox = findByRole(tree, 'listbox')
+    expect(input.props['aria-controls']).toBe(listbox.props.id)
+    expect(input.props['aria-expanded']).toBe(false)
+    expect(input.props['aria-activedescendant']).toBeUndefined()
+    expect(listbox.props.hidden).toBe(true)
+  })
+
   it('exposes combobox and listbox semantics with a clear no-match state', () => {
     ReactMock.useState
       .mockImplementationOnce(() => ['zzzz', jest.fn()])
@@ -91,6 +101,7 @@ describe('AirportInput', () => {
     expect(input.props['aria-expanded']).toBe(true)
     expect(input.props['aria-controls']).toBe('origin-airport-listbox')
     expect(listbox.props.id).toBe('origin-airport-listbox')
+    expect(listbox.props.hidden).toBe(false)
     expect(walk(tree).some(element => childrenOf(element).includes('No matching airports found. Check the city or 3-letter airport code.'))).toBe(true)
   })
 
