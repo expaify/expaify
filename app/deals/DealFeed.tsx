@@ -5,6 +5,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { DealCard } from '../components/ui/DealCard'
 import { FreeUnlockStatus } from '../components/ui/FreeUnlockStatus'
+import { isUnlockableDealId } from '@/lib/deals/unlockEligibility'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
 import { PremiumHubBar } from '../components/ui/PremiumHubBar'
 import { Reveal } from '../components/ui/Reveal'
@@ -1849,7 +1850,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               </div>
               <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150 ease-out-expo`}>
                 {deals.map(deal => deal.locked ? (
-                  <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0} personalUnlocksRemaining={personalUnlocksRemaining} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
+                  <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0 && isUnlockableDealId(deal.id)} personalUnlocksRemaining={personalUnlocksRemaining} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
                   <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, reviewEvidence: deal.reviewEvidence, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: deal.currency }, medianPrice: { priceCents: deal.medianPriceCents, currency: deal.currency }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
@@ -1866,7 +1867,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               </div>
               <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150 ease-out-expo`}>
                 {deals.map(deal => deal.locked ? (
-                  <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0} personalUnlocksRemaining={personalUnlocksRemaining} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
+                  <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0 && isUnlockableDealId(deal.id)} personalUnlocksRemaining={personalUnlocksRemaining} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
                   <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, reviewEvidence: deal.reviewEvidence, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: deal.currency }, medianPrice: { priceCents: deal.medianPriceCents, currency: deal.currency }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
@@ -1959,7 +1960,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                       <div ref={i === firstLockedDealIndex ? firstLockedDealRef : undefined}>
                         <LockedDealCard
                           dealId={deal.id}
-                          canSelfUnlock={personalUnlocksRemaining > 0}
+                          canSelfUnlock={personalUnlocksRemaining > 0 && isUnlockableDealId(deal.id)}
                           personalUnlocksRemaining={personalUnlocksRemaining}
                           placeholderName="Members-only deal"
                           placeholderCity={deal.city}

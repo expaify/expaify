@@ -5,6 +5,7 @@ import { auth } from '@/auth'
 import { getDealById } from '@/lib/pipeline/dealDetection'
 import { getSubscription, isPremium } from '@/lib/subscription'
 import { withTransaction, query } from '@/lib/db/client'
+import { isUnlockableDealId } from '@/lib/deals/unlockEligibility'
 import { unlockDealForUser } from '@/lib/dealUnlocks'
 
 export const runtime = 'nodejs'
@@ -14,7 +15,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const userId = session.user.id
   const { id } = await params
-  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: 'invalid_id' }, { status: 400 })
+  if (!isUnlockableDealId(id)) return NextResponse.json({ error: 'invalid_id' }, { status: 400 })
 
   const sub = await getSubscription(userId).catch(() => null)
   if (isPremium(sub?.status ?? 'free')) return NextResponse.json({ ok: true, alreadyUnlocked: true, premium: true })

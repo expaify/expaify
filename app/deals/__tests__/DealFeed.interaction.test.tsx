@@ -24,7 +24,9 @@ jest.mock('@/app/components/ui/DealCard', () => ({
   ),
 }))
 jest.mock('@/app/components/ui/LockedDealCard', () => ({
-  LockedDealCard: ({ placeholderName }: { placeholderName: string }) => <article>{placeholderName}</article>,
+  LockedDealCard: ({ placeholderName, dealId, canSelfUnlock }: { placeholderName: string; dealId?: string; canSelfUnlock?: boolean }) => (
+    <article data-locked-id={dealId} data-can-self-unlock={String(canSelfUnlock)}>{placeholderName}</article>
+  ),
 }))
 jest.mock('../HotelRecoveryUI', () => ({
   HotelResultStatus: () => null,
@@ -251,6 +253,28 @@ describe('DealFeed continuation interactions', () => {
     if (!root) return
     const { act } = require('react') as typeof import('react')
     await act(async () => root.unmount())
+  })
+
+  it.each([
+    ['tracked-pl_600214705-2026-09-15', 3, false],
+    ['tracked-bk_12656105-2026-09-15', 3, false],
+    ['not-a-uuid', 3, false],
+    ['12345678-1234-1234-1234-123456789abc', 3, true],
+    ['12345678-1234-1234-1234-123456789ABC', 3, true],
+    ['12345678-1234-1234-1234-123456789abc', 0, false],
+  ])('gates locked card %s with %s unlocks remaining', async (id, remaining, expected) => {
+    global.fetch = jest.fn(() => new Promise<Response>(() => {}))
+    await renderDealFeed({
+      initialDeals: [{ ...deal(id), locked: true }],
+      premium: false,
+      signedIn: true,
+      freeUnlockLimit: 3,
+      freeUnlockedThisWeek: 3 - remaining,
+    })
+    const card = container.querySelector(`[data-locked-id="${id}"]`)
+    expect(card).not.toBeNull()
+    expect(card!.closest('[inert]')).toBeNull()
+    expect(card!.getAttribute('data-can-self-unlock')).toBe(String(expected))
   })
 
   it('returns focus to the filter trigger before clearing removes the focused control', async () => {
