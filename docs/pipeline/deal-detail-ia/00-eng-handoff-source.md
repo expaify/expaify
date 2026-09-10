@@ -1,4 +1,6 @@
 # Eng handoff: Deal detail page IA (omit empty evidence, proof-first)
+
+> 2026-09-10 update: the AI day-plan adapter and both deal-detail sections are retired after the sole provider returned subscription 403s. Its Result failures previously rendered an unavailable card; removal avoids permanent retry messaging and doomed calls. Historical feature instructions below are superseded.
 (Verbatim/condensed from Helena, expaify's marketing/design lead, dated 2026-08-19, following a real live-site crawl. Trigger doc: a direct owner report of a real deal page screenshot description, root-caused independently by both Helena's crawl and the orchestrator's code read.)
 
 **Status:** Ready for eng, pulled forward by owner on 2026-08-19.

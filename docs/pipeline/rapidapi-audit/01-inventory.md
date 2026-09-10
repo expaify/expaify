@@ -1,5 +1,7 @@
 # RapidAPI Full Inventory — Live-Verified Audit
 
+> 2026-09-10 update: the AI day-plan adapter and both deal-detail sections are retired after the sole provider returned subscription 403s. Its Result failures previously rendered an unavailable card; removal avoids permanent retry messaging and doomed calls. Historical feature instructions below are superseded.
+
 > 2026-09-10 update: priceline-com2 is retired after confirmed subscription failure (403). The snapshot rotation now has four providers. RAPIDAPI_KEY_PRICELINE remains required by the live Booking.com coordinate provider. Historical findings below describe the earlier integration.
 
 **Date:** 2026-08-16

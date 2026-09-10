@@ -21,9 +21,7 @@ import { FlightsToThisDeal } from '@/app/components/FlightsToThisDeal'
 import DealScorePanel from '@/app/components/DealScorePanel'
 import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
 import { Reveal } from '@/app/components/ui/Reveal'
-import { AiDayPlanSection } from '@/app/components/AiDayPlanSection'
 import { LocationQualitySection } from '@/app/components/LocationQualitySection'
-import { AiDayPlanCardSkeleton } from '@/app/components/ui/AiDayPlanCard'
 import HotelCancellationChoicesUnavailable from '@/app/components/HotelCancellationChoicesUnavailable'
 import GuestReviewEvidence from '@/app/components/GuestReviewEvidence'
 import {
@@ -514,7 +512,6 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             </section>
 
             {hasReviewEvidence ? <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6"><GuestReviewEvidence evidence={reviewEvidence} /></section> : null}
-            <Suspense fallback={<AiDayPlanCardSkeleton />}><AiDayPlanSection city={deal.city} /></Suspense>
 
             {hasStayNotes ? (
               <details className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 py-2 sm:px-6">
@@ -702,9 +699,6 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
               <HotelContinuityPrototype dealId={deal.id} hotelName={deal.hotel_name} fixtureId={continuityFixtureId} disclosure={continuityDisclosure} initiallyExpanded={disclosureParam === 'expanded'} />
               <Suspense fallback={<PriceHistorySkeleton />}>
                 <PriceHistorySection deal={deal} loadHistory={loadHistory} />
-              </Suspense>
-              <Suspense fallback={<AiDayPlanCardSkeleton />}>
-                <AiDayPlanSection city={deal.city} />
               </Suspense>
               <details className="rounded-[var(--radius-control)] border border-[color:var(--border)] bg-[color:var(--bg-raised)] px-4 py-2">
                 <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[color:var(--brand)]">Show offer details</summary>
