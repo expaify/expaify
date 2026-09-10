@@ -414,7 +414,7 @@ export default async function LandingPage() {
                     Premium
                   </p>
                   <span className="rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-2 py-0.5 font-display text-caption font-bold leading-none text-[color:var(--gold-text)]">
-                    2 months free
+                    4 months free
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap items-baseline gap-1">

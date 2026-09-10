@@ -125,7 +125,7 @@ export default function JoinForm() {
                     <>
                       Annual
                       <span className="ml-1 rounded-[var(--radius-pill)] bg-[color:var(--gold)] px-1.5 py-0.5 font-display text-xs font-bold leading-none text-[color:var(--gold-text)]">
-                        2 mo free
+                        4 mo free
                       </span>
                     </>
                   ) : (
