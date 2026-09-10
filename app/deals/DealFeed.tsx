@@ -4,6 +4,7 @@ import { MIN_QUALIFYING_DISCOUNT_PCT } from '@/lib/deals/threshold'
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { DealCard } from '../components/ui/DealCard'
+import { FreeUnlockStatus } from '../components/ui/FreeUnlockStatus'
 import { LockedDealCard } from '../components/ui/LockedDealCard'
 import { PremiumHubBar } from '../components/ui/PremiumHubBar'
 import { Reveal } from '../components/ui/Reveal'
@@ -1592,11 +1593,6 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       ) : (
         <>
           <SearchBar premium={premium} onResult={handleAiSearchResult} onClear={handleAiSearchClear} />
-          {signedIn && !premium ? (
-            <p className="mb-4 text-small font-medium text-[color:var(--text-2)]" aria-live="polite">
-              {personalUnlocksRemaining} of {freeUnlockLimit} unlocks left this week
-            </p>
-          ) : null}
           <Reveal>
             <section aria-labelledby="hotel-filter-label" className="mb-5">
             <span id="hotel-filter-label" className="mb-1.5 block font-display text-caption font-bold leading-5 text-[var(--text-1)]">
@@ -1853,7 +1849,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               </div>
               <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150 ease-out-expo`}>
                 {deals.map(deal => deal.locked ? (
-                  <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
+                  <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0} personalUnlocksRemaining={personalUnlocksRemaining} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
                   <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, reviewEvidence: deal.reviewEvidence, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: deal.currency }, medianPrice: { priceCents: deal.medianPriceCents, currency: deal.currency }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
@@ -1870,7 +1866,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               </div>
               <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150 ease-out-expo`}>
                 {deals.map(deal => deal.locked ? (
-                  <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
+                  <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0} personalUnlocksRemaining={personalUnlocksRemaining} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
                 ) : (
                   <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, reviewEvidence: deal.reviewEvidence, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: deal.currency }, medianPrice: { priceCents: deal.medianPriceCents, currency: deal.currency }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
                 ))}
@@ -1950,6 +1946,12 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                   </div>
                 </div>
               ) : null}
+              <FreeUnlockStatus
+                signedIn={signedIn}
+                premium={premium}
+                personalUnlocksRemaining={personalUnlocksRemaining}
+                freeUnlockLimit={freeUnlockLimit}
+              />
               <div ref={gridRef} tabIndex={-1} aria-busy="false" className={`${gridClass} outline-none`}>
                 {deals.map((deal, i) => (
                   <Reveal key={deal.id} delayMs={Math.min(i, 4) * 100}>
@@ -1958,6 +1960,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                         <LockedDealCard
                           dealId={deal.id}
                           canSelfUnlock={personalUnlocksRemaining > 0}
+                          personalUnlocksRemaining={personalUnlocksRemaining}
                           placeholderName="Members-only deal"
                           placeholderCity={deal.city}
                           stars={deal.stars}

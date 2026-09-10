@@ -17,6 +17,7 @@ type LockedDealCardProps = {
   accessibilityNeedsSelected?: boolean
   dealId?: string
   canSelfUnlock?: boolean
+  personalUnlocksRemaining?: number
 }
 
 function starChars(stars: number): string {
@@ -38,7 +39,11 @@ export function LockedDealCard({
   accessibilityNeedsSelected = false,
   dealId,
   canSelfUnlock = false,
+  personalUnlocksRemaining,
 }: LockedDealCardProps) {
+  const remainingLabel = canSelfUnlock && personalUnlocksRemaining !== undefined
+    ? `${personalUnlocksRemaining} ${personalUnlocksRemaining === 1 ? 'unlock' : 'unlocks'} left this week`
+    : ''
   const qualifyingDiscount = Number.isFinite(discountPct) && discountPct >= MIN_QUALIFYING_DISCOUNT_PCT
   const [unlocking, setUnlocking] = useState(false)
   const [unlockError, setUnlockError] = useState('')
@@ -71,7 +76,7 @@ export function LockedDealCard({
       <a
         href={canSelfUnlock ? '#' : trackingHref(joinHref, discountPct)}
         onClick={activate}
-        aria-label={`${qualifyingDiscount ? `Locked deal. Save ${discountPct}% at a hotel in ${placeholderCity}.` : `Currently tracked hotel in ${placeholderCity}.`} ${canSelfUnlock ? 'Use one weekly unlock to reveal this hotel.' : 'Unlock hotel with Premium.'}`}
+        aria-label={`${qualifyingDiscount ? `Locked deal. Save ${discountPct}% at a hotel in ${placeholderCity}.` : `Currently tracked hotel in ${placeholderCity}.`} ${canSelfUnlock ? `Use one weekly unlock to reveal this hotel.${remainingLabel ? ` ${remainingLabel}.` : ''}` : 'Unlock hotel with Premium.'}`}
         className="block focus-visible:outline-none"
       >
       {qualifyingDiscount ? <div className="absolute right-3 top-3 z-30 flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[color:var(--accent)] px-2.5 py-1 font-display text-caption font-bold text-[color:var(--ink)] shadow-[var(--shadow-card-rest)] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out-expo group-hover:scale-105">
@@ -102,7 +107,7 @@ export function LockedDealCard({
                 <Icon name="premium_unlocked" size={20} className="text-[color:var(--primary)]" />
               </span>
               <span className="mt-2 font-display text-body font-bold text-[color:var(--ink)]">{canSelfUnlock ? (unlocking ? 'Unlocking…' : 'Use a weekly unlock') : qualifyingDiscount ? 'Members-only deal' : 'Members-only hotel'}</span>
-              <span className="mt-1 text-caption text-[color:var(--ink-soft)]">{canSelfUnlock ? 'Reveal this hotel and its current rate.' : 'Join Premium to reveal this hotel and its current rate.'}</span>
+              <span className="mt-1 text-caption text-[color:var(--ink-soft)]">{canSelfUnlock ? remainingLabel || 'Reveal this hotel and its current rate.' : 'Join Premium to reveal this hotel and its current rate.'}</span>
             </div>
           </div>
       </div>
