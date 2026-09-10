@@ -8,7 +8,7 @@ export default function LoadingDealDetail() {
         </div>
       </nav>
 
-      <main aria-busy="true" className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
+      <main id="main-content" tabIndex={-1} aria-busy="true" className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
         <section className="mb-6 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-5" role="status">
           <span className="sr-only">Restoring your search…</span>
           <div aria-hidden="true" className="space-y-3">

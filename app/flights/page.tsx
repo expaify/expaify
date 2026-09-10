@@ -25,7 +25,7 @@ export default function FlightsPage() {
   return (
     <>
       <LandingNav />
-      <main className="mx-auto max-w-[1140px] px-5 pb-24 pt-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[1140px] px-5 pb-24 pt-10">
         <h1 className="text-h2 mb-4 font-display text-[color:var(--ink)]">Search hotels across providers</h1>
         <FlightsClient />
       </main>

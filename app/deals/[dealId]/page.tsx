@@ -182,7 +182,7 @@ function LockedDealDetail({ city, checkInDate, checkInWindow, criteriaContext }:
         </div>
       </nav>
 
-      <main className="mx-auto max-w-[560px] px-5 py-14">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[560px] px-5 py-14">
         <div className="mb-6 text-left">
           <HotelDealCriteriaSummary
             context={criteriaContext}
@@ -473,7 +473,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             <a href="/account#alerts" aria-label="Your account" className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)]">Your account</a>
           </div>
         </nav>
-        <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
+        <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
           <a href={backHref} className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--text-2)] no-underline hover:text-[color:var(--text-1)]">← {criteria ? 'Back to results' : 'Back to saved deals'}</a>
           <div className="mt-4 space-y-4">
             <Reveal>
@@ -557,7 +557,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
         </div>
       </nav>
 
-      <main className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-6 sm:py-8">
         <a
           href={backHref}
           aria-label={criteria ? 'Back to hotel results for this search' : 'Back to saved deals'}

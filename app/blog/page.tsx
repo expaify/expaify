@@ -36,7 +36,7 @@ export default async function BlogIndexPage() {
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
       <LandingNav />
-      <main className="mx-auto max-w-[760px] px-5 py-12">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[760px] px-5 py-12">
         <Reveal delayMs={0}>
           <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">The expaify Blog: honest hotel deal advice</h1>
         </Reveal>

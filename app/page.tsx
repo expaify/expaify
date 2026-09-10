@@ -147,7 +147,7 @@ export default async function LandingPage() {
     <>
       <LandingNav />
 
-      <main>
+      <main id="main-content" tabIndex={-1}>
         {/* ── Hero ──────────────────────────────────────── */}
         <section className="relative mx-auto max-w-[1140px] px-5 pb-20 pt-16">
           <div className="hero-atmosphere" aria-hidden />

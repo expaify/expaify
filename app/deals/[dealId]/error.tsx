@@ -9,14 +9,14 @@ export default function DealDetailError({ unstable_retry }: { error: Error & { d
 
   if (retrying) {
     return (
-      <main className="mx-auto flex min-h-[70vh] w-full max-w-[560px] items-center px-4 py-8 sm:px-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto flex min-h-[70vh] w-full max-w-[560px] items-center px-4 py-8 sm:px-6">
         <p role="status" aria-live="polite" aria-atomic="true" className="font-medium text-[color:var(--text-2)]">Loading hotel details</p>
       </main>
     )
   }
 
   return (
-    <main className="mx-auto flex min-h-[70vh] w-full max-w-[560px] items-center px-4 py-8 sm:px-6">
+    <main id="main-content" tabIndex={-1} className="mx-auto flex min-h-[70vh] w-full max-w-[560px] items-center px-4 py-8 sm:px-6">
       <section role="alert" className="w-full rounded-[var(--radius-card)] border border-[color:var(--border-strong)] bg-[color:var(--error-soft)] p-6 sm:p-8">
         <h1 ref={headingRef} tabIndex={-1} className="rounded-[var(--radius-control)] font-display text-2xl font-bold text-[color:var(--text-1)]">Hotel details could not be loaded</h1>
         <p className="mt-3 text-sm leading-6 text-[color:var(--text-2)]">We could not load this hotel right now. Try again, or return to your previous hotel list.</p>

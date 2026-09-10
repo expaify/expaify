@@ -11,7 +11,7 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-[color:var(--bg)]">
       <LandingNav />
-      <main className="mx-auto max-w-[760px] px-5 py-12">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[760px] px-5 py-12">
         <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">Privacy Policy — expaify</h1>
         <p className="mt-1 mb-10 text-sm text-[color:var(--ink-faint)]">Last updated July 2, 2026</p>
 

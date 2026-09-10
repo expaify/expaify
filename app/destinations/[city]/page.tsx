@@ -93,7 +93,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
     (restoredCriteria && (restoredCriteria.destination.state !== 'selected' || restoredCriteria.destination.city !== displayName))
   ) {
     return (
-      <main className="mx-auto max-w-[760px] px-5 py-16">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[760px] px-5 py-16">
         <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-6 text-center">
           <h1 className="text-h2 text-[color:var(--text-1)]">We couldn&apos;t restore this search.</h1>
           <p className="mt-2 text-sm leading-6 text-[color:var(--text-2)]">The search link is incomplete or no longer valid.</p>
@@ -193,7 +193,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
   } : null
 
   return (
-    <main className="reveal-scope mx-auto max-w-[1200px] px-4 pb-24 pt-8 sm:px-6 lg:px-8">
+    <main id="main-content" tabIndex={-1} className="reveal-scope mx-auto max-w-[1200px] px-4 pb-24 pt-8 sm:px-6 lg:px-8">
       <noscript>
         <style>{`.reveal-scope .reveal, .reveal-scope .reveal-bar { opacity: 1 !important; transform: none !important; width: var(--bar-target, 100%) !important; }`}</style>
       </noscript>

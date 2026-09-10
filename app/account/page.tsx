@@ -65,7 +65,7 @@ export default async function AccountPage({ searchParams }: PageProps) {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-[680px] px-5 py-10">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[680px] px-5 py-10">
 
         {/* Welcome banner */}
         {showWelcome && (

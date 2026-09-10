@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function DestinationsPage() {
   return (
     <AppShell>
-      <main className="mx-auto w-full max-w-[1200px] px-5 py-16 min-[1024px]:py-24">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-[1200px] px-5 py-16 min-[1024px]:py-24">
         <p className="text-small font-semibold uppercase tracking-[0.08em] text-[color:var(--primary)]">Daily price tracking</p>
         <h1 className="text-display mt-3 text-[color:var(--ink)]">All {TRACKED_MARKETS.length} destinations</h1>
         <p className="text-body mt-5 max-w-[640px] text-[color:var(--ink-soft)]">Explore every city we scan for verified hotel price drops.</p>

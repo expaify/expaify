@@ -18,7 +18,7 @@ export function HomepageRedesign({ deals }: { deals: DealCardDeal[] }) {
   return (
     <>
       <LandingNav homepageRedesign />
-      <main className="reveal-scope">
+      <main id="main-content" tabIndex={-1} className="reveal-scope">
         <noscript>
           <style>{`.reveal-scope .reveal, .reveal-scope .reveal-bar { opacity: 1 !important; transform: none !important; width: var(--bar-target, 100%) !important; }`}</style>
         </noscript>

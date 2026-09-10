@@ -17,7 +17,7 @@ export default async function OnboardingPage() {
   if (sub?.onboardingDone) redirect('/deals')
 
   return (
-    <main className="min-h-screen bg-[color:var(--bg)]">
+    <main id="main-content" tabIndex={-1} className="min-h-screen bg-[color:var(--bg)]">
       <OnboardingClient premium={sub ? isPremium(sub.status) : false} />
     </main>
   )

@@ -117,7 +117,7 @@ export default async function BlogPostPage({ params }: { params: PageParams }) {
         dangerouslySetInnerHTML={{ __html: safeJsonLd(articleSchema) }}
       />
       <LandingNav />
-      <main className="mx-auto max-w-[760px] px-5 py-12">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[760px] px-5 py-12">
         <Reveal delayMs={0}>
           <h1 className="font-display text-4xl font-bold text-[color:var(--ink)]">{post.title}</h1>
           <p className="mt-2 text-small text-[color:var(--ink-faint)]">

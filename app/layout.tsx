@@ -16,6 +16,7 @@ const hankenGrotesk = Hanken_Grotesk({
   display: "swap",
 });
 import Script from "next/script";
+import { SkipToContent } from "./components/SkipToContent";
 import { AttributionCapture } from "./components/AttributionCapture";
 import { Footer } from "./components/Footer";
 import { OpinlyIdentify } from "./components/OpinlyIdentify";
@@ -88,6 +89,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${bricolageGrotesque.variable} ${hankenGrotesk.variable} ${GeistMono.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-[color:var(--bg)] text-[color:var(--ink)] antialiased">
+        <SkipToContent />
         <script
           type="application/ld+json"
           // eslint-disable-next-line react/no-danger
