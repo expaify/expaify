@@ -10,6 +10,19 @@ import JoinForm from './_form'
 export const metadata: Metadata = {
   title: 'Join expaify — never overpay for a hotel again',
   description: `Get daily hotel deal alerts across ${TRACKED_MARKETS.length} destinations, each one 30%+ below its 60-day median price. Start your trial.`,
+  openGraph: {
+    title: 'Join expaify — never overpay for a hotel again',
+    description: `Get daily hotel deal alerts across ${TRACKED_MARKETS.length} destinations, each one 30%+ below its 60-day median price. Start your trial.`,
+    url: 'https://expaify.com/join',
+    type: 'website',
+    images: [{ url: '/og.png', alt: 'Join expaify — never overpay for a hotel again' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Join expaify — never overpay for a hotel again',
+    description: `Get daily hotel deal alerts across ${TRACKED_MARKETS.length} destinations, each one 30%+ below its 60-day median price. Start your trial.`,
+    images: ['/og.png'],
+  },
   alternates: { canonical: 'https://expaify.com/join' },
 }
 

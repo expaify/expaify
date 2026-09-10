@@ -7,6 +7,19 @@ import { getBlogPosts } from '@/lib/contentful';
 export const metadata: Metadata = {
   title: 'The expaify Blog — hotel deal-hunting, explained honestly',
   description: 'How Deal Score, price history, and location quality actually work -- straight explanations of the signals expaify uses to tell a real hotel deal from a marketing discount.',
+  openGraph: {
+    title: 'The expaify Blog — hotel deal-hunting, explained honestly',
+    description: 'How Deal Score, price history, and location quality actually work -- straight explanations of the signals expaify uses to tell a real hotel deal from a marketing discount.',
+    url: 'https://expaify.com/blog',
+    type: 'website',
+    images: [{ url: '/og.png', alt: 'The expaify Blog — hotel deal-hunting, explained honestly' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'The expaify Blog — hotel deal-hunting, explained honestly',
+    description: 'How Deal Score, price history, and location quality actually work -- straight explanations of the signals expaify uses to tell a real hotel deal from a marketing discount.',
+    images: ['/og.png'],
+  },
   alternates: { canonical: 'https://expaify.com/blog' },
 };
 

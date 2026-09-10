@@ -5,6 +5,19 @@ import { FlightsClient } from './FlightsClient'
 export const metadata: Metadata = {
   title: 'Search hotels — expaify',
   description: 'Compare live hotel rates across providers and see which ones are an honest deal.',
+  openGraph: {
+    title: 'Search hotels — expaify',
+    description: 'Compare live hotel rates across providers and see which ones are an honest deal.',
+    url: 'https://expaify.com/flights',
+    type: 'website',
+    images: [{ url: '/og.png', alt: 'Search hotels — expaify' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Search hotels — expaify',
+    description: 'Compare live hotel rates across providers and see which ones are an honest deal.',
+    images: ['/og.png'],
+  },
   alternates: { canonical: 'https://expaify.com/flights' },
 }
 

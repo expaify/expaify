@@ -23,6 +23,19 @@ import { TRACKED_MARKETS } from '@/lib/trackedMarkets'
 export const metadata: Metadata = {
   title: 'Hotel deals today — expaify',
   description: `We track ${TRACKED_MARKETS.length} destinations daily and surface hotel deals at least 30% below their 60-day median price.`,
+  openGraph: {
+    title: 'Hotel deals today — expaify',
+    description: `We track ${TRACKED_MARKETS.length} destinations daily and surface hotel deals at least 30% below their 60-day median price.`,
+    url: 'https://expaify.com/deals',
+    type: 'website',
+    images: [{ url: '/og.png', alt: 'Hotel deals today — expaify' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Hotel deals today — expaify',
+    description: `We track ${TRACKED_MARKETS.length} destinations daily and surface hotel deals at least 30% below their 60-day median price.`,
+    images: ['/og.png'],
+  },
   alternates: { canonical: 'https://expaify.com/deals' },
 }
 
