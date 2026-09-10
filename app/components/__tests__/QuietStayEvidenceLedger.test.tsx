@@ -328,7 +328,7 @@ describe('QuietStayEvidenceLedger', () => {
     )
 
     expect(populated.match(/Quiet-stay evidence available · Property/g)).toHaveLength(2)
-    expect(populated).toContain('aria-label="View deal: Example Hotel. 4-star hotel class. Quiet-stay evidence available · Property."')
+    expect(populated).toContain('aria-label="View hotel: Example Hotel. 4-star hotel class. Quiet-stay evidence available · Property."')
     expect(unknown).not.toContain('Quiet-stay evidence available')
     expect(populated).toContain('href="/destinations/london"')
     expect(populated.match(/<a /g)).toHaveLength(2)

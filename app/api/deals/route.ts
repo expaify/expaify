@@ -1,3 +1,4 @@
+import { MIN_QUALIFYING_DISCOUNT_PCT } from '@/lib/deals/threshold'
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -142,7 +143,7 @@ export async function GET(req: NextRequest) {
   // 30, not 20: matches DEFAULT_MIN_DISCOUNT in DealFeed.tsx and the real
   // "30%+ below its own 60-day median" product promise (see commit 08170c9,
   // which raised the frontend default but missed this server-side clamp).
-  const minDiscount = pwCtx.premium ? requestedView.minDiscount : 30
+  const minDiscount = pwCtx.premium ? requestedView.minDiscount : MIN_QUALIFYING_DISCOUNT_PCT
   const maxPriceCents = pwCtx.premium ? requestedView.maxPriceCents ?? undefined : undefined
   const minStars = pwCtx.premium ? requestedView.minStars || undefined : undefined
   const dateFrom = criteriaResolution.status === 'valid' && criteriaResolution.criteria.dates.semantic === 'checkin_window'
@@ -158,7 +159,7 @@ export async function GET(req: NextRequest) {
     searchParams.get('market_id') ||
     searchParams.get('date_from') ||
     searchParams.get('date_to') ||
-    (pwCtx.premium && (searchParams.get('max_price_cents') || searchParams.get('min_stars') || minDiscount !== 30))
+    (pwCtx.premium && (searchParams.get('max_price_cents') || searchParams.get('min_stars') || minDiscount !== MIN_QUALIFYING_DISCOUNT_PCT))
   )
 
   // Support filtering by city name (resolve to market_id)

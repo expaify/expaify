@@ -1,3 +1,4 @@
+import { MIN_QUALIFYING_DISCOUNT_PCT } from '@/lib/deals/threshold'
 /**
  * Deterministic deal-decision rules (EXP-AGENT-3-PRICE-PIPELINE-001).
  *
@@ -6,7 +7,7 @@
  * dealDetection.ts feeds it per-hotel stats computed from stored snapshots.
  */
 
-export const DEAL_THRESHOLD = 0.70    // price must be ≤ 70% of median to flag
+export const DEAL_THRESHOLD = (100 - MIN_QUALIFYING_DISCOUNT_PCT) / 100    // price must be ≤ 70% of median to flag
 export const EXPIRE_THRESHOLD = 0.85  // price back above 85% of median → expire
 export const MIN_SNAPSHOTS = 8        // below this history depth, never flag
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { MIN_QUALIFYING_DISCOUNT_PCT } from '@/lib/deals/threshold'
 import { formatMoney } from '@/lib/money'
 import type { HotelClimateEvidence, HotelDisruptionEvidence, HotelReviewEvidence, Money } from '@/lib/types'
 import { timeAgo } from '@/lib/timeAgo'
@@ -123,7 +124,8 @@ export function DealCardCity({ city }: { city: string }) {
 
 export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvidence, poolEvidence, photoLoading = 'lazy', accessibility, climateEvidence, evChargingEvidence = PRODUCTION_EV_CHARGING_UNKNOWN }: DealCardProps) {
   const savings = deal.medianPrice.priceCents - deal.dealPrice.priceCents
-  const showSavings = savings >= 2000
+  const qualifyingDiscount = Number.isFinite(deal.discountPct) && deal.discountPct >= MIN_QUALIFYING_DISCOUNT_PCT
+  const showSavings = qualifyingDiscount && savings >= 2000
   const checked = deal.isMock ? null : timeAgo(deal.updatedAt)
   const rateProvider = singleRateProvider(deal.links)
   const quietEvidenceCue = getQuietEvidenceResultCue(quietStayEvidence)
@@ -218,9 +220,9 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
               {formatMoney(deal.dealPrice)}
             </span>
             <span className="text-caption self-end pb-0.5 leading-none text-[color:var(--ink-faint)]">/ night</span>
-            <span className="text-small leading-none text-[color:var(--ink-faint)] line-through text-tabular">
+            {qualifyingDiscount ? <span className="text-small leading-none text-[color:var(--ink-faint)] line-through text-tabular">
               usually {formatMoney(deal.medianPrice)}
-            </span>
+            </span> : null}
             {deal.expired ? (
               <span className="inline-flex items-center rounded-[var(--radius-pill)] bg-[color:var(--bg-muted)] px-3 py-1.5 font-display text-small font-bold leading-none text-[color:var(--ink-soft)]">
                 Expired
@@ -247,7 +249,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
           </p>
         </div>
 
-        {showTrackingIndicator ? (
+        {qualifyingDiscount && showTrackingIndicator ? (
           <div className="space-y-1" style={{ opacity: deal.snapshotCount >= 12 ? 1 : 0.6 }}>
             <div
               role="img"
@@ -267,7 +269,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
         {deal.expired ? null : deal.isMock ? (
           <p className="text-caption font-medium leading-snug text-[color:var(--ink-faint)]">Sample hotel — not bookable</p>
         ) : href ? (
-          <p className="flex min-h-11 items-center justify-center rounded-[var(--radius-input)] border border-[color:var(--primary)] text-small font-medium text-[color:var(--primary)]">View deal</p>
+          <p className="flex min-h-11 items-center justify-center rounded-[var(--radius-input)] border border-[color:var(--primary)] text-small font-medium text-[color:var(--primary)]">{qualifyingDiscount ? 'View deal' : 'View hotel'}</p>
         ) : (
           <div className="space-y-2">
             <CompareRow links={deal.links} />
@@ -296,7 +298,7 @@ export function DealCard({ deal, href, onOpen, quietStayEvidence, disruptionEvid
         href={href}
         onClick={onOpen}
         className="absolute inset-0 z-[1] block text-inherit no-underline"
-        aria-label={`View deal: ${deal.hotelName}.${deal.stars === null ? '' : ` ${Math.round(deal.stars)}-star hotel class.`}${winningCue?.accessible ? ` ${winningCue.accessible}.` : ''}`}
+        aria-label={`${qualifyingDiscount ? 'View deal' : 'View hotel'}: ${deal.hotelName}.${deal.stars === null ? '' : ` ${Math.round(deal.stars)}-star hotel class.`}${winningCue?.accessible ? ` ${winningCue.accessible}.` : ''}`}
       />
     </div>
   )

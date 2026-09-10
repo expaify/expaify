@@ -1,5 +1,6 @@
 'use client'
 
+import { MIN_QUALIFYING_DISCOUNT_PCT } from '@/lib/deals/threshold'
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { DealCard } from '../components/ui/DealCard'
@@ -50,7 +51,7 @@ import type { HotelReviewEvidence } from '@/lib/types'
 import { TRACKED_MARKETS, TRACKED_MARKET_NAMES } from '@/lib/trackedMarkets'
 import { createUnsupportedHotelClimateEvidence } from '@/lib/hotels/climateEvidence'
 
-const DEFAULT_MIN_DISCOUNT = 30
+const DEFAULT_MIN_DISCOUNT = MIN_QUALIFYING_DISCOUNT_PCT
 
 type SortKey = HotelDealSort
 type SortAnalyticsValue = 'recently_found' | 'biggest_discount' | 'lowest_nightly_price'

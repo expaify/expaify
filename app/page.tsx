@@ -1,3 +1,4 @@
+import { MIN_QUALIFYING_DISCOUNT_PCT } from '@/lib/deals/threshold'
 import type { Metadata } from 'next'
 import { DealCard } from './components/ui/DealCard'
 import { LockedDealCard } from './components/ui/LockedDealCard'
@@ -118,7 +119,7 @@ export default async function LandingPage() {
     limit: 3,
     sort: 'discount',
     includeMock: false,
-    minDiscount: 30,
+    minDiscount: MIN_QUALIFYING_DISCOUNT_PCT,
   }).catch(() => [] as DealRow[])
 
   // Statistically-confirmed deals (30%+ below an 8-snapshot median) can take

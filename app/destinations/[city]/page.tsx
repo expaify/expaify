@@ -1,3 +1,4 @@
+import { MIN_QUALIFYING_DISCOUNT_PCT } from '@/lib/deals/threshold'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
@@ -108,7 +109,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
     'destination_page',
   )
   const pwCtx = await getPaywallContext()
-  const effectiveView = pwCtx.premium ? requestedView : { minDiscount: 30, maxPriceCents: null, minStars: 0, sort: 'newest' as const }
+  const effectiveView = pwCtx.premium ? requestedView : { minDiscount: MIN_QUALIFYING_DISCOUNT_PCT, maxPriceCents: null, minStars: 0, sort: 'newest' as const }
   let initialError = false
 
   const marketRes = await query<{ id: number }>(
