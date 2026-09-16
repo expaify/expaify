@@ -15,14 +15,16 @@ describe('getAnchorCheckInDate per-market snapshot-depth scheduling (REPAIR-DEAL
     jest.useRealTimers()
   })
 
-  it('builds the 3-candidate pool as the next three 1st/15th dates strictly after today', async () => {
+  it('builds the 6-candidate pool as the next six 1st/15th dates strictly after today', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
     ;(query as jest.Mock).mockResolvedValueOnce({ rows: [] })
 
     await getAnchorCheckInDate(1)
 
     const [, params] = (query as jest.Mock).mock.calls[0]
-    expect(params[1]).toEqual(['2026-09-15', '2026-10-01', '2026-10-15'])
+    expect(params[1]).toEqual([
+      '2026-09-15', '2026-10-01', '2026-10-15', '2026-11-01', '2026-11-15', '2026-12-01',
+    ])
   })
 
   it('excludes today itself when today is exactly an anchor date', async () => {
@@ -32,7 +34,9 @@ describe('getAnchorCheckInDate per-market snapshot-depth scheduling (REPAIR-DEAL
     await getAnchorCheckInDate(1)
 
     const [, params] = (query as jest.Mock).mock.calls[0]
-    expect(params[1]).toEqual(['2026-10-01', '2026-10-15', '2026-11-01'])
+    expect(params[1]).toEqual([
+      '2026-10-01', '2026-10-15', '2026-11-01', '2026-11-15', '2026-12-01', '2026-12-15',
+    ])
   })
 
   it('rolls correctly across a year boundary', async () => {
@@ -42,7 +46,34 @@ describe('getAnchorCheckInDate per-market snapshot-depth scheduling (REPAIR-DEAL
     await getAnchorCheckInDate(1)
 
     const [, params] = (query as jest.Mock).mock.calls[0]
-    expect(params[1]).toEqual(['2027-01-01', '2027-01-15', '2027-02-01'])
+    expect(params[1]).toEqual([
+      '2027-01-01', '2027-01-15', '2027-02-01', '2027-02-15', '2027-03-01', '2027-03-15',
+    ])
+  })
+
+  // Regression guard for a real incident (2026-09-16): a first attempt at
+  // widening this pool used relative day-offsets from `today` (e.g.
+  // today+14) instead of fixed calendar dates. That passed every
+  // point-in-time test above, but failed exactly this invariant: because
+  // the whole pool shifts by one day every night, no check_in is ever
+  // queried on two consecutive nights, so per-hotel snapshot depth can
+  // never exceed 1 -- permanently, for every market. Caught by independent
+  // review, not by tests, because no existing test simulated more than one
+  // "today". This test simulates two consecutive nights and asserts the
+  // pool has real overlap, which a relative-offset scheme would fail.
+  it('keeps candidate dates stable across consecutive nights so depth can accumulate', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
+    ;(query as jest.Mock).mockResolvedValueOnce({ rows: [] })
+    await getAnchorCheckInDate(1)
+    const nightOne = (query as jest.Mock).mock.calls[0][1][1] as string[]
+
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-05T12:00:00Z'))
+    ;(query as jest.Mock).mockResolvedValueOnce({ rows: [] })
+    await getAnchorCheckInDate(1)
+    const nightTwo = (query as jest.Mock).mock.calls[1][1][1] as string[]
+
+    const overlap = nightOne.filter((d) => nightTwo.includes(d))
+    expect(overlap.length).toBeGreaterThan(0)
   })
 
   it('picks the nearest candidate when nothing has reached MIN_SNAPSHOTS yet', async () => {
@@ -62,6 +93,34 @@ describe('getAnchorCheckInDate per-market snapshot-depth scheduling (REPAIR-DEAL
     })
 
     await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-10-01')
+  })
+
+  it('logs the selected market, check-in, and current depth exactly once', async () => {
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {})
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
+    ;(query as jest.Mock).mockResolvedValueOnce({
+      rows: [{ check_in: '2026-09-15', cnt: 3 }],
+    })
+
+    await expect(getAnchorCheckInDate(7)).resolves.toBe('2026-09-15')
+
+    expect(log).toHaveBeenCalledTimes(1)
+    expect(log.mock.calls[0][0]).toContain('marketId=7')
+    expect(log.mock.calls[0][0]).toContain('checkIn=2026-09-15')
+    expect(log.mock.calls[0][0]).toContain('depth=3')
+    log.mockRestore()
+  })
+
+  it('logs depth 0 when the selected date has no snapshot rows', async () => {
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {})
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
+    ;(query as jest.Mock).mockResolvedValueOnce({ rows: [] })
+
+    await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-09-15')
+
+    expect(log).toHaveBeenCalledTimes(1)
+    expect(log.mock.calls[0][0]).toContain('depth=0')
+    log.mockRestore()
   })
 
   it('measures maturity per hotel, not per market-wide touched day', async () => {
@@ -104,13 +163,16 @@ describe('getAnchorCheckInDate per-market snapshot-depth scheduling (REPAIR-DEAL
     ;(query as jest.Mock).mockResolvedValueOnce({
       rows: [
         { check_in: '2026-09-15', cnt: 20 },
-        { check_in: '2026-10-01', cnt: 15 },
-        { check_in: '2026-10-15', cnt: 9 },
+        { check_in: '2026-10-01', cnt: 18 },
+        { check_in: '2026-10-15', cnt: 16 },
+        { check_in: '2026-11-01', cnt: 14 },
+        { check_in: '2026-11-15', cnt: 12 },
+        { check_in: '2026-12-01', cnt: 10 },
       ],
     })
 
-    // 2026-09-04 has getDate() === 4, so index 4 % 3 === 1 -> the 2nd candidate
-    await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-10-01')
+    // 2026-09-04 has getDate() === 4, so index 4 % 6 === 4 -> the 5th candidate
+    await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-11-15')
   })
 
   it('queries snapshot history scoped to the given market only', async () => {

@@ -10,8 +10,21 @@ export const NIGHTS = 2
 // anchor's check-in date pass (mass-expiring its deals) while the shared
 // replacement anchor was still shallow, causing a real multi-night sitewide
 // deal drought (2026-09-02). Each market now steers its one nightly call
-// toward whichever of its 3 upcoming anchors is furthest from MIN_SNAPSHOTS,
+// toward whichever of its 6 upcoming anchors is furthest from MIN_SNAPSHOTS,
 // so an anchor is always safely over the bar before it's ever relied on.
+//
+// The candidates MUST stay calendar-anchored (the 1st or 15th of some month),
+// produced by walking nextAnchorAfter() forward. They must never become
+// relative day-offsets from today (e.g. today+14): a relative offset shifts
+// every candidate by one day every night, so no check_in is ever queried on
+// two consecutive nights and per-hotel snapshot depth can never climb above
+// 1. Fixed calendar dates remain stable, repeatedly-selectable candidates
+// across many consecutive nights until the calendar actually passes them.
+// (Confirmed both ways live 2026-09-16: only 3 candidates left every market
+// stuck re-selecting one never-maturing date for 9+ nights running -- a
+// first attempt at widening this to day-offsets passed tsc/tests but was
+// caught by independent review before merge, since it would have made
+// depth-8 permanently unreachable instead of just slow. See FLEET.md.)
 export async function getAnchorCheckInDate(marketId: number): Promise<string> {
   const today = new Date()
 
@@ -23,7 +36,7 @@ export async function getAnchorCheckInDate(marketId: number): Promise<string> {
 
   const candidates: Date[] = []
   let cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  while (candidates.length < 3) {
+  while (candidates.length < 6) {
     const next = nextAnchorAfter(cursor)
     candidates.push(next)
     cursor = new Date(next.getFullYear(), next.getMonth(), next.getDate() + 1)
@@ -59,11 +72,20 @@ export async function getAnchorCheckInDate(marketId: number): Promise<string> {
   )
   const countByDate = new Map(rows.rows.map(r => [r.check_in, r.cnt]))
 
+  let selected: string | undefined
   for (const d of candidateStrings) {
-    if ((countByDate.get(d) ?? 0) < MIN_SNAPSHOTS) return d
+    if ((countByDate.get(d) ?? 0) < MIN_SNAPSHOTS) {
+      selected = d
+      break
+    }
   }
   // Every upcoming anchor already has enough history — rotate for freshness.
-  return candidateStrings[today.getDate() % 3]
+  const checkIn = selected ?? candidateStrings[today.getDate() % candidateStrings.length]
+
+  console.log(
+    `[anchor] marketId=${marketId} checkIn=${checkIn} depth=${countByDate.get(checkIn) ?? 0}`
+  )
+  return checkIn
 }
 
 // ── Market metadata ──────────────────────────────────────────────────────────
