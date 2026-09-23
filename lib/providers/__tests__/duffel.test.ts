@@ -33,8 +33,8 @@ const ONE_WAY_FIXTURE = {
           {
             origin: { iata_code: 'JFK' },
             destination: { iata_code: 'LAX' },
-            departing_at: '2026-09-22T08:00:00Z',
-            arriving_at: '2026-09-22T11:30:00Z',
+            departing_at: '2027-09-22T08:00:00Z',
+            arriving_at: '2027-09-22T11:30:00Z',
             segments: [
               { id: 'seg_001' }, // 1 segment → 0 stops
             ],
@@ -50,8 +50,8 @@ const ONE_WAY_FIXTURE = {
           {
             origin: { iata_code: 'JFK' },
             destination: { iata_code: 'LAX' },
-            departing_at: '2026-09-22T14:00:00Z',
-            arriving_at: '2026-09-22T20:15:00Z',
+            departing_at: '2027-09-22T14:00:00Z',
+            arriving_at: '2027-09-22T20:15:00Z',
             segments: [
               { id: 'seg_002' },
               { id: 'seg_003' }, // 2 segments → 1 stop
@@ -77,8 +77,8 @@ const ROUND_TRIP_FIXTURE = {
           {
             origin: { iata_code: 'SFO' },
             destination: { iata_code: 'ORD' },
-            departing_at: '2026-10-01T07:00:00Z',
-            arriving_at: '2026-10-01T13:00:00Z',
+            departing_at: '2027-10-01T07:00:00Z',
+            arriving_at: '2027-10-01T13:00:00Z',
             segments: [{ id: 'seg_out_1' }],
           },
           {
@@ -107,22 +107,22 @@ const CONFIRMED_SEGMENTS_FIXTURE = {
           {
             origin: { iata_code: 'JFK' },
             destination: { iata_code: 'LAX' },
-            departing_at: '2026-09-22T08:00:00Z',
-            arriving_at: '2026-09-22T14:45:00Z',
+            departing_at: '2027-09-22T08:00:00Z',
+            arriving_at: '2027-09-22T14:45:00Z',
             segments: [
               {
                 origin: { iata_code: 'JFK' },
                 destination: { iata_code: 'ATL' },
-                departing_at: '2026-09-22T08:00:00Z',
-                arriving_at: '2026-09-22T10:30:00Z',
+                departing_at: '2027-09-22T08:00:00Z',
+                arriving_at: '2027-09-22T10:30:00Z',
                 marketing_carrier: { iata_code: 'DL' },
                 marketing_carrier_flight_number: '101',
               },
               {
                 origin: { iata_code: 'ATL' },
                 destination: { iata_code: 'LAX' },
-                departing_at: '2026-09-22T12:00:00Z',
-                arriving_at: '2026-09-22T14:45:00Z',
+                departing_at: '2027-09-22T12:00:00Z',
+                arriving_at: '2027-09-22T14:45:00Z',
                 marketing_carrier: { iata_code: 'DL' },
                 marketing_carrier_flight_number: '202',
               },
@@ -198,7 +198,7 @@ describe('DuffelProvider.searchFares guard clauses', () => {
   it('returns { ok: true, data: [] } when dest is empty string', async () => {
     global.fetch = jest.fn();
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', '', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', '', { depart: '2027-09-22', passengers: 1 });
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
@@ -210,7 +210,7 @@ describe('DuffelProvider.searchFares guard clauses', () => {
     delete process.env.DUFFEL_KEY;
     global.fetch = jest.fn();
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
@@ -225,7 +225,7 @@ describe('DuffelProvider.searchFares success', () => {
   it('returns NormalizedFare[] with correct shape for each offer', async () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
@@ -247,7 +247,7 @@ describe('DuffelProvider.searchFares success', () => {
   it('maps offer id to fare id', async () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
     if (!result.ok) throw new Error(result.reason);
 
     expect(result.data[0].id).toBe('off_0000A5KFKQaBC123');
@@ -257,7 +257,7 @@ describe('DuffelProvider.searchFares success', () => {
   it('maps owner.iata_code to carrier', async () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
     if (!result.ok) throw new Error(result.reason);
 
     expect(result.data[0].carrier).toBe('AA');
@@ -267,7 +267,7 @@ describe('DuffelProvider.searchFares success', () => {
   it('converts total_amount string to integer priceCents correctly', async () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
     if (!result.ok) throw new Error(result.reason);
 
     // "450.00" → 45000 cents
@@ -281,7 +281,7 @@ describe('DuffelProvider.searchFares success', () => {
   it('priceCents is always an integer (no floating-point)', async () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
     if (!result.ok) throw new Error(result.reason);
 
     result.data.forEach((f) => {
@@ -292,7 +292,7 @@ describe('DuffelProvider.searchFares success', () => {
   it('counts stops as segments.length - 1 per slice', async () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
     if (!result.ok) throw new Error(result.reason);
 
     // First offer: 1 segment → 0 stops
@@ -304,13 +304,13 @@ describe('DuffelProvider.searchFares success', () => {
   it('normalizes confirmed itinerary timing from complete segment boundaries', async () => {
     mockFetchOk(CONFIRMED_SEGMENTS_FIXTURE);
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
     if (!result.ok) throw new Error(result.reason);
 
     expect(result.data[0].itinerary).toMatchObject({
       certainty: 'confirmed',
       durationMinutes: 405,
-      arrive: '2026-09-22T14:45:00Z',
+      arrive: '2027-09-22T14:45:00Z',
       layovers: [{ airport: 'ATL', durationMinutes: 90 }],
     });
     expect(result.data[0].itinerary?.segments).toHaveLength(2);
@@ -319,29 +319,29 @@ describe('DuffelProvider.searchFares success', () => {
   it('marks aggregate slice timing as partial when segment boundaries are incomplete', async () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
     if (!result.ok) throw new Error(result.reason);
 
     expect(result.data[0].itinerary).toMatchObject({
       certainty: 'partial',
       durationMinutes: 210,
-      arrive: '2026-09-22T11:30:00Z',
+      arrive: '2027-09-22T11:30:00Z',
     });
   });
 
   it('sets depart from first slice departing_at', async () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
     if (!result.ok) throw new Error(result.reason);
 
-    expect(result.data[0].depart).toBe('2026-09-22T08:00:00Z');
+    expect(result.data[0].depart).toBe('2027-09-22T08:00:00Z');
   });
 
   it('does not set return field for one-way itineraries', async () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
     if (!result.ok) throw new Error(result.reason);
 
     result.data.forEach((f) => {
@@ -353,7 +353,7 @@ describe('DuffelProvider.searchFares success', () => {
     mockFetchOk(ROUND_TRIP_FIXTURE);
     const provider = new DuffelProvider();
     const result = await provider.searchFares('SFO', 'ORD', {
-      depart: '2026-10-01',
+      depart: '2027-10-01',
       return: '2026-10-08',
       passengers: 1,
     });
@@ -366,7 +366,7 @@ describe('DuffelProvider.searchFares success', () => {
   it('builds deeplink with fare context for the booking page', async () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
     if (!result.ok) throw new Error(result.reason);
 
     const url = new URL(result.data[0].deeplink, 'https://expaify.test');
@@ -379,7 +379,7 @@ describe('DuffelProvider.searchFares success', () => {
     expect(url.searchParams.get('stops')).toBe('0');
     expect(url.searchParams.get('priceCents')).toBe('45000');
     expect(url.searchParams.get('currency')).toBe('USD');
-    expect(url.searchParams.get('depart')).toBe('2026-09-22T08:00:00Z');
+    expect(url.searchParams.get('depart')).toBe('2027-09-22T08:00:00Z');
     expect(url.searchParams.get('passengerCount')).toBe('1');
     expect(url.searchParams.get('priceScope')).toBe('party_total');
   });
@@ -391,10 +391,10 @@ describe('DuffelProvider.searchFares success', () => {
     };
 
     const provider = new DuffelProvider();
-    await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
 
     expect(cache.set).toHaveBeenCalledWith(
-      'duffel:search:origin:JFK:dest:LAX:depart:2026-09-22:trip:one-way:pax:1:cabin:economy',
+      'duffel:search:origin:JFK:dest:LAX:depart:2027-09-22:trip:one-way:pax:1:cabin:economy',
       expect.any(Array),
       21600
     );
@@ -407,22 +407,22 @@ describe('DuffelProvider.searchFares success', () => {
     };
 
     const provider = new DuffelProvider();
-    await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
 
     mockFetchOk(ROUND_TRIP_FIXTURE);
     await provider.searchFares('JFK', 'LAX', {
-      depart: '2026-09-22',
-      return: '2026-09-29',
+      depart: '2027-09-22',
+      return: '2027-09-29',
       passengers: 1,
     });
 
     expect(cache.get).toHaveBeenNthCalledWith(
       1,
-      'duffel:search:origin:JFK:dest:LAX:depart:2026-09-22:trip:one-way:pax:1:cabin:economy'
+      'duffel:search:origin:JFK:dest:LAX:depart:2027-09-22:trip:one-way:pax:1:cabin:economy'
     );
     expect(cache.get).toHaveBeenNthCalledWith(
       2,
-      'duffel:search:origin:JFK:dest:LAX:depart:2026-09-22:return:2026-09-29:pax:1:cabin:economy'
+      'duffel:search:origin:JFK:dest:LAX:depart:2027-09-22:return:2027-09-29:pax:1:cabin:economy'
     );
   });
 
@@ -433,16 +433,16 @@ describe('DuffelProvider.searchFares success', () => {
     };
 
     const provider = new DuffelProvider();
-    await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
-    await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 2 });
+    await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
+    await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 2 });
 
     expect(cache.get).toHaveBeenNthCalledWith(
       1,
-      'duffel:search:origin:JFK:dest:LAX:depart:2026-09-22:trip:one-way:pax:1:cabin:economy'
+      'duffel:search:origin:JFK:dest:LAX:depart:2027-09-22:trip:one-way:pax:1:cabin:economy'
     );
     expect(cache.get).toHaveBeenNthCalledWith(
       2,
-      'duffel:search:origin:JFK:dest:LAX:depart:2026-09-22:trip:one-way:pax:2:cabin:economy'
+      'duffel:search:origin:JFK:dest:LAX:depart:2027-09-22:trip:one-way:pax:2:cabin:economy'
     );
   });
 
@@ -450,7 +450,7 @@ describe('DuffelProvider.searchFares success', () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
     const result = await provider.searchFares('JFK', 'LAX', {
-      depart: '2026-09-22',
+      depart: '2027-09-22',
       passengers: 3,
     });
     if (!result.ok) throw new Error(result.reason);
@@ -477,7 +477,7 @@ describe('DuffelProvider.searchFares success', () => {
         fareType: 'cash',
         origin: 'JFK',
         destination: 'LAX',
-        depart: '2026-09-22T08:00:00Z',
+        depart: '2027-09-22T08:00:00Z',
         stops: 0,
         carrier: 'AA',
         price: { priceCents: 45000, currency: 'USD' },
@@ -494,7 +494,7 @@ describe('DuffelProvider.searchFares success', () => {
 
     global.fetch = jest.fn();
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.reason);
@@ -505,7 +505,7 @@ describe('DuffelProvider.searchFares success', () => {
   it('sends correct Authorization and Duffel-Version headers', async () => {
     mockFetchOk(ONE_WAY_FIXTURE);
     const provider = new DuffelProvider();
-    await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
 
     expect(global.fetch).toHaveBeenCalledWith(
       'https://api.duffel.com/air/offer_requests',
@@ -527,7 +527,7 @@ describe('DuffelProvider.searchFares error handling', () => {
   it('returns { ok: false, reason } on HTTP 4xx/5xx', async () => {
     mockFetchError(422);
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
@@ -537,7 +537,7 @@ describe('DuffelProvider.searchFares error handling', () => {
   it('returns { ok: false, reason } when fetch throws a network error', async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED'));
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
@@ -548,7 +548,7 @@ describe('DuffelProvider.searchFares error handling', () => {
     process.env.PROVIDER_TIMEOUT_MS = '1';
     global.fetch = jest.fn(() => new Promise<Response>(() => {}));
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
@@ -558,7 +558,7 @@ describe('DuffelProvider.searchFares error handling', () => {
   it('never throws — always returns a Result', async () => {
     global.fetch = jest.fn().mockRejectedValue('non-Error thrown value');
     const provider = new DuffelProvider();
-    const result = await provider.searchFares('JFK', 'LAX', { depart: '2026-09-22', passengers: 1 });
+    const result = await provider.searchFares('JFK', 'LAX', { depart: '2027-09-22', passengers: 1 });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
