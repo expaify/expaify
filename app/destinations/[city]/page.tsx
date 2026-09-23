@@ -1,9 +1,10 @@
 import { MIN_QUALIFYING_DISCOUNT_PCT } from '@/lib/deals/threshold'
+import { HOTEL_DEAL_PAGE_SIZE } from '@/lib/deals/feedContract'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { CITY_SLUGS } from '@/lib/cities'
-import { getActiveDeals, type DealRow } from '@/lib/pipeline/dealDetection'
+import { getActiveDeals, getTrackedHotels, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DealFeed, type ApiDeal } from '@/app/deals/DealFeed'
 import {
   deterministicHotelCriteriaVersion,
@@ -147,10 +148,33 @@ export default async function CityPage({ params, searchParams }: PageProps) {
 
   const showWatchPill = !!sub && isPremium(sub.status) && TRACKED_MARKET_NAMES.includes(displayName)
 
-  const initialDeals: ApiDeal[] = rows.map(row => {
-    const locked = !pwCtx.premium && !unlockedIds.has(row.id)
-    return toApiDeal(row, locked)
-  })
+  // No confirmed deals yet for this destination's default (unfiltered) view.
+  // Fall back to real, currently-tracked hotels (real hotel, real photo, real
+  // current price) rather than an empty feed. This branch never fabricates
+  // deals: if the tracked-hotel query also comes back empty, the existing
+  // "no active deals right now" empty state below renders untouched. No
+  // marketId guard is needed here — this page always resolves a tracked
+  // market, and the !initialError condition covers a failed market lookup.
+  let usingTrackedFallback = false
+  let feedRows = rows
+  if (
+    rows.length === 0 && !initialError &&
+    effectiveView.minDiscount === MIN_QUALIFYING_DISCOUNT_PCT &&
+    effectiveView.maxPriceCents === null &&
+    effectiveView.minStars === 0 &&
+    effectiveView.sort === 'newest'
+  ) {
+    const tracked = await getTrackedHotels({ limit: HOTEL_DEAL_PAGE_SIZE, marketId }).catch(() => [] as DealRow[])
+    usingTrackedFallback = tracked.length > 0
+    feedRows = tracked
+  }
+
+  const initialDeals: ApiDeal[] = usingTrackedFallback
+    ? feedRows.map((row, i) => toApiDeal(row, !pwCtx.premium && i >= pwCtx.freeUnlockLimit && !unlockedIds.has(row.id)))
+    : feedRows.map(row => {
+        const locked = !pwCtx.premium && !unlockedIds.has(row.id)
+        return toApiDeal(row, locked)
+      })
   const premium = sub ? isPremium(sub.status) : false
   const watchlist = sub?.watchlist ?? []
   const watchTier = !session?.user?.id ? 'anonymous' : premium ? 'premium' : 'free'
@@ -255,7 +279,9 @@ export default async function CityPage({ params, searchParams }: PageProps) {
       <p className="text-sm text-[color:var(--text-2)] mb-8">
         {initialDeals.length === 0
           ? 'Checked daily — no active deals right now'
-          : `Updated daily · ${initialDeals.length} deal${initialDeals.length !== 1 ? 's' : ''} found`}
+          : usingTrackedFallback
+            ? 'Checked daily — nothing confirmed yet, here\'s what we\'re tracking'
+            : `Updated daily · ${initialDeals.length} deal${initialDeals.length !== 1 ? 's' : ''} found`}
       </p>
       {content ? (
         <Reveal>
