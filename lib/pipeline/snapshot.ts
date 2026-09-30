@@ -25,6 +25,34 @@ export const NIGHTS = 2
 // first attempt at widening this to day-offsets passed tsc/tests but was
 // caught by independent review before merge, since it would have made
 // depth-8 permanently unreachable instead of just slow. See FLEET.md.)
+//
+// SECOND real bug in this function, found and fixed 2026-09-30: the
+// selection loop below used to stop re-selecting a date the instant its
+// depth reached MIN_SNAPSHOTS and move on to the next candidate -- which
+// sounds like "done, it's mature" but actually means the nightly refresh
+// call for that market permanently stops touching that check-in date. Its
+// stored "latest price" freezes at whatever it was on the one night depth
+// crossed 8 and never updates again, even though the underlying real hotel
+// price keeps moving every day. Confirmed live: every mature hotel across
+// all 36 markets sat at EXACTLY depth 8, never higher: Las Vegas's Oct-1
+// anchor got its 8th snapshot 2026-09-25, then nothing for 5 straight
+// nights while the market moved on to Oct-15 at depth 1. Fetching real
+// live Booking prices for that frozen batch found the gap was not
+// cosmetic: Bellagio/ARIA/MGM Grand were each sitting 22-24% below median
+// in real time, 10+ points deeper than the stale numbers being shown,
+// because the pipeline had simply stopped checking. Fix: once a date is
+// selected, keep selecting the SAME one every night regardless of depth,
+// so history keeps deepening and the latest price stays live -- only move
+// to the next candidate once the calendar itself passes the current one
+// (nextAnchorAfter already does this automatically the following run,
+// since `today` advances). This does reopen a version of the 2026-09-02
+// drought risk at each roughly-biweekly rollover (a brand-new anchor
+// starts back at depth 0 and needs up to 8 nights before it can flag
+// anything) -- accepted as a bounded, honest gap, not a silent bug: the
+// display layer already refuses to flag anything below MIN_SNAPSHOTS
+// regardless, so this just makes that real ramp-up visible again at each
+// rollover instead of masking it behind data that looks confirmed but
+// stopped being checked.
 export async function getAnchorCheckInDate(marketId: number): Promise<string> {
   const today = new Date()
 
@@ -72,15 +100,14 @@ export async function getAnchorCheckInDate(marketId: number): Promise<string> {
   )
   const countByDate = new Map(rows.rows.map(r => [r.check_in, r.cnt]))
 
-  let selected: string | undefined
-  for (const d of candidateStrings) {
-    if ((countByDate.get(d) ?? 0) < MIN_SNAPSHOTS) {
-      selected = d
-      break
-    }
-  }
-  // Every upcoming anchor already has enough history — rotate for freshness.
-  const checkIn = selected ?? candidateStrings[today.getDate() % candidateStrings.length]
+  // Always the soonest still-valid calendar anchor (candidateStrings[0]).
+  // Never advance past it just because its depth crossed MIN_SNAPSHOTS --
+  // doing so is what silently froze "latest price" forever (see the note
+  // above). The only thing that legitimately moves this forward is the
+  // calendar itself: once `today` passes candidateStrings[0], the next
+  // call's `cursor` (= today) produces a new, later candidates[0]
+  // automatically, with no manual rotation needed here.
+  const checkIn = candidateStrings[0]
 
   console.log(
     `[anchor] marketId=${marketId} checkIn=${checkIn} depth=${countByDate.get(checkIn) ?? 0}`

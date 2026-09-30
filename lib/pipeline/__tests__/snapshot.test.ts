@@ -83,7 +83,19 @@ describe('getAnchorCheckInDate per-market snapshot-depth scheduling (REPAIR-DEAL
     await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-09-15')
   })
 
-  it('skips a mature nearest anchor and heals the next one still under MIN_SNAPSHOTS', async () => {
+  // Regression guard for a second real incident (2026-09-30): the previous
+  // version of this function abandoned a date the instant its depth crossed
+  // MIN_SNAPSHOTS and moved on to the next candidate -- which silently froze
+  // "latest price" forever, since the nightly refresh call never touched
+  // that date again. Confirmed live: every mature hotel across all 36
+  // markets sat at exactly depth 8, never higher; real Booking prices
+  // fetched independently for the frozen Las Vegas batch showed hotels
+  // sitting 22-24% below median in real time that the site had no way of
+  // knowing about, because the pipeline had stopped checking five nights
+  // earlier. A mature anchor must keep being selected -- never skipped --
+  // so its latest price keeps refreshing for as long as it's the soonest
+  // still-valid candidate.
+  it('keeps refreshing the nearest anchor even after it clears MIN_SNAPSHOTS, instead of abandoning it for the next candidate', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
     ;(query as jest.Mock).mockResolvedValueOnce({
       rows: [
@@ -92,7 +104,17 @@ describe('getAnchorCheckInDate per-market snapshot-depth scheduling (REPAIR-DEAL
       ],
     })
 
-    await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-10-01')
+    await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-09-15')
+  })
+
+  it('keeps selecting the same date across many consecutive nights even as its depth climbs well past MIN_SNAPSHOTS', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
+    for (const depth of [1, 8, 9, 15, 30]) {
+      ;(query as jest.Mock).mockResolvedValueOnce({
+        rows: [{ check_in: '2026-09-15', cnt: depth }],
+      })
+      await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-09-15')
+    }
   })
 
   it('logs the selected market, check-in, and current depth exactly once', async () => {
@@ -158,7 +180,7 @@ describe('getAnchorCheckInDate per-market snapshot-depth scheduling (REPAIR-DEAL
     expect(sql).toMatch(/is_mock = false/)
   })
 
-  it('falls back to freshness rotation once every candidate has cleared MIN_SNAPSHOTS', async () => {
+  it('still selects the nearest candidate even when every candidate has long cleared MIN_SNAPSHOTS', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-09-04T12:00:00Z'))
     ;(query as jest.Mock).mockResolvedValueOnce({
       rows: [
@@ -171,8 +193,7 @@ describe('getAnchorCheckInDate per-market snapshot-depth scheduling (REPAIR-DEAL
       ],
     })
 
-    // 2026-09-04 has getDate() === 4, so index 4 % 6 === 4 -> the 5th candidate
-    await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-11-15')
+    await expect(getAnchorCheckInDate(1)).resolves.toBe('2026-09-15')
   })
 
   it('queries snapshot history scoped to the given market only', async () => {
