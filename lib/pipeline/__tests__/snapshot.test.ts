@@ -341,6 +341,125 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
     expect(priceCents).toBe(19456) // $194.56/night ($389.12 / 2), not the undivided $389.12 (38912 cents)
   })
 
+  // 2026-10-02: widened to also fetch page 2, to grow the real pool of
+  // hotels each market can ever flag a deal from. These three tests cover
+  // the actual new behavior directly, rather than relying on incidental
+  // pass/fail of the unrelated tests above (which happen to still pass
+  // either because page 1 throws before page 2 is ever attempted, or
+  // because an exhausted mock queue on page 2 degrades to [] via the
+  // page-2 catch handler -- neither of those exercises real merging).
+  it('merges hotels from both page 1 and page 2 of booking-com15', async () => {
+    ;(global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: { hotels: [{
+            property: { id: '111', name: 'Page One Hotel', propertyClass: 4, photoUrls: [], priceBreakdown: { grossPrice: { value: 200 } } },
+          }] },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: { hotels: [{
+            property: { id: '222', name: 'Page Two Hotel', propertyClass: 3, photoUrls: [], priceBreakdown: { grossPrice: { value: 160 } } },
+          }] },
+        }),
+      })
+
+    const [result] = await runSnapshotsForMarket(MIA, 0)
+
+    expect(result.hotelsProcessed).toBe(2)
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+    expect(global.fetch).toHaveBeenNthCalledWith(1, expect.stringContaining('page_number=1'), expect.anything())
+    expect(global.fetch).toHaveBeenNthCalledWith(2, expect.stringContaining('page_number=2'), expect.anything())
+  })
+
+  it('dedupes a hotel id that appears on both page 1 and page 2', async () => {
+    const sameHotel = {
+      property: { id: '111', name: 'Same Hotel', propertyClass: 4, photoUrls: [], priceBreakdown: { grossPrice: { value: 200 } } },
+    }
+    ;(global.fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: { hotels: [sameHotel] } }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: { hotels: [sameHotel] } }) })
+
+    const [result] = await runSnapshotsForMarket(MIA, 0)
+
+    expect(result.hotelsProcessed).toBe(1)
+  })
+
+  it('keeps page 1 real results when page 2 throws, instead of losing the whole call', async () => {
+    ;(global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: { hotels: [{
+            property: { id: '111', name: 'Page One Hotel', propertyClass: 4, photoUrls: [], priceBreakdown: { grossPrice: { value: 200 } } },
+          }] },
+        }),
+      })
+      .mockRejectedValueOnce(new Error('page 2: ECONNRESET'))
+
+    const [result] = await runSnapshotsForMarket(MIA, 0)
+
+    expect(result.hotelsProcessed).toBe(1)
+    expect(result.providerErrors).toBeUndefined()
+  })
+
+  // Regression guard for a real bug caught via self-review before shipping
+  // (2026-10-02): the first version of the page-2 catch handler re-threw a
+  // RateLimitError instead of swallowing it, which meant a 429 on page 2
+  // specifically discarded page 1's already-successful real results and
+  // made the whole provider attempt look rate-limited. Page 1 is a
+  // separate, already-completed HTTP call by the time page 2 runs -- its
+  // real data must survive regardless of what happens to page 2.
+  it('keeps page 1 real results when page 2 is rate-limited (429), not just on a generic error', async () => {
+    ;(global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: { hotels: [{
+            property: { id: '111', name: 'Page One Hotel', propertyClass: 4, photoUrls: [], priceBreakdown: { grossPrice: { value: 200 } } },
+          }] },
+        }),
+      })
+      .mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({}) })
+
+    const [result] = await runSnapshotsForMarket(MIA, 0)
+
+    expect(result.hotelsProcessed).toBe(1)
+    expect(result.providerErrors).toBeUndefined()
+    expect(result.rateLimitedCount).toBeUndefined()
+  })
+
+  it('does not attempt page 2 when page 1 itself is rate-limited', async () => {
+    const originalPricelineKey = process.env.RAPIDAPI_KEY_PRICELINE
+    process.env.RAPIDAPI_KEY_PRICELINE = 'test-key-priceline'
+
+    ;(global.fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({}) })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ result: [{ hotel_id: '456', hotel_name: 'Fallback Hotel', class: 4, min_total_price: 200 }] }),
+      })
+
+    const [result] = await runSnapshotsForMarket(MIA, 0)
+
+    process.env.RAPIDAPI_KEY_PRICELINE = originalPricelineKey
+
+    // Exactly 2 real fetch calls total: booking-com15 page 1 (429, no page
+    // 2 attempted) then the next provider in rotation succeeding -- proves
+    // the 429 short-circuits before page 2, it doesn't silently eat a slot.
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+    expect(result.rateLimitedCount).toBe(1)
+    expect(result.hotelsProcessed).toBe(1)
+  })
+
   it('stores TripAdvisor bubbles as review evidence and never as property-class stars', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,

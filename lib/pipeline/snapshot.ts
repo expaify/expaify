@@ -212,15 +212,14 @@ export class RateLimitError extends Error {
 
 // ── Provider 1: booking-com15 (dest_id city search) ─────────────────────────
 
-async function fetchBookingCom15(iata: string, checkIn: string, checkOut: string, key: string): Promise<HotelEntry[]> {
-  const destId = BK_DEST[iata]
-  if (!destId) return []
-
+async function fetchBookingCom15Page(
+  destId: string, checkIn: string, checkOut: string, key: string, pageNumber: number
+): Promise<HotelEntry[]> {
   const url =
     `https://booking-com15.p.rapidapi.com/api/v1/hotels/searchHotels` +
     `?dest_id=${encodeURIComponent(destId)}&search_type=city` +
     `&arrival_date=${checkIn}&departure_date=${checkOut}` +
-    `&adults=2&room_qty=1&page_number=1&currency_code=USD&languagecode=en-us&units=metric&temperature_unit=c`
+    `&adults=2&room_qty=1&page_number=${pageNumber}&currency_code=USD&languagecode=en-us&units=metric&temperature_unit=c`
 
   const res = await fetch(url, {
     headers: { 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': 'booking-com15.p.rapidapi.com' },
@@ -250,6 +249,45 @@ async function fetchBookingCom15(iata: string, checkIn: string, checkOut: string
     if (!id || !name || priceCents <= 0) return []
     return [{ hotelId: `bk_${id}`, hotelName: name, stars, priceCents, photoUrl: photo }]
   })
+}
+
+// 2026-10-02: widened from page 1 only (~20-35 hotels/market/night) to pages
+// 1+2, to grow the real pool of hotels each market can ever flag a deal
+// from -- a strict 30%-below-median bar is inherently selective, and the
+// most direct, honest way to see more real deals (not a lower bar, not
+// fabricated inventory) is tracking more real hotels. RapidAPI quota
+// confirmed with large headroom first (34,072/35,000 daily remaining before
+// this change; 36 markets x 1 extra call/night is negligible against that).
+// Page 2 failing or erroring must never fail page 1's real results -- a
+// quota hiccup on the second call should degrade to "page 1 only", the
+// exact behavior this provider already had before this change, not throw
+// page 1's real data away. This deliberately includes a 429 on page 2:
+// page 1 is a separate, already-completed, already-successful HTTP call by
+// the time page 2 is even attempted, so a rate limit on page 2 specifically
+// must not discard page 1's real results -- caught and swallowed here the
+// same as any other page-2 failure (logged, not re-thrown), even though
+// that means a page-2-only 429 won't show up in fetchWithRotation's
+// providerErrors/rateLimitedCount the way a page-1 429 does. Deduped by
+// hotelId in case Booking's own paging ever returns an overlapping hotel on
+// both pages.
+async function fetchBookingCom15(iata: string, checkIn: string, checkOut: string, key: string): Promise<HotelEntry[]> {
+  const destId = BK_DEST[iata]
+  if (!destId) return []
+
+  const page1 = await fetchBookingCom15Page(destId, checkIn, checkOut, key, 1)
+  const page2 = await fetchBookingCom15Page(destId, checkIn, checkOut, key, 2).catch((err) => {
+    console.error(`[fetchBookingCom15] page 2 failed for ${iata}, continuing with page 1 only`, err)
+    return [] as HotelEntry[]
+  })
+
+  const seen = new Set<string>()
+  const merged: HotelEntry[] = []
+  for (const hotel of [...page1, ...page2]) {
+    if (seen.has(hotel.hotelId)) continue
+    seen.add(hotel.hotelId)
+    merged.push(hotel)
+  }
+  return merged
 }
 
 // ── Provider 2: booking-com v1 (coordinate search) ──────────────────────────
