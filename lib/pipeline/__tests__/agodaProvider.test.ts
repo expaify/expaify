@@ -80,12 +80,19 @@ describe('fetchAgoda (4th rotation provider, separate RAPIDAPI_KEY_3)', () => {
     })
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
+    // storeSnapshot's param order: 0=hotel_id,1=hotel_name,2=stars,
+    // 3=review_evidence,4=photo_url,5=photo_urls,6=market_id,7=check_in,
+    // 8=nights,9=price_cents,10=is_mock -- price_cents moved from index 8 to
+    // 9 when photo_urls was added at index 5 (2026-10-02). Also asserts the
+    // new photo_urls array itself is real (every distinct hotelImages[]
+    // entry's urls[0], protocol-normalized), not just the first photo_url.
     expect(insertCall?.[1]).toMatchObject({
       0: 'ag_98765',
       1: 'Hôtel Exemple Paris',
       2: 4,
       4: 'https://pix7.agoda.net/hotelImages/98765/main.jpg',
-      8: 93848,
+      5: ['https://pix7.agoda.net/hotelImages/98765/main.jpg'],
+      9: 93848,
     })
   })
 })

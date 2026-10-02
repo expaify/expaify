@@ -337,8 +337,116 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
     expect(insertCall).toBeDefined()
-    const priceCents = insertCall?.[1]?.[8]
+    // storeSnapshot's param order: 0=hotel_id,1=hotel_name,2=stars,
+    // 3=review_evidence,4=photo_url,5=photo_urls,6=market_id,7=check_in,
+    // 8=nights,9=price_cents,10=is_mock -- price_cents moved from index 8 to
+    // 9 when photo_urls was added at index 5 (2026-10-02).
+    const priceCents = insertCall?.[1]?.[9]
     expect(priceCents).toBe(19456) // $194.56/night ($389.12 / 2), not the undivided $389.12 (38912 cents)
+  })
+
+  // 2026-10-02 (UXD/UXR-HOTEL-VIEW-RICHER-MEDIA-01): booking-com15 already
+  // returns multiple real photos and a real review score/count in the same
+  // response this pipeline already fetches nightly -- only photoUrls[0] was
+  // ever kept, and no review data was captured for this provider at all.
+  it('captures every real photo booking-com15 returns, not just the first', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: { hotels: [{
+          property: {
+            id: '555', name: 'Multi Photo Hotel', propertyClass: 4,
+            photoUrls: ['https://example.com/a.jpg', 'https://example.com/b.jpg', 'https://example.com/c.jpg'],
+            priceBreakdown: { grossPrice: { value: 200 } },
+          },
+        }] },
+      }),
+    })
+
+    await runSnapshotsForMarket(MIA, 0)
+
+    const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
+    expect(insertCall?.[1]?.[4]).toBe('https://example.com/a.jpg') // photo_url unchanged: still the first
+    expect(insertCall?.[1]?.[5]).toEqual([
+      'https://example.com/a.jpg', 'https://example.com/b.jpg', 'https://example.com/c.jpg',
+    ])
+  })
+
+  it('caps photo_urls at MAX_PHOTOS_PER_HOTEL rather than storing an unbounded array', async () => {
+    const manyPhotos = Array.from({ length: 20 }, (_, i) => `https://example.com/${i}.jpg`)
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: { hotels: [{
+          property: {
+            id: '555', name: 'Many Photos Hotel', propertyClass: 4,
+            photoUrls: manyPhotos,
+            priceBreakdown: { grossPrice: { value: 200 } },
+          },
+        }] },
+      }),
+    })
+
+    await runSnapshotsForMarket(MIA, 0)
+
+    const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
+    const storedPhotos = insertCall?.[1]?.[5] as string[]
+    expect(storedPhotos).toHaveLength(8)
+    expect(storedPhotos).toEqual(manyPhotos.slice(0, 8))
+  })
+
+  it('stores a real booking-com15 review score and count as review_evidence, on its own /10 scale', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: { hotels: [{
+          property: {
+            id: '555', name: 'Reviewed Hotel', propertyClass: 4,
+            photoUrls: ['https://example.com/a.jpg'],
+            priceBreakdown: { grossPrice: { value: 200 } },
+            reviewScore: 8.6, reviewCount: 1204, reviewScoreWord: 'Excellent',
+          },
+        }] },
+      }),
+    })
+
+    await runSnapshotsForMarket(MIA, 0)
+
+    const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
+    const reviewEvidence = JSON.parse(insertCall?.[1]?.[3] as string)
+    expect(reviewEvidence).toMatchObject({
+      state: 'ready',
+      providerPropertyId: 'bk_555',
+      providerId: 'booking-com15',
+      provenance: 'provider_only',
+      score: { value: 8.6, scaleMax: 10 },
+      overallReviewCount: 1204,
+    })
+  })
+
+  it('never fabricates a booking-com15 review score when the provider sends none', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: { hotels: [{
+          property: {
+            id: '555', name: 'Unreviewed Hotel', propertyClass: 4,
+            photoUrls: ['https://example.com/a.jpg'],
+            priceBreakdown: { grossPrice: { value: 200 } },
+            // no reviewScore field at all
+          },
+        }] },
+      }),
+    })
+
+    await runSnapshotsForMarket(MIA, 0)
+
+    const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
+    expect(insertCall?.[1]?.[3]).toBeNull()
   })
 
   // 2026-10-02: widened to also fetch page 2, to grow the real pool of
@@ -488,6 +596,36 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       score: { value: 4.5, scaleMax: 5 },
       overallReviewCount: 600,
     })
+  })
+
+  it('captures every real photo TripAdvisor returns, not just the first', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: {
+          data: [{
+            id: '123',
+            title: 'Multi Photo Hotel',
+            bubbleRating: { rating: 4.5, count: '(600)' },
+            priceForDisplay: '$125',
+            cardPhotos: [
+              { sizes: { urlTemplate: 'https://example.com/{width}x{height}/a.jpg' } },
+              { sizes: { urlTemplate: 'https://example.com/{width}x{height}/b.jpg' } },
+            ],
+          }],
+        },
+      }),
+    })
+
+    await runSnapshotsForMarket(MIA, 2)
+
+    const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
+    expect(insertCall?.[1]?.[4]).toBe('https://example.com/600x400/a.jpg')
+    expect(insertCall?.[1]?.[5]).toEqual([
+      'https://example.com/600x400/a.jpg',
+      'https://example.com/600x400/b.jpg',
+    ])
   })
 
   it('records a provider 429 and continues rotation until another provider succeeds', async () => {

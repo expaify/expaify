@@ -588,10 +588,13 @@ describe('Deal score presentation', () => {
     const priceIndex = source.indexOf('<section aria-labelledby="saved-price-score-title"')
     const scoreIndex = source.lastIndexOf('<DealScoreSection deal={deal}')
     // Assert the established ordering in the later, flag-off rollback branch.
-    const photoIndex = source.lastIndexOf('<PropertyPhoto src={deal.photo_url}')
+    // 2026-10-02: PropertyPhoto -> PropertyPhotoGallery (real multi-photo
+    // support), same call site, same position -- ordering guarantee below
+    // is unaffected, only the component name changed.
+    const photoIndex = source.lastIndexOf('<PropertyPhotoGallery')
     const actionIndex = source.lastIndexOf('<section aria-labelledby="saved-provider-title"')
 
-    expect(source).toContain('PropertyPhoto src={deal.photo_url}')
+    expect(source).toContain('<PropertyPhotoGallery')
     expect(source).toContain('Deal found {foundAgo}')
     expect(source).not.toContain('bg-gradient-to-t')
     expect(titleIndex).toBeLessThan(priceIndex)

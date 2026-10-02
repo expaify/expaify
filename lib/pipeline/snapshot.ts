@@ -197,6 +197,10 @@ const AG_CITY: Record<string, string> = {
 
 // ── Normalised hotel type ────────────────────────────────────────────────────
 
+// Cap on how many real photo URLs are kept per hotel per snapshot -- bounds
+// row/payload size, never pads past what a provider actually returned.
+const MAX_PHOTOS_PER_HOTEL = 8
+
 type HotelEntry = {
   hotelId: string
   hotelName: string
@@ -204,6 +208,7 @@ type HotelEntry = {
   reviewEvidence?: HotelReviewEvidence | null
   priceCents: number   // per night
   photoUrl: string | null
+  photoUrls?: string[] | null
 }
 
 export class RateLimitError extends Error {
@@ -211,6 +216,47 @@ export class RateLimitError extends Error {
 }
 
 // ── Provider 1: booking-com15 (dest_id city search) ─────────────────────────
+
+/**
+ * Maps Booking.com's own review score without inventing missing values.
+ * Mirrors tripAdvisorBubbleRatingToReviewEvidence's shape/discipline, but
+ * Booking's reviewScore is out of 10 (e.g. "8.6"), not TripAdvisor's /5
+ * bubble scale -- scaleMax must stay provider-accurate, never silently
+ * normalized to match another provider's scale. Booking also sends a
+ * human-readable `reviewScoreWord` ("Excellent"/"Very Good") that has no
+ * matching field on the shared HotelReviewEvidence shape (no other provider
+ * sends an equivalent) -- deliberately not captured here; the UI derives an
+ * equivalent label from the numeric score at display time instead, so the
+ * label stays consistent across every provider rather than only existing
+ * for Booking-sourced hotels.
+ */
+function bookingReviewScoreToReviewEvidence(
+  prop: { reviewScore?: unknown; reviewCount?: unknown },
+  providerPropertyId: string
+): HotelReviewEvidence | null {
+  const rawScore = prop.reviewScore
+  const parsedScore = typeof rawScore === 'number' ? rawScore : Number(rawScore)
+  const hasValidScore = rawScore !== null && rawScore !== undefined && rawScore !== ''
+    && Number.isFinite(parsedScore) && parsedScore >= 0 && parsedScore <= 10
+  if (!hasValidScore) return null
+
+  const rawCount = prop.reviewCount
+  const parsedCount = typeof rawCount === 'number' ? rawCount : Number(rawCount)
+  const hasValidCount = rawCount !== null && rawCount !== undefined && rawCount !== ''
+    && Number.isFinite(parsedCount) && parsedCount > 0
+
+  return {
+    schemaVersion: 1,
+    state: 'ready',
+    providerPropertyId: `bk_${providerPropertyId}`,
+    providerId: 'booking-com15',
+    provenance: 'provider_only',
+    sourceLabel: 'Booking.com',
+    coverage: { kind: 'none' },
+    score: { value: parsedScore, scaleMax: 10 },
+    ...(hasValidCount ? { overallReviewCount: parsedCount } : {}),
+  }
+}
 
 async function fetchBookingCom15Page(
   destId: string, checkIn: string, checkOut: string, key: string, pageNumber: number
@@ -235,7 +281,10 @@ async function fetchBookingCom15Page(
     const id = String(prop.id ?? prop.hotelId ?? '')
     const name = String(prop.name ?? '')
     const stars = prop.propertyClass ? Number(prop.propertyClass) : null
-    const photo = (prop.photoUrls as string[] | undefined)?.[0] ?? null
+    const rawPhotos = (prop.photoUrls as string[] | undefined)?.filter(Boolean) ?? []
+    const photoUrls = rawPhotos.slice(0, MAX_PHOTOS_PER_HOTEL)
+    const photo = photoUrls[0] ?? null
+    const reviewEvidence = bookingReviewScoreToReviewEvidence(prop, id)
     // grossPrice is the TOTAL for the whole stay, not a nightly rate -- confirmed
     // live (2026-08-06) by querying the same hotel/dates for 1 night vs 2 nights:
     // grossPrice scaled from $207.26 to $389.12, not staying flat. This provider
@@ -247,7 +296,7 @@ async function fetchBookingCom15Page(
     const totalPrice = (prop.priceBreakdown as { grossPrice?: { value?: number } } | undefined)?.grossPrice?.value ?? 0
     const priceCents = Math.round((totalPrice / NIGHTS) * 100)
     if (!id || !name || priceCents <= 0) return []
-    return [{ hotelId: `bk_${id}`, hotelName: name, stars, priceCents, photoUrl: photo }]
+    return [{ hotelId: `bk_${id}`, hotelName: name, stars, priceCents, photoUrl: photo, photoUrls, reviewEvidence }]
   })
 }
 
@@ -408,11 +457,15 @@ async function fetchTripAdvisor(iata: string, checkIn: string, checkOut: string)
       id
     )
     const photos = (hotel.cardPhotos as { sizes?: { urlTemplate?: string } }[] | undefined) ?? []
-    const photoTpl = photos[0]?.sizes?.urlTemplate ?? null
-    const photo = photoTpl ? photoTpl.replace('{width}', '600').replace('{height}', '400') : null
+    const photoUrls = photos
+      .map(p => p.sizes?.urlTemplate)
+      .filter((tpl): tpl is string => !!tpl)
+      .map(tpl => tpl.replace('{width}', '600').replace('{height}', '400'))
+      .slice(0, MAX_PHOTOS_PER_HOTEL)
+    const photo = photoUrls[0] ?? null
     const priceCents = parseTAPrice(hotel.priceForDisplay as string | undefined)
     if (!id || !name || priceCents <= 0) return []
-    return [{ hotelId: `ta_${id}`, hotelName: name, stars: null, reviewEvidence, priceCents, photoUrl: photo }]
+    return [{ hotelId: `ta_${id}`, hotelName: name, stars: null, reviewEvidence, priceCents, photoUrl: photo, photoUrls }]
   })
 }
 
@@ -469,10 +522,23 @@ async function fetchAgoda(iata: string, checkIn: string, checkOut: string): Prom
       ?? price?.perNight?.inclusive?.display
     const priceValue = Number(inclusiveDisplay ?? 0)
     const priceCents = Number.isFinite(priceValue) ? Math.round(priceValue * 100) : 0
-    const rawPhoto = property.content?.images?.hotelImages?.[0]?.urls?.[0]?.value
-    const photo = rawPhoto?.startsWith('//') ? `https:${rawPhoto}` : rawPhoto ?? null
+    // Each hotelImages[] entry is a genuinely distinct real photo (confirmed
+    // live: different filenames/CDN hosts per entry), not multiple crops of
+    // one photo -- take urls[0] from EACH entry, not just entry[0]'s urls.
+    // Deliberately no review-score capture for Agoda in this pass: the only
+    // candidate field (enrichment.uniqueSellingPoint[].uspType ===
+    // 'ReviewScore') is segment-specific (seen live tagged "segment":
+    // "Solo", rank 1) and has no accompanying review count -- presenting
+    // that as the hotel's general review score would risk showing a
+    // misleading number, not a real one.
+    const rawPhotoUrls = (property.content?.images?.hotelImages ?? [])
+      .map(img => img.urls?.[0]?.value)
+      .filter((u): u is string => !!u)
+      .map(u => (u.startsWith('//') ? `https:${u}` : u))
+      .slice(0, MAX_PHOTOS_PER_HOTEL)
+    const photo = rawPhotoUrls[0] ?? null
     if (!id || !name || priceCents <= 0) return []
-    return [{ hotelId: `ag_${id}`, hotelName: name, stars, priceCents, photoUrl: photo }]
+    return [{ hotelId: `ag_${id}`, hotelName: name, stars, priceCents, photoUrl: photo, photoUrls: rawPhotoUrls }]
   })
 }
 
@@ -526,14 +592,21 @@ async function fetchWithRotation(
 async function storeSnapshot(market: Market, hotel: HotelEntry, checkIn: string, isMock: boolean): Promise<void> {
   await query(
     `INSERT INTO price_snapshots
-       (hotel_id, hotel_name, stars, review_evidence, photo_url, market_id, check_in, nights, price_cents, currency, snapshot_date, is_mock)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'USD',CURRENT_DATE,$10)
+       (hotel_id, hotel_name, stars, review_evidence, photo_url, photo_urls, market_id, check_in, nights, price_cents, currency, snapshot_date, is_mock)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'USD',CURRENT_DATE,$11)
      ON CONFLICT ON CONSTRAINT price_snapshots_unique
      DO UPDATE SET price_cents = EXCLUDED.price_cents,
                    stars = EXCLUDED.stars,
                    review_evidence = EXCLUDED.review_evidence,
-                   photo_url = COALESCE(EXCLUDED.photo_url, price_snapshots.photo_url)`,
-    [hotel.hotelId, hotel.hotelName, hotel.stars, hotel.reviewEvidence ? JSON.stringify(hotel.reviewEvidence) : null, hotel.photoUrl, market.id, checkIn, NIGHTS, hotel.priceCents, isMock]
+                   photo_url = COALESCE(EXCLUDED.photo_url, price_snapshots.photo_url),
+                   photo_urls = COALESCE(EXCLUDED.photo_urls, price_snapshots.photo_urls)`,
+    [
+      hotel.hotelId, hotel.hotelName, hotel.stars,
+      hotel.reviewEvidence ? JSON.stringify(hotel.reviewEvidence) : null,
+      hotel.photoUrl,
+      hotel.photoUrls && hotel.photoUrls.length > 0 ? hotel.photoUrls : null,
+      market.id, checkIn, NIGHTS, hotel.priceCents, isMock,
+    ]
   )
 }
 

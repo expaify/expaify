@@ -205,7 +205,7 @@ describe('detectDealsForMarket batched writes', () => {
     expect(inserts).toHaveLength(Math.ceil(count / 500))
     expect(expires).toHaveLength(Math.ceil(count / 500))
     expect(mockQuery).toHaveBeenCalledTimes(2 + 2 * Math.ceil(count / 500))
-    expect(inserts.flatMap(([, params]) => params ?? [])).toHaveLength(count * 15)
+    expect(inserts.flatMap(([, params]) => params ?? [])).toHaveLength(count * 16)
     expect(expires.flatMap(([, params]) => JSON.parse(String(params![1])))).toHaveLength(count)
     for (const [sql, params] of inserts) {
       const placeholders = [...String(sql).matchAll(/\$(\d+)/g)].map((match) => Number(match[1]))
@@ -243,9 +243,12 @@ describe('detectDealsForMarket batched writes', () => {
       expect.objectContaining({ id: 'existing-id', hotelName: 'Existing hotel' }),
     ])
     const params = mockQuery.mock.calls[1][1]!
-    expect([params[0], params[15], params[30], params[45]]).toEqual(['new', 'existing', 'mock', 'mixed'])
-    expect(params[45 + 8]).toBe('EUR')
-    expect(params[45 + 11]).toBe('2026-10-02')
+    // 16 params/row now (photo_urls inserted after photo_url, row-offset 5)
+    // -- row starts shift from 0/15/30/45 to 0/16/32/48; currency shifts
+    // from row-offset 8 to 9, check_in_date from 11 to 12.
+    expect([params[0], params[16], params[32], params[48]]).toEqual(['new', 'existing', 'mock', 'mixed'])
+    expect(params[48 + 9]).toBe('EUR')
+    expect(params[48 + 12]).toBe('2026-10-02')
     expect(JSON.parse(String(mockQuery.mock.calls[2][1]![1]))).toEqual([
       { hotel_id: 'mixed', check_in_date: '2026-10-01' },
       { hotel_id: 'thin', check_in_date: '2026-10-01' },

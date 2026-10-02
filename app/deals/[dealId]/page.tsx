@@ -19,7 +19,7 @@ import { getSubscription } from '@/lib/subscription'
 import { TRACKED_MARKET_NAMES, TRACKED_MARKETS } from '@/lib/trackedMarkets'
 import { FlightsToThisDeal } from '@/app/components/FlightsToThisDeal'
 import DealScorePanel from '@/app/components/DealScorePanel'
-import { PropertyPhoto } from '@/app/components/ui/PropertyPhoto'
+import { PropertyPhotoGallery } from '@/app/components/ui/PropertyPhotoGallery'
 import { Reveal } from '@/app/components/ui/Reveal'
 import { LocationQualitySection } from '@/app/components/LocationQualitySection'
 import HotelCancellationChoicesUnavailable from '@/app/components/HotelCancellationChoicesUnavailable'
@@ -476,7 +476,14 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           <div className="mt-4 space-y-4">
             <Reveal>
             <section id="deal-hero" aria-labelledby="deal-detail-title" className="overflow-hidden rounded-[var(--radius-card)] bg-[color:var(--bg-surface)] shadow-[var(--shadow-card-rest)]">
-              {deal.photo_url ? <PropertyPhoto src={deal.photo_url} size="detail" loading="eager" imageClassName="motion-safe:transition-transform motion-safe:duration-500 ease-out-expo hover:scale-[1.02]" /> : null}
+              {(deal.photo_url || (deal.photo_urls && deal.photo_urls.length > 0)) ? (
+                <PropertyPhotoGallery
+                  photoUrls={deal.photo_urls}
+                  fallbackSrc={deal.photo_url}
+                  loading="eager"
+                  imageClassName="motion-safe:transition-transform motion-safe:duration-500 ease-out-expo hover:scale-[1.02]"
+                />
+              ) : null}
               <div className="p-4 sm:p-6">
                 <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
                 <h1 id="deal-detail-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name}</h1>
@@ -691,7 +698,9 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           <section aria-labelledby="saved-supporting-title" data-hotel-decision-section="supporting_evidence" data-hotel-decision-position="5" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <h2 id="saved-supporting-title" className="text-xl font-medium text-[color:var(--text-1)] sm:text-2xl">Supporting evidence</h2>
             <div className="mt-5 space-y-6">
-              {deal.photo_url ? <PropertyPhoto src={deal.photo_url} size="detail" loading="lazy" /> : null}
+              {(deal.photo_url || (deal.photo_urls && deal.photo_urls.length > 0)) ? (
+                <PropertyPhotoGallery photoUrls={deal.photo_urls} fallbackSrc={deal.photo_url} loading="lazy" />
+              ) : null}
               <Suspense fallback={null}>
                 <LocationQualitySection hotelName={deal.hotel_name} city={deal.city} />
               </Suspense>

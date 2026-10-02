@@ -225,6 +225,24 @@ CREATE TABLE IF NOT EXISTS deals (
 
 ALTER TABLE deals ADD COLUMN IF NOT EXISTS currency CHAR(3) NOT NULL DEFAULT 'USD';
 
+-- UXD/UXR-HOTEL-VIEW-RICHER-MEDIA-01: several providers (Booking.com15,
+-- TripAdvisor, Agoda) already return more than one real photo per hotel in
+-- the exact responses this pipeline already fetches nightly -- only index 0
+-- was ever kept. Additive array column alongside the existing singular
+-- photo_url (never dropped -- any code still reading photo_url directly
+-- keeps working unchanged); NULL/empty means "provider sent 0 or 1 photo,"
+-- never fabricated to pad a count.
+ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS photo_urls TEXT[];
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS photo_urls TEXT[];
+-- deals.review_evidence already exists on real production (confirmed via a
+-- live \d deals, 2026-10-02) -- the dealDetection.ts upsert already reads
+-- and writes it, used today by TripAdvisor's bubble-rating mapping. This
+-- line is IF NOT EXISTS documentation catch-up only, matching this file's
+-- own established practice of syncing to real prod drift (see "DEV: sync
+-- schema.sql to match real production drift" in git history) -- not a new
+-- column, and this file previously omitted it entirely by mistake.
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS review_evidence JSONB;
+
 CREATE INDEX IF NOT EXISTS idx_deals_status ON deals (status, first_seen DESC);
 CREATE INDEX IF NOT EXISTS idx_deals_market  ON deals (market_id, status);
 CREATE INDEX IF NOT EXISTS idx_deals_active_newest
