@@ -312,6 +312,14 @@ export async function getDealById(id: string): Promise<DealRow | null> {
   // price_snapshots lookup that produced them in the first place.
   if (isTrackedHotelId(id)) return getTrackedDealById(id)
 
+  // Same real gap as getActiveDeals (see its own comment, 2026-10-02
+  // incident): a direct link to a deal whose check-in date already passed
+  // must 404 like any other no-longer-valid id, not render a live "book
+  // now" page for a date that's gone -- and this must not depend on
+  // whether detectDealsForMarket's once-nightly expiry UPDATE has reached
+  // this deal's market yet. Scoped to check_in_date only (not status) --
+  // this function has never filtered on status/is_mock, and widening that
+  // is a separate, unreviewed behavior change outside this fix's scope.
   const res = await query<DealRow>(
     `SELECT
        d.id, d.hotel_id, d.hotel_name, d.stars, d.review_evidence, d.photo_url,
@@ -322,7 +330,7 @@ export async function getDealById(id: string): Promise<DealRow | null> {
        d.first_seen::TEXT, d.expires_at::TEXT, d.updated_at::TEXT
      FROM deals d
      JOIN tracked_markets m ON m.id = d.market_id
-     WHERE d.id = $1`,
+     WHERE d.id = $1 AND d.check_in_date >= CURRENT_DATE`,
     [id]
   )
   return res.rows[0] ?? null
@@ -430,6 +438,7 @@ export async function getActiveDeals(opts: {
      FROM deals d
      JOIN tracked_markets m ON m.id = d.market_id
      WHERE d.status = 'active'
+       AND d.check_in_date >= CURRENT_DATE
        AND d.discount_pct >= $3
        ${marketFilter}
        ${priceFilter}

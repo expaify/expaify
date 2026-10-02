@@ -429,4 +429,29 @@ describe('getActiveDeals ordering', () => {
       '2026-08-31',
     ])
   })
+
+  // Regression guard for a real incident (2026-10-02): a deal's check-in
+  // date passing is only ever acted on by detectDealsForMarket's own
+  // end-of-run expiry UPDATE, which runs once per market per night. That
+  // left a real gap -- once check_in_date < today but before the NEXT
+  // nightly run reaches that market, the deal was still status='active'
+  // and getActiveDeals had no date condition of its own to catch it, so
+  // the live site kept showing a "book now" card for a date that had
+  // already passed, for up to ~24 hours. Confirmed live: 3 real deals
+  // (check_in_date=2026-10-01) were still being served as active on
+  // 2026-10-02 before this fix. The read path must never depend on the
+  // write-side cleanup job's timing to stay correct -- it needs its own
+  // unconditional floor, independent of `dateFrom`/`dateTo` (which are
+  // optional, caller-supplied, and absent on every default-view call).
+  it('never returns a deal whose check-in date has already passed, independent of any caller-supplied date filter', async () => {
+    await getActiveDeals({ sort: 'newest', limit: 12, offset: 0 })
+
+    const sql = String(mockQuery.mock.calls[0][0])
+    expect(sql).toContain('d.check_in_date >= CURRENT_DATE')
+    // Must be unconditional -- present even with no dateFrom/dateTo passed,
+    // and not dependent on the `$n` param placeholders used by the
+    // optional dateFrom/dateTo filters (CURRENT_DATE is a SQL literal, not
+    // a bound parameter).
+    expect(sql.indexOf('d.check_in_date >= CURRENT_DATE')).toBeLessThan(sql.indexOf('ORDER BY'))
+  })
 })
