@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { CITY_SLUGS } from '@/lib/cities'
-import { getActiveDeals, getTrackedHotels, type DealRow } from '@/lib/pipeline/dealDetection'
+import { getActiveDeals, getTrackedHotels, getStableFreeTrackedHotelIds, type DealRow } from '@/lib/pipeline/dealDetection'
 import { DealFeed, type ApiDeal } from '@/app/deals/DealFeed'
 import {
   deterministicHotelCriteriaVersion,
@@ -168,9 +168,16 @@ export default async function CityPage({ params, searchParams }: PageProps) {
     usingTrackedFallback = tracked.length > 0
     feedRows = tracked
   }
+  // Stable, id-based free set, scoped to this same market -- see
+  // getStableFreeTrackedHotelIds's own comment. Keeps this page consistent
+  // with the same row's own detail page (/deals/[dealId]), which checks
+  // membership in this identical per-market set.
+  const stableFreeTrackedIds = usingTrackedFallback
+    ? await getStableFreeTrackedHotelIds({ limit: pwCtx.freeUnlockLimit, marketId }).catch(() => new Set<string>())
+    : new Set<string>()
 
   const initialDeals: ApiDeal[] = usingTrackedFallback
-    ? feedRows.map((row, i) => toApiDeal(row, !pwCtx.premium && i >= pwCtx.freeUnlockLimit && !unlockedIds.has(row.id)))
+    ? feedRows.map(row => toApiDeal(row, !pwCtx.premium && !stableFreeTrackedIds.has(row.id) && !unlockedIds.has(row.id)))
     : feedRows.map(row => {
         const locked = !pwCtx.premium && !unlockedIds.has(row.id)
         return toApiDeal(row, locked)

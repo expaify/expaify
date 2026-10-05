@@ -2,7 +2,7 @@ import { MIN_QUALIFYING_DISCOUNT_PCT } from '@/lib/deals/threshold'
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getActiveDeals, getTrackedHotels, type DealRow } from '@/lib/pipeline/dealDetection'
+import { getActiveDeals, getTrackedHotels, getStableFreeTrackedHotelIds, type DealRow } from '@/lib/pipeline/dealDetection'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { generateMockDeals } from '@/lib/pipeline/mock'
 import { buildDealPage, HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
@@ -189,8 +189,14 @@ export async function GET(req: NextRequest) {
     // photo, real price) over fabricated example cards. Only fall back to
     // generated mock deals if there's truly no real snapshot data yet.
     const tracked = await getTrackedHotels({ limit: HOTEL_DEAL_PAGE_SIZE }).catch(() => [] as DealRow[])
+    // Stable, id-based free set -- see getStableFreeTrackedHotelIds's own
+    // comment. Keeps this API response consistent with what the same row's
+    // own detail page (/deals/[dealId]) will show if the user clicks it.
+    const stableFreeTrackedIds = tracked.length > 0
+      ? await getStableFreeTrackedHotelIds({ limit: pwCtx.freeUnlockLimit }).catch(() => new Set<string>())
+      : new Set<string>()
     const deals = tracked.length > 0
-      ? tracked.map((row, i) => toApiDeal(row, !pwCtx.premium && i >= pwCtx.freeUnlockLimit && !unlockedIds.has(row.id)))
+      ? tracked.map(row => toApiDeal(row, !pwCtx.premium && !stableFreeTrackedIds.has(row.id) && !unlockedIds.has(row.id)))
       : generateMockDeals(HOTEL_DEAL_PAGE_SIZE).map(mockToApiDeal)
     return NextResponse.json({
       deals,

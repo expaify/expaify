@@ -628,6 +628,63 @@ export async function getTrackedHotels(opts: {
   return res.rows.map(mapTrackedRowToDealRow)
 }
 
+// 2026-10-05 (real user-reported bug): a tracked-hotel card shown as free on
+// a list view could show as locked if the user clicked straight through to
+// its own detail page. Root cause: list views decided "free" by ARRAY
+// POSITION within that one request's result set (`i >= freeUnlockLimit`),
+// but a direct deal-detail link has no result-set position to check against
+// -- it only had getFreeUnlockedDealIds(), which queries the real `deals`
+// table and can structurally never contain a tracked- synthetic id. Mirrors
+// getFreeUnlockedDealIds's own pattern exactly: a STABLE, ID-based,
+// deterministically-ordered set (same ranking getTrackedHotels itself
+// uses), independent of any one request's pagination/filters, so every
+// surface that asks "is this specific tracked hotel free right now" gets
+// the same answer. Callers (list views) must switch from position-based
+// locking to `.has(row.id)` against this set for full consistency -- the
+// old `i >= freeUnlockLimit` check and this set no longer necessarily agree
+// once a surface filters/sorts/paginates, which is exactly the class of
+// bug this exists to close for good, not just patch the one reported case.
+export async function getStableFreeTrackedHotelIds(opts: {
+  limit: number
+  marketId?: number
+}): Promise<Set<string>> {
+  const { limit, marketId } = opts
+  const params: unknown[] = [limit]
+  let marketFilter = ''
+  if (marketId) {
+    marketFilter = ' AND g.market_id = $2'
+    params.push(marketId)
+  }
+
+  const res = await query<{ hotel_id: string; check_in: Date }>(
+    `WITH candidates AS (
+       ${TRACKED_SNAPSHOT_SELECT} ${marketFilter}
+     ), ranked AS (
+       SELECT *,
+         ROW_NUMBER() OVER (
+           PARTITION BY market_id
+           ORDER BY snapshot_count DESC,
+             GREATEST(0, latest_price_cents::numeric / NULLIF(median_price_cents, 0)) ASC,
+             latest_captured_at DESC
+         ) AS market_rank
+       FROM candidates
+     )
+     SELECT hotel_id, check_in FROM ranked
+     ORDER BY
+       market_rank ASC,
+       snapshot_count DESC,
+       GREATEST(0, latest_price_cents::numeric / NULLIF(median_price_cents, 0)) ASC,
+       latest_captured_at DESC
+     LIMIT $1`,
+    params
+  ).catch(() => ({ rows: [] as { hotel_id: string; check_in: Date }[] }))
+
+  return new Set(res.rows.map((row) => {
+    const checkInStr = row.check_in instanceof Date ? row.check_in.toISOString().slice(0, 10) : String(row.check_in)
+    return `${TRACKED_HOTEL_ID_PREFIX}${row.hotel_id}-${checkInStr}`
+  }))
+}
+
 const TRACKED_DEAL_ID_PATTERN = /^(.+)-(\d{4}-\d{2}-\d{2})$/
 
 /**

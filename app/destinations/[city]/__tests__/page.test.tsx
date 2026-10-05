@@ -2,14 +2,14 @@ import type { ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { auth } from '@/auth'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
-import { getActiveDeals, getTrackedHotels } from '@/lib/pipeline/dealDetection'
+import { getActiveDeals, getTrackedHotels, getStableFreeTrackedHotelIds } from '@/lib/pipeline/dealDetection'
 import { query } from '@/lib/db/client'
 import CityPage from '../page'
 import { DealFeed } from '@/app/deals/DealFeed'
 
 jest.mock('@/auth', () => ({ auth: jest.fn() }))
 jest.mock('@/lib/paywall', () => ({ getPaywallContext: jest.fn(), getFreeUnlockedDealIds: jest.fn() }))
-jest.mock('@/lib/pipeline/dealDetection', () => ({ getActiveDeals: jest.fn(), getTrackedHotels: jest.fn() }))
+jest.mock('@/lib/pipeline/dealDetection', () => ({ getActiveDeals: jest.fn(), getTrackedHotels: jest.fn(), getStableFreeTrackedHotelIds: jest.fn(() => Promise.resolve(new Set())) }))
 jest.mock('@/lib/db/client', () => ({ query: jest.fn() }))
 jest.mock('@/lib/subscription', () => ({ getSubscription: jest.fn(), isPremium: jest.fn(() => false) }))
 jest.mock('@/app/deals/DealFeed', () => ({ DealFeed: jest.fn(() => <div data-testid="deal-feed" />) }))
@@ -19,6 +19,7 @@ const mockGetPaywallContext = getPaywallContext as jest.MockedFunction<typeof ge
 const mockGetFreeUnlockedDealIds = getFreeUnlockedDealIds as jest.MockedFunction<typeof getFreeUnlockedDealIds>
 const mockGetActiveDeals = getActiveDeals as jest.MockedFunction<typeof getActiveDeals>
 const mockGetTrackedHotels = getTrackedHotels as jest.MockedFunction<typeof getTrackedHotels>
+const mockGetStableFreeTrackedHotelIds = getStableFreeTrackedHotelIds as jest.MockedFunction<typeof getStableFreeTrackedHotelIds>
 const mockQuery = query as jest.MockedFunction<typeof query>
 
 function walk(node: unknown): ReactElement<Record<string, unknown>>[] {
@@ -111,20 +112,50 @@ describe('destination criteria continuity', () => {
       is_mock: false, first_seen: null, expires_at: null, updated_at: null,
     }
     mockGetTrackedHotels.mockResolvedValue([trackedRow, { ...trackedRow, id: 'tracked-2' }, { ...trackedRow, id: 'tracked-3' }, { ...trackedRow, id: 'tracked-4' }])
+    // free-tier default (freeUnlockLimit: 3): the stable set says the first
+    // 3 ids are free this week -- NOT array position (see the dedicated
+    // position-independence test below for why that distinction matters).
+    mockGetStableFreeTrackedHotelIds.mockResolvedValue(new Set(['tracked-1', 'tracked-2', 'tracked-3']))
 
     const tree = await CityPage({ params: Promise.resolve({ city: 'miami' }), searchParams: Promise.resolve({}) })
     const html = renderToStaticMarkup(tree)
     const feed = walk(tree).find(element => element.type === DealFeed)
 
     expect(mockGetTrackedHotels).toHaveBeenCalledWith({ limit: expect.any(Number), marketId: 7 })
+    expect(mockGetStableFreeTrackedHotelIds).toHaveBeenCalledWith({ limit: 3, marketId: 7 })
     expect(html).toContain('Checked daily — nothing confirmed yet, here&#x27;s what we&#x27;re tracking')
     expect(html).not.toContain('no active deals right now')
     const initialDeals = feed!.props.initialDeals as Array<{ locked: boolean; discountPct: number; hotelName: string }>
     expect(initialDeals).toHaveLength(4)
-    // free-tier default (freeUnlockLimit: 3): first 3 unlocked, 4th locked
     expect(initialDeals.map(d => d.locked)).toEqual([false, false, false, true])
     expect(initialDeals.every(d => d.discountPct === 0)).toBe(true)
     expect(initialDeals[3].hotelName).toBe('Members-only deal')
+  })
+
+  // Regression guard for the real bug this fix exists for (2026-10-05): a
+  // tracked-hotel card's own detail page can only check stable-set
+  // membership (it has no array position to compare against), so this page
+  // must lock/unlock the same way -- by id-set membership, not by the
+  // position getTrackedHotels happened to return a row at.
+  it('locks/unlocks tracked hotels by stable-set membership, not by array position', async () => {
+    const trackedRow = {
+      id: 'tracked-1', hotel_id: 'h-1', hotel_name: 'Hotel Real', stars: 4,
+      photo_url: '/photo.jpg', city: 'Miami', deal_price_cents: 20000, median_price_cents: 20000,
+      currency: 'USD', discount_pct: 0, check_in_window: 'flexible', check_in_date: '2026-11-01',
+      nights: 2, snapshot_count: 3, ota_links: {}, headline: null, description: null,
+      is_mock: false, first_seen: null, expires_at: null, updated_at: null,
+    }
+    mockGetTrackedHotels.mockResolvedValue([trackedRow, { ...trackedRow, id: 'tracked-2' }])
+    // tracked-1 is first in the array (would have been "free" under old
+    // position-based logic) but is NOT in the stable free set.
+    mockGetStableFreeTrackedHotelIds.mockResolvedValue(new Set(['tracked-2']))
+
+    const tree = await CityPage({ params: Promise.resolve({ city: 'miami' }), searchParams: Promise.resolve({}) })
+    const feed = walk(tree).find(element => element.type === DealFeed)
+    const initialDeals = feed!.props.initialDeals as Array<{ id: string; locked: boolean }>
+
+    expect(initialDeals.find(d => d.id === 'tracked-1')?.locked).toBe(true)
+    expect(initialDeals.find(d => d.id === 'tracked-2')?.locked).toBe(false)
   })
 
   it('keeps the existing fully-empty state when both confirmed and tracked queries return zero rows', async () => {

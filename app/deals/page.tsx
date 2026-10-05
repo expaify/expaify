@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { auth } from '@/auth'
 import { getSubscription } from '@/lib/subscription'
 import { getPaywallContext, getFreeUnlockedDealIds } from '@/lib/paywall'
-import { getActiveDeals, getTrackedHotels, type DealRow } from '@/lib/pipeline/dealDetection'
+import { getActiveDeals, getTrackedHotels, getStableFreeTrackedHotelIds, type DealRow } from '@/lib/pipeline/dealDetection'
 import { generateMockDeals } from '@/lib/pipeline/mock'
 import { redirect } from 'next/navigation'
 import { AppShell } from '../components/AppShell'
@@ -149,8 +149,16 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     // example cards — only fall back to generated mock deals if there's
     // truly no real snapshot data at all yet.
     const tracked = await getTrackedHotels({ limit: HOTEL_DEAL_PAGE_SIZE }).catch(() => [] as DealRow[])
+    // Stable, id-based "is this specific tracked hotel free this week" set --
+    // not array position -- so a direct link to this same row's own detail
+    // page (which checks membership in this identical set) always agrees
+    // with what this list just showed. See getStableFreeTrackedHotelIds's
+    // own comment for the real bug this replaced.
+    const stableFreeTrackedIds = tracked.length > 0
+      ? await getStableFreeTrackedHotelIds({ limit: pwCtx.freeUnlockLimit }).catch(() => new Set<string>())
+      : new Set<string>()
     initialDeals = tracked.length > 0
-      ? tracked.map((row, i) => toApiDeal(row, !pwCtx.premium && i >= pwCtx.freeUnlockLimit && !unlockedIds.has(row.id)))
+      ? tracked.map(row => toApiDeal(row, !pwCtx.premium && !stableFreeTrackedIds.has(row.id) && !unlockedIds.has(row.id)))
       : generateMockDeals(HOTEL_DEAL_PAGE_SIZE).map((d) => {
         const base: ApiDeal = {
           id: d.hotel_id,

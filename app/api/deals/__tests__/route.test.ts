@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { getActiveDeals, getTrackedHotels, type DealRow } from '@/lib/pipeline/dealDetection'
+import { getActiveDeals, getTrackedHotels, getStableFreeTrackedHotelIds, type DealRow } from '@/lib/pipeline/dealDetection'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { GET } from '../route'
 import { query } from '@/lib/db/client'
@@ -7,6 +7,7 @@ import { query } from '@/lib/db/client'
 jest.mock('@/lib/pipeline/dealDetection', () => ({
   getActiveDeals: jest.fn(),
   getTrackedHotels: jest.fn(() => Promise.resolve([])),
+  getStableFreeTrackedHotelIds: jest.fn(() => Promise.resolve(new Set())),
 }))
 
 jest.mock('@/lib/paywall', () => ({
@@ -17,6 +18,7 @@ jest.mock('@/lib/db/client', () => ({ query: jest.fn() }))
 
 const mockGetActiveDeals = getActiveDeals as jest.MockedFunction<typeof getActiveDeals>
 const mockGetTrackedHotels = getTrackedHotels as jest.MockedFunction<typeof getTrackedHotels>
+const mockGetStableFreeTrackedHotelIds = getStableFreeTrackedHotelIds as jest.MockedFunction<typeof getStableFreeTrackedHotelIds>
 const mockGetPaywallContext = getPaywallContext as jest.MockedFunction<typeof getPaywallContext>
 const mockGetFreeUnlockedDealIds = getFreeUnlockedDealIds as jest.MockedFunction<typeof getFreeUnlockedDealIds>
 const mockQuery = query as jest.MockedFunction<typeof query>
@@ -235,13 +237,14 @@ describe('GET /api/deals — tracked-hotels fallback locking', () => {
     mockGetActiveDeals.mockResolvedValue([])
   })
 
-  it('keeps a personally-unlocked tracked-hotel deal past the free index cutoff unlocked', async () => {
+  it('keeps a personally-unlocked tracked-hotel deal outside the stable free set unlocked', async () => {
     mockGetPaywallContext.mockResolvedValue({
       userId: 'user-1', premium: false, freeUnlockedThisWeek: 1, freeUnlockLimit: 3,
     })
     mockGetTrackedHotels.mockResolvedValue(['h1', 'h2', 'h3', 'h4', 'h5'].map(trackedRow))
-    // h4 sits at index 3, past the freeUnlockLimit=3 cutoff, but was
-    // personally unlocked via a real /api/deals/[id]/unlock call.
+    mockGetStableFreeTrackedHotelIds.mockResolvedValue(new Set(['h1', 'h2', 'h3']))
+    // h4 is not in the stable free set, but was personally unlocked via a
+    // real /api/deals/[id]/unlock call.
     mockGetFreeUnlockedDealIds.mockResolvedValue(new Set(['h4']))
 
     const response = await GET(request('limit=6&offset=0'))
@@ -252,11 +255,12 @@ describe('GET /api/deals — tracked-hotels fallback locking', () => {
     expect(deal?.hotelName).toBe('Hotel h4')
   })
 
-  it('still locks a tracked-hotel deal past the free index cutoff that was never personally unlocked', async () => {
+  it('still locks a tracked-hotel deal outside the stable free set that was never personally unlocked', async () => {
     mockGetPaywallContext.mockResolvedValue({
       userId: 'user-1', premium: false, freeUnlockedThisWeek: 0, freeUnlockLimit: 3,
     })
     mockGetTrackedHotels.mockResolvedValue(['h1', 'h2', 'h3', 'h4', 'h5'].map(trackedRow))
+    mockGetStableFreeTrackedHotelIds.mockResolvedValue(new Set(['h1', 'h2', 'h3']))
     mockGetFreeUnlockedDealIds.mockResolvedValue(new Set())
 
     const response = await GET(request('limit=6&offset=0'))
@@ -265,5 +269,43 @@ describe('GET /api/deals — tracked-hotels fallback locking', () => {
 
     expect(deal?.locked).toBe(true)
     expect(deal?.hotelName).toBe('Members-only deal')
+  })
+
+  // Regression guard for the real bug this fix exists for (2026-10-05): a
+  // tracked-hotel card the user saw as "free" on this list must stay
+  // consistent with its own detail page -- which can only know "free" by
+  // checking the SAME stable, id-based set this route now also checks,
+  // never by array position (which the detail page has no way to see).
+  // This test specifically proves locking is driven by stable-set
+  // membership, not by position in the array returned by getTrackedHotels.
+  it('locks/unlocks by stable-set membership, not by array position', async () => {
+    mockGetPaywallContext.mockResolvedValue({
+      userId: null, premium: false, freeUnlockedThisWeek: 0, freeUnlockLimit: 3,
+    })
+    // h1 is first in the array (would have been "free" under old
+    // position-based logic) but is NOT in the stable free set.
+    // h5 is last in the array but IS in the stable free set.
+    mockGetTrackedHotels.mockResolvedValue(['h1', 'h2', 'h3', 'h4', 'h5'].map(trackedRow))
+    mockGetStableFreeTrackedHotelIds.mockResolvedValue(new Set(['h5']))
+    mockGetFreeUnlockedDealIds.mockResolvedValue(new Set())
+
+    const response = await GET(request('limit=6&offset=0'))
+    const body = await response.json() as { deals: Array<{ id: string; locked: boolean; hotelName: string }> }
+
+    expect(body.deals.find(d => d.id === 'h1')?.locked).toBe(true)
+    expect(body.deals.find(d => d.id === 'h5')?.locked).toBe(false)
+    expect(body.deals.find(d => d.id === 'h5')?.hotelName).toBe('Hotel h5')
+  })
+
+  it('passes the real freeUnlockLimit through to getStableFreeTrackedHotelIds, unscoped by market', async () => {
+    mockGetPaywallContext.mockResolvedValue({
+      userId: null, premium: false, freeUnlockedThisWeek: 0, freeUnlockLimit: 5,
+    })
+    mockGetTrackedHotels.mockResolvedValue(['h1'].map(trackedRow))
+    mockGetFreeUnlockedDealIds.mockResolvedValue(new Set())
+
+    await GET(request('limit=6&offset=0'))
+
+    expect(mockGetStableFreeTrackedHotelIds).toHaveBeenCalledWith({ limit: 5 })
   })
 })

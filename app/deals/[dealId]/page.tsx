@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
-import { getDealById, getPriceHistory, type DealRow } from '@/lib/pipeline/dealDetection'
+import { getDealById, getPriceHistory, getStableFreeTrackedHotelIds, type DealRow } from '@/lib/pipeline/dealDetection'
+import { isTrackedHotelId } from '@/lib/deals/feedContract'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { query } from '@/lib/db/client'
 import { formatMoney } from '@/lib/money'
@@ -362,10 +363,38 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
 
   // Server-side paywall: render the locked state instead of the deal for
   // free/anonymous visitors when this deal is outside the weekly unlock set.
+  //
+  // 2026-10-05 (real user-reported bug): a tracked-hotel id (synthesized,
+  // never a real row in `deals`) could show as free on a list view yet
+  // always show as locked here, because getFreeUnlockedDealIds only ever
+  // reads the real `deals` table -- structurally empty for any tracked- id.
+  // Fixed by also checking the same stable, id-based tracked-hotel free set
+  // every list surface now uses (getStableFreeTrackedHotelIds), both the
+  // global/unscoped set (matches /deals and the homepage) and this deal's
+  // own market-scoped set (matches its city's destination page) -- unlocked
+  // if either agrees, since either is a real surface a user could have
+  // legitimately seen this exact row as free on.
   const pwCtx = await getPaywallContext()
   if (!pwCtx.premium) {
-    const unlockedIds = await getFreeUnlockedDealIds(pwCtx.userId)
-    if (!unlockedIds.has(deal.id)) {
+    const isTracked = isTrackedHotelId(deal.id)
+    const unlockedIds = isTracked ? new Set<string>() : await getFreeUnlockedDealIds(pwCtx.userId)
+    let isStableFreeTracked = false
+    if (isTracked) {
+      const globalFree = await getStableFreeTrackedHotelIds({ limit: pwCtx.freeUnlockLimit }).catch(() => new Set<string>())
+      isStableFreeTracked = globalFree.has(deal.id)
+      if (!isStableFreeTracked) {
+        const marketRes = await query<{ id: number }>(
+          'SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1',
+          [deal.city]
+        ).catch(() => ({ rows: [] as { id: number }[] }))
+        const marketId = marketRes.rows[0]?.id
+        if (marketId) {
+          const marketFree = await getStableFreeTrackedHotelIds({ limit: pwCtx.freeUnlockLimit, marketId }).catch(() => new Set<string>())
+          isStableFreeTracked = marketFree.has(deal.id)
+        }
+      }
+    }
+    if (!unlockedIds.has(deal.id) && !isStableFreeTracked) {
       return <LockedDealDetail city={deal.city} checkInDate={deal.check_in_date} checkInWindow={deal.check_in_window} criteriaContext={criteriaContext} />
     }
   }

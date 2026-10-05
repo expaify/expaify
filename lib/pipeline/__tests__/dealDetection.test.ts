@@ -1,6 +1,6 @@
 import { generateHeadlines } from '../../ai/generateHeadline'
 import { query } from '../../db/client'
-import { getActiveDeals, getDealById, getTrackedDealById, detectDealsForMarket } from '../dealDetection'
+import { getActiveDeals, getDealById, getTrackedDealById, getStableFreeTrackedHotelIds, detectDealsForMarket } from '../dealDetection'
 
 jest.mock('../../db/client', () => ({
   query: jest.fn(),
@@ -327,6 +327,77 @@ describe('getTrackedDealById', () => {
 
     expect(deal?.discount_pct).toBe(0)
     expect(deal?.median_price_cents).toBe(deal?.deal_price_cents)
+  })
+})
+
+// 2026-10-05 (real user-reported bug): a tracked-hotel card shown as free on
+// a list view could show as locked if the user clicked straight through to
+// its own detail page, because list views decided "free" by array position
+// while the detail page had no array/position to check against. This
+// function exists so every surface (list or detail) can ask the identical,
+// stable, id-based question and get the identical answer.
+describe('getStableFreeTrackedHotelIds', () => {
+  beforeEach(() => {
+    mockQuery.mockReset()
+  })
+
+  it('builds real tracked- prefixed ids matching mapTrackedRowToDealRow\'s own id format', async () => {
+    mockQuery.mockResolvedValueOnce(qr([
+      { hotel_id: 'bk_123', check_in: new Date('2026-11-01T00:00:00Z') },
+      { hotel_id: 'ag_456', check_in: new Date('2026-11-15T00:00:00Z') },
+    ]))
+
+    const ids = await getStableFreeTrackedHotelIds({ limit: 3 })
+
+    expect(ids).toEqual(new Set([
+      'tracked-bk_123-2026-11-01',
+      'tracked-ag_456-2026-11-15',
+    ]))
+  })
+
+  it('omits the market filter and its param when marketId is not given', async () => {
+    mockQuery.mockResolvedValueOnce(qr([]))
+
+    await getStableFreeTrackedHotelIds({ limit: 3 })
+
+    const [sql, params] = mockQuery.mock.calls[0]
+    expect(sql).not.toContain('market_id = $2')
+    expect(params).toEqual([3])
+  })
+
+  it('scopes to one market when marketId is given, as a second bound param', async () => {
+    mockQuery.mockResolvedValueOnce(qr([]))
+
+    await getStableFreeTrackedHotelIds({ limit: 3, marketId: 7 })
+
+    const [sql, params] = mockQuery.mock.calls[0]
+    expect(sql).toContain('market_id = $2')
+    expect(params).toEqual([3, 7])
+  })
+
+  it('passes the real limit through as-is, not a hardcoded value', async () => {
+    mockQuery.mockResolvedValueOnce(qr([]))
+
+    await getStableFreeTrackedHotelIds({ limit: 5 })
+
+    const [, params] = mockQuery.mock.calls[0]
+    expect(params).toEqual([5])
+  })
+
+  it('degrades to an empty set rather than throwing when the query fails', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('connection reset'))
+
+    await expect(getStableFreeTrackedHotelIds({ limit: 3 })).resolves.toEqual(new Set())
+  })
+
+  it('ranks per market before taking the global top N, same as getTrackedHotels', async () => {
+    mockQuery.mockResolvedValueOnce(qr([]))
+
+    await getStableFreeTrackedHotelIds({ limit: 3 })
+
+    const [sql] = mockQuery.mock.calls[0]
+    expect(sql).toContain('PARTITION BY market_id')
+    expect(sql).toContain('ROW_NUMBER()')
   })
 })
 
