@@ -639,7 +639,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             </dl>
             {poolEvidence ? <HotelPoolEvidenceLedger evidence={poolEvidence} /> : null}
             <div className="mt-4">
-              <GuestReviewEvidence />
+              <GuestReviewEvidence evidence={reviewEvidence} />
             </div>
             <HotelClimateEvidenceLedger evidence={createUnsupportedHotelClimateEvidence(deal.id, 'saved-deal-contract')} />
             <HotelEvChargingSection evidence={PRODUCTION_EV_CHARGING_UNKNOWN} offerId={deal.id} />
