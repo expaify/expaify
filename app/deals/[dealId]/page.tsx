@@ -69,6 +69,8 @@ import { HotelClimateEvidenceLedger } from '@/app/components/HotelClimateEvidenc
 import { createUnsupportedHotelClimateEvidence } from '@/lib/hotels/climateEvidence'
 import { CITY_DISPLAY_TO_SLUG } from '@/lib/cities'
 import { DealDetailProviderHandoff } from '@/app/components/DealDetailProviderHandoff'
+import { HotelAmenitiesSection } from '@/app/components/HotelAmenitiesSection'
+import { isBookingSourcedHotelId } from '@/lib/pipeline/hotelAmenities'
 import type { HotelReviewEvidence } from '@/lib/types'
 
 type PageProps = {
@@ -470,6 +472,17 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
   // no-selection fallback and cannot emit positive or mismatch claims.
   const accessibility = createAccessibilityPresentation()
   const dealDetailIa = process.env.NEXT_PUBLIC_DEAL_DETAIL_IA === '1' || process.env.NEXT_PUBLIC_DEAL_DETAIL_IA === 'true'
+  // Amenities are a real per-hotel fetch (not pipeline-stored), so only pay
+  // for it on a confirmed deal (a real `deals` row, never a synthesized
+  // tracked- id) a real visitor is actually looking at, with the one
+  // provider this is confirmed to work with (bk_ prefixed Booking.com ids),
+  // and only once we have real dates to ask the provider about.
+  const showAmenities = Boolean(
+    !isTrackedHotelId(deal.id)
+    && isBookingSourcedHotelId(deal.hotel_id)
+    && checkInDisplay
+    && checkOutIso
+  )
   let reviewEvidence: HotelReviewEvidence | undefined
   if (deal.review_evidence) {
     try {
@@ -548,6 +561,12 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             </section>
 
             {hasReviewEvidence ? <section className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6"><GuestReviewEvidence evidence={reviewEvidence} /></section> : null}
+
+            {showAmenities ? (
+              <Suspense fallback={null}>
+                <HotelAmenitiesSection hotelId={deal.hotel_id} checkInDate={deal.check_in_date} checkOutDate={checkOutIso!.slice(0, 10)} />
+              </Suspense>
+            ) : null}
 
             {hasStayNotes ? (
               <details className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 py-2 sm:px-6">
@@ -670,6 +689,13 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
             <div className="mt-4">
               <GuestReviewEvidence evidence={reviewEvidence} />
             </div>
+            {showAmenities ? (
+              <div className="mt-4">
+                <Suspense fallback={null}>
+                  <HotelAmenitiesSection hotelId={deal.hotel_id} checkInDate={deal.check_in_date} checkOutDate={checkOutIso!.slice(0, 10)} />
+                </Suspense>
+              </div>
+            ) : null}
             <HotelClimateEvidenceLedger evidence={createUnsupportedHotelClimateEvidence(deal.id, 'saved-deal-contract')} />
             <HotelEvChargingSection evidence={PRODUCTION_EV_CHARGING_UNKNOWN} offerId={deal.id} />
             <HotelDisruptionEvidenceLedger
