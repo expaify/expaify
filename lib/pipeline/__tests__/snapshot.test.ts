@@ -349,15 +349,28 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
   // returns multiple real photos and a real review score/count in the same
   // response this pipeline already fetches nightly -- only photoUrls[0] was
   // ever kept, and no review data was captured for this provider at all.
-  it('captures every real photo booking-com15 returns, not just the first', async () => {
+  // 2026-10-05: real, user-reported blur bug. Confirmed live across all 20
+  // hotels on a real page of booking-com15 results: photoUrls is NEVER
+  // multiple distinct photos -- it is always the exact same photo at 3
+  // ascending CDN sizes (.../square500/..., .../square1024/...,
+  // .../square2000/..., identical filename). Index 0 (~500px) as the hero
+  // image produced real, visible upscale blur at the page's actual larger
+  // display size. Fixed: keep only the largest real size already sent, as
+  // a single photo -- storing all 3 as a "gallery" would misleadingly
+  // imply 3 different photos when it is one.
+  it('keeps only the largest of booking-com15\'s same-photo size variants, as a single photo', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => ({
         data: { hotels: [{
           property: {
-            id: '555', name: 'Multi Photo Hotel', propertyClass: 4,
-            photoUrls: ['https://example.com/a.jpg', 'https://example.com/b.jpg', 'https://example.com/c.jpg'],
+            id: '555', name: 'Same Photo Hotel', propertyClass: 4,
+            photoUrls: [
+              'https://cf.bstatic.com/xdata/images/hotel/square500/687401818.jpg?k=abc',
+              'https://cf.bstatic.com/xdata/images/hotel/square1024/687401818.jpg?k=abc',
+              'https://cf.bstatic.com/xdata/images/hotel/square2000/687401818.jpg?k=abc',
+            ],
             priceBreakdown: { grossPrice: { value: 200 } },
           },
         }] },
@@ -367,22 +380,21 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
     await runSnapshotsForMarket(MIA, 0)
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
-    expect(insertCall?.[1]?.[4]).toBe('https://example.com/a.jpg') // photo_url unchanged: still the first
+    expect(insertCall?.[1]?.[4]).toBe('https://cf.bstatic.com/xdata/images/hotel/square2000/687401818.jpg?k=abc')
     expect(insertCall?.[1]?.[5]).toEqual([
-      'https://example.com/a.jpg', 'https://example.com/b.jpg', 'https://example.com/c.jpg',
+      'https://cf.bstatic.com/xdata/images/hotel/square2000/687401818.jpg?k=abc',
     ])
   })
 
-  it('caps photo_urls at MAX_PHOTOS_PER_HOTEL rather than storing an unbounded array', async () => {
-    const manyPhotos = Array.from({ length: 20 }, (_, i) => `https://example.com/${i}.jpg`)
+  it('falls back to null/empty when booking-com15 sends no photos at all', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => ({
         data: { hotels: [{
           property: {
-            id: '555', name: 'Many Photos Hotel', propertyClass: 4,
-            photoUrls: manyPhotos,
+            id: '555', name: 'No Photo Hotel', propertyClass: 4,
+            photoUrls: [],
             priceBreakdown: { grossPrice: { value: 200 } },
           },
         }] },
@@ -392,9 +404,8 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
     await runSnapshotsForMarket(MIA, 0)
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
-    const storedPhotos = insertCall?.[1]?.[5] as string[]
-    expect(storedPhotos).toHaveLength(8)
-    expect(storedPhotos).toEqual(manyPhotos.slice(0, 8))
+    expect(insertCall?.[1]?.[4]).toBeNull()
+    expect(insertCall?.[1]?.[5]).toBeNull()
   })
 
   it('stores a real booking-com15 review score and count as review_evidence, on its own /10 scale', async () => {
@@ -621,10 +632,14 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
     await runSnapshotsForMarket(MIA, 2)
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
-    expect(insertCall?.[1]?.[4]).toBe('https://example.com/600x400/a.jpg')
+    // 2026-10-05: bumped from 600x400 to 1200x800 -- real, visible blur
+    // reported at the hero's actual larger display size; confirmed live
+    // this CDN genuinely serves a larger file for the larger size, not a
+    // capped/ignored parameter.
+    expect(insertCall?.[1]?.[4]).toBe('https://example.com/1200x800/a.jpg')
     expect(insertCall?.[1]?.[5]).toEqual([
-      'https://example.com/600x400/a.jpg',
-      'https://example.com/600x400/b.jpg',
+      'https://example.com/1200x800/a.jpg',
+      'https://example.com/1200x800/b.jpg',
     ])
   })
 

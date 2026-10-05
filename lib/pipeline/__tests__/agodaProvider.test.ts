@@ -1,4 +1,4 @@
-import { runSnapshotsForMarket } from '../snapshot'
+import { runSnapshotsForMarket, upgradeAgodaPhotoSize } from '../snapshot'
 import { query } from '../../db/client'
 
 jest.mock('../../db/client', () => ({
@@ -94,5 +94,68 @@ describe('fetchAgoda (4th rotation provider, separate RAPIDAPI_KEY_3)', () => {
       5: ['https://pix7.agoda.net/hotelImages/98765/main.jpg'],
       9: 93848,
     })
+  })
+
+  // 2026-10-05: real, user-reported blur bug. Agoda's own response only
+  // ever includes a thumbnail-sized photo url -- confirmed live, always
+  // either a `s=300x300` query param (pix7.agoda.net) or a `/maxNNN/` path
+  // segment (the shared bstatic.com CDN Booking.com also uses). Fixed by
+  // requesting a larger size through the SAME real URL, confirmed live to
+  // actually return a bigger file (not a capped/ignored parameter).
+  it('stores the upgraded, larger photo size for a real agoda-shaped thumbnail URL', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: {
+          citySearch: {
+            properties: [{
+              propertyId: 98765,
+              propertyResultType: 'Property',
+              content: {
+                informationSummary: { localeName: 'Real Shaped Hotel', rating: 4 },
+                images: { hotelImages: [
+                  { urls: [{ value: '//pix7.agoda.net/hotelImages/98765/photo.jpg?ce=3&s=300x300' }] },
+                  { urls: [{ value: '//q-xx.bstatic.com/xdata/images/hotel/max300/555.jpg?k=abc&o=' }] },
+                ] },
+              },
+              pricing: { offers: [{ roomOffers: [{ room: { pricing: [{ price: {
+                perRoomPerNight: { inclusive: { display: 200 } },
+              } }] } }] }] },
+            }],
+          },
+        },
+      }),
+    })
+
+    await runSnapshotsForMarket(PAR, 3)
+
+    const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
+    expect(insertCall?.[1]?.[5]).toEqual([
+      'https://pix7.agoda.net/hotelImages/98765/photo.jpg?ce=3&s=1024x768',
+      'https://q-xx.bstatic.com/xdata/images/hotel/max1024x768/555.jpg?k=abc&o=',
+    ])
+  })
+})
+
+describe('upgradeAgodaPhotoSize', () => {
+  it('upgrades a pix7.agoda.net s=WxH query param to a larger real size', () => {
+    expect(upgradeAgodaPhotoSize('https://pix7.agoda.net/hotelImages/1/a.jpg?ce=3&s=300x300'))
+      .toBe('https://pix7.agoda.net/hotelImages/1/a.jpg?ce=3&s=1024x768')
+  })
+
+  it('upgrades a bstatic.com /maxNNN/ path segment to a larger real size', () => {
+    expect(upgradeAgodaPhotoSize('https://q-xx.bstatic.com/xdata/images/hotel/max300/1.jpg?k=abc'))
+      .toBe('https://q-xx.bstatic.com/xdata/images/hotel/max1024x768/1.jpg?k=abc')
+  })
+
+  it('upgrades a bstatic.com /maxNNNxNNN/ path segment too', () => {
+    expect(upgradeAgodaPhotoSize('https://q-xx.bstatic.com/xdata/images/hotel/max300x200/1.jpg'))
+      .toBe('https://q-xx.bstatic.com/xdata/images/hotel/max1024x768/1.jpg')
+  })
+
+  it('leaves an unrecognized URL shape completely unchanged, never guesses', () => {
+    const url = 'https://example.com/some/other/cdn/pattern/photo.jpg'
+    expect(upgradeAgodaPhotoSize(url)).toBe(url)
   })
 })

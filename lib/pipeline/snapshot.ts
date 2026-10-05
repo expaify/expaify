@@ -281,9 +281,19 @@ async function fetchBookingCom15Page(
     const id = String(prop.id ?? prop.hotelId ?? '')
     const name = String(prop.name ?? '')
     const stars = prop.propertyClass ? Number(prop.propertyClass) : null
+    // Confirmed live (2026-10-05) across all 20 hotels on a real page of
+    // results: booking-com15's photoUrls is NEVER multiple distinct photos
+    // -- it is always the exact same single photo at 3 ascending CDN sizes
+    // (.../square500/..., .../square1024/..., .../square2000/..., same
+    // filename). Using index 0 (the smallest, ~500px) as the hero image
+    // produced real, visible upscale blur once displayed at the page's
+    // actual (larger) size -- a real user-reported bug. Fixed by keeping
+    // only the LARGEST real size this provider already sent (never a
+    // fabricated/guessed size), as a single photo -- storing all 3 as a
+    // "gallery" would misleadingly imply 3 different photos when it's one.
     const rawPhotos = (prop.photoUrls as string[] | undefined)?.filter(Boolean) ?? []
-    const photoUrls = rawPhotos.slice(0, MAX_PHOTOS_PER_HOTEL)
-    const photo = photoUrls[0] ?? null
+    const photo = rawPhotos.length > 0 ? rawPhotos[rawPhotos.length - 1] : null
+    const photoUrls = photo ? [photo] : []
     const reviewEvidence = bookingReviewScoreToReviewEvidence(prop, id)
     // grossPrice is the TOTAL for the whole stay, not a nightly rate -- confirmed
     // live (2026-08-06) by querying the same hotel/dates for 1 night vs 2 nights:
@@ -457,10 +467,16 @@ async function fetchTripAdvisor(iata: string, checkIn: string, checkOut: string)
       id
     )
     const photos = (hotel.cardPhotos as { sizes?: { urlTemplate?: string } }[] | undefined) ?? []
+    // Bumped from 600x400 (2026-10-05): real, visible blur reported once
+    // displayed at the deal-detail hero's actual larger size. This CDN
+    // genuinely supports arbitrary sizes via the template (unlike
+    // booking-com15's fixed pre-baked variants) -- confirmed live: the same
+    // real photo requested at 600x400 vs 1200x800 returned 60KB vs 197KB,
+    // a real size increase, not a capped/ignored parameter.
     const photoUrls = photos
       .map(p => p.sizes?.urlTemplate)
       .filter((tpl): tpl is string => !!tpl)
-      .map(tpl => tpl.replace('{width}', '600').replace('{height}', '400'))
+      .map(tpl => tpl.replace('{width}', '1200').replace('{height}', '800'))
       .slice(0, MAX_PHOTOS_PER_HOTEL)
     const photo = photoUrls[0] ?? null
     const priceCents = parseTAPrice(hotel.priceForDisplay as string | undefined)
@@ -470,6 +486,30 @@ async function fetchTripAdvisor(iata: string, checkIn: string, checkOut: string)
 }
 
 // ── Provider 4: agoda-com (city id search) ───────────────────────────────────
+
+// Agoda's own response only ever includes a `key: 'thumbnail'` url (real,
+// live check 2026-10-05), explicitly small (observed 300x300 / max300) --
+// real, visible blur once displayed at the deal-detail hero's actual larger
+// size. Both real CDN hosts seen in these URLs (pix7.agoda.net and the
+// shared bstatic.com infrastructure Booking.com also uses) support
+// requesting a larger size through the exact same URL, confirmed live by
+// fetching the same real photo at the original vs. a larger size and
+// getting a real, substantially bigger file back (not a capped/ignored
+// parameter): pix7.agoda.net 19KB -> 191KB, bstatic.com 13KB -> 115KB.
+// Only rewrites a URL matching one of these two known, verified patterns --
+// never alters a URL it doesn't recognize, so an unrecognized host/shape
+// safely falls through unchanged rather than risk breaking a working image.
+const UPGRADED_AGODA_PHOTO_SIZE = '1024x768'
+
+export function upgradeAgodaPhotoSize(url: string): string {
+  if (/[?&]s=\d+x\d+/.test(url)) {
+    return url.replace(/([?&]s=)\d+x\d+/, `$1${UPGRADED_AGODA_PHOTO_SIZE}`)
+  }
+  if (/\/max\d+(x\d+)?\//.test(url)) {
+    return url.replace(/\/max\d+(x\d+)?\//, `/max${UPGRADED_AGODA_PHOTO_SIZE}/`)
+  }
+  return url
+}
 
 async function fetchAgoda(iata: string, checkIn: string, checkOut: string): Promise<HotelEntry[]> {
   const key = process.env.RAPIDAPI_KEY_3 ?? ''
@@ -535,6 +575,7 @@ async function fetchAgoda(iata: string, checkIn: string, checkOut: string): Prom
       .map(img => img.urls?.[0]?.value)
       .filter((u): u is string => !!u)
       .map(u => (u.startsWith('//') ? `https:${u}` : u))
+      .map(upgradeAgodaPhotoSize)
       .slice(0, MAX_PHOTOS_PER_HOTEL)
     const photo = rawPhotoUrls[0] ?? null
     if (!id || !name || priceCents <= 0) return []
