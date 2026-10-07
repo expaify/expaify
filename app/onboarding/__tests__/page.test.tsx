@@ -16,6 +16,13 @@ function clientProps(tree: ReactElement): Record<string, unknown> {
   return main.props
 }
 
+function redirectTarget(error: unknown): string {
+  const digest = (error as { digest?: string })?.digest ?? ''
+  const parts = digest.split(';')
+  if (parts[0] !== 'NEXT_REDIRECT') throw new Error(`not a redirect error: ${digest || String(error)}`)
+  return parts.slice(2, -2).join(';')
+}
+
 describe('/onboarding seeds the city a user actually clicked', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -36,5 +43,22 @@ describe('/onboarding seeds the city a user actually clicked', () => {
   it('is undefined with no city param', async () => {
     const tree = await OnboardingPage({ searchParams: Promise.resolve({}) }) as ReactElement
     expect(clientProps(tree).initialCity).toBeUndefined()
+  })
+})
+
+describe('/onboarding bounces an unauthenticated visitor back to itself after sign-in', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockAuth.mockResolvedValue(null as never)
+  })
+
+  it('sends a bare visit to a callbackUrl of plain /onboarding', async () => {
+    const error = await OnboardingPage({ searchParams: Promise.resolve({}) }).catch(e => e)
+    expect(redirectTarget(error)).toBe('/login?callbackUrl=%2Fonboarding')
+  })
+
+  it('preserves a deep-linked city in the callbackUrl so it survives the sign-in round trip', async () => {
+    const error = await OnboardingPage({ searchParams: Promise.resolve({ city: 'Nashville' }) }).catch(e => e)
+    expect(redirectTarget(error)).toBe(`/login?callbackUrl=${encodeURIComponent('/onboarding?city=Nashville')}`)
   })
 })

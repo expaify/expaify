@@ -15,13 +15,17 @@ type PageProps = {
 }
 
 export default async function OnboardingPage({ searchParams }: PageProps) {
+  const { city } = await searchParams
+
   const session = await auth()
-  if (!session?.user?.id) redirect('/login')
+  if (!session?.user?.id) {
+    const callbackPath = city ? `/onboarding?city=${encodeURIComponent(city)}` : '/onboarding'
+    redirect(`/login?callbackUrl=${encodeURIComponent(callbackPath)}`)
+  }
 
   const sub = await getSubscription(session.user.id).catch(() => null)
   if (sub?.onboardingDone) redirect('/deals')
 
-  const { city } = await searchParams
   const initialCity = city && TRACKED_MARKET_NAMES.includes(city) ? city : undefined
 
   return (

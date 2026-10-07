@@ -31,7 +31,12 @@ const TRIAL_LENGTH_DAYS = 7
 
 export default async function AccountPage({ searchParams }: PageProps) {
   const session = await auth()
-  if (!session?.user?.id) redirect('/login')
+  // Transactional emails (daily digest, deal alerts, welcome) link straight
+  // to /account#alerts with no auth token -- a logged-out click (different
+  // device, expired session) must land back on /account after sign-in, not
+  // /login's generic default, or "manage your alerts" silently becomes
+  // "go find /account yourself again."
+  if (!session?.user?.id) redirect('/login?callbackUrl=/account')
 
   const [initialSub, params, activeDealCount, authProviderResult] = await Promise.all([
     getSubscription(session.user.id).catch(() => null),

@@ -6,14 +6,15 @@ import { useEffect, useState } from 'react'
 import { Reveal } from '@/app/components/ui/Reveal'
 import { Icon } from '@/app/components/ui/icons/Icon'
 import { resolveMagicLinkOutcome } from './magicLinkOutcome'
-import { buildCityHref } from './postLoginDestination'
+import { resolvePostLoginHref } from './postLoginDestination'
 
 type LoginFormProps = {
   freeIntent: boolean
   city?: string
+  callbackUrl?: string
 }
 
-export default function LoginForm({ freeIntent, city }: LoginFormProps) {
+export default function LoginForm({ freeIntent, city, callbackUrl }: LoginFormProps) {
   const { status } = useSession()
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -21,8 +22,8 @@ export default function LoginForm({ freeIntent, city }: LoginFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === 'true'
-  const dealsHref = buildCityHref('/deals', city)
-  const onboardingHref = buildCityHref('/onboarding', city)
+  const dealsHref = resolvePostLoginHref('/deals', { callbackUrl, city })
+  const onboardingHref = resolvePostLoginHref('/onboarding', { callbackUrl, city })
 
   useEffect(() => {
     // /deals is the correct landing point — it server-redirects to /onboarding
