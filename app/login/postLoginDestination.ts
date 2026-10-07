@@ -13,18 +13,43 @@ export function buildCityHref(path: string, city?: string): string {
 }
 
 // A same-origin, path-only relative URL -- rejects anything that could be
-// reinterpreted as pointing off-site: a bare '/' prefix is required (not an
-// absolute URL), '//' is rejected (a protocol-relative URL -- some browsers
-// and redirect libraries treat "//evil.com" as scheme-relative to evil.com,
-// not as a path), and '://' anywhere in the string is rejected too (catches
-// a scheme smuggled in after encoding/whitespace tricks, e.g. "/\t/evil.com"
-// normalized by some parsers, or "/.//evil.com"-style traversal attempts).
-// Backslashes are rejected because browsers normalize them to slashes in
-// HTTP(S) URLs, allowing an off-site redirect. Encoded slashes are rejected
-// to prevent later decoding from changing the path; our callbacks never need them.
+// reinterpreted as pointing off-site. The hand-enumerated checks below
+// (control characters, a protocol-relative "//", a backslash browsers
+// normalize into "//" for HTTP(S) URLs, an explicit scheme, an encoded
+// slash or backslash that could change meaning after a later decode) catch
+// the known shapes of that bypass; the new URL(...) step after them is the same,
+// more general technique lib/booking/config.ts's validateHotelReturnUrl
+// already uses for the identical problem -- resolving the candidate
+// against a fake internal base and confirming the result is still on that
+// exact host lets the real WHATWG URL parser (the same engine that will
+// eventually navigate this string) settle what it actually means, instead
+// of trusting the hand-enumerated list alone to be exhaustive.
 export function isSafeCallbackPath(path: string): boolean {
-  return path.startsWith('/') && !path.startsWith('//') && !path.includes('://')
-    && !path.includes('\\') && !path.toLowerCase().includes('%2f')
+  if (!path) return false
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1f\x7f]/.test(path)) return false
+  if (!path.startsWith('/') || path.startsWith('//') || path.startsWith('/\\')) return false
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(path)) return false
+  const lower = path.toLowerCase()
+  if (lower.includes('%2f') || lower.includes('%5c')) return false
+  // Defense-in-depth beyond what new URL() below checks: a scheme smuggled
+  // into the query string (e.g. "/redirect?to=https://evil.com") resolves
+  // to a same-origin path+search here -- the embedded "https://evil.com" is
+  // just a query VALUE to this parser, not a nested URL -- so it would pass
+  // the hostname check. It's only exploitable if some route of ours reads
+  // a param like that and redirects to it itself, which nothing here does
+  // today, but there is no legitimate reason a real callback destination
+  // ever contains "://", so reject it outright rather than rely on every
+  // future route to individually stay safe.
+  if (path.includes('://')) return false
+
+  let url: URL
+  try {
+    url = new URL(path, 'https://expaify.internal')
+  } catch {
+    return false
+  }
+  return !url.username && !url.password && url.hostname === 'expaify.internal'
 }
 
 // Protected pages (app/account/page.tsx, app/admin/users/page.tsx, etc.)

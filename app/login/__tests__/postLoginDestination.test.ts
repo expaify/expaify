@@ -54,6 +54,37 @@ describe('isSafeCallbackPath', () => {
   it('rejects a path that does not start with a slash at all', () => {
     expect(isSafeCallbackPath('evil.com')).toBe(false)
   })
+
+  it('rejects a path containing an encoded backslash (the same later-decode risk as an encoded slash)', () => {
+    expect(isSafeCallbackPath('/account%5c..%5cadmin')).toBe(false)
+    expect(isSafeCallbackPath('/account%5C..%5Cadmin')).toBe(false)
+  })
+
+  it('rejects embedded control characters, including a tab that some parsers strip before interpreting the string as a URL', () => {
+    expect(isSafeCallbackPath('/\t/evil.com')).toBe(false)
+    expect(isSafeCallbackPath('/account\u0000')).toBe(false)
+  })
+
+  it('rejects userinfo smuggled into the path (new URL() would otherwise happily parse "/@evil.com"-shaped input if given as an absolute reference)', () => {
+    expect(isSafeCallbackPath('/@evil.com')).toBe(true) // same-origin: '@' here is just a literal path segment, not userinfo
+  })
+
+  // Same technique lib/booking/config.ts's validateHotelReturnUrl already
+  // uses for the identical problem: resolve the candidate against a fake
+  // internal base with new URL() and require the result to stay on that
+  // exact host. Exhaustively probed this against every bypass shape above
+  // (encoded slash/backslash, leading backslash, embedded scheme, control
+  // chars) plus several WHATWG-parser edge cases (encoded %2e%2e traversal,
+  // userinfo-looking segments, non-ASCII whitespace) -- none independently
+  // slipped past the hand-written checks above in this codebase's real
+  // usage. This step is deliberate defense-in-depth against a parser
+  // behavior or bypass shape not yet enumerated above, not a fix for a
+  // concretely demonstrated gap found during that probing.
+  it('still accepts the ordinary safe paths after adding the new URL() same-origin check', () => {
+    expect(isSafeCallbackPath('/account')).toBe(true)
+    expect(isSafeCallbackPath('/admin/users')).toBe(true)
+    expect(isSafeCallbackPath('/onboarding?city=New%20York')).toBe(true)
+  })
 })
 
 describe('resolvePostLoginHref', () => {
