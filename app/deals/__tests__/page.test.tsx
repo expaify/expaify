@@ -1,5 +1,6 @@
 import { Children, type ReactElement, type ReactNode } from 'react'
 import { auth } from '@/auth'
+import { getSubscription } from '@/lib/subscription'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
 import { getActiveDeals } from '@/lib/pipeline/dealDetection'
 import { query } from '@/lib/db/client'
@@ -15,10 +16,18 @@ jest.mock('@/app/components/AppShell', () => ({ AppShell: ({ children }: { child
 jest.mock('../DealFeed', () => ({ DealFeed: () => null }))
 
 const mockAuth = auth as jest.MockedFunction<typeof auth>
+const mockGetSubscription = getSubscription as jest.MockedFunction<typeof getSubscription>
 const mockGetPaywallContext = getPaywallContext as jest.MockedFunction<typeof getPaywallContext>
 const mockGetFreeUnlockedDealIds = getFreeUnlockedDealIds as jest.MockedFunction<typeof getFreeUnlockedDealIds>
 const mockGetActiveDeals = getActiveDeals as jest.MockedFunction<typeof getActiveDeals>
 const mockQuery = query as jest.MockedFunction<typeof query>
+
+function redirectTarget(error: unknown): string {
+  const digest = (error as { digest?: string })?.digest ?? ''
+  const parts = digest.split(';')
+  if (parts[0] !== 'NEXT_REDIRECT') throw new Error(`not a redirect error: ${digest || String(error)}`)
+  return parts.slice(2, -2).join(';')
+}
 
 function dealFeedProps(tree: ReactElement<Record<string, unknown>>): Record<string, unknown> {
   const rootChildren = Children.toArray(tree.props.children as ReactNode) as ReactElement<Record<string, unknown>>[]
@@ -112,5 +121,26 @@ describe('/deals server reconstruction', () => {
     const firstVersion = (dealFeedProps(first).initialCriteria as { criteriaVersion: string }).criteriaVersion
     const secondVersion = (dealFeedProps(second).initialCriteria as { criteriaVersion: string }).criteriaVersion
     expect(firstVersion).toBe(secondVersion)
+  })
+
+  describe('onboarding redirect for a signed-in user who has not set preferences', () => {
+    beforeEach(() => {
+      mockAuth.mockResolvedValue({ user: { id: 'user-1' } } as never)
+      mockGetSubscription.mockResolvedValue({ onboardingDone: false } as never)
+    })
+
+    // Real bug: a user who clicked "Get free alerts for {city}" on a deal
+    // page, signed in via /login?city=X, and landed back here authenticated
+    // had that city silently dropped -- this redirect forwarded nothing to
+    // /onboarding, which then showed a blank destination grid.
+    it('forwards the city query param to /onboarding', async () => {
+      const error = await DealsPage({ searchParams: Promise.resolve({ city: 'Nashville' }) }).catch(e => e)
+      expect(redirectTarget(error)).toBe('/onboarding?city=Nashville')
+    })
+
+    it('redirects to bare /onboarding when no city was given', async () => {
+      const error = await DealsPage({ searchParams: Promise.resolve({}) }).catch(e => e)
+      expect(redirectTarget(error)).toBe('/onboarding')
+    })
   })
 })

@@ -55,10 +55,10 @@ type SuccessState = {
   deal: SuccessDeal | null
 }
 
-export function OnboardingClient({ premium }: { premium: boolean }) {
+export function OnboardingClient({ premium, initialCity }: { premium: boolean; initialCity?: string }) {
   const router = useRouter()
   const [step, setStep] = useState(0)
-  const [watchlist, setWatchlist] = useState<string[]>([])
+  const [watchlist, setWatchlist] = useState<string[]>(initialCity ? [initialCity] : [])
   const [minDiscountPct, setMinDiscountPct] = useState<MinDiscountPct>(40)
   const [alertPreference, setAlertPreference] = useState<AlertPreference>('daily')
   const [saving, setSaving] = useState(false)
@@ -93,6 +93,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
         return
       }
       const draft = parsed as Record<string, unknown>
+      if (initialCity) return
       if (typeof draft.step === 'number' && Number.isInteger(draft.step)) {
         setStep(Math.min(2, Math.max(0, draft.step)))
       }
@@ -111,7 +112,7 @@ export function OnboardingClient({ premium }: { premium: boolean }) {
     } catch {
       // Storage unavailable (private mode, quota) — the flow works without drafts.
     }
-  }, [maxCities])
+  }, [initialCity, maxCities])
 
   // Persist draft on every answer or step change.
   useEffect(() => {

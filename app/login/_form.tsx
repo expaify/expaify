@@ -6,12 +6,14 @@ import { useEffect, useState } from 'react'
 import { Reveal } from '@/app/components/ui/Reveal'
 import { Icon } from '@/app/components/ui/icons/Icon'
 import { resolveMagicLinkOutcome } from './magicLinkOutcome'
+import { buildCityHref } from './postLoginDestination'
 
 type LoginFormProps = {
   freeIntent: boolean
+  city?: string
 }
 
-export default function LoginForm({ freeIntent }: LoginFormProps) {
+export default function LoginForm({ freeIntent, city }: LoginFormProps) {
   const { status } = useSession()
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -19,12 +21,14 @@ export default function LoginForm({ freeIntent }: LoginFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === 'true'
+  const dealsHref = buildCityHref('/deals', city)
+  const onboardingHref = buildCityHref('/onboarding', city)
 
   useEffect(() => {
     // /deals is the correct landing point — it server-redirects to /onboarding
     // for users who haven't set preferences yet, and to /deals for everyone else.
-    if (status === 'authenticated') router.replace('/deals')
-  }, [status, router])
+    if (status === 'authenticated') router.replace(dealsHref)
+  }, [status, router, dealsHref])
 
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault()
@@ -118,7 +122,7 @@ export default function LoginForm({ freeIntent }: LoginFormProps) {
             </div>
             <button
               type="button"
-              onClick={() => signIn('google', { callbackUrl: '/onboarding' })}
+              onClick={() => signIn('google', { callbackUrl: onboardingHref })}
               className="btn btn-outline w-full justify-center gap-2 motion-safe:transition-[background-color,border-color,color,opacity,transform,scale,box-shadow]! motion-safe:duration-150! motion-safe:ease-out-expo! motion-reduce:transform-none! motion-safe:active:scale-[0.98]"
             >
               <GoogleIcon />

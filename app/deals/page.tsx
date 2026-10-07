@@ -70,7 +70,13 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   const session = await auth()
   if (session?.user?.id) {
     const sub = await getSubscription(session.user.id).catch(() => null)
-    if (!sub?.onboardingDone) redirect('/onboarding')
+    if (!sub?.onboardingDone) {
+      // Carry a city deep-linked from /login (e.g. "Get free alerts for
+      // {city}") one hop further, so onboarding can start with the city the
+      // user actually clicked instead of a blank destination grid.
+      const cityParam = typeof requestedParams.city === 'string' ? requestedParams.city : undefined
+      redirect(cityParam ? `/onboarding?city=${encodeURIComponent(cityParam)}` : '/onboarding')
+    }
   }
 
   const criteriaResolution = resolveHotelSearchCriteria(requestedParams)

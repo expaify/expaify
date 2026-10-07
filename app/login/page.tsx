@@ -1,11 +1,11 @@
 import LoginForm from './_form'
 
 type PageProps = {
-  searchParams: Promise<{ intent?: string }>
+  searchParams: Promise<{ intent?: string; city?: string }>
 }
 
 export default async function LoginPage({ searchParams }: PageProps) {
-  const { intent } = await searchParams
+  const { intent, city } = await searchParams
 
-  return <LoginForm freeIntent={intent === 'free'} />
+  return <LoginForm freeIntent={intent === 'free'} city={city} />
 }
