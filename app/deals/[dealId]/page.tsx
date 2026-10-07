@@ -575,8 +575,12 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
               </details>
             ) : null}
 
+            {trackedMarket && !isExpired && !datesIncomplete ? (
+              <FlightsToThisDeal destinationIata={trackedMarket.iata} checkInDate={deal.check_in_date} nights={deal.nights} />
+            ) : null}
+
             <details className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-4 py-2 sm:px-6"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[color:var(--brand)]">Show offer details</summary><dl className="border-t border-[color:var(--border)] py-3"><dt className="text-caption font-medium uppercase tracking-wide text-[color:var(--text-3)]">Offer reference</dt><dd className="mt-2 break-all font-mono text-xs text-[color:var(--text-2)]">{deal.id}</dd></dl></details>
-            <footer className="space-y-3 px-1 py-3"><p className="text-xs leading-5 text-[color:var(--text-3)]">Amenity and room details can change. Confirm cancellation, accessibility, and room type on the booking site before you pay.</p>{trackedMarket && !isExpired && !datesIncomplete ? <a href={`/flights?destination=${encodeURIComponent(trackedMarket.iata)}&depart=${encodeURIComponent(deal.check_in_date)}`} className="inline-flex min-h-11 items-center text-sm font-medium text-[color:var(--brand)] underline underline-offset-2">Search flights to {deal.city}</a> : null}<div className="flex flex-wrap items-center gap-3"><ShareButton />{showWatchPill && sub ? <WatchCityPill city={deal.city} initialWatching={sub.watchlist.includes(deal.city)} initialCount={sub.watchlist.length} /> : null}</div>{foundAgo ? <p className="text-xs text-[color:var(--text-3)]">Deal found {foundAgo}.</p> : null}</footer>
+            <footer className="space-y-3 px-1 py-3"><p className="text-xs leading-5 text-[color:var(--text-3)]">Amenity and room details can change. Confirm cancellation, accessibility, and room type on the booking site before you pay.</p><div className="flex flex-wrap items-center gap-3"><ShareButton />{showWatchPill && sub ? <WatchCityPill city={deal.city} initialWatching={sub.watchlist.includes(deal.city)} initialCount={sub.watchlist.length} /> : null}</div>{foundAgo ? <p className="text-xs text-[color:var(--text-3)]">Deal found {foundAgo}.</p> : null}</footer>
           </div>
           <HotelDecisionAnalytics hotelId={deal.id} entrySource="saved" hasDates={!datesIncomplete} hasVerifiedGuestRating={hasReviewEvidence} scoreState={scoreState} priceFreshnessState={priceFreshnessState} viewedProps={{ deal_id: deal.id, context_status: contextStatus, detail_ia: true, ...(criteria ? { criteria_version: criteria.criteriaVersion } : {}) }} />
         </main>
