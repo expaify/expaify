@@ -4,9 +4,11 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getActiveDeals, getTrackedHotels, getStableFreeTrackedHotelIds, type DealRow } from '@/lib/pipeline/dealDetection'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
+import { getSubscription } from '@/lib/subscription'
 import { generateMockDeals } from '@/lib/pipeline/mock'
 import { buildDealPage, HOTEL_DEAL_PAGE_SIZE, type HotelDealSort } from '@/lib/deals/feedContract'
 import { resolveHotelResultsView, resolveHotelSearchCriteria } from '@/lib/hotels/searchCriteria'
+import { buildPersonalization, resolveWatchlistMarketIds } from '@/lib/deals/personalization'
 import type { HotelReviewEvidence } from '@/lib/types'
 
 export const runtime = 'nodejs'
@@ -123,6 +125,7 @@ function mockToApiDeal(d: ReturnType<typeof generateMockDeals>[number]): ApiDeal
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const pwCtx = await getPaywallContext()
+  const sub = pwCtx.userId ? await getSubscription(pwCtx.userId).catch(() => null) : null
   const criteriaResolution = resolveHotelSearchCriteria(searchParams)
   const requestedView = resolveHotelResultsView(searchParams)
   if (criteriaResolution.status === 'invalid') {
@@ -174,17 +177,44 @@ export async function GET(req: NextRequest) {
     marketId = res.rows[0].id
   }
 
+  // An explicit destination/date request (restored/shared search, a raw
+  // city/market_id param, or the UI's own date filters) always wins over
+  // an inferred watchlist preference -- checked on the real resolved
+  // values, not criteriaResolution.status, since DealFeed's own client
+  // fetches always carry an already-minted criteriaVersion even for the
+  // default "no city, no dates" view. See lib/deals/personalization.ts.
+  const hasExplicitDestinationOrDates = Boolean(cityName || marketId || dateFrom || dateTo)
+  const personalization = buildPersonalization(sub, {
+    signedIn: Boolean(pwCtx.userId),
+    onboardingDone: Boolean(sub?.onboardingDone),
+    hasExplicitRequest: hasExplicitDestinationOrDates,
+    allOverride: searchParams.get('all') === '1',
+  })
+  const watchlistMarketIds = personalization?.active && personalization.watchlist.length > 0
+    ? await resolveWatchlistMarketIds(personalization.watchlist)
+    : []
+
   // Query one extra stable row. This makes continuation state authoritative
   // without relying on an expensive count or guessing from a full page.
   const [rowsWithLookahead, unlockedIds] = await Promise.all([
-    getActiveDeals({ limit: limit + 1, offset, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, marketId, sort, includeMock: false }),
+    getActiveDeals({
+      limit: limit + 1, offset, minDiscount, maxPriceCents, minStars, dateFrom, dateTo, marketId,
+      marketIds: watchlistMarketIds.length > 0 ? watchlistMarketIds : undefined,
+      sort, includeMock: false,
+    }),
     pwCtx.premium ? Promise.resolve(new Set<string>()) : getFreeUnlockedDealIds(pwCtx.userId),
   ])
 
   // Fall back to mock deals when DB has no real data yet
   const source = rowsWithLookahead.length > 0 ? buildDealPage(rowsWithLookahead, offset, limit) : null
 
-  if (!source && !hasFilters && offset === 0) {
+  // Deliberately excludes personalization.active (same reasoning as
+  // app/deals/page.tsx): this fallback is a global, unscoped cold-start
+  // placeholder, not worth extending to respect a watchlist -- a
+  // personalized caller with zero real deals in their watchlisted cities
+  // instead gets the honest empty response below (deals: []), which
+  // DealFeed.tsx's own PersonalizedEmpty/PersonalizedEmptyActions render.
+  if (!source && !hasFilters && !personalization?.active && offset === 0) {
     // No confirmed deals yet — prefer real, currently-tracked hotels (real
     // photo, real price) over fabricated example cards. Only fall back to
     // generated mock deals if there's truly no real snapshot data yet.

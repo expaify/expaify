@@ -528,4 +528,32 @@ describe('getActiveDeals ordering', () => {
     // a bound parameter).
     expect(sql.indexOf('d.check_in_date >= CURRENT_DATE')).toBeLessThan(sql.indexOf('ORDER BY'))
   })
+
+  // marketIds: the multi-city watchlist filter personalization needs
+  // (lib/deals/personalization.ts) -- distinct from the single-city
+  // marketId an explicit search already used.
+  it('filters by multiple markets with ANY() when marketIds is given', async () => {
+    await getActiveDeals({ sort: 'newest', limit: 12, offset: 0, marketIds: [3, 7, 9] })
+
+    const sql = String(mockQuery.mock.calls[0][0])
+    expect(sql).toContain('d.market_id = ANY($4)')
+    expect(mockQuery.mock.calls[0][1]).toEqual([12, 0, 0, [3, 7, 9]])
+  })
+
+  it('ignores an empty marketIds array rather than filtering out every deal', async () => {
+    await getActiveDeals({ sort: 'newest', limit: 12, offset: 0, marketIds: [] })
+
+    const sql = String(mockQuery.mock.calls[0][0])
+    expect(sql).not.toContain('d.market_id =')
+    expect(mockQuery.mock.calls[0][1]).toEqual([12, 0, 0])
+  })
+
+  it('prefers the single-city marketId over marketIds when both are somehow given', async () => {
+    await getActiveDeals({ sort: 'newest', limit: 12, offset: 0, marketId: 7, marketIds: [3, 9] })
+
+    const sql = String(mockQuery.mock.calls[0][0])
+    expect(sql).toContain('d.market_id = $4')
+    expect(sql).not.toContain('ANY')
+    expect(mockQuery.mock.calls[0][1]).toEqual([12, 0, 0, 7])
+  })
 })

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { getActiveDeals, getTrackedHotels, getStableFreeTrackedHotelIds, type DealRow } from '@/lib/pipeline/dealDetection'
 import { getFreeUnlockedDealIds, getPaywallContext } from '@/lib/paywall'
+import { getSubscription } from '@/lib/subscription'
 import { GET } from '../route'
 import { query } from '@/lib/db/client'
 
@@ -14,6 +15,7 @@ jest.mock('@/lib/paywall', () => ({
   getPaywallContext: jest.fn(),
   getFreeUnlockedDealIds: jest.fn(),
 }))
+jest.mock('@/lib/subscription', () => ({ getSubscription: jest.fn() }))
 jest.mock('@/lib/db/client', () => ({ query: jest.fn() }))
 
 const mockGetActiveDeals = getActiveDeals as jest.MockedFunction<typeof getActiveDeals>
@@ -21,6 +23,7 @@ const mockGetTrackedHotels = getTrackedHotels as jest.MockedFunction<typeof getT
 const mockGetStableFreeTrackedHotelIds = getStableFreeTrackedHotelIds as jest.MockedFunction<typeof getStableFreeTrackedHotelIds>
 const mockGetPaywallContext = getPaywallContext as jest.MockedFunction<typeof getPaywallContext>
 const mockGetFreeUnlockedDealIds = getFreeUnlockedDealIds as jest.MockedFunction<typeof getFreeUnlockedDealIds>
+const mockGetSubscription = getSubscription as jest.MockedFunction<typeof getSubscription>
 const mockQuery = query as jest.MockedFunction<typeof query>
 
 const row: DealRow = {
@@ -61,6 +64,7 @@ describe('GET /api/deals sorting', () => {
     mockGetActiveDeals.mockResolvedValue([row])
     mockGetTrackedHotels.mockResolvedValue([])
     mockGetFreeUnlockedDealIds.mockResolvedValue(new Set())
+    mockGetSubscription.mockResolvedValue(null)
     mockQuery.mockResolvedValue({ rows: [{ id: 7 }], command: 'SELECT', rowCount: 1, oid: 0, fields: [] })
   })
 
@@ -235,6 +239,7 @@ describe('GET /api/deals — tracked-hotels fallback locking', () => {
     jest.clearAllMocks()
     // No confirmed real deals: forces the tracked-hotels fallback branch.
     mockGetActiveDeals.mockResolvedValue([])
+    mockGetSubscription.mockResolvedValue(null)
   })
 
   it('keeps a personally-unlocked tracked-hotel deal outside the stable free set unlocked', async () => {
@@ -307,5 +312,77 @@ describe('GET /api/deals — tracked-hotels fallback locking', () => {
     await GET(request('limit=6&offset=0'))
 
     expect(mockGetStableFreeTrackedHotelIds).toHaveBeenCalledWith({ limit: 5 })
+  })
+})
+
+describe('GET /api/deals — watchlist personalization', () => {
+  const SUB = {
+    onboardingDone: true,
+    watchlist: ['Nashville', 'Miami'],
+    alertMinDiscount: 50,
+    alertPreference: 'instant' as const,
+    status: 'free' as const,
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockGetPaywallContext.mockResolvedValue({ userId: 'user-1', premium: true, freeUnlockedThisWeek: 0, freeUnlockLimit: 3 })
+    mockGetSubscription.mockResolvedValue(SUB as never)
+    mockGetActiveDeals.mockResolvedValue([])
+    mockGetFreeUnlockedDealIds.mockResolvedValue(new Set())
+    // Single-city lookup returns id 7; the watchlist's own ANY() lookup
+    // (resolveWatchlistMarketIds) returns ids 3 and 9.
+    mockQuery.mockImplementation((sql: string) => {
+      if (String(sql).includes('ANY')) {
+        return Promise.resolve({ rows: [{ id: 3 }, { id: 9 }], rowCount: 2, command: 'SELECT', oid: 0, fields: [] })
+      }
+      return Promise.resolve({ rows: [{ id: 7 }], rowCount: 1, command: 'SELECT', oid: 0, fields: [] })
+    })
+  })
+
+  it('filters getActiveDeals by the watchlist\'s market ids on a clean request', async () => {
+    await GET(request())
+
+    expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ marketIds: [3, 9], marketId: undefined }))
+  })
+
+  it('does not apply the watchlist filter when an explicit city is requested', async () => {
+    await GET(request('city=Miami'))
+
+    expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ marketId: 7, marketIds: undefined }))
+  })
+
+  it('does not apply the watchlist filter when an explicit date range is requested', async () => {
+    await GET(request('date_from=2026-08-01'))
+
+    expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ marketIds: undefined }))
+  })
+
+  it('does not apply the watchlist filter when the "Show all deals" override (?all=1) is given', async () => {
+    await GET(request('all=1'))
+
+    expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ marketIds: undefined }))
+  })
+
+  it('does not call getSubscription at all for an anonymous visitor', async () => {
+    mockGetPaywallContext.mockResolvedValue({ userId: null, premium: false, freeUnlockedThisWeek: 0, freeUnlockLimit: 3 })
+
+    await GET(request())
+
+    expect(mockGetSubscription).not.toHaveBeenCalled()
+    expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ marketIds: undefined }))
+  })
+
+  // The real bug this closes: the tracked-hotels/mock fallback previously
+  // always filled the response with unrelated global data whenever the
+  // real query came back empty, masking DealFeed.tsx's own personalized
+  // empty state (PersonalizedEmpty/PersonalizedEmptyActions) for every
+  // personalized caller with zero matching deals.
+  it('does not fall back to global tracked-hotel/mock teasers when personalization is active and the real query is empty', async () => {
+    const response = await GET(request())
+    const body = await response.json() as { deals: unknown[] }
+
+    expect(mockGetTrackedHotels).not.toHaveBeenCalled()
+    expect(body.deals).toEqual([])
   })
 })

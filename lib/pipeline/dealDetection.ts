@@ -373,6 +373,11 @@ export async function getActiveDeals(opts: {
   minDiscount?: number
   maxPriceCents?: number
   marketId?: number
+  // Multi-city watchlist filter (lib/deals/personalization.ts). Mutually
+  // exclusive with marketId in practice -- a caller with an explicit
+  // single-city search never also has personalization active -- but if
+  // both were ever passed, marketId (the explicit, narrower request) wins.
+  marketIds?: number[]
   minStars?: number
   dateFrom?: string
   dateTo?: string
@@ -385,6 +390,7 @@ export async function getActiveDeals(opts: {
     minDiscount = 0,
     maxPriceCents,
     marketId,
+    marketIds,
     minStars,
     dateFrom,
     dateTo,
@@ -404,6 +410,9 @@ export async function getActiveDeals(opts: {
   if (marketId) {
     marketFilter = ` AND d.market_id = $${idx++}`
     params.push(marketId)
+  } else if (marketIds && marketIds.length > 0) {
+    marketFilter = ` AND d.market_id = ANY($${idx++})`
+    params.push(marketIds)
   }
 
   let priceFilter = ''

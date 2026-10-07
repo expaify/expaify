@@ -123,6 +123,88 @@ describe('/deals server reconstruction', () => {
     expect(firstVersion).toBe(secondVersion)
   })
 
+  describe('watchlist personalization for a signed-in, onboarded user', () => {
+    const SUB = {
+      onboardingDone: true,
+      watchlist: ['Nashville', 'Miami'],
+      alertMinDiscount: 50,
+      alertPreference: 'instant' as const,
+      status: 'free' as const,
+    }
+
+    beforeEach(() => {
+      mockAuth.mockResolvedValue({ user: { id: 'user-1' } } as never)
+      mockGetSubscription.mockResolvedValue(SUB as never)
+      mockGetActiveDeals.mockResolvedValue([])
+      // Single-city lookup (requestedCity, when given) returns id 7; the
+      // watchlist's own ANY() lookup (resolveWatchlistMarketIds) returns
+      // ids 3 and 9 -- distinct values so each call site's result is
+      // unambiguous in the assertions below.
+      mockQuery.mockImplementation((sql: string) => {
+        if (String(sql).includes('ANY')) {
+          return Promise.resolve({ rows: [{ id: 3 }, { id: 9 }], rowCount: 2, command: 'SELECT', oid: 0, fields: [] })
+        }
+        return Promise.resolve({ rows: [{ id: 7 }], rowCount: 1, command: 'SELECT', oid: 0, fields: [] })
+      })
+    })
+
+    it('is active on a clean visit, and filters getActiveDeals by the watchlist\'s market ids', async () => {
+      const tree = await DealsPage({ searchParams: Promise.resolve({}) }) as ReactElement<Record<string, unknown>>
+
+      expect(dealFeedProps(tree).personalization).toEqual({
+        active: true, watchlist: ['Nashville', 'Miami'], minDiscountPct: 50, alertPreference: 'instant',
+      })
+      expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ marketIds: [3, 9], marketId: undefined }))
+    })
+
+    it('is present but inactive when an explicit city/date search is requested, and does not apply the watchlist filter', async () => {
+      const version = '785d80de-8954-46c7-90f7-a4a04f719e5f'
+      const tree = await DealsPage({
+        searchParams: Promise.resolve({ criteriaSchema: '1', criteriaVersion: version, criteriaSource: 'restored', city: 'Miami' }),
+      }) as ReactElement<Record<string, unknown>>
+
+      expect((dealFeedProps(tree).personalization as { active: boolean }).active).toBe(false)
+      expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ marketId: 7, marketIds: undefined }))
+    })
+
+    it('is inactive when the "Show all deals" override (?all=1) is given, even on an otherwise clean visit', async () => {
+      const tree = await DealsPage({ searchParams: Promise.resolve({ all: '1' }) }) as ReactElement<Record<string, unknown>>
+
+      expect((dealFeedProps(tree).personalization as { active: boolean }).active).toBe(false)
+      expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ marketIds: undefined }))
+    })
+
+    it('stays active with no market filter at all when the watchlist is empty ("watching everywhere")', async () => {
+      mockGetSubscription.mockResolvedValue({ ...SUB, watchlist: [] } as never)
+
+      const tree = await DealsPage({ searchParams: Promise.resolve({}) }) as ReactElement<Record<string, unknown>>
+
+      expect((dealFeedProps(tree).personalization as { active: boolean; watchlist: string[] })).toEqual(
+        expect.objectContaining({ active: true, watchlist: [] })
+      )
+      expect(mockGetActiveDeals).toHaveBeenCalledWith(expect.objectContaining({ marketIds: undefined }))
+    })
+
+    // The real bug this closes: DealFeed.tsx's own PersonalizedEmpty/
+    // PersonalizedEmptyActions components already existed but were
+    // unreachable, because this fallback unconditionally filled
+    // initialDeals with unrelated global tracked-hotel data whenever the
+    // real query came back empty -- masking the personalized empty state
+    // for every personalized user with zero matching deals.
+    it('does not fall back to global tracked-hotel/mock teasers when personalization is active and the real query is empty', async () => {
+      const tree = await DealsPage({ searchParams: Promise.resolve({}) }) as ReactElement<Record<string, unknown>>
+
+      expect(dealFeedProps(tree).initialDeals).toEqual([])
+    })
+  })
+
+  it('does not personalize an anonymous visitor (personalization prop is undefined)', async () => {
+    mockGetActiveDeals.mockResolvedValue([])
+    const tree = await DealsPage({ searchParams: Promise.resolve({}) }) as ReactElement<Record<string, unknown>>
+
+    expect(dealFeedProps(tree).personalization).toBeUndefined()
+  })
+
   describe('onboarding redirect for a signed-in user who has not set preferences', () => {
     beforeEach(() => {
       mockAuth.mockResolvedValue({ user: { id: 'user-1' } } as never)

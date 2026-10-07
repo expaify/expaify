@@ -18,6 +18,7 @@ import {
   resolveHotelSearchCriteria,
 } from '@/lib/hotels/searchCriteria'
 import { parseHotelPoolFixture } from '@/app/components/research/hotelPoolFixtures'
+import { buildPersonalization, resolveWatchlistMarketIds } from '@/lib/deals/personalization'
 import { TRACKED_MARKETS } from '@/lib/trackedMarkets'
 
 export const metadata: Metadata = {
@@ -68,8 +69,9 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   const requestedParams = await searchParams
   const poolFixtureId = process.env.NODE_ENV === 'production' ? null : parseHotelPoolFixture(requestedParams.poolFixture)
   const session = await auth()
+  let sub: Awaited<ReturnType<typeof getSubscription>> | null = null
   if (session?.user?.id) {
-    const sub = await getSubscription(session.user.id).catch(() => null)
+    sub = await getSubscription(session.user.id).catch(() => null)
     if (!sub?.onboardingDone) {
       // Carry a city deep-linked from /login (e.g. "Get free alerts for
       // {city}") one hop further, so onboarding can start with the city the
@@ -106,6 +108,27 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   const requestedDateFrom = criteria.dates.semantic === 'checkin_window' ? criteria.dates.dateFrom : undefined
   const requestedDateTo = criteria.dates.semantic === 'checkin_window' ? criteria.dates.dateTo : undefined
   const pwCtx = await getPaywallContext()
+
+  // A real explicit city/date search -- not merely criteriaResolution.status
+  // === 'valid', since DealFeed's own client-side fetches always carry an
+  // already-minted criteriaVersion even for the default "no city, no dates"
+  // view (see DealFeed.tsx's fetch builder). Checking the *resolved*
+  // destination/dates state instead means a clean default view stays
+  // personalized across those client refetches too, while an actual
+  // city/date search (restored, shared, or picked via the UI) -- or the
+  // "Show all deals" escape hatch -- always wins over an inferred watchlist
+  // preference. See lib/deals/personalization.ts.
+  const hasExplicitRequest = criteria.destination.state === 'selected' || criteria.dates.semantic === 'checkin_window'
+  const personalization = buildPersonalization(sub, {
+    signedIn: Boolean(session?.user?.id),
+    onboardingDone: Boolean(sub?.onboardingDone),
+    hasExplicitRequest,
+    allOverride: requestedParams.all === '1',
+  })
+  const watchlistMarketIds = personalization?.active && personalization.watchlist.length > 0
+    ? await resolveWatchlistMarketIds(personalization.watchlist)
+    : []
+
   let initialError = false
   const market = requestedCity
     ? await query<{ id: number }>('SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1', [requestedCity]).catch(() => {
@@ -130,6 +153,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
       maxPriceCents: effectiveView.maxPriceCents ?? undefined,
       minStars: effectiveView.minStars || undefined,
       marketId: market?.rows[0]?.id,
+      marketIds: watchlistMarketIds.length > 0 ? watchlistMarketIds : undefined,
       dateFrom: requestedDateFrom,
       dateTo: requestedDateTo,
     }).catch(() => {
@@ -145,7 +169,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   let initialDeals: ApiDeal[]
   if (rows.length > 0) {
     initialDeals = initialPage.items.map(row => toApiDeal(row, !pwCtx.premium && !unlockedIds.has(row.id)))
-  } else if (!initialError &&
+  } else if (!initialError && !personalization?.active &&
     criteria.destination.state === 'all' && criteria.dates.semantic === 'missing' &&
     effectiveView.minDiscount === MIN_QUALIFYING_DISCOUNT_PCT && effectiveView.maxPriceCents === null &&
     effectiveView.minStars === 0 && effectiveView.sort === 'newest'
@@ -154,6 +178,16 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     // currently-tracked hotels (real photo, real price) over fabricated
     // example cards — only fall back to generated mock deals if there's
     // truly no real snapshot data at all yet.
+    //
+    // Deliberately skipped while personalization is active: this fallback
+    // is a global, unscoped cold-start placeholder (not filtered by
+    // watchlist, and not worth extending to be -- see the real
+    // tracked-hotel paywall-consistency bug this exact ranking query was
+    // already fixed for once). A personalized user with zero real deals in
+    // their watchlisted cities instead falls through to initialDeals = []
+    // below, which DealFeed.tsx's own PersonalizedEmpty/
+    // PersonalizedEmptyActions components (already built, just never
+    // reachable until now) render correctly.
     const tracked = await getTrackedHotels({ limit: HOTEL_DEAL_PAGE_SIZE }).catch(() => [] as DealRow[])
     // Stable, id-based "is this specific tracked hotel free this week" set --
     // not array position -- so a direct link to this same row's own detail
@@ -213,6 +247,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           initialError={initialError}
           initialCoverage={rows.length > 0 ? { state: initialPage.coverage, nextOffset: initialPage.page.nextOffset } : null}
           poolFixtureId={poolFixtureId}
+          personalization={personalization}
         />
       </main>
     </AppShell>
