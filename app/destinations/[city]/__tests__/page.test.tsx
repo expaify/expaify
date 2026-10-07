@@ -94,6 +94,17 @@ describe('destination criteria continuity', () => {
     })
   })
 
+  // Real bug: DestinationSeoContent's bottom "Get free alerts for {city}"
+  // CTA tracked the city in analytics only -- its real href was a bare
+  // `/login?intent=free`, dropping the city the exact same way the
+  // empty-state CTA above did.
+  it('carries the city into the SEO hub\'s bottom free-alerts link, not just into analytics', async () => {
+    const tree = await CityPage({ params: Promise.resolve({ city: 'orlando' }), searchParams: Promise.resolve({}) })
+    const html = renderToStaticMarkup(tree)
+
+    expect(html).toContain('href="/login?intent=free&amp;city=Orlando"')
+  })
+
   it('renders full SEO hub content and JSON-LD for a Wave B/C destination', async () => {
     const tree = await CityPage({ params: Promise.resolve({ city: 'barcelona' }), searchParams: Promise.resolve({}) })
     const html = renderToStaticMarkup(tree)
@@ -167,5 +178,20 @@ describe('destination criteria continuity', () => {
     expect(mockGetTrackedHotels).toHaveBeenCalled()
     expect(html).toContain('Checked daily — no active deals right now')
     expect(html).toContain('Get free alerts for Miami')
+  })
+
+  // Real bug: this button says "Get free alerts for Miami" but its real
+  // href only ever carried `?intent=free` -- the city was tracked in
+  // analytics but silently dropped from the actual link, so a user who
+  // clicked it landed on /login with no memory of which city they came
+  // from (the same class of bug fixed earlier for DealDetailProviderHandoff
+  // and LockedDealCard's own "Get free alerts for {city}" CTAs).
+  it('carries the city into the empty-state free-alerts link, not just into analytics', async () => {
+    mockGetTrackedHotels.mockResolvedValue([])
+
+    const tree = await CityPage({ params: Promise.resolve({ city: 'miami' }), searchParams: Promise.resolve({}) })
+    const html = renderToStaticMarkup(tree)
+
+    expect(html).toContain('href="/login?intent=free&amp;city=Miami"')
   })
 })

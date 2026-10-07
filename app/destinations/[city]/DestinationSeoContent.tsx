@@ -69,7 +69,7 @@ export function DestinationSeoContent({
           <h2 id="destination-cta-heading" className="text-h2 text-inherit">Track the next {city} price drop</h2>
           <p className="mt-2 max-w-[680px] text-sm leading-6 text-[color:var(--ink-faint-on-dark)]">Get free daily alerts for one watchlist city, or start Premium for instant alerts and a full destination watchlist.</p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <TrackedLink href="/login?intent=free" analyticsEvent="destination_cta_free_alerts" analyticsProps={{ city }} className="btn btn-conversion min-h-11 px-5">Get free alerts for {city}</TrackedLink>
+            <TrackedLink href={`/login?intent=free&city=${encodeURIComponent(city)}`} analyticsEvent="destination_cta_free_alerts" analyticsProps={{ city }} className="btn btn-conversion min-h-11 px-5">Get free alerts for {city}</TrackedLink>
             <TrackedLink href="/join" analyticsEvent="destination_cta_premium" analyticsProps={{ city }} className="btn btn-outline min-h-11 px-5 text-[color:var(--text-inverse)]">Start Premium trial</TrackedLink>
             <Link href="/deals" className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-[color:var(--text-inverse)] underline underline-offset-4">See all deals</Link>
           </div>

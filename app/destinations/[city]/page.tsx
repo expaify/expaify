@@ -301,7 +301,7 @@ export default async function CityPage({ params, searchParams }: PageProps) {
         <div className="mt-6 rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--surface)] px-6 py-8 text-center">
           <p className="mb-4 text-sm text-[color:var(--text-2)]">Get notified when a current {displayName} deal appears.</p>
           <TrackedLink
-            href="/login?intent=free"
+            href={`/login?intent=free&city=${encodeURIComponent(displayName)}`}
             analyticsEvent="destination_cta_free_alerts"
             analyticsProps={{ city: displayName }}
             className="btn btn-conversion min-h-11 px-5"

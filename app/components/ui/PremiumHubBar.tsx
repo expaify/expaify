@@ -70,7 +70,7 @@ export function PremiumHubBar({ lockedDealsCount, firstLockedDealRef, joinHref =
             <p className="text-caption mt-1 text-[color:var(--ink-soft)]">
               {city ? `Just want email when ${city} drops? ` : 'Just want email when a deal drops? '}
               <TrackedLink
-                href="/login?intent=free&utm_source=deal_page&utm_medium=sticky_hub_free_strip&utm_campaign=free_alerts"
+                href={`/login?intent=free&utm_source=deal_page&utm_medium=sticky_hub_free_strip&utm_campaign=free_alerts${city ? `&city=${encodeURIComponent(city)}` : ''}`}
                 analyticsEvent="free_alert_cta_click"
                 analyticsProps={{ placement: 'deals_sticky_strip' }}
                 className="font-semibold text-[color:var(--primary)] underline underline-offset-2"
