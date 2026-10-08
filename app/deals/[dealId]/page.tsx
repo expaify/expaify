@@ -347,6 +347,15 @@ async function DealScoreSection({ deal, loadHistory }: HistorySectionProps) {
   )
 }
 
+// Deliberately no loading.tsx for this route segment: its mere presence makes
+// Next.js wrap this whole page in an implicit Suspense boundary and start
+// streaming (committing HTTP 200) before this notFound() below can run --
+// so a dead/removed deal link served 200 with a stuck loading skeleton to
+// any client that doesn't execute JS to see the real not-found payload
+// (crawlers, social unfurlers, curl/uptime checks). Every genuinely slow
+// section below already has its own inline <Suspense fallback=...> (price
+// history, deal score, etc.), so this costs no real loading UX -- it just
+// makes the existence check itself block before anything streams.
 export default async function DealDetailPage({ params, searchParams }: PageProps) {
   const { dealId } = await params
   const researchParams = await searchParams
