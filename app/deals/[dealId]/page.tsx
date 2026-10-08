@@ -80,7 +80,11 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { dealId } = await params
-  const deal = await getDealById(dealId)
+  // Same defensive .catch() the page body below already uses: without
+  // loading.tsx masking the response behind an early 200, an uncaught
+  // transient DB error here now surfaces as a real 500 instead of the
+  // page body's own notFound() ever getting a chance to run.
+  const deal = await getDealById(dealId).catch(() => null)
   if (!deal) notFound()
 
   const title = `${deal.hotel_name} in ${deal.city} — expaify`
