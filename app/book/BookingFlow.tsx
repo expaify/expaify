@@ -392,6 +392,23 @@ function getBookingBackHref(fareContext: BookingFareContext | null, returnTo?: s
   return fareContext?.returnTo ?? returnTo ?? '/'
 }
 
+/**
+ * AUDIT-BOOKING-REVIEW-BROWSER-NAVIGATION-RECOVERY-01, P2: should a reload
+ * or tab close warn the traveler before silently discarding what they
+ * typed? Never warn once booking succeeds (nothing left to lose), when
+ * booking is paused (no real submission flow to protect), or when every
+ * traveler field is still untouched. Pulled out as a pure function so this
+ * decision is testable without the component's useState mock, which (in
+ * this file's own test harness) never actually updates across renders.
+ */
+export function shouldWarnBeforeUnload(opts: {
+  bookingEnabled: boolean
+  state: BookingState
+  hasUnsavedTravelerInput: boolean
+}): boolean {
+  return opts.bookingEnabled && opts.state !== 'success' && opts.hasUnsavedTravelerInput
+}
+
 function isChangedFareReason(reason: string) {
   return /\b(price|currency|passenger|passenger-count|passenger count|fare changed)\b/i.test(reason)
 }
@@ -2097,6 +2114,25 @@ export default function BookingFlow({
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [gender, setGender] = useState<'m' | 'f'>('m')
+
+  // AUDIT-BOOKING-REVIEW-BROWSER-NAVIGATION-RECOVERY-01, P2: traveler fields
+  // are plain React state with no reload/navigation warning, so a reload
+  // silently discards everything the traveler just typed. The other two P1
+  // findings from that audit (duplicate submission on reload, "Back to
+  // search" discarding result context) were already fixed since -- this is
+  // the one still open. Never persisted to storage (no fake reservation
+  // state, per that audit's own repair guidance) -- just an honest warning
+  // before the browser would otherwise discard real input.
+  const hasUnsavedTravelerInput = Boolean(firstName || lastName || dob || email || phone)
+  useEffect(() => {
+    if (!shouldWarnBeforeUnload({ bookingEnabled, state, hasUnsavedTravelerInput })) return
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [bookingEnabled, state, hasUnsavedTravelerInput])
 
   const maxDob = new Date()
   maxDob.setFullYear(maxDob.getFullYear() - 18)

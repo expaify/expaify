@@ -44,6 +44,7 @@ const {
   beginHotelDocumentReadinessCheck,
   focusHotelDocumentRetryStatus,
   HotelReturnStatePanel,
+  shouldWarnBeforeUnload,
 } = jest.requireActual('../BookingFlow') as typeof import('../BookingFlow');
 
 function childrenOf(node: TestElement): unknown[] {
@@ -1014,6 +1015,30 @@ describe('BookingFlow fare context review', () => {
     expect(text).not.toContain('Did the partner details match?');
   });
 });
+
+describe('shouldWarnBeforeUnload (AUDIT-BOOKING-REVIEW-BROWSER-NAVIGATION-RECOVERY-01, P2)', () => {
+  const base = { bookingEnabled: true, state: 'idle' as const, hasUnsavedTravelerInput: true }
+
+  it('warns when booking is enabled, not yet successful, and the traveler has typed something', () => {
+    expect(shouldWarnBeforeUnload(base)).toBe(true)
+  })
+
+  it('does not warn once booking has already succeeded -- nothing left to lose', () => {
+    expect(shouldWarnBeforeUnload({ ...base, state: 'success' })).toBe(false)
+  })
+
+  it('still warns while a submission is in flight', () => {
+    expect(shouldWarnBeforeUnload({ ...base, state: 'loading' })).toBe(true)
+  })
+
+  it('does not warn when booking is paused -- no real submission to protect', () => {
+    expect(shouldWarnBeforeUnload({ ...base, bookingEnabled: false })).toBe(false)
+  })
+
+  it('does not warn when every traveler field is still untouched', () => {
+    expect(shouldWarnBeforeUnload({ ...base, hasUnsavedTravelerInput: false })).toBe(false)
+  })
+})
 
 describe('BookingFlow return-to-search continuity (REPAIR-BOOKING-RETURN-CONTEXT-01)', () => {
   beforeEach(() => {
