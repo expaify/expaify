@@ -277,6 +277,18 @@ describe('DealFeed continuation interactions', () => {
     expect(card!.getAttribute('data-can-self-unlock')).toBe(String(expected))
   })
 
+  it('carries the destination-page city into the sticky PremiumHubBar free-alerts link', async () => {
+    global.fetch = jest.fn(() => new Promise<Response>(() => {}))
+    await renderDealFeed({
+      initialDeals: [{ ...deal('12345678-1234-1234-1234-123456789abc'), locked: true }],
+      defaultCity: 'Nashville',
+    })
+
+    expect(container.textContent).toContain('Just want email when Nashville drops?')
+    const alertsLink = Array.from(container.querySelectorAll('a')).find(a => a.textContent === 'Get free alerts')
+    expect(alertsLink?.getAttribute('href')).toContain('city=Nashville')
+  })
+
   it('returns focus to the filter trigger before clearing removes the focused control', async () => {
     const pending = deferred<Response>()
     global.fetch = jest.fn(() => pending.promise)

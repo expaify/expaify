@@ -5,12 +5,9 @@ import { PremiumHubBar } from '../PremiumHubBar'
 jest.mock('@/lib/analytics', () => ({ track: jest.fn() }))
 
 describe('PremiumHubBar free-alerts link', () => {
-  // Real bug: the copy right next to this link says "Just want email when
-  // {city} drops?" -- a real city-specific promise -- but the link itself
-  // dropped the city the same way DealDetailProviderHandoff/LockedDealCard/
-  // the destinations page CTAs did. (city isn't passed by DealFeed.tsx's
-  // one real caller today, so this branch isn't live yet, but it must be
-  // correct for whenever it is.)
+  // DealFeed.tsx now passes city={defaultCity}; see
+  // DealFeed.interaction.test.tsx's "carries the destination-page city..."
+  // test for the real-caller integration coverage.
   it('carries the city into the link when one is given', () => {
     const ref = createRef<HTMLElement>()
     const html = renderToStaticMarkup(

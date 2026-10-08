@@ -2019,7 +2019,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 ))}
                 {loadingMore && Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={`more-${i}`} />)}
               </div>
-              <PremiumHubBar lockedDealsCount={lockedDealsCount} firstLockedDealRef={firstLockedDealRef} />
+              <PremiumHubBar lockedDealsCount={lockedDealsCount} firstLockedDealRef={firstLockedDealRef} city={defaultCity} />
               {!isColdSampleFeed ? (
                 <div ref={sentinelRef} className="w-full">
                   <ResultCoverageBoundary
