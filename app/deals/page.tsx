@@ -119,7 +119,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   // "Show all deals" escape hatch -- always wins over an inferred watchlist
   // preference. See lib/deals/personalization.ts.
   const hasExplicitRequest = criteria.destination.state === 'selected' || criteria.dates.semantic === 'checkin_window'
-  const personalization = buildPersonalization(sub, {
+  let personalization = buildPersonalization(sub, {
     signedIn: Boolean(session?.user?.id),
     onboardingDone: Boolean(sub?.onboardingDone),
     hasExplicitRequest,
@@ -160,10 +160,36 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
       initialError = true
       return [] as DealRow[]
     })
-  const [rows, unlockedIds] = await Promise.all([
+  let [rows, unlockedIds] = await Promise.all([
     rowsRequest,
     getFreeUnlockedDealIds(pwCtx.userId),
   ])
+
+  // A watchlist filter that matched zero current deals used to leave a
+  // signed-in user looking at total silence by default (no fallback until
+  // they noticed and clicked "Show all deals"). Before personalization was
+  // wired up, every signed-in user saw the full feed by default, so this is
+  // a real regression, not the intended behavior -- fall back to the same
+  // unfiltered feed a plain `?all=1` request would get, same as if
+  // personalization had never applied. Scoped to exactly the same default
+  // view this effect only ever had a chance to break: an explicit
+  // city/date search already short-circuits personalization.active above,
+  // so it can't land here.
+  if (rows.length === 0 && !initialError && personalization?.active && watchlistMarketIds.length > 0) {
+    const fallbackRows = await getActiveDeals({
+      limit: HOTEL_DEAL_PAGE_SIZE + 1,
+      offset: 0,
+      sort: effectiveView.sort,
+      includeMock: false,
+      minDiscount: effectiveView.minDiscount,
+      maxPriceCents: effectiveView.maxPriceCents ?? undefined,
+      minStars: effectiveView.minStars || undefined,
+    }).catch(() => [] as DealRow[])
+    if (fallbackRows.length > 0) {
+      rows = fallbackRows
+      personalization = { ...personalization, active: false, fellBackToAll: true }
+    }
+  }
 
   const initialPage = buildDealPage(rows, 0, HOTEL_DEAL_PAGE_SIZE)
   let initialDeals: ApiDeal[]

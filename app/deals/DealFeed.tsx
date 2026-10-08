@@ -461,6 +461,10 @@ type Personalization = {
   watchlist: string[]
   minDiscountPct: 30 | 40 | 50
   alertPreference: 'instant' | 'daily' | 'off'
+  // Mirrors lib/deals/personalization.ts's Personalization -- see that
+  // file's comment. Set by app/deals/page.tsx when a real watchlist filter
+  // matched zero deals and the page fell back to the unfiltered feed.
+  fellBackToAll?: boolean
 }
 
 type DealFeedProps = {
@@ -1508,13 +1512,6 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   let subtitle: React.ReactNode
   if (!personalization) {
     subtitle = `Deals across ${TRACKED_MARKETS.length} destinations, updated daily`
-  } else if (!personalization.active) {
-    subtitle = (
-      <>
-        Showing all destinations, updated daily ·{' '}
-        <a href="/deals" className={echoLinkClass}>Use my preferences</a>
-      </>
-    )
   } else {
     const list = personalization.watchlist
     const cityFragment =
@@ -1523,12 +1520,33 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
         : list.length <= 3
           ? list.join(', ')
           : `${list.slice(0, 2).join(', ')} + ${list.length - 2} more`
-    subtitle = (
-      <>
-        Watching {cityFragment} · {personalization.minDiscountPct}%+ off ·{' '}
-        <a href="/deals?all=1" className={echoLinkClass}>Show all deals</a>
-      </>
-    )
+    if (personalization.fellBackToAll) {
+      // Distinct from the plain "active: false" case below: the user's own
+      // watchlist filter was applied and matched nothing, so this is an
+      // automatic fallback they never asked for -- say so, rather than
+      // reusing the "you asked to see everything" copy for a state they
+      // didn't choose.
+      subtitle = (
+        <>
+          No {personalization.minDiscountPct}%+ deals in {cityFragment} right now — showing all destinations ·{' '}
+          <a href="/account" className={echoLinkClass}>Edit preferences</a>
+        </>
+      )
+    } else if (!personalization.active) {
+      subtitle = (
+        <>
+          Showing all destinations, updated daily ·{' '}
+          <a href="/deals" className={echoLinkClass}>Use my preferences</a>
+        </>
+      )
+    } else {
+      subtitle = (
+        <>
+          Watching {cityFragment} · {personalization.minDiscountPct}%+ off ·{' '}
+          <a href="/deals?all=1" className={echoLinkClass}>Show all deals</a>
+        </>
+      )
+    }
   }
 
   return (

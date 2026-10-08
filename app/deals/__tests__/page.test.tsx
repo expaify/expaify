@@ -196,6 +196,45 @@ describe('/deals server reconstruction', () => {
 
       expect(dealFeedProps(tree).initialDeals).toEqual([])
     })
+
+    // The real bug reported live: a watchlist that currently matches zero
+    // deals used to leave a signed-in user looking at total silence by
+    // default -- before personalization was wired up, every signed-in user
+    // saw the full feed by default, so requiring a manual "Show all deals"
+    // click here is a regression, not the intended behavior.
+    it('falls back to the full feed when the watchlist filter matches zero deals, instead of showing nothing', async () => {
+      mockGetActiveDeals
+        .mockResolvedValueOnce([]) // watchlist-filtered query: nothing in Nashville/Miami right now
+        .mockResolvedValueOnce([{
+          id: 'deal-0', hotel_id: 'hotel-0', hotel_name: 'Hotel Elsewhere', stars: 4, photo_url: null,
+          city: 'Tokyo', deal_price_cents: 10_000, median_price_cents: 15_000, currency: 'USD',
+          discount_pct: 30, check_in_window: 'Aug 1–3', check_in_date: '2026-08-01', nights: 2,
+          snapshot_count: 20, ota_links: {}, headline: null, description: null, is_mock: false,
+          first_seen: null, expires_at: null, updated_at: null,
+        }] as never)
+
+      const tree = await DealsPage({ searchParams: Promise.resolve({}) }) as ReactElement<Record<string, unknown>>
+      const props = dealFeedProps(tree)
+
+      expect((props.initialDeals as Array<{ city: string }>)).toHaveLength(1)
+      expect((props.initialDeals as Array<{ city: string }>)[0].city).toBe('Tokyo')
+      expect((props.personalization as { active: boolean; fellBackToAll?: boolean })).toEqual(
+        expect.objectContaining({ active: false, fellBackToAll: true, watchlist: ['Nashville', 'Miami'] })
+      )
+      expect(mockGetActiveDeals).toHaveBeenCalledTimes(2)
+      expect(mockGetActiveDeals.mock.calls[1][0]).not.toHaveProperty('marketIds')
+      expect(mockGetActiveDeals.mock.calls[1][0]).not.toHaveProperty('marketId')
+    })
+
+    it('does not fall back when the watchlist filter matches zero deals AND the full feed is also genuinely empty', async () => {
+      mockGetActiveDeals.mockResolvedValue([]) // both the filtered call and the fallback call see nothing
+
+      const tree = await DealsPage({ searchParams: Promise.resolve({}) }) as ReactElement<Record<string, unknown>>
+      const props = dealFeedProps(tree)
+
+      expect(props.initialDeals).toEqual([])
+      expect((props.personalization as { active: boolean }).active).toBe(true)
+    })
   })
 
   it('does not personalize an anonymous visitor (personalization prop is undefined)', async () => {

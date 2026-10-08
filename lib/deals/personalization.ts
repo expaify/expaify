@@ -5,6 +5,14 @@ export type Personalization = {
   watchlist: string[]
   minDiscountPct: 30 | 40 | 50
   alertPreference: 'instant' | 'daily' | 'off'
+  // Set by app/deals/page.tsx (not by buildPersonalization itself) when a
+  // real, non-empty watchlist filter matched zero deals and the page fell
+  // back to the unfiltered feed automatically. Distinct from the plain
+  // active: false case (explicit search or ?all=1) so the UI can say *why*
+  // the user is seeing deals outside their watchlist, instead of silently
+  // reusing the "you asked to see everything" copy for a state the user
+  // never asked for.
+  fellBackToAll?: boolean
 }
 
 export function normalizeMinDiscountPct(value: number): 30 | 40 | 50 {
