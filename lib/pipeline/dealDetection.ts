@@ -7,7 +7,7 @@ import { TRACKED_HOTEL_ID_PREFIX, isTrackedHotelId, type HotelDealSort } from '.
 
 type Market = { id: number; city: string; country: string; iata: string }
 
-type SnapshotRow = {
+export type SnapshotRow = {
   hotel_id: string
   hotel_name: string
   stars: number | null
@@ -60,7 +60,7 @@ export type DetectionResult = {
   newDeals: NewDealAlert[]
 }
 
-export async function detectDealsForMarket(market: Market): Promise<DetectionResult> {
+export async function getMarketSnapshotStats(marketId: number) {
   // Get rolling 60-day stats per hotel+check_in for this market.
   //
   // History must be grouped ONLY by (hotel_id, check_in, currency) -- the
@@ -74,7 +74,7 @@ export async function detectDealsForMarket(market: Market): Promise<DetectionRes
   // (TRACKED_SNAPSHOT_SELECT below) -- this applies the identical LATERAL
   // pattern to the primary detection query: aggregate on identity alone,
   // then pull display fields from a single latest snapshot via LATERAL join.
-  const snaps = await query<SnapshotRow>(
+  return query<SnapshotRow>(
     `SELECT g.hotel_id, latest.hotel_name, latest.stars, latest.review_evidence, latest.photo_url,
             latest.photo_urls,
             g.check_in, g.currency, g.avg_price_cents, g.median_price_cents,
@@ -99,8 +99,12 @@ export async function detectDealsForMarket(market: Market): Promise<DetectionRes
        ORDER BY captured_at DESC
        LIMIT 1
      ) latest ON true`,
-    [market.id]
+    [marketId]
   )
+}
+
+export async function detectDealsForMarket(market: Market): Promise<DetectionResult> {
+  const snaps = await getMarketSnapshotStats(market.id)
 
   let dealsUpserted = 0
   const expirations: { hotel_id: string; check_in_date: string }[] = []

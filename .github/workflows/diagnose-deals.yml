@@ -1,0 +1,21 @@
+name: Diagnose Deal Detection
+
+on:
+  workflow_dispatch:
+    inputs:
+      iata:
+        description: 'Optional IATA code to scope the check to one market'
+        required: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query deal-detection health on prod
+        env:
+          PIPELINE_SECRET: ${{ secrets.PIPELINE_SECRET }}
+          IATA: ${{ github.event.inputs.iata }}
+        run: |
+          URL="https://expaify.jollybay-d9d870b2.eastus2.azurecontainerapps.io/api/internal/qa/deal-detection-health"
+          if [ -n "$IATA" ]; then URL="${URL}?iata=${IATA}"; fi
+          curl -fsSL --max-time 60 "$URL" -H "Authorization: Bearer ${PIPELINE_SECRET}" | python3 -m json.tool
