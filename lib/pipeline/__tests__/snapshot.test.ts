@@ -260,7 +260,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       .mockRejectedValueOnce(new Error('booking-com v1: ECONNRESET'))
       .mockRejectedValueOnce(new Error('tripadvisor16: 403 Forbidden'))
 
-    const [result] = await runSnapshotsForMarket(MIA, 0)
+    const [result] = await runSnapshotsForMarket({ ...MIA, id: 4 })
 
     expect(result.hotelsProcessed).toBe(0)
     // This is the actual regression this ticket exists to fix: a silent zero
@@ -280,7 +280,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: { data: [] } }) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: { citySearch: { properties: [] } } }) })
 
-    const [result] = await runSnapshotsForMarket(MIA, 0)
+    const [result] = await runSnapshotsForMarket({ ...MIA, id: 4 })
 
     expect(result.hotelsProcessed).toBe(0)
     expect(result.providerErrors).toHaveLength(4)
@@ -304,7 +304,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       }),
     })
 
-    const [result] = await runSnapshotsForMarket(MIA, 0)
+    const [result] = await runSnapshotsForMarket({ ...MIA, id: 4 })
 
     expect(result.hotelsProcessed).toBe(1)
     expect(result.providerErrors).toBeUndefined()
@@ -332,7 +332,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       }),
     })
 
-    const [result] = await runSnapshotsForMarket(MIA, 0)
+    const [result] = await runSnapshotsForMarket({ ...MIA, id: 4 })
     expect(result.hotelsProcessed).toBe(1)
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
@@ -377,7 +377,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       }),
     })
 
-    await runSnapshotsForMarket(MIA, 0)
+    await runSnapshotsForMarket({ ...MIA, id: 4 })
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
     expect(insertCall?.[1]?.[4]).toBe('https://cf.bstatic.com/xdata/images/hotel/square2000/687401818.jpg?k=abc')
@@ -401,7 +401,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       }),
     })
 
-    await runSnapshotsForMarket(MIA, 0)
+    await runSnapshotsForMarket({ ...MIA, id: 4 })
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
     expect(insertCall?.[1]?.[4]).toBeNull()
@@ -424,7 +424,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       }),
     })
 
-    await runSnapshotsForMarket(MIA, 0)
+    await runSnapshotsForMarket({ ...MIA, id: 4 })
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
     const reviewEvidence = JSON.parse(insertCall?.[1]?.[3] as string)
@@ -454,7 +454,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       }),
     })
 
-    await runSnapshotsForMarket(MIA, 0)
+    await runSnapshotsForMarket({ ...MIA, id: 4 })
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
     expect(insertCall?.[1]?.[3]).toBeNull()
@@ -488,7 +488,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
         }),
       })
 
-    const [result] = await runSnapshotsForMarket(MIA, 0)
+    const [result] = await runSnapshotsForMarket({ ...MIA, id: 4 })
 
     expect(result.hotelsProcessed).toBe(2)
     expect(global.fetch).toHaveBeenCalledTimes(2)
@@ -504,7 +504,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: { hotels: [sameHotel] } }) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: { hotels: [sameHotel] } }) })
 
-    const [result] = await runSnapshotsForMarket(MIA, 0)
+    const [result] = await runSnapshotsForMarket({ ...MIA, id: 4 })
 
     expect(result.hotelsProcessed).toBe(1)
   })
@@ -522,7 +522,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       })
       .mockRejectedValueOnce(new Error('page 2: ECONNRESET'))
 
-    const [result] = await runSnapshotsForMarket(MIA, 0)
+    const [result] = await runSnapshotsForMarket({ ...MIA, id: 4 })
 
     expect(result.hotelsProcessed).toBe(1)
     expect(result.providerErrors).toBeUndefined()
@@ -548,7 +548,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       })
       .mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({}) })
 
-    const [result] = await runSnapshotsForMarket(MIA, 0)
+    const [result] = await runSnapshotsForMarket({ ...MIA, id: 4 })
 
     expect(result.hotelsProcessed).toBe(1)
     expect(result.providerErrors).toBeUndefined()
@@ -567,7 +567,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
         json: async () => ({ result: [{ hotel_id: '456', hotel_name: 'Fallback Hotel', class: 4, min_total_price: 200 }] }),
       })
 
-    const [result] = await runSnapshotsForMarket(MIA, 0)
+    const [result] = await runSnapshotsForMarket({ ...MIA, id: 4 })
 
     process.env.RAPIDAPI_KEY_PRICELINE = originalPricelineKey
 
@@ -595,7 +595,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       }),
     })
 
-    const [result] = await runSnapshotsForMarket(MIA, 2)
+    const [result] = await runSnapshotsForMarket({ ...MIA, id: 2 })
     expect(result.hotelsProcessed).toBe(1)
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
@@ -629,7 +629,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       }),
     })
 
-    await runSnapshotsForMarket(MIA, 2)
+    await runSnapshotsForMarket({ ...MIA, id: 2 })
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
     // 2026-10-05: bumped from 600x400 to 1200x800 -- real, visible blur
@@ -661,7 +661,7 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
         }] }),
       })
 
-    const [result] = await runSnapshotsForMarket(MIA, 0)
+    const [result] = await runSnapshotsForMarket({ ...MIA, id: 4 })
 
     process.env.RAPIDAPI_KEY_PRICELINE = originalPricelineKey
 
@@ -678,13 +678,58 @@ describe('runSnapshotsForMarket provider-failure visibility (REPAIR-PIPELINE-SIL
       json: async () => ({ data: { data: [{ id: '123', title: 'Test Hotel', priceForDisplay: '$125' }] } }),
     })
 
-    const [result] = await runSnapshotsForMarket(MIA, 2)
+    const [result] = await runSnapshotsForMarket({ ...MIA, id: 2 })
 
     expect(result.hotelsProcessed).toBe(1)
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('tripadvisor16.p.rapidapi.com'),
       expect.objectContaining({ headers: expect.objectContaining({ 'X-RapidAPI-Key': 'test-key' }) }),
     )
+  })
+})
+
+describe('provider selection across consecutive nights', () => {
+  it('pins each market to its own provider while daily batch positions rotate', async () => {
+    const markets = [1, 2, 3, 4].map(id => ({ ...MIA, id }))
+    const originalEnv = { ...process.env }
+    const originalFetch = global.fetch
+    const starts = new Map<number, string[]>()
+    const positions = new Map<number, number[]>()
+    // Replay the old caller's positional argument too: the new API ignores it,
+    // while the original implementation would drift with these nightly positions.
+    const run: (market: typeof MIA, legacyIndex?: number) => ReturnType<typeof runSnapshotsForMarket> = runSnapshotsForMarket
+    jest.useFakeTimers()
+    process.env.RAPIDAPI_KEY = 'test-key'
+    process.env.RAPIDAPI_KEY_PRICELINE = 'test-coords-key'
+    process.env.RAPIDAPI_KEY_3 = 'test-agoda-key'
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 429 })
+    try {
+      for (let night = 0; night < 8; night++) {
+        jest.setSystemTime(new Date(Date.UTC(2026, 9, 1 + night, 12)))
+        ;(query as jest.Mock).mockResolvedValueOnce({ rows: markets })
+        const ordered = await getActiveMarkets()
+        for (const [index, market] of ordered.entries()) {
+          ;(global.fetch as jest.Mock).mockClear()
+          await run(market, index)
+          const firstUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string
+          starts.set(market.id, [...(starts.get(market.id) ?? []), new URL(firstUrl).hostname])
+          positions.set(market.id, [...(positions.get(market.id) ?? []), index])
+        }
+      }
+      const expectedHosts = [
+        'booking-com.p.rapidapi.com', 'tripadvisor16.p.rapidapi.com',
+        'agoda-com.p.rapidapi.com', 'booking-com15.p.rapidapi.com',
+      ]
+      for (const [index, market] of markets.entries()) {
+        expect(new Set(positions.get(market.id)).size).toBe(4)
+        expect(starts.get(market.id)).toEqual(Array(8).fill(expectedHosts[index]))
+      }
+      expect(new Set([...starts.values()].map(hosts => hosts[0])).size).toBe(4)
+    } finally {
+      process.env = originalEnv
+      global.fetch = originalFetch
+      jest.useRealTimers()
+    }
   })
 })
 

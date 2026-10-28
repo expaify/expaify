@@ -35,10 +35,9 @@ export async function POST(req: NextRequest) {
 
   for (let batchStart = 0; batchStart < markets.length; batchStart += MARKET_BATCH_SIZE) {
     const batch = markets.slice(batchStart, batchStart + MARKET_BATCH_SIZE)
-    await Promise.all(batch.map(async (market, batchIndex) => {
-      const marketIndex = batchStart + batchIndex
+    await Promise.all(batch.map(async (market) => {
       try {
-        const snapshots = await runSnapshotsForMarket(market, marketIndex)
+        const snapshots = await runSnapshotsForMarket(market)
         const { dealsUpserted, newDeals } = await detectDealsForMarket(market)
         results[market.iata] = { snapshots, dealsFound: dealsUpserted, newDealCount: newDeals.length }
         totalNewDeals += dealsUpserted

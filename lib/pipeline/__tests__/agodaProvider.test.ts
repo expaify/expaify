@@ -5,7 +5,7 @@ jest.mock('../../db/client', () => ({
   query: jest.fn().mockResolvedValue({ rows: [] }),
 }))
 
-const PAR = { id: 4, city: 'Paris', country: 'FR', iata: 'PAR' }
+const PAR = { id: 3, city: 'Paris', country: 'FR', iata: 'PAR' }
 
 describe('fetchAgoda (4th rotation provider, separate RAPIDAPI_KEY_3)', () => {
   const originalSharedKey = process.env.RAPIDAPI_KEY
@@ -64,8 +64,8 @@ describe('fetchAgoda (4th rotation provider, separate RAPIDAPI_KEY_3)', () => {
       }),
     })
 
-    // Agoda is index 3, so marketIndex 3 starts the rotation with it.
-    const [result] = await runSnapshotsForMarket(PAR, 3)
+    // Agoda is index 3, so market id 3 starts the rotation with it.
+    const [result] = await runSnapshotsForMarket(PAR)
 
     expect(result.hotelsProcessed).toBe(1)
     expect(global.fetch).toHaveBeenCalledTimes(1)
@@ -128,7 +128,7 @@ describe('fetchAgoda (4th rotation provider, separate RAPIDAPI_KEY_3)', () => {
       }),
     })
 
-    await runSnapshotsForMarket(PAR, 3)
+    await runSnapshotsForMarket(PAR)
 
     const insertCall = (query as jest.Mock).mock.calls.find(([sql]) => sql.includes('INSERT INTO price_snapshots'))
     expect(insertCall?.[1]?.[5]).toEqual([

@@ -591,11 +591,26 @@ const PROVIDERS: ProviderFn[] = [fetchBookingCom15, fetchBookingComCoords, fetch
 
 type RotationResult = { hotels: HotelEntry[]; providerErrors: string[]; rateLimitedCount: number }
 
+// Stable per market, not derived from getActiveMarkets's day-of-year batch
+// rotation -- the old `marketIndex`-based startIdx drifted by 1 every night
+// for the same market (that array rotates daily), silently cycling this
+// market's winning provider every ~4 nights. Since providers never merge
+// results ("first success wins") and each has its own hotel-id namespace
+// (bk_/ta_/ag_/pl_), a provider switch reset that market's entire tracked-
+// hotel identity, which is why snapshot_count could never accumulate past
+// ~1-3 for almost any hotel (confirmed live: 99.4% of all tracked stay-
+// groups across all 36 markets never reached MIN_SNAPSHOTS). market.id
+// never changes, so the same market now tries the same provider first
+// every night; different markets still spread across different starting
+// providers since market.id varies, preserving quota balance.
+export function getProviderRotationStart(marketId: number): number {
+  return marketId % PROVIDERS.length
+}
+
 async function fetchWithRotation(
-  iata: string, checkIn: string, checkOut: string, key: string, offsetIndex: number, marketIndex: number
+  iata: string, checkIn: string, checkOut: string, key: string, marketId: number
 ): Promise<RotationResult> {
-  // Each check-in offset gets a different starting provider; market index shifts within that
-  const startIdx = (offsetIndex + marketIndex) % PROVIDERS.length
+  const startIdx = getProviderRotationStart(marketId)
   const providerErrors: string[] = []
   let rateLimitedCount = 0
   for (let i = 0; i < PROVIDERS.length; i++) {
@@ -676,7 +691,7 @@ export async function runSnapshotsForMarket(market: Market, marketIndex = 0): Pr
     const checkOut = toCheckOut(checkIn, NIGHTS)
     const { hotels, providerErrors, rateLimitedCount } = isMock
       ? { hotels: generateMockHotels(market.iata, checkIn), providerErrors: [] as string[], rateLimitedCount: 0 }
-      : await fetchWithRotation(market.iata, checkIn, checkOut, key, 0, marketIndex)
+      : await fetchWithRotation(market.iata, checkIn, checkOut, key, market.id)
 
     for (const hotel of hotels) {
       await storeSnapshot(market, hotel, checkIn, isMock)

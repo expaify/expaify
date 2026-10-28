@@ -150,8 +150,8 @@ describe('POST /api/pipeline/run pipeline-health aggregation (REPAIR-PIPELINE-SI
       iata: `M${index + 1}`,
     }))
     mockGetActiveMarkets.mockResolvedValue(markets)
-    mockRunSnapshots.mockImplementation(async (market, marketIndex) => {
-      if (marketIndex === 1) {
+    mockRunSnapshots.mockImplementation(async (market) => {
+      if (market.id === 2) {
         return [{ market: market.iata, checkIn: '2026-09-01', hotelsProcessed: 20, rateLimitedCount: 1 }]
       }
       return [{ market: market.iata, checkIn: '2026-09-01', hotelsProcessed: 20 }]
@@ -163,7 +163,7 @@ describe('POST /api/pipeline/run pipeline-health aggregation (REPAIR-PIPELINE-SI
     expect(body.rateLimitedCount).toBe(1)
     expect(body.marketsAttempted).toBe(8)
     expect(mockRunSnapshots).toHaveBeenCalledTimes(8)
-    expect(mockRunSnapshots).toHaveBeenCalledWith(markets[6], 6)
+    expect(mockRunSnapshots).toHaveBeenCalledWith(markets[6])
     expect(body.results.M7).toBeDefined()
     expect(body.results.M8).toBeDefined()
   })
