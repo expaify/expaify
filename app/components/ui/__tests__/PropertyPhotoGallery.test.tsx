@@ -19,7 +19,7 @@ describe('PropertyPhotoGallery', () => {
     })
     const imgs = root.root.findAllByType('img')
     expect(imgs).toHaveLength(1)
-    expect(imgs[0].props.src).toBe('https://example.com/a.jpg')
+    expect(imgs[0].props.src).toBe('/_next/image?url=https%3A%2F%2Fexample.com%2Fa.jpg&w=3840&q=75')
     expect(root.root.findAllByProps({ role: 'tablist' })).toHaveLength(0)
   })
 
@@ -30,7 +30,7 @@ describe('PropertyPhotoGallery', () => {
     })
     const imgs = root.root.findAllByType('img')
     expect(imgs).toHaveLength(1)
-    expect(imgs[0].props.src).toBe('https://example.com/legacy.jpg')
+    expect(imgs[0].props.src).toBe('/_next/image?url=https%3A%2F%2Fexample.com%2Flegacy.jpg&w=3840&q=75')
   })
 
   it('prefers photoUrls over fallbackSrc when both are present', () => {
@@ -40,7 +40,7 @@ describe('PropertyPhotoGallery', () => {
         <PropertyPhotoGallery photoUrls={['https://example.com/real-1.jpg']} fallbackSrc="https://example.com/stale.jpg" />
       )
     })
-    expect(root.root.findAllByType('img')[0].props.src).toBe('https://example.com/real-1.jpg')
+    expect(root.root.findAllByType('img')[0].props.src).toBe('/_next/image?url=https%3A%2F%2Fexample.com%2Freal-1.jpg&w=3840&q=75')
   })
 
   it('renders a primary photo plus a thumbnail strip when there are 2+ real photos, and switches on click', () => {
@@ -57,7 +57,7 @@ describe('PropertyPhotoGallery', () => {
 
     // Primary photo starts on the first real photo.
     const primaryImgBefore = root.root.findAllByType('img').find(img => img.props.alt === '')
-    expect(primaryImgBefore?.props.src).toBe('https://example.com/a.jpg')
+    expect(primaryImgBefore?.props.src).toBe('/_next/image?url=https%3A%2F%2Fexample.com%2Fa.jpg&w=3840&q=75')
     expect(tabs[0].props['aria-selected']).toBe(true)
 
     act(() => {
