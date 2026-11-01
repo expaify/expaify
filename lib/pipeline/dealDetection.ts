@@ -296,6 +296,7 @@ export type DealRow = {
   photo_url: string | null
   photo_urls?: string[] | null
   city: string
+  market_id: number
   deal_price_cents: number
   median_price_cents: number
   currency: string
@@ -335,7 +336,7 @@ export async function getDealById(id: string): Promise<DealRow | null> {
   const res = await query<DealRow>(
     `SELECT
        d.id, d.hotel_id, d.hotel_name, d.stars, d.review_evidence, d.photo_url, d.photo_urls,
-       m.city,
+       m.city, d.market_id,
        d.deal_price_cents, d.median_price_cents, d.currency, d.discount_pct,
        d.check_in_window, d.check_in_date::TEXT, d.nights,
        d.snapshot_count, d.ota_links, d.headline, d.description, d.is_mock,
@@ -451,7 +452,7 @@ export async function getActiveDeals(opts: {
   const res = await query<DealRow>(
     `SELECT
        d.id, d.hotel_id, d.hotel_name, d.stars, d.review_evidence, d.photo_url, d.photo_urls,
-       m.city,
+       m.city, d.market_id,
        d.deal_price_cents, d.median_price_cents, d.currency, d.discount_pct,
        d.check_in_window, d.check_in_date::TEXT, d.nights,
        d.snapshot_count, d.ota_links, d.headline, d.description, d.is_mock,
@@ -564,6 +565,7 @@ function mapTrackedRowToDealRow(row: TrackedSnapshotRow): DealRow {
     photo_url: row.photo_url,
     photo_urls: row.photo_urls,
     city: row.city,
+    market_id: row.market_id,
     deal_price_cents: row.latest_price_cents,
     // Never show an inflated "usually $X" reference for a discount we
     // can't actually back up with history — collapse it to the current

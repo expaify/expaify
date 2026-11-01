@@ -39,7 +39,7 @@ function collectHrefs(node: unknown, hrefs: string[] = []): string[] {
 // (detail_ia:true) while investigating the real "/flights?destination=BNA"
 // dead-end a user reported.
 const deal: DealRow = {
-  id: 'deal-1', hotel_id: 'hotel-1', hotel_name: 'Hotel', city: 'Miami',
+  id: 'deal-1', hotel_id: 'hotel-1', hotel_name: 'Hotel', city: 'Miami', market_id: 7,
   stars: 4, photo_url: null, currency: 'USD', deal_price_cents: 6000,
   median_price_cents: 10000, discount_pct: 40, check_in_window: 'Oct 1–3',
   check_in_date: '2026-10-01', nights: 2, snapshot_count: 10, ota_links: {},

@@ -238,13 +238,7 @@ type DealHistory = Awaited<ReturnType<typeof getPriceHistory>>
 type HistorySectionProps = { deal: DealRow; loadHistory: () => Promise<DealHistory> }
 
 async function loadDealHistory(deal: DealRow): Promise<DealHistory> {
-  const mktRes = await query<{ id: number }>(
-    'SELECT id FROM tracked_markets WHERE city = $1 LIMIT 1',
-    [deal.city]
-  ).catch(() => ({ rows: [] as { id: number }[] }))
-  const marketId = mktRes.rows[0]?.id
-
-  return getPriceHistory(deal.hotel_id, marketId, deal.currency).catch(() => [])
+  return getPriceHistory(deal.hotel_id, deal.market_id, deal.currency).catch(() => [])
 }
 
 /* Both streamed sections share one lazy, request-local history read. */

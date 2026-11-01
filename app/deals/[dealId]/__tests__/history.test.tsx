@@ -22,7 +22,7 @@ function historySections(node: unknown): Section[] {
 
 const history = [1, 2, 3].map(day => ({ date: `2026-09-0${day}`, price_cents: 10000 }))
 const deal: DealRow = {
-  id: 'deal-1', hotel_id: 'hotel-1', hotel_name: 'Hotel', city: 'Miami',
+  id: 'deal-1', hotel_id: 'hotel-1', hotel_name: 'Hotel', city: 'Miami', market_id: 7,
   stars: 4, photo_url: null, currency: 'USD', deal_price_cents: 6000,
   median_price_cents: 10000, discount_pct: 40, check_in_window: 'Oct 1–3',
   check_in_date: '2026-10-01', nights: 2, snapshot_count: 10, ota_links: {},
@@ -45,20 +45,20 @@ describe('deal detail shared history reads', () => {
     else process.env.NEXT_PUBLIC_DEAL_DETAIL_IA = previousIa
   })
 
-  it.each(['0', '1'])('makes one lazy market/history query pair across both sections (IA %s)', async ia => {
+  it.each(['0', '1'])('makes one lazy history query without a market lookup across both sections (IA %s)', async ia => {
     process.env.NEXT_PUBLIC_DEAL_DETAIL_IA = ia
     const sections = historySections(await renderPage())
     expect(sections).toHaveLength(2)
     expect(query).not.toHaveBeenCalled()
     expect(sections[0].props.loadHistory).toBe(sections[1].props.loadHistory)
     await Promise.all(sections.map(section => section.type(section.props)))
-    expect(query).toHaveBeenCalledTimes(1)
+    expect(query).not.toHaveBeenCalled()
     expect(getPriceHistory).toHaveBeenCalledTimes(1)
     expect(getPriceHistory).toHaveBeenCalledWith('hotel-1', 7, 'USD')
 
     const nextRequest = historySections(await renderPage())
     await nextRequest[0].props.loadHistory()
-    expect(query).toHaveBeenCalledTimes(2)
+    expect(query).not.toHaveBeenCalled()
     expect(getPriceHistory).toHaveBeenCalledTimes(2)
   })
 
@@ -69,12 +69,12 @@ describe('deal detail shared history reads', () => {
     expect(getPriceHistory).toHaveBeenCalledTimes(1)
   })
 
-  it('preserves the market lookup fallback', async () => {
+  it('uses the deal market even when a separate lookup would fail', async () => {
     jest.mocked(query).mockRejectedValue(new Error('unavailable'))
     const sections = historySections(await renderPage())
     await Promise.all(sections.map(section => section.props.loadHistory()))
-    expect(query).toHaveBeenCalledTimes(1)
-    expect(getPriceHistory).toHaveBeenCalledWith('hotel-1', undefined, 'USD')
+    expect(query).not.toHaveBeenCalled()
+    expect(getPriceHistory).toHaveBeenCalledWith('hotel-1', 7, 'USD')
   })
 
   it('does not start history reads for locked deals', async () => {

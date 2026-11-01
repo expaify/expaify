@@ -33,6 +33,7 @@ const row: DealRow = {
   stars: 4,
   photo_url: null,
   city: 'Miami',
+  market_id: 7,
   deal_price_cents: 9_999,
   median_price_cents: 15_000,
   currency: 'EUR',

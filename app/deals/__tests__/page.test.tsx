@@ -89,6 +89,7 @@ describe('/deals server reconstruction', () => {
       stars: 4,
       photo_url: null,
       city: 'Miami',
+      market_id: 7,
       deal_price_cents: 10_000 + index,
       median_price_cents: 15_000,
       currency: 'USD',
