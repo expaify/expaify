@@ -44,14 +44,15 @@ export async function GET(req: NextRequest) {
 
     const depthBuckets = { belowMinSnapshots: 0, atOrAboveMinSnapshots: 0 }
     const decisionBuckets = { flag: 0, hold: 0, expire: 0 }
-    const examples: Array<{
+    type Example = {
       hotel_id: string
       check_in: string
       snapshot_count: number
       median_price_cents: number
       latest_price_cents: number
       ratio: number | null
-    }> = []
+    }
+    const candidateExamples: Example[] = []
 
     for (const row of comparable) {
       if (row.snapshot_count < MIN_SNAPSHOTS) depthBuckets.belowMinSnapshots++
@@ -64,18 +65,25 @@ export async function GET(req: NextRequest) {
       })
       decisionBuckets[decision.action === 'flag' ? 'flag' : decision.action === 'hold' ? 'hold' : 'expire']++
 
-      if (examples.length < 5) {
-        const ratio = row.median_price_cents > 0 ? Math.round((row.latest_price_cents / row.median_price_cents) * 1000) / 1000 : null
-        examples.push({
-          hotel_id: row.hotel_id,
-          check_in: row.check_in instanceof Date ? row.check_in.toISOString().slice(0, 10) : String(row.check_in),
-          snapshot_count: row.snapshot_count,
-          median_price_cents: row.median_price_cents,
-          latest_price_cents: row.latest_price_cents,
-          ratio,
-        })
-      }
+      const ratio = row.median_price_cents > 0 ? Math.round((row.latest_price_cents / row.median_price_cents) * 1000) / 1000 : null
+      candidateExamples.push({
+        hotel_id: row.hotel_id,
+        check_in: row.check_in instanceof Date ? row.check_in.toISOString().slice(0, 10) : String(row.check_in),
+        snapshot_count: row.snapshot_count,
+        median_price_cents: row.median_price_cents,
+        latest_price_cents: row.latest_price_cents,
+        ratio,
+      })
     }
+    // Fisher-Yates shuffle, then cap -- a uniformly random sample instead of
+    // "whatever order Postgres returned rows in," so this diagnostic can
+    // actually surface a real per-provider skew if one exists, rather than
+    // always reflecting the SQL engine's incidental row order.
+    for (let i = candidateExamples.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[candidateExamples[i], candidateExamples[j]] = [candidateExamples[j], candidateExamples[i]]
+    }
+    const examples = candidateExamples.slice(0, 5)
 
     perMarket[market.iata] = {
       totalStayGroups: snaps.rows.length,

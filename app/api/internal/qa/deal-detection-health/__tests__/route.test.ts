@@ -58,10 +58,10 @@ describe('GET /api/internal/qa/deal-detection-health', () => {
       depthBuckets: { belowMinSnapshots: 1, atOrAboveMinSnapshots: 1 },
       decisionBuckets: { flag: 1, hold: 0, expire: 1 },
       thresholds: { MIN_SNAPSHOTS, DEAL_THRESHOLD, EXPIRE_THRESHOLD },
-      examples: [
+      examples: expect.arrayContaining([
         { hotel_id: 'thin', check_in: '2026-11-01', snapshot_count: 7, median_price_cents: 10000, latest_price_cents: 5000, ratio: 0.5 },
         { hotel_id: 'mature', check_in: '2026-11-01', snapshot_count: 9, median_price_cents: 10000, latest_price_cents: 7000, ratio: 0.7 },
-      ],
+      ]),
     } } })
   })
 
@@ -79,7 +79,7 @@ describe('GET /api/internal/qa/deal-detection-health', () => {
       decisionBuckets: { flag: 0, hold: 1, expire: 2 },
     })
     expect(body.results.LAX.examples).toHaveLength(3)
-    expect(body.results.LAX.examples[2].ratio).toBeNull()
+    expect(body.results.LAX.examples).toContainEqual(expect.objectContaining({ hotel_id: 'invalid', ratio: null }))
   })
 
   it('scopes lowercase IATA and caps examples at five', async () => {
@@ -90,6 +90,34 @@ describe('GET /api/internal/qa/deal-detection-health', () => {
     expect(body.results.LAX.examples).toHaveLength(5)
     expect(mockStats).toHaveBeenCalledTimes(1)
     expect(mockStats).toHaveBeenCalledWith(7)
+  })
+
+  it('samples beyond the first five rows across provider prefixes', async () => {
+    const candidates = Array.from({ length: 10 }, (_, i) => row({ hotel_id: `${i < 5 ? 'bk' : 'ag'}_${i}` }))
+    const candidateIds = new Set(candidates.map(candidate => candidate.hotel_id))
+    mockStats.mockResolvedValue(qr(candidates))
+    const random = jest.spyOn(Math, 'random')
+    const seenIds = new Set<string>()
+    const samples = new Set<string>()
+    try {
+      for (let call = 0; call < 20; call++) {
+        // Exercise different valid shuffle choices without probabilistic failures.
+        random.mockReturnValue(call % 2 === 0 ? 0 : 0.999999)
+        const body = await (await GET(request())).json()
+        const ids = body.results.LAX.examples.map((example: { hotel_id: string }) => example.hotel_id) as string[]
+        expect(ids).toHaveLength(5)
+        expect(new Set(ids).size).toBe(5)
+        for (const id of ids) {
+          expect(candidateIds.has(id)).toBe(true)
+          seenIds.add(id)
+        }
+        samples.add([...ids].sort().join(','))
+      }
+      expect(samples.size).toBeGreaterThan(1)
+      expect(new Set([...seenIds].map(id => id.split('_')[0]))).toEqual(new Set(['bk', 'ag']))
+    } finally {
+      random.mockRestore()
+    }
   })
 
   it('includes empty active markets and returns no matches for unknown IATA', async () => {
