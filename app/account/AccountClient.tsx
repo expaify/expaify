@@ -185,9 +185,17 @@ export function AccountClient({ stripeCustomerId, alertPreference, alertTimezone
     Object.values(savedTimers.current).forEach(timer => clearTimeout(timer))
   }, [])
 
+  // SSR renders `timezone` as `alertTimezone` (the saved preference); the
+  // browser's real timezone can only be read client-side, so detecting it
+  // must happen post-hydration, in an effect, not in useState's lazy
+  // initializer -- `timezone` is bound to a controlled <select>'s `value`
+  // below, and a lazy initializer that returns a different value on the
+  // server (where `window` is undefined) vs. the client (where it isn't)
+  // is a real hydration mismatch on that element, not just a lint nit.
   useEffect(() => {
     const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
     if ((TIMEZONE_OPTIONS as readonly string[]).includes(browserTimezone)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimezone(browserTimezone)
     }
   }, [])
