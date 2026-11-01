@@ -117,7 +117,7 @@ describe('destination criteria continuity', () => {
   it('falls back to real tracked hotels (no discount, locked past the free limit) when there are zero confirmed deals', async () => {
     const trackedRow = {
       id: 'tracked-1', hotel_id: 'h-1', hotel_name: 'Hotel Real', stars: 4,
-      photo_url: '/photo.jpg', city: 'Miami', deal_price_cents: 20000, median_price_cents: 20000,
+      photo_url: '/photo.jpg', city: 'Miami', market_id: 7, deal_price_cents: 20000, median_price_cents: 20000,
       currency: 'USD', discount_pct: 0, check_in_window: 'flexible', check_in_date: '2026-11-01',
       nights: 2, snapshot_count: 3, ota_links: {}, headline: null, description: null,
       is_mock: false, first_seen: null, expires_at: null, updated_at: null,
@@ -151,7 +151,7 @@ describe('destination criteria continuity', () => {
   it('locks/unlocks tracked hotels by stable-set membership, not by array position', async () => {
     const trackedRow = {
       id: 'tracked-1', hotel_id: 'h-1', hotel_name: 'Hotel Real', stars: 4,
-      photo_url: '/photo.jpg', city: 'Miami', deal_price_cents: 20000, median_price_cents: 20000,
+      photo_url: '/photo.jpg', city: 'Miami', market_id: 7, deal_price_cents: 20000, median_price_cents: 20000,
       currency: 'USD', discount_pct: 0, check_in_window: 'flexible', check_in_date: '2026-11-01',
       nights: 2, snapshot_count: 3, ota_links: {}, headline: null, description: null,
       is_mock: false, first_seen: null, expires_at: null, updated_at: null,
