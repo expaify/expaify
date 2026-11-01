@@ -87,7 +87,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const deal = await getDealById(dealId).catch(() => null)
   if (!deal) notFound()
 
-  const title = `${deal.hotel_name} in ${deal.city} — expaify`
+  const title = `${deal.hotel_name.trim()} in ${deal.city} — expaify`
   const description = `${deal.discount_pct}% below its usual price for ${deal.check_in_window} in ${deal.city}.`
 
   return {
@@ -541,7 +541,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
               ) : null}
               <div className="p-4 sm:p-6">
                 <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
-                <h1 id="deal-detail-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name}</h1>
+                <h1 id="deal-detail-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name.trim()}</h1>
                 <p className="mt-2 text-small font-medium text-[color:var(--ink-soft)]"><DealDetailCity city={deal.city} />{deal.stars != null ? ` · ${deal.stars}-star hotel` : ''}</p>
                 <p className="mt-3 text-small text-[color:var(--ink-soft)]">{checkInDisplay ?? 'Check-in not provided'} to {checkOutDisplay ?? 'check-out not provided'}{deal.nights > 0 ? ` · ${deal.nights} ${deal.nights === 1 ? 'night' : 'nights'}` : ''}</p>
                 <div className="mt-5 grid items-start gap-6 min-[1024px]:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
@@ -640,7 +640,7 @@ export default async function DealDetailPage({ params, searchParams }: PageProps
           <Reveal>
           <section aria-labelledby="saved-hotel-title" data-hotel-decision-section="property_stay" data-hotel-decision-position="1" className="rounded-[var(--radius-card)] border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-4 sm:p-6">
             <p className="text-caption font-medium uppercase tracking-wide text-[color:var(--brand)]">Saved hotel deal</p>
-            <h1 id="saved-hotel-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name}</h1>
+            <h1 id="saved-hotel-title" className="mt-2 break-words font-display text-2xl font-bold leading-tight text-[color:var(--text-1)] sm:text-3xl">{deal.hotel_name.trim()}</h1>
             <p className="mt-2 text-sm font-medium leading-6 text-[color:var(--text-2)]">Area: <DealDetailCity city={deal.city} /></p>
             <p className="mt-1 text-xs leading-5 text-[color:var(--text-3)]">Provider supplied an area, not a street address.</p>
             <dl className="mt-5 grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">

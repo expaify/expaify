@@ -657,7 +657,7 @@ async function storeSnapshot(market: Market, hotel: HotelEntry, checkIn: string,
                    photo_url = COALESCE(EXCLUDED.photo_url, price_snapshots.photo_url),
                    photo_urls = COALESCE(EXCLUDED.photo_urls, price_snapshots.photo_urls)`,
     [
-      hotel.hotelId, hotel.hotelName, hotel.stars,
+      hotel.hotelId, hotel.hotelName.trim(), hotel.stars,
       hotel.reviewEvidence ? JSON.stringify(hotel.reviewEvidence) : null,
       hotel.photoUrl,
       hotel.photoUrls && hotel.photoUrls.length > 0 ? hotel.photoUrls : null,
