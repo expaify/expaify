@@ -10,14 +10,13 @@ import {
   type DigestDealRow,
 } from '@/lib/email/sendDailyDigest'
 import { DEAL_THRESHOLD, MIN_SNAPSHOTS } from '@/lib/pipeline/dealRules'
+import { isValidPipelineSecret } from '@/lib/pipeline/auth'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MIN_DISCOUNT_PCT = Math.round((1 - DEAL_THRESHOLD) * 100)
 
 export async function POST(req: NextRequest) {
-  const auth = req.headers.get('authorization') ?? ''
-  const expected = `Bearer ${process.env.PIPELINE_SECRET ?? ''}`
-  if (!process.env.PIPELINE_SECRET || auth !== expected) {
+  if (!isValidPipelineSecret(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
