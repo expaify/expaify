@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Stale/parallel checkouts and non-TS build scripts -- not real repo
+    // source, but linted as if they were without this.
+    ".claude/worktrees/**",
+    ".claude/skills/**/*.cjs",
   ]),
 ]);
 
