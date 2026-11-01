@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 
 type PropertyPhotoProps = {
   src?: string | null
@@ -16,6 +17,13 @@ const sizeClasses = {
   card: { container: 'w-full rounded-[var(--radius-card)]', viewport: 'h-28 sm:h-32', missing: 'min-h-[137px] sm:min-h-[153px]' },
   expanded: { container: 'w-full rounded-[var(--radius-card)]', viewport: 'h-40', missing: 'min-h-[185px]' },
   detail: { container: 'w-full rounded-[var(--radius-card)]', viewport: 'h-[200px] min-[680px]:h-[280px]', missing: 'min-h-[225px] min-[680px]:min-h-[305px]' },
+} as const
+
+const imageSizes = {
+  thumbnail: '80px',
+  card: '(max-width: 640px) 100vw, 400px',
+  expanded: '(max-width: 640px) 100vw, 480px',
+  detail: '(max-width: 680px) 100vw, 600px',
 } as const
 
 export function PropertyPhoto({ src, size, loading = 'lazy', onFailure, brandedFallback, imageClassName }: PropertyPhotoProps) {
@@ -91,19 +99,19 @@ export function PropertyPhoto({ src, size, loading = 'lazy', onFailure, brandedF
     >
       <div className={`relative overflow-hidden bg-[color:var(--bg-muted)] ${classes.viewport}`}>
         {!loaded ? <div className="skeleton absolute inset-0 motion-reduce:animate-none" aria-hidden="true" /> : null}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           ref={imgRef}
           src={src}
           alt=""
+          fill
+          sizes={imageSizes[size]}
           loading={loading}
-          decoding="async"
           onLoad={() => setLoaded(true)}
           onError={() => {
             setFailed(true)
             onFailure?.()
           }}
-          className={`relative block h-full w-full object-cover ${imageClassName ?? ''}`}
+          className={`object-cover ${imageClassName ?? ''}`}
         />
       </div>
       {size === 'card' ? null : (

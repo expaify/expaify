@@ -1,4 +1,5 @@
 import { act } from 'react'
+import Image from 'next/image'
 import TestRenderer from 'react-test-renderer'
 import { PropertyPhoto } from '../PropertyPhoto'
 
@@ -35,7 +36,7 @@ describe('PropertyPhoto', () => {
       root = TestRenderer.create(<PropertyPhoto src="https://example.com/a.jpg" size="card" />)
     })
     expect(hasUnavailableMessage(root)).toBe(false)
-    expect(root.root.findByType('img').props.src).toBe('https://example.com/a.jpg')
+    expect(root.root.findByType('img').props.src).toBe('/_next/image?url=https%3A%2F%2Fexample.com%2Fa.jpg&w=3840&q=75')
   })
 
   it('shows the unavailable state once the image errors', () => {
@@ -64,7 +65,7 @@ describe('PropertyPhoto', () => {
     })
 
     expect(hasUnavailableMessage(root)).toBe(false)
-    expect(root.root.findByType('img').props.src).toBe('https://example.com/b.jpg')
+    expect(root.root.findByType('img').props.src).toBe('/_next/image?url=https%3A%2F%2Fexample.com%2Fb.jpg&w=3840&q=75')
   })
 
   it('keeps showing unavailable across a re-render with the SAME src (does not mask a real failure)', () => {
@@ -110,14 +111,18 @@ describe('PropertyPhoto', () => {
       root = TestRenderer.create(<PropertyPhoto src="https://example.com/a.jpg" size="card" />)
     })
     act(() => {
-      const img = root.root.findByType('img')
+      // Exercise the callback supplied to Image; its host handler wraps DOM events.
+      const img = root.root.findByType(Image)
       ;(img.props.onLoad as () => void)()
     })
     expect(root.root.findByType('img').props.className).not.toContain('opacity-0')
+    expect(root.root.findByType('figure').props['aria-busy']).toBe(false)
 
     act(() => {
       root.update(<PropertyPhoto src="https://example.com/b.jpg" size="card" />)
     })
+
+    expect(root.root.findByType('figure').props['aria-busy']).toBe(true)
 
     // A freshly-swapped src remains natively visible while its new skeleton sits behind it;
     // visibility must never depend on a JavaScript load event.
@@ -134,7 +139,7 @@ describe('PropertyPhoto', () => {
     act(() => {
       root = TestRenderer.create(
         <PropertyPhoto src="https://example.com/already-loaded.jpg" size="card" />,
-        { createNodeMock: () => ({ complete: true, naturalWidth: 400 }) },
+        { createNodeMock: () => ({ getAttribute: () => null, complete: true, naturalWidth: 400 }) },
       )
     })
 
@@ -149,7 +154,7 @@ describe('PropertyPhoto', () => {
     act(() => {
       root = TestRenderer.create(
         <PropertyPhoto src="https://example.com/already-broken.jpg" size="card" onFailure={onFailure} />,
-        { createNodeMock: () => ({ complete: true, naturalWidth: 0 }) },
+        { createNodeMock: () => ({ getAttribute: () => null, complete: true, naturalWidth: 0 }) },
       )
     })
 
@@ -163,7 +168,7 @@ describe('PropertyPhoto', () => {
     act(() => {
       root = TestRenderer.create(
         <PropertyPhoto src="https://example.com/still-loading.jpg" size="card" />,
-        { createNodeMock: () => ({ complete: false, naturalWidth: 0 }) },
+        { createNodeMock: () => ({ getAttribute: () => null, complete: false, naturalWidth: 0 }) },
       )
     })
 
@@ -180,7 +185,7 @@ describe('PropertyPhoto', () => {
     act(() => {
       root = TestRenderer.create(
         <PropertyPhoto src="https://example.com/a.jpg" size="card" />,
-        { createNodeMock: () => ({ complete: false, naturalWidth: 0 }) },
+        { createNodeMock: () => ({ getAttribute: () => null, complete: false, naturalWidth: 0 }) },
       )
     })
     triggerImgError(root)
