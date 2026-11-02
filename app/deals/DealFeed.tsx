@@ -225,6 +225,39 @@ function appendUniqueDeals(current: ApiDeal[], incoming: ApiDeal[]) {
   return { deals: [...current, ...unique], uniqueCount: unique.length }
 }
 
+// Load-more keeps every card already on screen and adds rows after them.
+function isAppendedDealPage(previous: ApiDeal[], next: ApiDeal[]): boolean {
+  return previous.length > 0
+    && next.length >= previous.length
+    && previous.every((deal, index) => next[index]?.id === deal.id)
+}
+
+// The destination the visible cards belong to. A single city is that result
+// set; several cities, or none, is the unscoped feed. Mock cards have no city.
+function destinationKeyForDeals(deals: ApiDeal[]): string {
+  let city: string | null = null
+  for (const deal of deals) {
+    if (!deal.city) continue
+    if (city === null) city = deal.city
+    else if (city !== deal.city) return 'all'
+  }
+  return city ?? 'all'
+}
+
+// Follows the cards on screen, not the filter city. The filter city updates
+// before replacement results arrive, and an appended page must not remount
+// cards that are already in the grid.
+function useDestinationGridKey(deals: ApiDeal[]): string {
+  const [scope, setScope] = useState(() => ({ key: destinationKeyForDeals(deals), deals }))
+  if (deals !== scope.deals) {
+    setScope({
+      key: isAppendedDealPage(scope.deals, deals) ? scope.key : destinationKeyForDeals(deals),
+      deals,
+    })
+  }
+  return scope.key
+}
+
 function SkeletonCard() {
   return (
     // Mirrors DealCard's block order and heights so the feed does not jump when
@@ -490,6 +523,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const dealMotion = useDealMotion()
   const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
+  const destinationGridKey = useDestinationGridKey(deals)
   const entranceDelay = useDealEntrance(deals.map(deal => deal.id))
   const [confirmedCoverage, setConfirmedCoverage] = useState<ConfirmedCoverage | null>(initialCoverage)
   const [loading, setLoading] = useState(!initialDeals)
@@ -1954,7 +1988,8 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               <div ref={gridRef} tabIndex={-1} aria-busy={loading || Boolean(pendingSort) || criteriaUpdating}
                 inert={loading || Boolean(pendingSort) || criteriaUpdating || undefined}
                 className={`${gridClass} relative outline-none`}>
-                <AnimatePresence initial={false} mode="popLayout">
+                {/* Remount when a replaced result set is a different destination, so the previous city's cards do not exit over the new ones. */}
+                <AnimatePresence key={destinationGridKey} initial={false} mode="popLayout">
                 {deals.map((deal, i) => (
                   <motion.div key={deal.id}
                     layout={dealMotion.enabled ? 'position' : false}
