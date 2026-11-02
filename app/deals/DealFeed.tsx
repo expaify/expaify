@@ -5,6 +5,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'motion/react'
 import { useDealEntrance, useDealMotion } from './DealMotion'
+import { DealLoadingTransition } from './DealLoadingTransition'
 import { DealCard } from '../components/ui/DealCard'
 import { FreeUnlockStatus } from '../components/ui/FreeUnlockStatus'
 import { isUnlockableDealId } from '@/lib/deals/unlockEligibility'
@@ -1905,11 +1906,12 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               refreshing={fundsPolicyRefreshing}
             />
 
-          {loading && deals.length === 0 ? (
+          <DealLoadingTransition loading={loading && deals.length === 0} skeleton={
             <div className={gridClass} aria-busy="true" aria-label="Hotel deals">
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
-          ) : error ? (
+          }>
+          {loading && deals.length === 0 ? null : error ? (
             <section role="alert" className="mx-auto max-w-[640px] rounded-[var(--radius-card)] border border-[color:var(--error)] bg-[color:var(--error-soft)] px-5 py-8 text-left sm:px-8 sm:py-10">
               <h3 ref={gridRef} tabIndex={-1} className="text-h3 text-[color:var(--text-1)] focus:outline-none">{initialLoadError ? 'Couldn\'t load hotel deals.' : 'We couldn\'t update these deals'}</h3>
               <p className="mt-2 text-body leading-6 text-[color:var(--text-2)]">{initialLoadError ? 'Check your connection and try again.' : 'We couldn\'t check this filter combination. Try the same filters again.'}</p>
@@ -2074,6 +2076,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               ) : null}
             </>
           )}
+          </DealLoadingTransition>
           </section>
           {criteriaEditorOpen ? (
             <HotelSearchCriteriaEditor
