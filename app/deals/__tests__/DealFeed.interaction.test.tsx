@@ -255,6 +255,17 @@ describe('DealFeed continuation interactions', () => {
     await act(async () => root.unmount())
   })
 
+  it('preserves Show all deals in history and detail links when stored preferences are bypassed', async () => {
+    await renderDealFeed({
+      personalization: { active: false, watchlist: ['Miami'], minDiscountPct: 40, alertPreference: 'daily' },
+    })
+    const calls = (window.history.replaceState as jest.Mock).mock.calls
+    const saved = new URL(calls[calls.length - 1][2], 'https://expaify.test')
+    expect(saved.searchParams.get('all')).toBe('1')
+    const detail = new URL(container.querySelector('[data-testid="deal-first"]')!.getAttribute('data-href')!, 'https://expaify.test')
+    expect(detail.searchParams.get('all')).toBe('1')
+  })
+
   it('keeps cleared destination/date criteria in the URL and detail links, including after undo', async () => {
     global.fetch = jest.fn((url: RequestInfo | URL) => Promise.resolve(
       responseFor(String(url), [deal('updated')], 'confirmed_end', null),

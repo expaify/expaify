@@ -30,6 +30,7 @@ const CRITERIA_SOURCES: ReadonlyArray<HotelSearchCriteriaV1['source']> = [
 export type HotelCriteriaContextStatus = 'matched' | 'mismatch' | 'missing' | 'invalid'
 
 export type HotelResultsViewState = {
+  all?: boolean
   minDiscount: number
   maxPriceCents: number | null
   minStars: number
@@ -200,6 +201,7 @@ export function buildHotelResultsUrl(
     if (criteria.dates.dateFrom) params.set('date_from', criteria.dates.dateFrom)
     if (criteria.dates.dateTo) params.set('date_to', criteria.dates.dateTo)
   }
+  if (view?.all) params.set('all', '1')
   if (view?.minDiscount !== undefined && view.minDiscount !== MIN_QUALIFYING_DISCOUNT_PCT) params.set('min_discount', String(view.minDiscount))
   if (view?.maxPriceCents) params.set('max_price_cents', String(view.maxPriceCents))
   if (view?.minStars) params.set('min_stars', String(view.minStars))
@@ -276,6 +278,7 @@ export function resolveHotelResultsView(source: SearchParamSource): HotelResults
     maxPriceCents: maxPriceCents || null,
     minStars,
     sort: sort as HotelResultsViewState['sort'],
+    ...(readSearchParam(source, 'all') === '1' ? { all: true } : {}),
   }
 }
 

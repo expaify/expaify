@@ -608,16 +608,18 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   }
 
   const personalizationActive = Boolean(personalization?.active)
+  // Persist the same scope used by client requests across reload and detail Back.
+  const allDestinationsOverride = Boolean(personalization && !personalization.active)
 
   useEffect(() => {
     if (criteriaUpdating || initialLoadError) return
-    const view = { minDiscount, maxPriceCents, minStars, sort: appliedSort }
+    const view = { minDiscount, maxPriceCents, minStars, sort: appliedSort, all: allDestinationsOverride }
     if (window.location.pathname === '/deals') {
       window.history.replaceState(null, '', buildHotelResultsUrl(criteria, view))
     } else if (defaultCity && window.location.pathname.startsWith('/destinations/')) {
       window.history.replaceState(null, '', buildHotelDestinationUrl(criteria, view))
     }
-  }, [appliedSort, criteria, criteriaUpdating, defaultCity, initialLoadError, maxPriceCents, minDiscount, minStars])
+  }, [allDestinationsOverride, appliedSort, criteria, criteriaUpdating, defaultCity, initialLoadError, maxPriceCents, minDiscount, minStars])
 
   const fetchDeals = useCallback(async (opts: DealFetchOpts, behavior: RequestBehavior = {}) => {
     const { append } = opts
@@ -968,7 +970,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       criteria_version: proposedVersion,
       result_count_bucket: resultCountBucket(response.deals.length),
     })
-    router.push(buildHotelResultsUrl(nextCriteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort }))
+    router.push(buildHotelResultsUrl(nextCriteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort, all: allDestinationsOverride }))
     window.requestAnimationFrame(() => resultStatusRef.current?.focus())
   }
 
@@ -1242,8 +1244,8 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
 
   const gridClass = 'grid grid-cols-1 gap-6 min-[680px]:grid-cols-2 min-[1024px]:grid-cols-3'
   const resultsUrl = defaultCity
-    ? buildHotelDestinationUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort })
-    : buildHotelResultsUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort })
+    ? buildHotelDestinationUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort, all: allDestinationsOverride })
+    : buildHotelResultsUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort, all: allDestinationsOverride })
   const researchResultsUrl = poolFixtureId
     ? `${resultsUrl}${resultsUrl.includes('?') ? '&' : '?'}poolFixture=${poolFixtureId}`
     : resultsUrl
