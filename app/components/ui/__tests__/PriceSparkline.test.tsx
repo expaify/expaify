@@ -136,3 +136,117 @@ describe('PriceSparkline accessibility', () => {
     )
   })
 })
+
+describe('PriceSparkline point tooltips', () => {
+  let container: HTMLDivElement
+  let root: import('react-dom/client').Root
+  const history = [
+    { date: '2026-06-01T12:00:00', price_cents: 32025 },
+    { date: '2026-06-08T12:00:00', price_cents: 29000 },
+    { date: '2026-06-15T12:00:00', price_cents: 26000 },
+  ]
+  const { act } = require('react') as typeof import('react')
+
+  beforeEach(async () => {
+    const { parseHTML } = require('linkedom')
+    const { window } = parseHTML('<html><body></body></html>')
+    Object.assign(globalThis, {
+      window, document: window.document, Event: window.Event,
+      HTMLElement: window.HTMLElement, Node: window.Node,
+      IS_REACT_ACT_ENVIRONMENT: true,
+    })
+    container = document.createElement('div')
+    document.body.append(container)
+    const { createRoot } = require('react-dom/client') as typeof import('react-dom/client')
+    root = createRoot(container)
+    await act(async () => root.render(
+      <PriceSparkline history={history} dealPriceCents={26000} medianPriceCents={29000} />,
+    ))
+  })
+
+  afterEach(async () => { await act(async () => root.unmount()) })
+
+  async function dispatch(element: Element, type: string) {
+    await act(async () => { element.dispatchEvent(new Event(type, { bubbles: true })) })
+  }
+
+  it('shows the exact formatted date and price on pointer hover, and hides on leave', async () => {
+    const buttons = container.querySelectorAll('button')
+    expect(buttons).toHaveLength(history.length)
+    expect(container.querySelector('[role="tooltip"]')).toBeNull()
+    await dispatch(buttons[0], 'pointerover')
+    expect(container.querySelector('[role="tooltip"]')?.textContent).toBe('Jun 1: $320.25')
+    const escape = new Event('keydown', { bubbles: true })
+    Object.defineProperty(escape, 'key', { value: 'Escape' })
+    await act(async () => { document.dispatchEvent(escape) })
+    expect(container.querySelector('[role="tooltip"]')).toBeNull()
+    await dispatch(buttons[0], 'pointerout')
+    await dispatch(buttons[0], 'pointerover')
+    expect(container.querySelector('[role="tooltip"]')).not.toBeNull()
+    await dispatch(buttons[0], 'pointerout')
+    expect(container.querySelector('[role="tooltip"]')).toBeNull()
+  })
+
+  it('exposes every point through roving focus outside the hidden SVG and shows its tooltip on focus', async () => {
+    const buttons = container.querySelectorAll('button')
+    for (const [index, button] of Array.from(buttons).entries()) {
+      expect(button.closest('[aria-hidden="true"]')).toBeNull()
+      await dispatch(button, 'focusin')
+      expect(button.getAttribute('tabindex')).toBe('0')
+      expect(container.querySelectorAll('button[tabindex="0"]')).toHaveLength(1)
+      expect(container.querySelector('[role="tooltip"]')?.textContent).toBe(button.getAttribute('aria-label'))
+      expect(button.getAttribute('aria-label')).toContain(['Jun 1', 'Jun 8', 'Jun 15'][index])
+      await dispatch(button, 'focusout')
+      expect(container.querySelector('[role="tooltip"]')).toBeNull()
+    }
+    expect(container.querySelector('p.sr-only')?.textContent).toContain('Price history')
+    expect(container.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('starts at the highlighted deal point and moves focus with clamped left/right arrows', async () => {
+    const buttons = Array.from(container.querySelectorAll('button'))
+    // Linkedom does not implement browser focus transitions; model them while
+    // spying on the actual DOM focus calls made by the component.
+    const focusSpies = buttons.map(button => jest.spyOn(button, 'focus').mockImplementation(() => {
+      button.dispatchEvent(new Event('focusin', { bubbles: true }))
+    }))
+    const expectTabStop = (index: number) => {
+      expect(buttons.map(button => button.getAttribute('tabindex'))).toEqual(
+        buttons.map((_, i) => i === index ? '0' : '-1'),
+      )
+    }
+    expectTabStop(2)
+    expect(buttons[2].closest('[role="group"]')?.getAttribute('aria-label')).toBe(
+      'Price history, use left and right arrow keys to move between points',
+    )
+    await dispatch(buttons[2], 'focusin')
+    for (const [from, key, to] of [
+      [2, 'ArrowRight', 2], [2, 'ArrowLeft', 1], [1, 'ArrowLeft', 0],
+      [0, 'ArrowLeft', 0], [0, 'ArrowRight', 1],
+    ] as const) {
+      focusSpies.forEach(spy => spy.mockClear())
+      const event = new Event('keydown', { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'key', { value: key })
+      await act(async () => { buttons[from].dispatchEvent(event) })
+      expect(event.defaultPrevented).toBe(true)
+      expect(focusSpies[to]).toHaveBeenCalledTimes(1)
+      expectTabStop(to)
+      expect(container.querySelector('[role="tooltip"]')?.textContent).toBe(buttons[to].getAttribute('aria-label'))
+    }
+    await dispatch(buttons[1], 'focusout')
+    expectTabStop(1)
+    focusSpies.forEach(spy => spy.mockRestore())
+  })
+
+  it('retains a focused tooltip after pointer leave and allows Escape dismissal', async () => {
+    const button = container.querySelectorAll('button')[1]
+    await dispatch(button, 'focusin')
+    await dispatch(button, 'pointerover')
+    await dispatch(button, 'pointerout')
+    expect(container.querySelector('[role="tooltip"]')?.textContent).toBe('Jun 8: $290')
+    const escape = new Event('keydown', { bubbles: true })
+    Object.defineProperty(escape, 'key', { value: 'Escape' })
+    await act(async () => { button.dispatchEvent(escape) })
+    expect(container.querySelector('[role="tooltip"]')).toBeNull()
+  })
+})
