@@ -4,7 +4,7 @@ import { MIN_QUALIFYING_DISCOUNT_PCT } from '@/lib/deals/threshold'
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'motion/react'
-import { useDealMotion } from './DealMotion'
+import { useDealEntrance, useDealMotion } from './DealMotion'
 import { DealCard } from '../components/ui/DealCard'
 import { FreeUnlockStatus } from '../components/ui/FreeUnlockStatus'
 import { isUnlockableDealId } from '@/lib/deals/unlockEligibility'
@@ -490,6 +490,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   const dealMotion = useDealMotion()
   const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
+  const entranceDelay = useDealEntrance(deals.map(deal => deal.id))
   const [confirmedCoverage, setConfirmedCoverage] = useState<ConfirmedCoverage | null>(initialCoverage)
   const [loading, setLoading] = useState(!initialDeals)
   const [error, setError] = useState(initialError)
@@ -1957,10 +1958,14 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 {deals.map((deal, i) => (
                   <motion.div key={deal.id}
                     layout={dealMotion.enabled ? 'position' : false}
-                    initial={dealMotion.enabled ? { opacity: 0, scale: 0.98 } : false}
-                    animate={dealMotion.enabled ? { opacity: 1, scale: 1 } : undefined}
+                    initial={dealMotion.enabled ? { opacity: 0, scale: 0.98, y: 12 } : false}
+                    animate={dealMotion.enabled ? { opacity: 1, scale: 1, y: 0 } : undefined}
                     exit={dealMotion.enabled ? { opacity: 0, scale: 0.98 } : undefined}
-                    transition={dealMotion.transition}
+                    transition={{
+                      ...dealMotion.transition,
+                      opacity: { ...dealMotion.transition, delay: dealMotion.enabled ? entranceDelay(deal.id) : 0 },
+                      y: { ...dealMotion.transition, delay: dealMotion.enabled ? entranceDelay(deal.id) : 0 },
+                    }}
                     className="min-w-0"
                   >
                     {deal.locked ? (

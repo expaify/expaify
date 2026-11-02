@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useReducedMotion } from 'motion/react'
 
 // Match the shared CSS token before hydration, then read its active theme value.
@@ -20,4 +20,13 @@ export function useDealMotion() {
   // Unknown preference (SSR) is deliberately static as well.
   const enabled = reducedMotion === false
   return { enabled, transition: { duration: enabled ? 0.3 : 0, ease } }
+}
+
+// Presentation bookkeeping only: delay new cards relative to their own batch,
+// never their absolute offset, and never delay a retained card's layout move.
+export function useDealEntrance(ids: string[]) {
+  const previous = useRef(new Set(ids))
+  const entering = ids.filter(id => !previous.current.has(id))
+  useEffect(() => { previous.current = new Set(ids) }, [ids])
+  return (id: string) => Math.max(0, Math.min(entering.indexOf(id), 10)) * 0.03
 }
