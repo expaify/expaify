@@ -806,7 +806,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     minStars?: number
     dateFrom?: string
     dateTo?: string
-  }, recovery?: { key: HotelFilterKey | 'reset'; kind: 'single' | 'reset' }) {
+  }, recovery?: { key: HotelFilterKey | 'reset'; kind: 'single' | 'reset' }, retryKey?: FilterPillKey) {
     const currentFilters: HotelFilterState = { city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo }
     const nextCity = next.city ?? city
     const nextDiscount = next.minDiscount ?? minDiscount
@@ -822,10 +822,10 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       dateFrom: nextDateFrom,
       dateTo: nextDateTo,
     }
-    const plainFilterKey: FilterPillKey | null =
+    const plainFilterKey: FilterPillKey | null = retryKey ?? (
       next.minDiscount !== undefined ? 'minDiscount' :
       next.minStars !== undefined ? 'minStars' :
-      next.maxPriceCents !== undefined ? 'maxPrice' : null
+      next.maxPriceCents !== undefined ? 'maxPrice' : null)
 
     setSortMenuOpen(false)
     setPremiumExplanationOpen(false)
@@ -886,10 +886,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
 
   function retryFailedFilter() {
     if (!failedFilter) return
-    const attempted = failedFilter.attempted
-    if (failedFilter.key === 'minDiscount') applyFilter({ minDiscount: attempted.minDiscount })
-    else if (failedFilter.key === 'minStars') applyFilter({ minStars: attempted.minStars })
-    else applyFilter({ maxPriceCents: attempted.maxPriceCents })
+    applyFilter(failedFilter.attempted, undefined, failedFilter.key)
   }
 
   function openFilterExplanation(key: FilterPillKey) {

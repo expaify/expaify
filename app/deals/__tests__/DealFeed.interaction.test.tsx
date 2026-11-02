@@ -13,7 +13,11 @@ jest.mock('next/link', () => ({
 }))
 
 jest.mock('@/lib/analytics', () => ({ track: jest.fn() }))
-jest.mock('@/app/components/ui/SearchBar', () => ({ SearchBar: () => null }))
+jest.mock('@/app/components/ui/SearchBar', () => ({
+  SearchBar: ({ onResult }: { onResult: (filters: Record<string, unknown>, query: string) => void }) => (
+    <button onClick={() => onResult({ city: 'Nashville', min_discount: 40, min_stars: 4, max_price: 150, date_from: '2027-01-01' }, 'Nashville hotels')}>Submit parsed search</button>
+  ),
+}))
 jest.mock('@/app/components/HotelSearchCriteria', () => ({
   HotelSearchCriteriaEditor: () => null,
   HotelSearchCriteriaSummary: () => null,
@@ -253,6 +257,23 @@ describe('DealFeed continuation interactions', () => {
     if (!root) return
     const { act } = require('react') as typeof import('react')
     await act(async () => root.unmount())
+  })
+
+  it('retries every criterion of a failed multi-filter search', async () => {
+    global.fetch = jest.fn()
+      .mockRejectedValueOnce(new Error('temporary network failure'))
+      .mockImplementation((url: RequestInfo | URL) => Promise.resolve(responseFor(String(url), [deal('retried')], 'confirmed_end', null)))
+    await renderDealFeed()
+    await activate(buttonNamed('Submit parsed search'), 'click')
+    await waitFor(() => expect(textContent()).toContain("Couldn't apply that filter"))
+    await activate(buttonNamed('Retry'), 'click')
+    await waitFor(() => expect(textContent()).toContain('Hotel retried'))
+    const calls = (global.fetch as jest.Mock).mock.calls
+    const original = new URL(calls[0][0], 'https://expaify.test')
+    const retried = new URL(calls[1][0], 'https://expaify.test')
+    for (const key of ['city', 'min_discount', 'min_stars', 'max_price_cents', 'date_from']) {
+      expect(retried.searchParams.get(key)).toBe(original.searchParams.get(key))
+    }
   })
 
   it('preserves Show all deals in history and detail links when stored preferences are bypassed', async () => {
