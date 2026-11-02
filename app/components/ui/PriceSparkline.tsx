@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type Point = { date: string; price_cents: number }
 
@@ -79,6 +79,8 @@ function describeTrend(history: Point[], dealPriceCents: number, medianPriceCent
 }
 
 export function PriceSparkline({ history, dealPriceCents, medianPriceCents }: Props) {
+  const pointRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const [rovingIndex, setRovingIndex] = useState<number | null>(null)
   const [hovered, setHovered] = useState<number | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
   const [dismissed, setDismissed] = useState(false)
@@ -124,6 +126,7 @@ export function PriceSparkline({ history, dealPriceCents, medianPriceCents }: Pr
   // Find the point closest to deal price
   const dealIdx = history.reduce((best, p, i) =>
     Math.abs(p.price_cents - dealPriceCents) < Math.abs(history[best].price_cents - dealPriceCents) ? i : best, 0)
+  const tabStop = rovingIndex !== null && rovingIndex < history.length ? rovingIndex : dealIdx
   const dotX = xScale(dealIdx)
   const dotY = yScale(history[dealIdx].price_cents)
 
@@ -139,7 +142,7 @@ export function PriceSparkline({ history, dealPriceCents, medianPriceCents }: Pr
       {/* The SVG is purely decorative -- the real data is exposed to assistive
           tech via the sr-only paragraph below, computed from the same props. */}
       <p className="sr-only">{trendDescription}</p>
-      <div className="relative">
+      <div className="relative" role="group" aria-label="Price history, use left and right arrow keys to move between points">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full overflow-visible"
@@ -181,9 +184,18 @@ export function PriceSparkline({ history, dealPriceCents, medianPriceCents }: Pr
         >
           <button
             type="button"
+            ref={node => { pointRefs.current[index] = node }}
+            tabIndex={index === tabStop ? 0 : -1}
+            onKeyDown={event => {
+              if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+              event.preventDefault()
+              const nextIndex = Math.max(0, Math.min(history.length - 1, index + (event.key === 'ArrowRight' ? 1 : -1)))
+              setRovingIndex(nextIndex)
+              pointRefs.current[nextIndex]?.focus()
+            }}
             aria-label={`${formatShortDate(point.date)}: ${formatCents(point.price_cents)}`}
             className="block h-4 w-4 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--primary)]"
-            onFocus={() => { setFocused(index); setDismissed(false) }}
+            onFocus={() => { setRovingIndex(index); setFocused(index); setDismissed(false) }}
             onBlur={() => setFocused(null)}
             onClick={() => { setFocused(index); setDismissed(false) }}
           />
