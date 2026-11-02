@@ -21,6 +21,7 @@ import {
   createHotelCriteriaVersion,
   formatHotelCriteriaDates,
   hotelCriteriaFromDraft,
+  hotelCriteriaDraftChanged,
   hotelCriteriaToDraft,
   resolveHotelResultsView,
   resolveHotelSearchCriteria,
@@ -652,7 +653,10 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     if (opts.minStars > 0) params.set('min_stars', String(opts.minStars))
     if (opts.dateFrom) params.set('date_from', opts.dateFrom)
     if (opts.dateTo) params.set('date_to', opts.dateTo)
-    const requestCriteria = opts.criteriaRequest ?? criteria
+    const requestDraft = { city: opts.city, dateFrom: opts.dateFrom, dateTo: opts.dateTo }
+    const requestCriteria = opts.criteriaRequest ?? (hotelCriteriaDraftChanged(criteria, requestDraft)
+      ? hotelCriteriaFromDraft(requestDraft, createHotelCriteriaVersion(), 'edit')
+      : criteria)
     params.set('criteriaSchema', String(requestCriteria.schemaVersion))
     params.set('criteriaVersion', requestCriteria.criteriaVersion)
     params.set('criteriaSource', requestCriteria.source)
@@ -724,7 +728,10 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
           setCoverageAnnouncement(`${liveDeals.length} ${liveDeals.length === 1 ? 'deal' : 'deals'} shown.`)
         }
       }
-      if (!append) setResultMetadata(parsedMetadata)
+      if (!append) {
+        setResultMetadata(parsedMetadata)
+        setCriteria(requestCriteria)
+      }
       setPremium(Boolean(data.premium))
       if (behavior.undoOnSuccess) setUndoSnapshot(behavior.undoOnSuccess)
       if (behavior.successKind === 'undo') {
