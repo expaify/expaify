@@ -13,7 +13,11 @@ jest.mock('next/link', () => ({
 }))
 
 jest.mock('@/lib/analytics', () => ({ track: jest.fn() }))
-jest.mock('@/app/components/ui/SearchBar', () => ({ SearchBar: () => null }))
+jest.mock('@/app/components/ui/SearchBar', () => ({
+  SearchBar: ({ onResult }: { onResult: (filters: Record<string, unknown>, query: string) => void }) => (
+    <button onClick={() => onResult({ city: 'Nashville', min_discount: 40, min_stars: 4, max_price: 150, date_from: '2027-01-01' }, 'Nashville hotels')}>Submit parsed search</button>
+  ),
+}))
 jest.mock('@/app/components/HotelSearchCriteria', () => ({
   HotelSearchCriteriaEditor: () => null,
   HotelSearchCriteriaSummary: () => null,
@@ -29,7 +33,7 @@ jest.mock('@/app/components/ui/LockedDealCard', () => ({
   ),
 }))
 jest.mock('../HotelRecoveryUI', () => ({
-  HotelResultStatus: () => null,
+  HotelResultStatus: ({ onUndo }: { onUndo?: () => void }) => onUndo ? <button onClick={onUndo}>Undo</button> : null,
 }))
 
 type ObserverCallback = (entries: Array<{ isIntersecting: boolean }>) => void
@@ -253,6 +257,66 @@ describe('DealFeed continuation interactions', () => {
     if (!root) return
     const { act } = require('react') as typeof import('react')
     await act(async () => root.unmount())
+  })
+
+  it('retries every criterion of a failed multi-filter search', async () => {
+    global.fetch = jest.fn()
+      .mockRejectedValueOnce(new Error('temporary network failure'))
+      .mockImplementation((url: RequestInfo | URL) => Promise.resolve(responseFor(String(url), [deal('retried')], 'confirmed_end', null)))
+    await renderDealFeed()
+    await activate(buttonNamed('Submit parsed search'), 'click')
+    await waitFor(() => expect(textContent()).toContain("Couldn't apply that filter"))
+    await activate(buttonNamed('Retry'), 'click')
+    await waitFor(() => expect(textContent()).toContain('Hotel retried'))
+    const calls = (global.fetch as jest.Mock).mock.calls
+    const original = new URL(calls[0][0], 'https://expaify.test')
+    const retried = new URL(calls[1][0], 'https://expaify.test')
+    for (const key of ['city', 'min_discount', 'min_stars', 'max_price_cents', 'date_from']) {
+      expect(retried.searchParams.get(key)).toBe(original.searchParams.get(key))
+    }
+  })
+
+  it('preserves Show all deals in history and detail links when stored preferences are bypassed', async () => {
+    await renderDealFeed({
+      personalization: { active: false, watchlist: ['Miami'], minDiscountPct: 40, alertPreference: 'daily' },
+    })
+    const calls = (window.history.replaceState as jest.Mock).mock.calls
+    const saved = new URL(calls[calls.length - 1][2], 'https://expaify.test')
+    expect(saved.searchParams.get('all')).toBe('1')
+    const detail = new URL(container.querySelector('[data-testid="deal-first"]')!.getAttribute('data-href')!, 'https://expaify.test')
+    expect(detail.searchParams.get('all')).toBe('1')
+  })
+
+  it('keeps cleared destination/date criteria in the URL and detail links, including after undo', async () => {
+    global.fetch = jest.fn((url: RequestInfo | URL) => Promise.resolve(
+      responseFor(String(url), [deal('updated')], 'confirmed_end', null),
+    ))
+    await renderDealFeed({
+      initialCriteria: {
+        schemaVersion: 1, criteriaVersion: 'criteria_original', source: 'deals_page',
+        destination: { state: 'selected', city: 'Miami' },
+        dates: { semantic: 'checkin_window', dateFrom: '2027-01-01' },
+        occupancy: { state: 'not_captured' },
+      },
+    })
+    await activate(buttonNamed('Clear all filters'), 'click')
+    await waitFor(() => expect(container.querySelector('[data-testid="deal-updated"]')).not.toBeNull())
+    const request = new URL((global.fetch as jest.Mock).mock.calls[0][0], 'https://expaify.test')
+    expect(request.searchParams.has('city')).toBe(false)
+    expect(request.searchParams.has('date_from')).toBe(false)
+    const detail = new URL(container.querySelector('[data-testid="deal-updated"]')!.getAttribute('data-href')!, 'https://expaify.test')
+    expect(detail.searchParams.has('city')).toBe(false)
+    expect(detail.searchParams.has('date_from')).toBe(false)
+    const historyCalls = (window.history.replaceState as jest.Mock).mock.calls
+    const saved = new URL(historyCalls[historyCalls.length - 1][2], 'https://expaify.test')
+    expect(saved.searchParams.has('city')).toBe(false)
+    expect(saved.searchParams.has('date_from')).toBe(false)
+    await activate(buttonNamed('Undo'), 'click')
+    await waitFor(() => {
+      const restored = new URL(container.querySelector('[data-testid="deal-updated"]')!.getAttribute('data-href')!, 'https://expaify.test')
+      expect(restored.searchParams.get('city')).toBe('Miami')
+      expect(restored.searchParams.get('date_from')).toBe('2027-01-01')
+    })
   })
 
   it.each([

@@ -12,6 +12,15 @@ import {
 } from '../searchCriteria'
 
 describe('HotelSearchCriteriaV1', () => {
+  it('preserves the all-destinations override on the detail-to-results round trip', () => {
+    const criteria = hotelCriteriaFromDraft({ city: '', dateFrom: '', dateTo: '' }, 'criteria_all')
+    const params = new URLSearchParams('all=1&min_stars=4')
+    const view = resolveHotelResultsView(params)!
+    const back = new URL(buildHotelBackUrl(criteria, view, params), 'https://expaify.test')
+    expect(back.searchParams.get('all')).toBe('1')
+    expect(back.searchParams.get('min_stars')).toBe('4')
+  })
+
   it('formats check-in windows without implying an exact stay', () => {
     expect(formatHotelCriteriaDates({ semantic: 'checkin_window', dateFrom: '2026-09-10', dateTo: '2026-09-13' })).toBe('Check in Sep 10–13')
     expect(formatHotelCriteriaDates({ semantic: 'checkin_window', dateFrom: '2026-09-28', dateTo: '2026-10-03' })).toBe('Check in Sep 28–Oct 3')

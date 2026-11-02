@@ -243,6 +243,14 @@ describe('GET /api/deals — tracked-hotels fallback locking', () => {
     mockGetSubscription.mockResolvedValue(null)
   })
 
+  it.each(['price', 'discount'])('does not replace an empty premium %s sort with unranked fallback hotels', async sort => {
+    mockGetPaywallContext.mockResolvedValue({ userId: 'premium-user', premium: true, freeUnlockedThisWeek: 0, freeUnlockLimit: 3 })
+    mockGetTrackedHotels.mockResolvedValue([trackedRow('unranked')])
+    const response = await GET(request(`sort=${sort}`))
+    expect((await response.json()).deals).toEqual([])
+    expect(mockGetTrackedHotels).not.toHaveBeenCalled()
+  })
+
   it('keeps a personally-unlocked tracked-hotel deal outside the stable free set unlocked', async () => {
     mockGetPaywallContext.mockResolvedValue({
       userId: 'user-1', premium: false, freeUnlockedThisWeek: 1, freeUnlockLimit: 3,

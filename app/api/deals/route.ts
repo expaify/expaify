@@ -162,7 +162,7 @@ export async function GET(req: NextRequest) {
     searchParams.get('market_id') ||
     searchParams.get('date_from') ||
     searchParams.get('date_to') ||
-    (pwCtx.premium && (searchParams.get('max_price_cents') || searchParams.get('min_stars') || minDiscount !== MIN_QUALIFYING_DISCOUNT_PCT))
+    (pwCtx.premium && (sort !== 'newest' || searchParams.get('max_price_cents') || searchParams.get('min_stars') || minDiscount !== MIN_QUALIFYING_DISCOUNT_PCT))
   )
 
   // Support filtering by city name (resolve to market_id)

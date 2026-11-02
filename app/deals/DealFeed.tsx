@@ -21,6 +21,7 @@ import {
   createHotelCriteriaVersion,
   formatHotelCriteriaDates,
   hotelCriteriaFromDraft,
+  hotelCriteriaDraftChanged,
   hotelCriteriaToDraft,
   resolveHotelResultsView,
   resolveHotelSearchCriteria,
@@ -607,16 +608,18 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
   }
 
   const personalizationActive = Boolean(personalization?.active)
+  // Persist the same scope used by client requests across reload and detail Back.
+  const allDestinationsOverride = Boolean(personalization && !personalization.active)
 
   useEffect(() => {
     if (criteriaUpdating || initialLoadError) return
-    const view = { minDiscount, maxPriceCents, minStars, sort: appliedSort }
+    const view = { minDiscount, maxPriceCents, minStars, sort: appliedSort, all: allDestinationsOverride }
     if (window.location.pathname === '/deals') {
       window.history.replaceState(null, '', buildHotelResultsUrl(criteria, view))
     } else if (defaultCity && window.location.pathname.startsWith('/destinations/')) {
       window.history.replaceState(null, '', buildHotelDestinationUrl(criteria, view))
     }
-  }, [appliedSort, criteria, criteriaUpdating, defaultCity, initialLoadError, maxPriceCents, minDiscount, minStars])
+  }, [allDestinationsOverride, appliedSort, criteria, criteriaUpdating, defaultCity, initialLoadError, maxPriceCents, minDiscount, minStars])
 
   const fetchDeals = useCallback(async (opts: DealFetchOpts, behavior: RequestBehavior = {}) => {
     const { append } = opts
@@ -652,7 +655,10 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     if (opts.minStars > 0) params.set('min_stars', String(opts.minStars))
     if (opts.dateFrom) params.set('date_from', opts.dateFrom)
     if (opts.dateTo) params.set('date_to', opts.dateTo)
-    const requestCriteria = opts.criteriaRequest ?? criteria
+    const requestDraft = { city: opts.city, dateFrom: opts.dateFrom, dateTo: opts.dateTo }
+    const requestCriteria = opts.criteriaRequest ?? (hotelCriteriaDraftChanged(criteria, requestDraft)
+      ? hotelCriteriaFromDraft(requestDraft, createHotelCriteriaVersion(), 'edit')
+      : criteria)
     params.set('criteriaSchema', String(requestCriteria.schemaVersion))
     params.set('criteriaVersion', requestCriteria.criteriaVersion)
     params.set('criteriaSource', requestCriteria.source)
@@ -724,7 +730,10 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
           setCoverageAnnouncement(`${liveDeals.length} ${liveDeals.length === 1 ? 'deal' : 'deals'} shown.`)
         }
       }
-      if (!append) setResultMetadata(parsedMetadata)
+      if (!append) {
+        setResultMetadata(parsedMetadata)
+        setCriteria(requestCriteria)
+      }
       setPremium(Boolean(data.premium))
       if (behavior.undoOnSuccess) setUndoSnapshot(behavior.undoOnSuccess)
       if (behavior.successKind === 'undo') {
@@ -797,7 +806,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
     minStars?: number
     dateFrom?: string
     dateTo?: string
-  }, recovery?: { key: HotelFilterKey | 'reset'; kind: 'single' | 'reset' }) {
+  }, recovery?: { key: HotelFilterKey | 'reset'; kind: 'single' | 'reset' }, retryKey?: FilterPillKey) {
     const currentFilters: HotelFilterState = { city, minDiscount, maxPriceCents, minStars, dateFrom, dateTo }
     const nextCity = next.city ?? city
     const nextDiscount = next.minDiscount ?? minDiscount
@@ -813,10 +822,10 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       dateFrom: nextDateFrom,
       dateTo: nextDateTo,
     }
-    const plainFilterKey: FilterPillKey | null =
+    const plainFilterKey: FilterPillKey | null = retryKey ?? (
       next.minDiscount !== undefined ? 'minDiscount' :
       next.minStars !== undefined ? 'minStars' :
-      next.maxPriceCents !== undefined ? 'maxPrice' : null
+      next.maxPriceCents !== undefined ? 'maxPrice' : null)
 
     setSortMenuOpen(false)
     setPremiumExplanationOpen(false)
@@ -877,10 +886,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
 
   function retryFailedFilter() {
     if (!failedFilter) return
-    const attempted = failedFilter.attempted
-    if (failedFilter.key === 'minDiscount') applyFilter({ minDiscount: attempted.minDiscount })
-    else if (failedFilter.key === 'minStars') applyFilter({ minStars: attempted.minStars })
-    else applyFilter({ maxPriceCents: attempted.maxPriceCents })
+    applyFilter(failedFilter.attempted, undefined, failedFilter.key)
   }
 
   function openFilterExplanation(key: FilterPillKey) {
@@ -961,7 +967,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
       criteria_version: proposedVersion,
       result_count_bucket: resultCountBucket(response.deals.length),
     })
-    router.push(buildHotelResultsUrl(nextCriteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort }))
+    router.push(buildHotelResultsUrl(nextCriteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort, all: allDestinationsOverride }))
     window.requestAnimationFrame(() => resultStatusRef.current?.focus())
   }
 
@@ -1235,8 +1241,8 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
 
   const gridClass = 'grid grid-cols-1 gap-6 min-[680px]:grid-cols-2 min-[1024px]:grid-cols-3'
   const resultsUrl = defaultCity
-    ? buildHotelDestinationUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort })
-    : buildHotelResultsUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort })
+    ? buildHotelDestinationUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort, all: allDestinationsOverride })
+    : buildHotelResultsUrl(criteria, { minDiscount, maxPriceCents, minStars, sort: appliedSort, all: allDestinationsOverride })
   const researchResultsUrl = poolFixtureId
     ? `${resultsUrl}${resultsUrl.includes('?') ? '&' : '?'}poolFixture=${poolFixtureId}`
     : resultsUrl
