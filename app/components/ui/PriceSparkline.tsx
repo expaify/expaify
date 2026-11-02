@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+
 type Point = { date: string; price_cents: number }
 
 type Props = {
@@ -77,6 +79,20 @@ function describeTrend(history: Point[], dealPriceCents: number, medianPriceCent
 }
 
 export function PriceSparkline({ history, dealPriceCents, medianPriceCents }: Props) {
+  const [hovered, setHovered] = useState<number | null>(null)
+  const [focused, setFocused] = useState<number | null>(null)
+  const [dismissed, setDismissed] = useState(false)
+  const active = dismissed ? null : hovered ?? focused
+
+  useEffect(() => {
+    if (active === null) return
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDismissed(true)
+    }
+    document.addEventListener('keydown', dismiss)
+    return () => document.removeEventListener('keydown', dismiss)
+  }, [active])
+
   if (history.length < 2) {
     return (
       <div className="flex h-[80px] items-center justify-center rounded-[var(--radius-input)] bg-[color:var(--surface)] text-small text-[color:var(--ink-faint)]">
@@ -123,6 +139,7 @@ export function PriceSparkline({ history, dealPriceCents, medianPriceCents }: Pr
       {/* The SVG is purely decorative -- the real data is exposed to assistive
           tech via the sr-only paragraph below, computed from the same props. */}
       <p className="sr-only">{trendDescription}</p>
+      <div className="relative">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full overflow-visible"
@@ -152,6 +169,35 @@ export function PriceSparkline({ history, dealPriceCents, medianPriceCents }: Pr
         {/* Deal price dot */}
         <circle cx={dotX} cy={dotY} r="5" fill="var(--gold-deep)" stroke="var(--surface)" strokeWidth="2" />
       </svg>
+      {/* HTML controls stay outside the aria-hidden decorative SVG. Percentage
+          coordinates track its responsive viewBox without changing the drawing. */}
+      {history.map((point, index) => (
+        <div
+          key={`${point.date}-${index}`}
+          className="absolute -translate-x-1/2 -translate-y-1/2"
+          style={{ left: `${xScale(index) / W * 100}%`, top: `${yScale(point.price_cents) / H * 100}%` }}
+          onPointerEnter={() => { setHovered(index); setDismissed(false) }}
+          onPointerLeave={() => setHovered(null)}
+        >
+          <button
+            type="button"
+            aria-label={`${formatShortDate(point.date)}: ${formatCents(point.price_cents)}`}
+            className="block h-4 w-4 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--primary)]"
+            onFocus={() => { setFocused(index); setDismissed(false) }}
+            onBlur={() => setFocused(null)}
+            onClick={() => { setFocused(index); setDismissed(false) }}
+          />
+          {active === index && (
+            <span
+              role="tooltip"
+              className={`absolute bottom-full z-10 whitespace-nowrap rounded-[var(--radius-input)] bg-[color:var(--surface)] px-2 py-1 text-caption text-[color:var(--ink)] shadow-sm ${index === 0 ? 'left-0' : index === history.length - 1 ? 'right-0' : 'left-1/2 -translate-x-1/2'}`}
+            >
+              {formatShortDate(point.date)}: {formatCents(point.price_cents)}
+            </span>
+          )}
+        </div>
+      ))}
+      </div>
 
       <div className="mt-1 flex flex-wrap justify-between gap-x-3 text-caption text-[color:var(--ink-faint)]">
         <span>{startDate}</span>
