@@ -36,6 +36,12 @@ jest.mock('../HotelRecoveryUI', () => ({
   HotelResultStatus: ({ onUndo }: { onUndo?: () => void }) => onUndo ? <button onClick={onUndo}>Undo</button> : null,
 }))
 
+// Exercise the real motion wrappers with reduced motion in this DOM harness.
+jest.mock('motion/react', () => ({
+  ...jest.requireActual('motion/react'),
+  useReducedMotion: () => true,
+}))
+
 type ObserverCallback = (entries: Array<{ isIntersecting: boolean }>) => void
 
 class IntersectionObserverDouble {
@@ -257,6 +263,25 @@ describe('DealFeed continuation interactions', () => {
     if (!root) return
     const { act } = require('react') as typeof import('react')
     await act(async () => root.unmount())
+  })
+
+  it('retains the mounted grid while filtering, then renders exactly the response with reduced motion', async () => {
+    const pending = deferred<Response>()
+    global.fetch = jest.fn(() => pending.promise)
+    await renderDealFeed({ initialDeals: [deal('first'), deal('removed')] })
+    const retained = container.querySelector('[data-testid="deal-first"]')!
+    await activate(buttonNamed('Submit parsed search'), 'click')
+    expect(container.querySelector('[data-testid="deal-first"]')).toBe(retained)
+    expect(retained.closest('[inert]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="Loading updated hotel deals"]')).toBeNull()
+    pending.resolve(responseFor((global.fetch as jest.Mock).mock.calls[0][0], [deal('new'), deal('first')], 'confirmed_end', null))
+    await waitFor(() => expect(container.querySelector('[data-testid="deal-new"]')).not.toBeNull())
+    expect(Array.from(container.querySelectorAll('[data-testid^="deal-"]')).map(node => node.getAttribute('data-testid')))
+      .toEqual(['deal-new', 'deal-first'])
+    expect(container.querySelector('[data-testid="deal-first"]')).toBe(retained)
+    expect(retained.closest('[inert]')).toBeNull()
+    expect(retained.parentElement?.style.transform || '').toBe('')
+    expect(retained.parentElement?.style.opacity || '').toBe('')
   })
 
   it('retries every criterion of a failed multi-filter search', async () => {
