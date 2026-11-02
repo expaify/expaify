@@ -3,6 +3,8 @@
 import { MIN_QUALIFYING_DISCOUNT_PCT } from '@/lib/deals/threshold'
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { AnimatePresence, motion } from 'motion/react'
+import { useDealMotion } from './DealMotion'
 import { DealCard } from '../components/ui/DealCard'
 import { FreeUnlockStatus } from '../components/ui/FreeUnlockStatus'
 import { isUnlockableDealId } from '@/lib/deals/unlockEligibility'
@@ -485,6 +487,7 @@ type DealFeedProps = {
 }
 
 export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCity, premium: premiumProp = false, signedIn = false, freeUnlockedThisWeek = 0, freeUnlockLimit = 3, personalization, initialCriteria, initialView, initialError = false, initialCoverage = null, poolFixtureId = null }: DealFeedProps = {}) {
+  const dealMotion = useDealMotion()
   const router = useRouter()
   const [deals, setDeals] = useState<ApiDeal[]>(initialDeals ?? [])
   const [confirmedCoverage, setConfirmedCoverage] = useState<ConfirmedCoverage | null>(initialCoverage)
@@ -1867,37 +1870,7 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
               refreshing={fundsPolicyRefreshing}
             />
 
-          {criteriaUpdating && deals.length > 0 ? (
-            <>
-              <div className={`${gridClass} mb-6`} aria-label="Loading updated hotel deals">
-                {Array.from({ length: Math.min(Math.max(deals.length, 3), 6) }).map((_, i) => <SkeletonCard key={`criteria-${i}`} />)}
-              </div>
-              <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150 ease-out-expo`}>
-                {deals.map(deal => deal.locked ? (
-                  <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0 && isUnlockableDealId(deal.id)} personalUnlocksRemaining={personalUnlocksRemaining} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
-                ) : (
-                  <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, reviewEvidence: deal.reviewEvidence, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: deal.currency }, medianPrice: { priceCents: deal.medianPriceCents, currency: deal.currency }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
-                ))}
-              </div>
-            </>
-          ) : pendingSort ? (
-            <div className={gridClass} aria-busy="true" aria-label="Hotel deals">
-              {Array.from({ length: Math.min(Math.max(deals.length, 1), 6) }).map((_, i) => <SkeletonCard key={`sort-${i}`} />)}
-            </div>
-          ) : loading && deals.length > 0 ? (
-            <>
-              <div className={`${gridClass} mb-6`} aria-label="Loading updated hotel deals">
-                {Array.from({ length: Math.min(Math.max(deals.length, 1), 6) }).map((_, i) => <SkeletonCard key={`filter-${i}`} />)}
-              </div>
-              <div inert aria-hidden="true" className={`${gridClass} pointer-events-none opacity-60 transition-opacity duration-150 ease-out-expo`}>
-                {deals.map(deal => deal.locked ? (
-                  <LockedDealCard key={deal.id} dealId={deal.id} canSelfUnlock={personalUnlocksRemaining > 0 && isUnlockableDealId(deal.id)} personalUnlocksRemaining={personalUnlocksRemaining} placeholderName="Members-only deal" placeholderCity={deal.city} stars={deal.stars} discountPct={deal.discountPct} photoUrl={deal.photoUrl ?? undefined} joinHref="/join" />
-                ) : (
-                  <DealCard key={deal.id} climateEvidence={createUnsupportedHotelClimateEvidence(deal.id, 'current-contract')} deal={{ id: deal.id, hotelName: deal.hotelName, city: deal.city, stars: deal.stars, reviewEvidence: deal.reviewEvidence, photoUrl: deal.photoUrl ?? undefined, dealPrice: { priceCents: deal.dealPriceCents, currency: deal.currency }, medianPrice: { priceCents: deal.medianPriceCents, currency: deal.currency }, discountPct: deal.discountPct, checkInWindow: deal.checkInWindow, snapshotCount: deal.snapshotCount, links: deal.otaLinks, headline: deal.headline ?? undefined, isMock: deal.isMock, firstSeen: deal.firstSeen ?? undefined, updatedAt: deal.updatedAt }} />
-                ))}
-              </div>
-            </>
-          ) : loading ? (
+          {loading && deals.length === 0 ? (
             <div className={gridClass} aria-busy="true" aria-label="Hotel deals">
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
@@ -1977,9 +1950,19 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                 personalUnlocksRemaining={personalUnlocksRemaining}
                 freeUnlockLimit={freeUnlockLimit}
               />
-              <div ref={gridRef} tabIndex={-1} aria-busy="false" className={`${gridClass} outline-none`}>
+              <div ref={gridRef} tabIndex={-1} aria-busy={loading || Boolean(pendingSort) || criteriaUpdating}
+                inert={loading || Boolean(pendingSort) || criteriaUpdating || undefined}
+                className={`${gridClass} relative outline-none`}>
+                <AnimatePresence initial={false} mode="popLayout">
                 {deals.map((deal, i) => (
-                  <Reveal key={deal.id} delayMs={Math.min(i, 4) * 100}>
+                  <motion.div key={deal.id}
+                    layout={dealMotion.enabled ? 'position' : false}
+                    initial={dealMotion.enabled ? { opacity: 0, scale: 0.98 } : false}
+                    animate={dealMotion.enabled ? { opacity: 1, scale: 1 } : undefined}
+                    exit={dealMotion.enabled ? { opacity: 0, scale: 0.98 } : undefined}
+                    transition={dealMotion.transition}
+                    className="min-w-0"
+                  >
                     {deal.locked ? (
                       <div ref={i === firstLockedDealIndex ? firstLockedDealRef : undefined}>
                         <LockedDealCard
@@ -2021,8 +2004,9 @@ export function DealFeed({ initialDeals, initialResultMetadata = null, defaultCi
                         poolEvidence={poolFixtureId ? createHotelPoolFixtureForStay(poolFixtureId, deal.checkInDate, deal.nights) : undefined}
                       />
                     )}
-                  </Reveal>
+                  </motion.div>
                 ))}
+                </AnimatePresence>
                 {loadingMore && Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={`more-${i}`} />)}
               </div>
               <PremiumHubBar lockedDealsCount={lockedDealsCount} firstLockedDealRef={firstLockedDealRef} city={defaultCity} />
