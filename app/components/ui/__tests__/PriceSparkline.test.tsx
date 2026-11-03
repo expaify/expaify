@@ -139,7 +139,8 @@ describe('PriceSparkline accessibility', () => {
 
 describe('PriceSparkline point tooltips', () => {
   let container: HTMLDivElement
-  let root: import('react-dom/client').Root
+  let root: import('react-dom/client').Root | undefined
+  const originalGlobals = new Map<string, PropertyDescriptor | undefined>()
   const history = [
     { date: '2026-06-01T12:00:00', price_cents: 32025 },
     { date: '2026-06-08T12:00:00', price_cents: 29000 },
@@ -147,24 +148,54 @@ describe('PriceSparkline point tooltips', () => {
   ]
   const { act } = require('react') as typeof import('react')
 
-  beforeEach(async () => {
-    const { parseHTML } = require('linkedom')
+  beforeAll(() => {
+    const { parseHTML } = require('linkedom') as { parseHTML: (html: string) => { window: Window } }
     const { window } = parseHTML('<html><body></body></html>')
-    Object.assign(globalThis, {
-      window, document: window.document, Event: window.Event,
-      HTMLElement: window.HTMLElement, Node: window.Node,
+    const domWindow = window as unknown as typeof globalThis
+    const globals = {
+      window,
+      document: window.document,
+      navigator: window.navigator,
+      // Linkedom's window proxies location to globalThis; restore it below too.
+      location: new URL('https://expaify.test/deals'),
+      HTMLElement: domWindow.HTMLElement,
+      Node: domWindow.Node,
+      Event: domWindow.Event,
       IS_REACT_ACT_ENVIRONMENT: true,
-    })
+    }
+    // Preserve descriptors too, since Node versions can expose navigator as a getter.
+    for (const [key, value] of Object.entries(globals)) {
+      originalGlobals.set(key, Object.getOwnPropertyDescriptor(globalThis, key))
+      Object.defineProperty(globalThis, key, { configurable: true, writable: true, value })
+    }
+  })
+
+  afterAll(() => {
+    for (const [key, descriptor] of originalGlobals) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor)
+      else Reflect.deleteProperty(globalThis, key)
+    }
+  })
+
+  beforeEach(async () => {
     container = document.createElement('div')
     document.body.append(container)
     const { createRoot } = require('react-dom/client') as typeof import('react-dom/client')
-    root = createRoot(container)
-    await act(async () => root.render(
+    const mountedRoot = createRoot(container)
+    root = mountedRoot
+    await act(async () => mountedRoot.render(
       <PriceSparkline history={history} dealPriceCents={26000} medianPriceCents={29000} />,
     ))
   })
 
-  afterEach(async () => { await act(async () => root.unmount()) })
+  afterEach(async () => {
+    try {
+      await act(async () => root?.unmount())
+    } finally {
+      root = undefined
+      container?.remove()
+    }
+  })
 
   async function dispatch(element: Element, type: string) {
     await act(async () => { element.dispatchEvent(new Event(type, { bubbles: true })) })
